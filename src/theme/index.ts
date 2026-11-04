@@ -1,3 +1,4 @@
+import { createContext, useContext } from 'react';
 import { useColorScheme } from 'react-native';
 import type { Muscle } from '../data/program';
 
@@ -18,6 +19,10 @@ const light = {
   warn: '#A35F00',
   warnSoft: '#FFF0DC',
   shadow: '0px 3px 14px rgba(30, 50, 70, 0.08)',
+  /** Neon theme only: thin borders and glows instead of soft shadows. */
+  neon: false,
+  border: 'transparent',
+  tag: { heavy: '#3E5A76', fail: '#3E5A76', drop: '#3E5A76' },
   protein: '#0072B2',
   carbs: '#E69F00',
   carbsText: '#A86F00',
@@ -51,6 +56,9 @@ const dark: typeof light = {
   warn: '#F2B04A',
   warnSoft: '#3A2C12',
   shadow: '0px 3px 14px rgba(0, 0, 0, 0.35)',
+  neon: false,
+  border: 'transparent',
+  tag: { heavy: '#557797', fail: '#557797', drop: '#557797' },
   protein: '#3FA3E0',
   carbs: '#F0B23A',
   carbsText: '#F0B23A',
@@ -69,7 +77,55 @@ const dark: typeof light = {
 };
 
 export type Theme = typeof light;
-export const useTheme = (): Theme => (useColorScheme() === 'dark' ? dark : light);
+
+/**
+ * Neon: near-black surfaces, thin cyan-tinted borders, glowing accents. Used by the workout tab only
+ * (docs/mockups/workout-neon.html). Muscle hues follow the Okabe–Ito order, brightened to read on black.
+ */
+export const neon: Theme = {
+  ...dark,
+  bg: '#05070C',
+  card: '#0C111C',
+  fg: '#E9F1FF',
+  mute: '#7D8AA3',
+  line: '#17202F',
+  soft: '#121A2A',
+  ink: '#0F1828',
+  onInk: '#E9F1FF',
+  ok: '#22F3E4',
+  onOk: '#001614',
+  okText: '#22F3E4',
+  okSoft: '#0E2A2E',
+  warn: '#FFB020',
+  warnSoft: '#2A2210',
+  shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
+  neon: true,
+  border: '#1A2638',
+  tag: { heavy: '#FF7A1A', fail: '#FF3DCB', drop: '#B18CFF' },
+  muscle: {
+    chest: '#3FB6FF',
+    shoulders: '#7FD8FF',
+    triceps: '#FF6AD5',
+    back: '#FF7A1A',
+    biceps: '#FFC53D',
+    quads: '#3BFFB0',
+    hams: '#E6FF3B',
+    calves: '#AAB4C3',
+  },
+};
+
+/** Screens can force a theme for everything inside them (the workout tab uses `neon`). */
+const Forced = createContext<Theme | null>(null);
+export const ThemeProvider = Forced.Provider;
+
+export function useTheme(): Theme {
+  const forced = useContext(Forced);
+  const scheme = useColorScheme();
+  return forced ?? (scheme === 'dark' ? dark : light);
+}
+
+/** Glow around something in `color` — only in the neon theme. */
+export const glow = (t: Theme, color: string, r = 10): string | undefined => (t.neon ? `0px 0px ${r}px ${tint(color, 0.6)}` : undefined);
 
 export const F = {
   body: 'ReadexPro_400Regular',

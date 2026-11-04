@@ -154,13 +154,6 @@ export default function SettingsScreen() {
         {st.prayer ? (
           <>
             <Sep />
-            <SwitchRow
-              label="عداد الصلاة الجاية في كل الصفحات"
-              sub="أيقونة صغيرة بتعد لحد الصلاة الجاية، ولو دوست عليها تفتح المواقيت"
-              value={st.prayerFloat}
-              onChange={(v) => st.setQuiet({ prayerFloat: v })}
-            />
-            <Sep />
             <View style={{ padding: 14, gap: 10 }}>
               <T w="medium">طريقة الحساب</T>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -179,6 +172,8 @@ export default function SettingsScreen() {
 
       <Label>عام</Label>
       <Card>
+        <SwitchRow label="وضع النيون في صفحة التمرين" sub="خلفية غامقة وألوان بتنور" value={st.neonMode} onChange={(v) => st.setQuiet({ neonMode: v })} />
+        <Sep />
         <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />
       </Card>
 

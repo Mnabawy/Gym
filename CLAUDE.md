@@ -17,6 +17,7 @@ Exercise names stay in English (gym vocabulary).
 - Technique tags: تقيل (filled), فشل (outlined), دروب (dashed). Copy in `src/data/rules.ts`.
 - Food chip colors: protein blue, carbs orange, fat green, veg grey.
 - Light + dark from one token file. Touch targets ≥ 44pt.
+- Neon look for the workout tab only (`neon` theme + `ThemeProvider` in `src/theme/index.ts`, design in `docs/mockups/workout-neon.html`), switched by `neonMode` in settings. Components read `t.neon` / `glow()` for borders and glows.
 
 ## Data
 - `src/data/program.ts` — the 5-day program (edit here to change exercises). Sets and rest can be changed in the app's settings page (`/settings`, gear on the workout tab); `applyPlan` writes those onto `PROGRAM` in place so every screen reads the same plan

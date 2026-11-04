@@ -3,7 +3,7 @@ import { useTheme } from '../theme';
 import { DayChips } from './ui';
 
 /** The five workouts in sequence order ("تمرين 1" … "تمرين 5"), as on the workout tab. `current` gets the "due now" dot. */
-export function WorkoutChips({ value, current, onChange }: { value: number; current: number; onChange: (id: number) => void }) {
+export function WorkoutChips({ value, current, onChange, dense }: { value: number; current: number; onChange: (id: number) => void; dense?: boolean }) {
   const t = useTheme();
   const chips = PROGRAM.map((d, i) => {
     const muscles = [...new Set(d.exercises.map((e) => e.muscle))];
@@ -15,5 +15,5 @@ export function WorkoutChips({ value, current, onChange }: { value: number; curr
       details: muscles.map((m) => ({ color: t.muscle[m], label: MUSCLE_AR[m] })),
     };
   });
-  return <DayChips days={chips} value={value} today={current} onChange={onChange} />;
+  return <DayChips days={chips} value={value} today={current} onChange={onChange} dense={dense} />;
 }

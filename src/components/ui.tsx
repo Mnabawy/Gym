@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
+import { Animated, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { F, tint, useTheme } from '../theme';
+import { F, glow, tint, useTheme } from '../theme';
 import { usePop, useTween } from '../lib/motion';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
@@ -19,18 +19,30 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; label: string; onPress: () => void; style?: ViewStyle }) {
   const t = useTheme();
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [s.round, { backgroundColor: t.card, boxShadow: t.shadow, opacity: pressed ? 0.7 : 1 }, style]}>
-      <Ionicons name={icon} size={22} color={t.fg} />
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        s.round,
+        t.neon
+          ? { backgroundColor: tint(t.ok, 0.06), borderWidth: 1, borderColor: tint(t.ok, 0.35), boxShadow: glow(t, t.ok, 8) }
+          : { backgroundColor: t.card, boxShadow: t.shadow },
+        { opacity: pressed ? 0.7 : 1 },
+        style,
+      ]}>
+      <Ionicons name={icon} size={22} color={t.neon ? t.ok : t.fg} />
     </Pressable>
   );
 }
 
 /** `action` sits at the end of the header (left in RTL), opposite the back button. */
-export function Screen({ title, sub, children, footer, onBack, action, actionWidth = 52 }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; actionWidth?: number }) {
+/** `dense`: tighter gaps and side padding (the workout tab). */
+export function Screen({ title, sub, children, footer, onBack, action, actionWidth = 52, dense }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; actionWidth?: number; dense?: boolean }) {
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={[s.scroll, dense ? s.dense : null]} keyboardShouldPersistTaps="handled">
         <View style={[s.head, onBack || action ? { paddingHorizontal: Math.max(onBack ? 52 : 0, action ? actionWidth : 0) } : null]}>
           {/* RTL: back sits at the start (right) and points right. */}
           {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} style={s.back} /> : null}
@@ -45,9 +57,9 @@ export function Screen({ title, sub, children, footer, onBack, action, actionWid
   );
 }
 
-export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
+export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
-  return <View style={[{ backgroundColor: t.card, borderRadius: 16, boxShadow: t.shadow }, style]}>{children}</View>;
+  return <View style={[{ backgroundColor: t.card, borderRadius: 16, boxShadow: t.shadow }, t.neon ? { borderWidth: 1, borderColor: t.border } : null, style]}>{children}</View>;
 }
 
 /** Small muted heading above a group of content. */
@@ -97,18 +109,20 @@ export function TagBadge({ tag, info = true }: { tag: Tag; info?: boolean }) {
 function TagLabel({ tag }: { tag: Exclude<Tag, null> }) {
   const t = useTheme();
   const filled = tag === 'heavy';
+  const c = t.tag[tag];
   return (
     <View
       style={{
         borderRadius: 999,
         paddingHorizontal: 9,
         paddingVertical: 1,
-        backgroundColor: filled ? t.ink : 'transparent',
+        backgroundColor: filled ? c : 'transparent',
         borderWidth: filled ? 0 : 1.5,
-        borderColor: t.ink,
+        borderColor: c,
         borderStyle: tag === 'drop' ? 'dashed' : 'solid',
+        boxShadow: glow(t, c, 8),
       }}>
-      <T w="semi" style={{ fontSize: 12, color: filled ? t.onInk : t.ink }}>{TAG_INFO[tag].label}</T>
+      <T w="semi" style={{ fontSize: 12, color: filled ? (t.neon ? t.bg : t.onInk) : c }}>{TAG_INFO[tag].label}</T>
     </View>
   );
 }
@@ -142,7 +156,8 @@ export const FoodChip = ColorChip;
 
 /** `short` is the one-letter name shown when the chip isn't selected; `details` is the color legend shown when it is. */
 export type DayChip = { key: number; label: string; short: string; colors: string[]; details: { color?: string; label: string }[] };
-export function DayChips({ days, value, today, onChange }: { days: DayChip[]; value: number; today: number; onChange: (k: number) => void }) {
+/** `dense`: one-line legend and a shorter row (the workout tab). */
+export function DayChips({ days, value, today, onChange, dense }: { days: DayChip[]; value: number; today: number; onChange: (k: number) => void; dense?: boolean }) {
   const t = useTheme();
   const pick = (k: number) => {
     if (k === value) return;
@@ -150,7 +165,7 @@ export function DayChips({ days, value, today, onChange }: { days: DayChip[]; va
     onChange(k);
   };
   return (
-    <View style={s.chips}>
+    <View style={[s.chips, dense ? { minHeight: 54 } : null]}>
       {days.map((d) => {
         const on = d.key === value;
         const isToday = d.key === today;
@@ -162,19 +177,26 @@ export function DayChips({ days, value, today, onChange }: { days: DayChip[]; va
             accessibilityState={{ selected: on }}
             hitSlop={2}
             onPress={() => pick(d.key)}
-            style={[on ? s.chipOn : s.chipOff, { backgroundColor: on ? t.ink : t.soft }]}>
+            style={[
+              on ? s.chipOn : s.chipOff,
+              { backgroundColor: on ? t.ink : t.soft },
+              t.neon ? { borderWidth: 1, borderColor: on ? t.ok : t.border, boxShadow: on ? glow(t, t.ok, 12) : undefined } : null,
+              dense && on ? { paddingVertical: 6 } : null,
+            ]}>
             {on ? (
               <>
                 <View style={s.chipHead}>
                   <T w="bold" style={{ fontSize: 14, color: t.onInk, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>{d.label}</T>
                   {isToday ? <View style={[s.todayDot, { backgroundColor: t.ok, borderColor: t.onInk }]} /> : null}
                 </View>
-                {d.details.map((x, i) => (
-                  <View key={i} style={s.legendRow}>
-                    {x.color ? <View style={[s.legendDot, { backgroundColor: x.color }]} /> : null}
-                    <T style={{ fontSize: 11, color: t.onInk, opacity: x.color ? 0.92 : 0.7, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>{x.label}</T>
-                  </View>
-                ))}
+                <View style={dense ? { flexDirection: 'row', gap: 10 } : { gap: 4 }}>
+                  {d.details.map((x, i) => (
+                    <View key={i} style={[s.legendRow, dense ? { flexShrink: 1 } : null]}>
+                      {x.color ? <View style={[s.legendDot, { backgroundColor: x.color }]} /> : null}
+                      <T style={{ fontSize: 11, color: t.onInk, opacity: x.color ? 0.92 : 0.7, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>{x.label}</T>
+                    </View>
+                  ))}
+                </View>
               </>
             ) : (
               <>
@@ -200,7 +222,7 @@ export function Progress({ value, color, height = 6, track }: { value: number; c
   const v = useTween(clamp01(value), 380);
   return (
     <View style={{ height, backgroundColor: track ?? t.soft, borderRadius: height / 2, overflow: 'hidden' }}>
-      <Animated.View style={{ width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), height: '100%', borderRadius: height / 2, backgroundColor: color ?? t.ok }} />
+      <Animated.View style={{ width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), height: '100%', borderRadius: height / 2, backgroundColor: color ?? t.ok, boxShadow: glow(t, color ?? t.ok, 6) }} />
     </View>
   );
 }
@@ -303,16 +325,22 @@ export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; 
 }
 
 /** Check button used for sets and meals. Ticking it pops and fills with color. */
-export function Check({ on, onPress, label }: { on: boolean; onPress: () => void; label: string }) {
+export function Check({ on, onPress, label, compact }: { on: boolean; onPress: () => void; label: string; compact?: boolean }) {
   const t = useTheme();
   const fill = useTween(on ? 1 : 0, 180, true);
   const pop = usePop(on, on ? 0.8 : 0.92);
   return (
-    <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={label} style={{ width: 48, height: 44 }}>
-      <Animated.View style={[s.check, { backgroundColor: t.soft, transform: [{ scale: pop }] }]}>
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: on }}
+      accessibilityLabel={label}
+      hitSlop={compact ? 5 : 0}
+      style={compact ? { width: 42, height: 36 } : { width: 48, height: 44 }}>
+      <Animated.View style={[s.check, { backgroundColor: t.soft, transform: [{ scale: pop }], boxShadow: on ? glow(t, t.ok, 12) : undefined }]}>
         <T w="bold" style={{ color: t.mute, fontSize: 18 }}>✓</T>
         <Animated.View style={[s.check, StyleSheet.absoluteFill, { backgroundColor: t.ok, opacity: fill }]}>
-          <T w="bold" style={{ color: '#FFFFFF', fontSize: 18 }}>✓</T>
+          <T w="bold" style={{ color: t.onOk, fontSize: 18 }}>✓</T>
         </Animated.View>
       </Animated.View>
     </Pressable>
@@ -320,7 +348,7 @@ export function Check({ on, onPress, label }: { on: boolean; onPress: () => void
 }
 
 /** − value + counter. Buttons dim at the limits. */
-export function Stepper({ value, min, max, step = 1, onChange, label, format }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label: string; format?: (v: number) => string }) {
+export function Stepper({ value, min, max, step = 1, onChange, label, format, compact }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label: string; format?: (v: number) => string; compact?: boolean }) {
   const t = useTheme();
   const pop = usePop(value, 0.8);
   const btn = (dir: -1 | 1) => {
@@ -331,10 +359,10 @@ export function Stepper({ value, min, max, step = 1, onChange, label, format }: 
         accessibilityLabel={`${dir > 0 ? 'زوّد' : 'قلّل'} ${label}`}
         accessibilityState={{ disabled: off }}
         disabled={off}
-        hitSlop={4}
+        hitSlop={compact ? 7 : 4}
         onPress={() => onChange(Math.min(max, Math.max(min, value + dir * step)))}
-        style={({ pressed }) => [s.stepBtn, { backgroundColor: t.soft, opacity: off ? 0.35 : pressed ? 0.7 : 1 }]}>
-        <Ionicons name={dir > 0 ? 'add' : 'remove'} size={20} color={t.fg} />
+        style={({ pressed }) => [s.stepBtn, compact ? s.stepBtnSm : null, { backgroundColor: t.soft, opacity: off ? 0.35 : pressed ? 0.7 : 1 }]}>
+        <Ionicons name={dir > 0 ? 'add' : 'remove'} size={compact ? 17 : 20} color={t.fg} />
       </Pressable>
     );
   };
@@ -342,7 +370,7 @@ export function Stepper({ value, min, max, step = 1, onChange, label, format }: 
     <View style={s.stepper}>
       {btn(-1)}
       <Animated.View style={{ transform: [{ scale: pop }] }}>
-        <T w="numBold" style={{ minWidth: 46, textAlign: 'center', fontSize: 16 }} accessibilityLabel={`${label}: ${format ? format(value) : value}`}>
+        <T w="numBold" style={{ minWidth: compact ? 40 : 46, textAlign: 'center', fontSize: compact ? 14 : 16 }} accessibilityLabel={`${label}: ${format ? format(value) : value}`}>
           {`\u2066${format ? format(value) : value}\u2069`}
         </T>
       </Animated.View>
@@ -402,6 +430,7 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v))
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 140, gap: 12, maxWidth: 620, width: '100%', alignSelf: 'center' },
+  dense: { paddingHorizontal: 12, gap: 8 },
   head: { alignItems: 'center', justifyContent: 'center', paddingBottom: 4, minHeight: 44 },
   round: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
   back: { position: 'absolute', start: 0, top: 0 },
@@ -413,6 +442,7 @@ const s = StyleSheet.create({
   pop: { width: '100%', maxWidth: 380, borderRadius: 22, padding: 18, gap: 12 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepBtnSm: { width: 30, height: 30, borderRadius: 9 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10 },
   // Inactive chips are 40pt wide + 2pt hitSlop each side = 44pt touch target; the selected chip takes the rest.
   chips: { flexDirection: 'row', gap: 4, minHeight: 72 }, // fits name + 2 legend lines, so the row doesn't jump between days

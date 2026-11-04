@@ -8,7 +8,7 @@ import { parseNum, shouldIncrease, type SetEntry } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
 import { useTimer, tap } from '../lib/timer';
-import { F, tint, useTheme } from '../theme';
+import { F, glow, tint, useTheme } from '../theme';
 import { Card, Check, ColorChip, InfoPopup, Progress, Stepper, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
 
@@ -83,30 +83,39 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
   const [why, setWhy] = useState(false);
 
   return (
-    <Card style={allDone ? { opacity: 0.8 } : undefined}>
+    <Card
+      style={[
+        allDone ? { opacity: 0.8 } : null,
+        // In progress: outlined in the muscle's color (neon glows).
+        t.neon && doneCount > 0 && !allDone ? { borderColor: tint(color, 0.5), boxShadow: glow(t, color, 16) } : null,
+      ]}>
       {video ? <VideoSheet video={video} name={ex.name} visible={watching} onClose={() => setWatching(false)} /> : null}
       <View style={s.head}>
-        <View style={[s.num, { backgroundColor: tint(color, 0.2) }]}>
-          <T w="numBold" style={{ fontSize: 13 }}>{index + 1}</T>
+        <View style={[s.num, { backgroundColor: tint(color, t.neon ? 0.16 : 0.2), boxShadow: glow(t, color, 8) }]}>
+          <T w="numBold" style={{ fontSize: 12, color: t.neon ? color : t.fg }}>{index + 1}</T>
         </View>
-        <View style={{ flex: 1, gap: 6 }}>
+        <View style={{ flex: 1, gap: 5 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <T w="num" style={{ fontSize: 16.5, flexShrink: 1 }}>{ex.name}</T>
+            <T w="num" style={{ fontSize: 15.5, flexShrink: 1 }}>{ex.name}</T>
             {video ? (
               <Pressable
                 onPress={() => setWatching(true)}
                 accessibilityRole="button"
                 accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name}`}
                 hitSlop={8}
-                style={({ pressed }) => [s.video, { backgroundColor: t.okSoft, opacity: pressed ? 0.7 : 1 }]}>
+                style={({ pressed }) => [
+                  s.video,
+                  t.neon ? { borderWidth: 1, borderColor: tint(t.ok, 0.5), boxShadow: glow(t, t.ok, 8) } : { backgroundColor: t.okSoft },
+                  { opacity: pressed ? 0.7 : 1 },
+                ]}>
                 <Ionicons name="play" size={12} color={t.okText} />
                 <T w="semi" style={{ fontSize: 12, color: t.okText }}>فيديو</T>
               </Pressable>
             ) : null}
           </View>
           <View style={s.meta}>
-            <ColorChip label={MUSCLE_AR[ex.muscle]} color={color} size={12.5} />
-            <T w="num" style={{ fontSize: 13.5, color: t.mute }}>{`\u2066${ex.sets} × ${range}\u2069`}</T>
+            <ColorChip label={MUSCLE_AR[ex.muscle]} color={color} size={12} />
+            <T w="num" style={{ fontSize: 13, color: t.mute }}>{`\u2066${ex.sets} × ${range}\u2069`}</T>
             {ex.perLeg ? <T style={{ color: t.mute, fontSize: 12.5 }}>لكل رجل</T> : null}
             <TagBadge tag={ex.tag} />
             {up ? (
@@ -126,21 +135,21 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
           body={`آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات، فالوزن بقى خفيف عليك. زوّده ${weightStep} كجم المرة دي.`}
         />
       ) : null}
-      <View style={[s.counter, { backgroundColor: t.soft }]}>
+      <View style={s.counter}>
         <View style={{ flex: 1 }}>
-          <Progress value={doneCount / ex.sets} color={color} height={6} track={t.card} />
+          <Progress value={doneCount / ex.sets} color={color} height={5} />
         </View>
-        <Stepper value={doneCount} min={0} max={ex.sets} onChange={setCount} label="المجموعات اللي خلصت" format={(v) => `${v} / ${ex.sets}`} />
+        <Stepper compact value={doneCount} min={0} max={ex.sets} onChange={setCount} label="المجموعات اللي خلصت" format={(v) => `${v} / ${ex.sets}`} />
       </View>
 
       <View style={s.sets}>
         {rows.map((r, i) => {
           const pv = last?.[i];
           const lastSet = i === ex.sets - 1 && (ex.tag === 'fail' || ex.tag === 'drop');
-          const inputStyle = [s.input, { backgroundColor: r.done ? t.okSoft : t.soft, color: t.fg }];
+          const inputStyle = [s.input, { backgroundColor: r.done ? t.okSoft : t.soft, color: t.fg, borderColor: r.done && t.neon ? tint(t.ok, 0.35) : 'transparent' }];
           return (
             <View key={i} style={s.row}>
-              <T w={lastSet ? 'numBold' : 'numRegular'} style={[s.c0, { color: lastSet ? t.fg : t.mute, fontSize: 13 }]}>{i + 1}</T>
+              <T w={lastSet ? 'numBold' : 'numRegular'} style={[s.c0, { color: lastSet ? t.fg : t.mute, fontSize: 12 }]}>{i + 1}</T>
               <TextInput
                 style={[s.cin, ...inputStyle]}
                 value={r.kg}
@@ -159,7 +168,7 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
                 keyboardType="number-pad"
                 accessibilityLabel={`التكرارات مجموعة ${i + 1}`}
               />
-              <Check on={r.done} onPress={() => toggle(i)} label={`خلصت مجموعة ${i + 1}`} />
+              <Check compact on={r.done} onPress={() => toggle(i)} label={`خلصت مجموعة ${i + 1}`} />
             </View>
           );
         })}
@@ -168,16 +177,17 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
   );
 }
 
+// Tight layout (docs/mockups/workout-neon.html): small paddings, 36pt rows; buttons keep 44pt targets via hitSlop.
 const s = StyleSheet.create({
-  head: { flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
-  num: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
-  video: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 9, height: 28 },
-  counter: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginBottom: 10, borderRadius: 14, paddingVertical: 8, paddingStart: 12, paddingEnd: 8 },
+  head: { flexDirection: 'row', gap: 8, paddingHorizontal: 10, paddingTop: 10, paddingBottom: 6 },
+  num: { width: 24, height: 24, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginTop: 1 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 7 },
+  video: { flexDirection: 'row', alignItems: 'center', gap: 3, borderRadius: 999, paddingHorizontal: 8, height: 24 },
+  counter: { flexDirection: 'row', alignItems: 'center', gap: 8, marginHorizontal: 10, marginBottom: 6 },
   up: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 },
-  sets: { paddingHorizontal: 14, paddingBottom: 14, gap: 6 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  c0: { width: 28, textAlign: 'center' },
+  sets: { paddingHorizontal: 10, paddingBottom: 10, gap: 5 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  c0: { width: 18, textAlign: 'center' },
   cin: { flex: 1, minWidth: 0 },
-  input: { fontFamily: F.num, fontSize: 17, textAlign: 'center', paddingVertical: 10, borderRadius: 12, writingDirection: 'ltr' },
+  input: { fontFamily: F.num, fontSize: 15.5, textAlign: 'center', paddingVertical: 7, minHeight: 36, borderRadius: 10, borderWidth: 1, writingDirection: 'ltr' },
 });

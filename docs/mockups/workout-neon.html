@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=375, initial-scale=1" />
+<title>Workout · Neon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+  :root {
+    --bg: #05070c; --surface: #0c111c; --surface2: #121a2a; --line: rgba(120, 220, 255, 0.10);
+    --fg: #e9f1ff; --mute: #7d8aa3;
+    --neon: #22f3e4; --neon-glow: 0 0 10px rgba(34, 243, 228, 0.55), 0 0 22px rgba(34, 243, 228, 0.25);
+    --back: #ff7a1a; --back-glow: 0 0 10px rgba(255, 122, 26, 0.6);
+    --shoulder: #4fc3ff; --pink: #ff3dcb; --pink-glow: 0 0 10px rgba(255, 61, 203, 0.55);
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000; display: flex; justify-content: center; }
+  .phone { width: 375px; height: 812px; background: radial-gradient(120% 60% at 50% -10%, #0e1a2e 0%, var(--bg) 60%); color: var(--fg);
+    font-family: 'Readex Pro', sans-serif; position: relative; overflow: hidden; }
+  .num { font-family: 'Inter', sans-serif; direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .scroll { padding: 10px 12px 0; display: flex; flex-direction: column; gap: 8px; }
+
+  /* header */
+  .head { display: flex; align-items: center; justify-content: space-between; height: 44px; }
+  .head h1 { font-size: 19px; font-weight: 700; letter-spacing: 0.2px; }
+  .icons { display: flex; gap: 8px; }
+  .ibtn { width: 38px; height: 38px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(34, 243, 228, 0.35);
+    color: var(--neon); background: rgba(34, 243, 228, 0.06); font-size: 19px; box-shadow: 0 0 8px rgba(34, 243, 228, 0.18); }
+
+  /* workout chips */
+  .chips { display: flex; gap: 5px; height: 54px; }
+  .chip { width: 38px; border-radius: 12px; background: var(--surface); border: 1px solid var(--line); display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 5px; font-family: 'Inter'; font-weight: 600; font-size: 14px; color: var(--mute); }
+  .chip i { width: 18px; height: 3px; border-radius: 2px; display: block; }
+  .chip.on { flex: 1; align-items: flex-start; padding: 0 12px; border: 1px solid var(--neon); box-shadow: var(--neon-glow); background: linear-gradient(180deg, rgba(34,243,228,0.12), rgba(34,243,228,0.03)); color: var(--fg); }
+  .chip.on b { font-family: 'Readex Pro'; font-size: 14px; }
+  .chip.on small { font-family: 'Readex Pro'; font-size: 11px; color: var(--mute); font-weight: 500; display: flex; gap: 8px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; margin-inline-end: 4px; vertical-align: middle; }
+
+  /* summary */
+  .sum { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 14px; background: var(--surface); border: 1px solid var(--line); }
+  .ring { width: 46px; height: 46px; position: relative; display: grid; place-items: center; font-family: 'Inter'; font-weight: 700; font-size: 12px; color: var(--neon); }
+  .ring svg { position: absolute; inset: 0; transform: rotate(-90deg); filter: drop-shadow(0 0 4px rgba(34,243,228,0.8)); }
+  .sum b { font-size: 17px; }
+  .sum .sub { font-size: 12px; color: var(--mute); display: block; }
+
+  /* exercise card */
+  .card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 10px; display: flex; flex-direction: column; gap: 7px; }
+  .card.active { border-color: rgba(255, 122, 26, 0.45); box-shadow: 0 0 0 1px rgba(255,122,26,0.15), 0 0 18px rgba(255, 122, 26, 0.12); }
+  .ctop { display: flex; align-items: center; gap: 8px; }
+  .idx { width: 24px; height: 24px; border-radius: 50%; display: grid; place-items: center; font-family: 'Inter'; font-weight: 700; font-size: 12px; }
+  .name { font-family: 'Inter'; font-weight: 600; font-size: 15.5px; flex: 1; text-align: right; direction: ltr; }
+  .vid { font-size: 11.5px; font-weight: 600; color: var(--neon); border: 1px solid rgba(34,243,228,0.5); border-radius: 999px; padding: 2px 8px; display: flex; align-items: center; gap: 3px; box-shadow: 0 0 8px rgba(34,243,228,0.25); }
+  .meta { display: flex; align-items: center; gap: 7px; font-size: 11.5px; color: var(--mute); padding-inline-start: 32px; }
+  .tag { font-size: 11px; font-weight: 600; border-radius: 999px; padding: 0 8px; line-height: 18px; }
+  .tag.heavy { background: var(--back); color: #120600; box-shadow: var(--back-glow); }
+  .tag.fail { border: 1px solid var(--pink); color: var(--pink); box-shadow: var(--pink-glow); }
+  .count { display: flex; align-items: center; gap: 8px; }
+  .bar { flex: 1; height: 5px; border-radius: 3px; background: var(--surface2); overflow: hidden; }
+  .bar i { display: block; height: 100%; border-radius: 3px; }
+  .step { display: flex; align-items: center; gap: 2px; }
+  .sbtn { width: 30px; height: 30px; border-radius: 9px; background: var(--surface2); display: grid; place-items: center; color: var(--fg); font-size: 15px; }
+  .sval { direction: ltr; unicode-bidi: isolate; min-width: 38px; text-align: center; font-family: 'Inter'; font-weight: 700; font-size: 14px; }
+  .set { display: grid; grid-template-columns: 16px 1fr 1fr 40px; gap: 6px; align-items: center; }
+  .set .n { font-family: 'Inter'; font-size: 12px; color: var(--mute); text-align: center; }
+  .in { direction: ltr; height: 34px; border-radius: 9px; background: var(--surface2); display: grid; place-items: center; font-family: 'Inter'; font-weight: 600; font-size: 15px; border: 1px solid transparent; }
+  .in.ph { color: #4a5670; font-weight: 500; }
+  .in.done { border-color: rgba(34,243,228,0.35); background: rgba(34,243,228,0.07); }
+  .ok { height: 34px; border-radius: 9px; display: grid; place-items: center; font-size: 17px; background: var(--surface2); color: #4a5670; }
+  .ok.on { background: var(--neon); color: #001614; box-shadow: var(--neon-glow); }
+
+  /* rest timer */
+  .rest { position: absolute; left: 12px; right: 12px; bottom: 78px; height: 56px; border-radius: 16px; background: rgba(12, 17, 28, 0.92);
+    border: 1px solid rgba(34,243,228,0.45); box-shadow: var(--neon-glow); display: flex; align-items: center; gap: 10px; padding: 0 8px; backdrop-filter: blur(8px); }
+  .rest .clock { width: 42px; height: 42px; position: relative; display: grid; place-items: center; font-family: 'Inter'; font-weight: 700; font-size: 11.5px; }
+  .rest .clock svg { position: absolute; inset: 0; transform: rotate(-90deg); filter: drop-shadow(0 0 4px rgba(34,243,228,0.9)); }
+  .rest b { font-size: 14px; } .rest span { font-size: 11px; color: var(--mute); font-family: 'Inter'; display: block; }
+  .rest .grow { flex: 1; }
+  .pill { height: 34px; padding: 0 12px; border-radius: 10px; display: grid; place-items: center; font-size: 12.5px; font-weight: 600; }
+  .pill.ghost { border: 1px solid rgba(255,255,255,0.18); }
+  .pill.solid { background: var(--neon); color: #001614; box-shadow: var(--neon-glow); }
+
+  /* tab bar */
+  .tabs { position: absolute; left: 0; right: 0; bottom: 0; height: 68px; padding-bottom: 8px; background: rgba(8, 11, 18, 0.96); border-top: 1px solid var(--line); display: flex; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; color: var(--mute); font-size: 11px; font-weight: 500; }
+  .tab ion-icon { font-size: 21px; }
+  .tab.on { color: var(--neon); text-shadow: 0 0 8px rgba(34,243,228,0.7); }
+  .tab.on ion-icon { filter: drop-shadow(0 0 6px rgba(34,243,228,0.9)); }
+</style>
+</head>
+<body>
+<div class="phone">
+  <div class="scroll">
+    <div class="head">
+      <h1>تمرين النهارده</h1>
+      <div class="icons">
+        <div class="ibtn"><ion-icon name="stats-chart-outline"></ion-icon></div>
+        <div class="ibtn"><ion-icon name="settings-outline"></ion-icon></div>
+      </div>
+    </div>
+
+    <div class="chips">
+      <div class="chip on">
+        <b>تمرين 1</b>
+        <small><span><i class="dot" style="background:var(--back)"></i>ظهر</span><span><i class="dot" style="background:var(--shoulder)"></i>كتف</span></small>
+      </div>
+      <div class="chip">2<i style="background:linear-gradient(90deg,#4fc3ff 50%,#ffb020 50%)"></i></div>
+      <div class="chip">3<i style="background:linear-gradient(90deg,#d9ff3b 50%,#9aa3ae 50%)"></i></div>
+      <div class="chip">4<i style="background:linear-gradient(90deg,#4fc3ff 50%,#ff5ec4 50%)"></i></div>
+      <div class="chip">5<i style="background:linear-gradient(90deg,#3bffb0 50%,#9aa3ae 50%)"></i></div>
+    </div>
+
+    <div class="sum">
+      <div class="ring">
+        <svg viewBox="0 0 46 46"><circle cx="23" cy="23" r="19" stroke="#162033" stroke-width="4" fill="none"/><circle cx="23" cy="23" r="19" stroke="#22f3e4" stroke-width="4" fill="none" stroke-linecap="round" stroke-dasharray="119.4" stroke-dashoffset="77.6"/></svg>
+        35%
+      </div>
+      <div><b>ظهر</b><span class="sub"><span class="num">&#x2066;6 / 17&#x2069;</span> مجموعة · <span class="num">&#x2066;44&#x2069;</span> د</span></div>
+    </div>
+
+    <div class="card active">
+      <div class="ctop">
+        <div class="idx" style="background:rgba(255,122,26,0.18);color:var(--back);box-shadow:0 0 8px rgba(255,122,26,0.35)">1</div>
+        <div class="name">Deadlift</div>
+        <div class="vid"><ion-icon name="play"></ion-icon>فيديو</div>
+      </div>
+      <div class="meta"><span><i class="dot" style="background:var(--back);box-shadow:var(--back-glow)"></i>ظهر</span><span class="num">&#x2066;3 × 4–6&#x2069;</span><span class="tag heavy">تقيل</span></div>
+      <div class="count">
+        <div class="bar"><i style="width:66%;background:var(--back);box-shadow:var(--back-glow)"></i></div>
+        <div class="step"><div class="sbtn">−</div><div class="sval">2 / 3</div><div class="sbtn">+</div></div>
+      </div>
+      <div class="set"><div class="n">1</div><div class="in done">100</div><div class="in done">5</div><div class="ok on">✓</div></div>
+      <div class="set"><div class="n">2</div><div class="in done">100</div><div class="in done">6</div><div class="ok on">✓</div></div>
+      <div class="set"><div class="n">3</div><div class="in ph">100</div><div class="in ph">4–6</div><div class="ok">✓</div></div>
+    </div>
+
+    <div class="card">
+      <div class="ctop">
+        <div class="idx" style="background:rgba(255,122,26,0.12);color:var(--back)">2</div>
+        <div class="name">Lat Pulldown</div>
+        <div class="vid"><ion-icon name="play"></ion-icon>فيديو</div>
+      </div>
+      <div class="meta"><span><i class="dot" style="background:var(--back)"></i>ظهر</span><span class="num">&#x2066;3 × 8–12&#x2069;</span><span class="tag fail">فشل</span></div>
+      <div class="count">
+        <div class="bar"><i style="width:0"></i></div>
+        <div class="step"><div class="sbtn">−</div><div class="sval">0 / 3</div><div class="sbtn">+</div></div>
+      </div>
+      <div class="set"><div class="n">1</div><div class="in ph">55</div><div class="in ph">8–12</div><div class="ok">✓</div></div>
+      <div class="set"><div class="n">2</div><div class="in ph">55</div><div class="in ph">8–12</div><div class="ok">✓</div></div>
+    </div>
+  </div>
+
+  <div class="rest">
+    <div class="clock">
+      <svg viewBox="0 0 42 42"><circle cx="21" cy="21" r="17" stroke="#162033" stroke-width="3.5" fill="none"/><circle cx="21" cy="21" r="17" stroke="#22f3e4" stroke-width="3.5" fill="none" stroke-linecap="round" stroke-dasharray="106.8" stroke-dashoffset="30"/></svg>
+      <span class="num" style="color:var(--fg);font-size:11.5px;font-weight:700">1:42</span>
+    </div>
+    <div class="grow"><b>راحة</b><span>Deadlift</span></div>
+    <div class="pill ghost"><span class="num">+30</span></div>
+    <div class="pill solid">خلاص</div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab on"><ion-icon name="barbell"></ion-icon>التمرين</div>
+    <div class="tab"><ion-icon name="restaurant-outline"></ion-icon>الأكل</div>
+    <div class="tab"><ion-icon name="cart-outline"></ion-icon>المشتريات</div>
+    <div class="tab"><ion-icon name="moon-outline"></ion-icon>الصلاة</div>
+  </div>
+</div>
+</body>
+</html>

@@ -1,18 +1,38 @@
-import React, { useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { View } from 'react-native';
 import { dayFor } from '../../data/program';
 import { ExerciseCard } from '../../components/ExerciseCard';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
-import { router } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
+import { setStatusBarStyle } from 'expo-status-bar';
 import { Btn, Card, HeaderBtn, Ring, Screen, T } from '../../components/ui';
 import { dateKey } from '../../lib/logic';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
+import { useSettings } from '../../lib/settings';
 import { useDataVersion } from '../../lib/bus';
-import { useTheme } from '../../theme';
+import { neon, ThemeProvider, useTheme } from '../../theme';
 
+/** The workout tab can use the neon theme (settings → وضع النيون; docs/mockups/workout-neon.html); the rest of the app keeps its own. */
 export default function Workout() {
+  const on = useSettings((s) => s.neonMode);
+  // Dark screen: light status bar while this tab is open, back to automatic when you leave it.
+  useFocusEffect(
+    useCallback(() => {
+      if (!on) return;
+      setStatusBarStyle('light');
+      return () => setStatusBarStyle('auto');
+    }, [on]),
+  );
+  return (
+    <ThemeProvider value={on ? neon : null}>
+      <WorkoutScreen />
+    </ThemeProvider>
+  );
+}
+
+function WorkoutScreen() {
   const t = useTheme();
   const date = dateKey();
   const [picked, setPicked] = useState<{ date: string; id: number } | null>(null);
@@ -43,6 +63,7 @@ export default function Workout() {
   return (
     <Screen
       title="تمرين النهارده"
+      dense
       footer={<TimerBar />}
       actionWidth={104}
       action={
@@ -51,31 +72,31 @@ export default function Workout() {
           <HeaderBtn icon="stats-chart-outline" label="التقدم" onPress={() => router.push('/progress')} />
         </View>
       }>
-      <WorkoutChips value={sel} current={cur.id} onChange={pick} />
+      <WorkoutChips dense value={sel} current={cur.id} onChange={pick} />
 
-      <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <Ring value={total ? done / total : 0} size={64} stroke={5}>
-          <T w="numBold" style={{ fontSize: 14, color: t.okText }}>{`${total ? Math.round((done / total) * 100) : 0}%`}</T>
+      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Ring value={total ? done / total : 0} size={46} stroke={4}>
+          <T w="numBold" style={{ fontSize: 12, color: t.okText }}>{`${total ? Math.round((done / total) * 100) : 0}%`}</T>
         </Ring>
-        <View style={{ flex: 1, gap: 2 }}>
-          <T w="bold" style={{ fontSize: 18 }}>{day.titleAr}</T>
-          <T w="num" style={{ color: t.mute, fontSize: 13 }}>{`\u2066${done} / ${total}\u2069 مجموعة · \u2066${minutes}\u2069 د`}</T>
+        <View style={{ flex: 1, gap: 1 }}>
+          <T w="bold" style={{ fontSize: 17 }}>{day.titleAr}</T>
+          <T w="num" style={{ color: t.mute, fontSize: 12 }}>{`\u2066${done} / ${total}\u2069 مجموعة · \u2066${minutes}\u2069 د`}</T>
         </View>
       </Card>
       {finished ? (
-        <View style={{ backgroundColor: t.okSoft, borderRadius: 12, padding: 12 }}>
+        <View style={{ backgroundColor: t.okSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
           <T w="medium" style={{ color: t.okText, fontSize: 13 }}>{`خلصت ✓ · الجاي: ${dayFor(after(cur.id))?.titleAr}`}</T>
         </View>
       ) : null}
       {sel !== cur.id ? (
-        <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, padding: 12 }}>
+        <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
           <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
         </View>
       ) : null}
       {day.exercises.map((e, i) => (
         <ExerciseCard key={`${e.id}-${date}-${cards}`} ex={e} index={i} date={date} weekday={sel} onChange={bump} />
       ))}
-      <View style={{ gap: 8, marginTop: 6 }}>
+      <View style={{ gap: 8, marginTop: 4 }}>
         {!confirm ? (
           <Btn label="امسح تسجيل النهارده" onPress={() => setConfirm(true)} />
         ) : (

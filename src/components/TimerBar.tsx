@@ -5,7 +5,7 @@ import { buzz, useTimer } from '../lib/timer';
 import { formatClock } from '../lib/logic';
 import { useTween } from '../lib/motion';
 import { Ring, T } from './ui';
-import { useTheme } from '../theme';
+import { glow, tint, useTheme } from '../theme';
 
 export function TimerBar() {
   const t = useTheme();
@@ -33,10 +33,14 @@ export function TimerBar() {
   const over = left <= 0;
   return (
     <Animated.View
-      style={[s.bar, { backgroundColor: t.ink, boxShadow: t.shadow, opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}
+      style={[
+        s.bar,
+        t.neon ? { backgroundColor: tint(t.card, 0.94), borderWidth: 1, borderColor: tint(t.ok, 0.45), boxShadow: glow(t, t.ok, 16) } : { backgroundColor: t.ink, boxShadow: t.shadow },
+        { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] },
+      ]}
       accessibilityLiveRegion="polite">
-      <Ring animated={false} value={over ? 1 : left / (total * 1000)} size={62} stroke={5} color={t.ok} track="rgba(255,255,255,0.18)">
-        <T w="numBold" style={{ color: '#FFFFFF', fontSize: 15 }}>{formatClock(left)}</T>
+      <Ring animated={false} value={over ? 1 : left / (total * 1000)} size={48} stroke={4} color={t.ok} track="rgba(255,255,255,0.14)">
+        <T w="numBold" style={{ color: '#FFFFFF', fontSize: 12.5 }}>{formatClock(left)}</T>
       </Ring>
       <View style={{ flex: 1, minWidth: 0 }}>
         <T w="bold" style={{ color: over ? t.ok : '#FFFFFF', fontSize: 15 }}>{over ? 'يلا المجموعة الجاية' : 'راحة'}</T>
@@ -45,14 +49,14 @@ export function TimerBar() {
       <Pressable onPress={() => add(30)} style={s.btn} accessibilityRole="button">
         <T w="semi" style={{ color: '#FFFFFF' }}>+30 ث</T>
       </Pressable>
-      <Pressable onPress={stop} style={[s.btn, { backgroundColor: t.ok, borderColor: t.ok }]} accessibilityRole="button">
-        <T w="semi" style={{ color: '#FFFFFF' }}>خلاص</T>
+      <Pressable onPress={stop} style={[s.btn, { backgroundColor: t.ok, borderColor: t.ok, boxShadow: glow(t, t.ok, 10) }]} accessibilityRole="button">
+        <T w="semi" style={{ color: t.onOk }}>خلاص</T>
       </Pressable>
     </Animated.View>
   );
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginBottom: 8, padding: 10, borderRadius: 20 },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginBottom: 8, padding: 8, borderRadius: 18 },
   btn: { minHeight: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', justifyContent: 'center' },
 });

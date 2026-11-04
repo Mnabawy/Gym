@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { CITIES, clock12, countdown, nextPrayer, parsePlace, PRAYERS, timesFor, untilAr } from '../src/lib/prayer';
+import { CITIES, clock12, nextPrayer, parsePlace, PRAYERS, timesFor, untilAr } from '../src/lib/prayer';
 
 const CAIRO = { lat: 30.0444, lng: 31.2357 };
 const DAY = new Date(Date.UTC(2026, 10, 4, 10)); // 4 Nov 2026, midday in Cairo
@@ -65,10 +65,4 @@ test('parsePlace rejects junk', () => {
   expect(parsePlace({ lat: 200, lng: 0 })).toBeNull();
   expect(parsePlace({ lat: 30, lng: 31, name: 'القاهرة', at: 5 })).toEqual({ lat: 30, lng: 31, name: 'القاهرة', at: 5 });
   expect(parsePlace({ lat: 30, lng: 31, at: 5, manual: true })?.manual).toBe(true);
-});
-
-test('countdown', () => {
-  expect(countdown(3_909_000)).toBe('1:05:09');
-  expect(countdown(247_000)).toBe('4:07');
-  expect(countdown(-5)).toBe('0:00');
 });

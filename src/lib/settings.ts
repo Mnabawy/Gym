@@ -31,10 +31,10 @@ export type Settings = {
   /** Prayer times tab. */
   prayer: boolean;
   prayerMethod: Method;
-  /** Floating countdown to the next prayer over the app's pages. */
-  prayerFloat: boolean;
   /** Last known location for prayer times (refreshed from the phone's location). */
   place: Place | null;
+  /** Neon look on the workout tab (dark, glowing accents). */
+  neonMode: boolean;
   /** Items you put on another trip (shopping tab edit mode): "tripCount:itemId" → trip index. */
   shopMoves: Record<string, number>;
 };
@@ -54,9 +54,9 @@ export const DEFAULT_SETTINGS: Settings = {
   body: DEFAULT_BODY,
   prayer: false,
   prayerMethod: 'egyptian',
-  prayerFloat: true,
   place: null,
   shopMoves: {},
+  neonMode: true,
 };
 
 const KEY = 'settings';
@@ -98,7 +98,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'prayerFloat' | 'place' | 'shopMoves'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode'>>) => void;
   reset: () => void;
 };
 
