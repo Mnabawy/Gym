@@ -1,11 +1,11 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Linking, Platform, StyleSheet, View } from 'react-native';
 import { useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
-import { Btn, Card, Screen, T } from '../../components/ui';
-import { refreshPlace, PLACE_STALE_MS, type LocateResult } from '../../lib/place';
-import { clock12, METHODS, nextPrayer, PRAYER_AR, PRAYERS, timesFor, untilAr, type PrayerKey } from '../../lib/prayer';
+import { Btn, Card, Label, Pill, Screen, T } from '../../components/ui';
+import { pickCity, refreshPlace, PLACE_STALE_MS, type LocateResult } from '../../lib/place';
+import { CITIES, clock12, METHODS, nextPrayer, PRAYER_AR, PRAYERS, timesFor, untilAr, type PrayerKey } from '../../lib/prayer';
 import { useSettings } from '../../lib/settings';
 import { tint, useTheme } from '../../theme';
 
@@ -19,6 +19,14 @@ const ICON: Record<PrayerKey, IconName> = {
   isha: 'moon',
 };
 const iso = (s: string) => `⁦${s}⁩`;
+
+/** Why the location lookup failed, in plain words. */
+const FAIL: Record<Exclude<LocateResult, 'ok'>, string> = {
+  denied: 'إذن الموقع مقفول. اسمح للتطبيق يوصل لمكانك من إعدادات الموبايل، أو اختار مدينتك.',
+  off: 'خدمة الموقع مقفولة في الموبايل. شغّلها من الإعدادات، أو اختار مدينتك.',
+  timeout: 'الموبايل ما عرفش يحدد مكانك. جرّب تاني جنب شباك، أو اختار مدينتك.',
+  error: 'حصلت مشكلة واحنا بنحدد مكانك. جرّب تاني، أو اختار مدينتك.',
+};
 
 function placeLabel(p: { lat: number; lng: number; name?: string }) {
   return p.name ?? iso(`${p.lat.toFixed(2)}, ${p.lng.toFixed(2)}`);
@@ -38,20 +46,22 @@ export default function PrayerScreen() {
   const method = useSettings((s) => s.prayerMethod);
   const [now, setNow] = useState(() => new Date());
   const [busy, setBusy] = useState(false);
-  const [err, setErr] = useState<LocateResult | null>(null);
+  const [err, setErr] = useState<Exclude<LocateResult, 'ok'> | null>(null);
+  const [choosing, setChoosing] = useState(false);
 
   const locate = useCallback(async () => {
     setBusy(true);
+    setErr(null);
     const r = await refreshPlace();
     setBusy(false);
     setErr(r === 'ok' ? null : r);
   }, []);
 
-  // Follow the phone: re-read the location when the tab opens and the saved one is old (or missing).
+  // Follow the phone: re-read the location when the tab opens and the saved one is missing or old — unless you picked a city.
   useFocusEffect(
     useCallback(() => {
       const p = useSettings.getState().place;
-      if (!p || Date.now() - p.at > PLACE_STALE_MS) locate();
+      if (!p || (!p.manual && Date.now() - p.at > PLACE_STALE_MS)) locate();
     }, [locate]),
   );
 
@@ -60,22 +70,40 @@ export default function PrayerScreen() {
     return () => clearInterval(id);
   }, []);
 
+  const choose = (c: (typeof CITIES)[number]) => {
+    pickCity(c);
+    setChoosing(false);
+    setErr(null);
+  };
+
+  const cityPicker = (
+    <>
+      <Label>اختار مدينتك</Label>
+      <Card style={{ padding: 12 }}>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {CITIES.map((c) => (
+            <Pill key={c.name} label={c.name} on={!!place?.manual && place.name === c.name} onPress={() => choose(c)} />
+          ))}
+        </View>
+      </Card>
+    </>
+  );
+
   if (!place) {
     return (
       <Screen title="مواقيت الصلاة" sub="بتتحسب من مكانك الحالي">
         <Card style={{ padding: 20, alignItems: 'center', gap: 10 }}>
-          <Ionicons name="location-outline" size={36} color={t.mute} />
+          {busy ? <ActivityIndicator color={t.ok} /> : <Ionicons name="location-outline" size={36} color={t.mute} />}
           <T w="bold" style={{ fontSize: 16 }}>{busy ? 'بنحدد مكانك…' : 'محتاجين مكانك'}</T>
-          <T style={{ color: t.mute, fontSize: 13, textAlign: 'center' }}>
-            {err === 'denied'
-              ? 'إذن الموقع مقفول. اسمح للتطبيق يوصل لمكانك من إعدادات الموبايل.'
-              : err === 'error'
-                ? 'معرفناش نحدد مكانك. اتأكد إن الـ GPS شغال وجرّب تاني.'
-                : 'المواقيت بتتحسب على الموبايل من مكانك، ومن غير نت.'}
+          <T style={{ color: t.mute, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
+            {busy ? 'لو طوّل، تقدر تختار مدينتك من تحت.' : err ? FAIL[err] : 'المواقيت بتتحسب على الموبايل من مكانك، ومن غير نت.'}
           </T>
-          {!busy ? <Btn label="حدد مكاني" kind="solid" onPress={locate} /> : null}
-          {err === 'denied' && Platform.OS !== 'web' ? <Btn label="افتح الإعدادات" onPress={() => Linking.openSettings()} /> : null}
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            {!busy ? <Btn label={err ? 'جرّب تاني' : 'حدد مكاني'} kind="solid" onPress={locate} /> : null}
+            {err === 'denied' && Platform.OS !== 'web' ? <Btn label="افتح الإعدادات" onPress={() => Linking.openSettings()} /> : null}
+          </View>
         </Card>
+        {cityPicker}
       </Screen>
     );
   }
@@ -84,6 +112,13 @@ export default function PrayerScreen() {
   const next = nextPrayer(place, now, method);
   const nextIsTomorrow = next.at.getDate() !== now.getDate();
   const date = `${WEEKDAYS_AR[now.getDay()]} ${now.getDate()} ${MONTHS_AR[now.getMonth()]}`;
+  const status = busy
+    ? 'بنحدّث مكانك…'
+    : err
+      ? `${FAIL[err].split('.')[0]}. بنستخدم آخر مكان متسجل.`
+      : place.manual
+        ? 'المدينة اخترتها بنفسك'
+        : `المكان اتحدّث ${agoAr(now.getTime() - place.at)}`;
 
   return (
     <Screen title="مواقيت الصلاة" sub={`${placeLabel(place)} · ${METHODS[method].label}`}>
@@ -119,12 +154,17 @@ export default function PrayerScreen() {
         })}
       </Card>
 
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <T style={{ flex: 1, color: t.mute, fontSize: 12.5 }}>
-          {busy ? 'بنحدّث مكانك…' : err === 'denied' ? 'إذن الموقع مقفول، بنستخدم آخر مكان متسجل.' : err === 'error' ? 'معرفناش نحدّث المكان، بنستخدم آخر مكان متسجل.' : `المكان اتحدّث ${agoAr(now.getTime() - place.at)}`}
-        </T>
-        <Btn label="حدّث مكاني" onPress={locate} />
+      <View style={{ gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          {busy ? <ActivityIndicator size="small" color={t.ok} /> : null}
+          <T style={{ flex: 1, color: t.mute, fontSize: 12.5 }}>{status}</T>
+        </View>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <Btn label="حدّث من الموبايل" onPress={locate} style={{ flex: 1 }} />
+          <Btn label={choosing ? 'اقفل المدن' : 'اختار مدينة'} onPress={() => setChoosing(!choosing)} style={{ flex: 1 }} />
+        </View>
       </View>
+      {choosing ? cityPicker : null}
       <T style={{ color: t.mute, fontSize: 12, lineHeight: 19 }}>المواقيت بتتحسب على الموبايل من مكانك، من غير نت. ممكن تفرق دقيقة أو اتنين عن نتيجة المسجد. طريقة الحساب بتتغير من الإعدادات.</T>
     </Screen>
   );

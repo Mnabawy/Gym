@@ -65,7 +65,10 @@ export default function SettingsScreen() {
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.muscle[e.muscle] }} />
                 <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
                   <T w="num" style={{ fontSize: 14.5 }} numberOfLines={2}>{e.name}</T>
-                  <T style={{ color: diff ? t.okText : t.mute, fontSize: 12 }}>{diff ? `الأصلي ${base} · اتغيّر` : `${e.repLow}–${e.repHigh} تكرار`}</T>
+                  <T style={{ color: t.mute, fontSize: 12 }}>
+                    {`${e.repLow}–${e.repHigh} تكرار`}
+                    {diff ? <T style={{ color: t.okText, fontSize: 12 }}>{` · الأصلي ${base} مجموعات`}</T> : null}
+                  </T>
                 </View>
                 <Stepper value={e.sets} min={SETS_MIN} max={SETS_MAX} onChange={(v) => st.setSets(e.id, v)} label={`مجموعات ${e.name}`} />
               </View>

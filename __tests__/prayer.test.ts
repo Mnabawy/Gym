@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { clock12, nextPrayer, parsePlace, PRAYERS, timesFor, untilAr } from '../src/lib/prayer';
+import { CITIES, clock12, nextPrayer, parsePlace, PRAYERS, timesFor, untilAr } from '../src/lib/prayer';
 
 const CAIRO = { lat: 30.0444, lng: 31.2357 };
 const DAY = new Date(Date.UTC(2026, 10, 4, 10)); // 4 Nov 2026, midday in Cairo
@@ -55,8 +55,14 @@ test('untilAr', () => {
   expect(untilAr(120 * 60_000)).toBe('ساعتين');
 });
 
+test('city list is valid and in range', () => {
+  expect(new Set(CITIES.map((c) => c.name)).size).toBe(CITIES.length);
+  for (const c of CITIES) expect(parsePlace({ ...c, at: 0 })).toMatchObject({ lat: c.lat, lng: c.lng });
+});
+
 test('parsePlace rejects junk', () => {
   expect(parsePlace(null)).toBeNull();
   expect(parsePlace({ lat: 200, lng: 0 })).toBeNull();
   expect(parsePlace({ lat: 30, lng: 31, name: 'القاهرة', at: 5 })).toEqual({ lat: 30, lng: 31, name: 'القاهرة', at: 5 });
+  expect(parsePlace({ lat: 30, lng: 31, at: 5, manual: true })?.manual).toBe(true);
 });

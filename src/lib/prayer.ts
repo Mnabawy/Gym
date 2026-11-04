@@ -17,14 +17,52 @@ export const METHODS: Record<Method, { label: string; make: () => CalculationPar
   karachi: { label: 'كراتشي', make: CalculationMethod.Karachi },
 };
 
-export type Place = { lat: number; lng: number; name?: string; /** ms since epoch */ at: number };
+export type Place = {
+  lat: number;
+  lng: number;
+  name?: string;
+  /** ms since epoch */
+  at: number;
+  /** You picked this city yourself: don't replace it with the phone's location on its own. */
+  manual?: boolean;
+};
+
+/** Cities you can pick when the phone can't tell where you are. City-level is enough for prayer times. */
+export const CITIES: { name: string; lat: number; lng: number }[] = [
+  { name: 'القاهرة', lat: 30.0444, lng: 31.2357 },
+  { name: 'الجيزة', lat: 30.0131, lng: 31.2089 },
+  { name: 'الإسكندرية', lat: 31.2001, lng: 29.9187 },
+  { name: 'المنصورة', lat: 31.0409, lng: 31.3785 },
+  { name: 'طنطا', lat: 30.7865, lng: 31.0004 },
+  { name: 'الزقازيق', lat: 30.5877, lng: 31.502 },
+  { name: 'بورسعيد', lat: 31.2653, lng: 32.3019 },
+  { name: 'الإسماعيلية', lat: 30.5965, lng: 32.2715 },
+  { name: 'السويس', lat: 29.9668, lng: 32.5498 },
+  { name: 'المنيا', lat: 28.0871, lng: 30.7618 },
+  { name: 'أسيوط', lat: 27.1783, lng: 31.1859 },
+  { name: 'سوهاج', lat: 26.5591, lng: 31.6957 },
+  { name: 'الأقصر', lat: 25.6872, lng: 32.6396 },
+  { name: 'أسوان', lat: 24.0889, lng: 32.8998 },
+  { name: 'الغردقة', lat: 27.2579, lng: 33.8116 },
+  { name: 'شرم الشيخ', lat: 27.9158, lng: 34.33 },
+  { name: 'مكة', lat: 21.4225, lng: 39.8262 },
+  { name: 'المدينة', lat: 24.4672, lng: 39.6111 },
+  { name: 'الرياض', lat: 24.7136, lng: 46.6753 },
+  { name: 'دبي', lat: 25.2048, lng: 55.2708 },
+];
 
 export function parsePlace(v: unknown): Place | null {
   if (!v || typeof v !== 'object') return null;
   const o = v as Record<string, unknown>;
   const ok = (x: unknown, lim: number) => typeof x === 'number' && Number.isFinite(x) && Math.abs(x) <= lim;
   if (!ok(o.lat, 90) || !ok(o.lng, 180)) return null;
-  return { lat: o.lat as number, lng: o.lng as number, name: typeof o.name === 'string' ? o.name : undefined, at: typeof o.at === 'number' ? o.at : 0 };
+  return {
+    lat: o.lat as number,
+    lng: o.lng as number,
+    name: typeof o.name === 'string' ? o.name : undefined,
+    at: typeof o.at === 'number' ? o.at : 0,
+    ...(o.manual === true ? { manual: true } : {}),
+  };
 }
 
 /** The six times for the calendar day of `date` (device time zone). */
