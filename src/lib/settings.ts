@@ -4,6 +4,7 @@ import { applyPlan, DEFAULT_REST, DEFAULT_SETS } from '../data/program';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { DEFAULT_BODY, parseBody, type Body } from './energy';
+import { METHODS, parsePlace, type Method, type Place } from './prayer';
 
 export type Settings = {
   /** Only exercises changed from the PDF; missing id = default. */
@@ -27,6 +28,11 @@ export type Settings = {
   shopTrips: number;
   /** Body data for the calorie calculator (/calories). */
   body: Body;
+  /** Prayer times tab. */
+  prayer: boolean;
+  prayerMethod: Method;
+  /** Last known location for prayer times (refreshed from the phone's location). */
+  place: Place | null;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -42,6 +48,9 @@ export const DEFAULT_SETTINGS: Settings = {
   verseOnReturn: true,
   shopTrips: 1,
   body: DEFAULT_BODY,
+  prayer: false,
+  prayerMethod: 'egyptian',
+  place: null,
 };
 
 const KEY = 'settings';
@@ -59,7 +68,7 @@ export function parseSettings(raw: string | null): Settings {
   if (!v || typeof v !== 'object') return out;
   const o = v as Record<string, unknown>;
   for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
-    if (k === 'sets' || k === 'body') continue;
+    if (k === 'sets' || k === 'body' || k === 'place' || k === 'prayerMethod') continue;
     if (typeof o[k] === typeof DEFAULT_SETTINGS[k]) (out as Record<string, unknown>)[k] = o[k];
   }
   if (o.sets && typeof o.sets === 'object') {
@@ -68,6 +77,8 @@ export function parseSettings(raw: string | null): Settings {
     }
   }
   out.body = parseBody(o.body);
+  out.place = parsePlace(o.place);
+  if (typeof o.prayerMethod === 'string' && o.prayerMethod in METHODS) out.prayerMethod = o.prayerMethod as Method;
   return out;
 }
 
@@ -77,6 +88,8 @@ type Store = Settings & {
   setSets: (id: string, n: number) => void;
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
+  /** Save prayer settings / location (doesn't touch the plan). */
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place'>>) => void;
   reset: () => void;
 };
 
@@ -96,6 +109,10 @@ export const useSettings = create<Store>((set, get) => {
     applyPlan(next);
     useDataVersion.getState().bump(); // screens re-read the plan
   };
+  const save = (next: Settings) => {
+    set(next);
+    storage.setMeta(KEY, JSON.stringify(next));
+  };
   return {
     ...initial,
     update: (p) => commit({ ...pick(get()), ...p }),
@@ -105,11 +122,9 @@ export const useSettings = create<Store>((set, get) => {
       else sets[id] = n;
       commit({ ...pick(get()), sets });
     },
-    setBody: (p) => {
-      const next = { ...pick(get()), body: { ...get().body, ...p } };
-      set(next);
-      storage.setMeta(KEY, JSON.stringify(next));
-    },
-    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body }), // body data isn't a "setting" to reset
+    setBody: (p) => save({ ...pick(get()), body: { ...get().body, ...p } }),
+    setQuiet: (p) => save({ ...pick(get()), ...p }),
+    // Body data and the saved location aren't "settings" to reset.
+    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place }),
   };
 });

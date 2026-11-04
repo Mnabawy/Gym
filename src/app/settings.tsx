@@ -9,6 +9,8 @@ import { formatClock } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { tripDays, daysLabel, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
+import { refreshPlace } from '../lib/place';
+import { METHODS, type Method } from '../lib/prayer';
 import { useTheme } from '../theme';
 
 const phone = Platform.OS !== 'web';
@@ -125,6 +127,36 @@ export default function SettingsScreen() {
         <View style={{ padding: 12 }}>
           <Btn label="اعرض آية دلوقتي" onPress={() => useVersePopup.getState().show()} />
         </View>
+      </Card>
+
+      <Label>مواقيت الصلاة</Label>
+      <Card>
+        <SwitchRow
+          label="اعرض مواقيت الصلاة"
+          sub="تاب جديد بيحسب المواقيت من مكانك الحالي"
+          value={st.prayer}
+          onChange={(v) => {
+            st.setQuiet({ prayer: v });
+            if (v && !st.place) refreshPlace();
+          }}
+        />
+        {st.prayer ? (
+          <>
+            <Sep />
+            <View style={{ padding: 14, gap: 10 }}>
+              <T w="medium">طريقة الحساب</T>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {(Object.keys(METHODS) as Method[]).map((k) => (
+                  <Pill key={k} label={METHODS[k].label} on={st.prayerMethod === k} onPress={() => st.setQuiet({ prayerMethod: k })} />
+                ))}
+              </View>
+            </View>
+            <Sep />
+            <Row label="المكان" sub={st.place ? st.place.name ?? `${st.place.lat.toFixed(2)}, ${st.place.lng.toFixed(2)}` : 'لسه ما اتحددش'}>
+              <Btn label="حدّث" onPress={() => refreshPlace()} />
+            </Row>
+          </>
+        ) : null}
       </Card>
 
       <Label>عام</Label>

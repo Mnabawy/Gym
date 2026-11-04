@@ -47,6 +47,12 @@
         {
           "color": "#0E8A5F"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "التطبيق بيستخدم مكانك عشان يحسب مواقيت الصلاة."
+        }
       ]
     ],
     "scheme": "gym",

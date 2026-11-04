@@ -21,6 +21,7 @@ Exercise names stay in English (gym vocabulary).
 ## Data
 - `src/data/program.ts` — the 5-day program (edit here to change exercises). Sets and rest can be changed in the app's settings page (`/settings`, gear on the workout tab); `applyPlan` writes those onto `PROGRAM` in place so every screen reads the same plan
 - `src/lib/settings.ts` — settings store (zustand), saved as JSON under storage meta key `settings`
+- `src/lib/prayer.ts` (times, adhan, offline) + `src/lib/place.ts` (phone location, expo-location) — prayer times tab `(tabs)/prayer.tsx`, shown only when turned on in settings
 - `src/lib/energy.ts` — calorie/macro calculator (`/calories`, from the food tab header or settings); formulas and sources at the top of the file
 - `src/lib/shop.ts` — splits the weekly shopping list into N trips (settings) by the days each item is eaten; pantry items are bought once
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
@@ -30,6 +31,6 @@ Exercise names stay in English (gym vocabulary).
 
 ## Commands
 - `npx expo start` — run
-- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, settings, data integrity)
+- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/prayer.ts`, settings, data integrity)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions
