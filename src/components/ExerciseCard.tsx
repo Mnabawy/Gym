@@ -5,9 +5,10 @@ import { MUSCLE_AR } from '../data/program';
 import { TAG_INFO } from '../data/rules';
 import { parseNum, shouldIncrease, type SetEntry } from '../lib/logic';
 import { storage } from '../lib/storage';
+import { useSettings } from '../lib/settings';
 import { useTimer, tap } from '../lib/timer';
 import { F, tint, useTheme } from '../theme';
-import { Card, Check, ColorChip, TagBadge, T } from './ui';
+import { Card, Check, ColorChip, Progress, Stepper, TagBadge, T } from './ui';
 
 type Props = { ex: Exercise; index: number; date: string; weekday: number; onChange: () => void };
 type Row = { kg: string; reps: string; done: boolean };
@@ -18,6 +19,8 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
   const t = useTheme();
   const color = t.muscle[ex.muscle];
   const start = useTimer((s) => s.start);
+  const autoRest = useSettings((s) => s.autoRest);
+  const weightStep = useSettings((s) => s.weightStep);
   // Parent remounts this card (key) when date or data version changes, so storage is read once per mount.
   const [rows, setRows] = useState<Row[]>(() => {
     const cur = storage.setsFor(date, ex.id);
@@ -51,8 +54,20 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
     setRows(next);
     save(i, r);
     tap();
-    if (r.done) start(ex.restSec, ex.name);
+    if (r.done && autoRest) start(ex.restSec, ex.name);
     onChange();
+  };
+
+  /** Counter: + ticks the first open set, − unticks the last ticked one. */
+  const setCount = (n: number) => {
+    const cur = rows.filter((r) => r.done).length;
+    if (n > cur) {
+      const i = rows.findIndex((r) => !r.done);
+      if (i >= 0) toggle(i);
+    } else if (n < cur) {
+      const i = rows.map((r) => r.done).lastIndexOf(true);
+      if (i >= 0) toggle(i);
+    }
   };
 
   const allDone = rows.length > 0 && rows.every((r) => r.done);
@@ -68,12 +83,7 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
           <T w="numBold" style={{ fontSize: 13 }}>{index + 1}</T>
         </View>
         <View style={{ flex: 1, gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <T w="num" style={{ fontSize: 16.5, flex: 1 }}>{ex.name}</T>
-            {doneCount ? (
-              <T w="numBold" style={{ fontSize: 13, color: t.okText }}>{`${Math.round((doneCount / ex.sets) * 100)}%`}</T>
-            ) : null}
-          </View>
+          <T w="num" style={{ fontSize: 16.5 }}>{ex.name}</T>
           <View style={s.meta}>
             <ColorChip label={MUSCLE_AR[ex.muscle]} color={color} size={12.5} />
             <T w="num" style={{ fontSize: 13.5, color: t.mute }}>{`\u2066${ex.sets} × ${range}\u2069`}</T>
@@ -84,9 +94,19 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
         </View>
       </View>
 
+      <View style={[s.counter, { backgroundColor: t.soft }]}>
+        <View style={{ flex: 1, gap: 6 }}>
+          <T w="medium" style={{ fontSize: 13, color: doneCount ? t.okText : t.mute }}>
+            {allDone ? 'خلصت كل المجموعات' : doneCount ? `خلصت ${doneCount} من ${ex.sets}` : 'لسه مبدأتش'}
+          </T>
+          <Progress value={doneCount / ex.sets} color={color} height={5} />
+        </View>
+        <Stepper value={doneCount} min={0} max={ex.sets} onChange={setCount} label="المجموعات اللي خلصت" format={(v) => `${v} / ${ex.sets}`} />
+      </View>
+
       {up ? (
         <View style={[s.hint, { backgroundColor: t.okSoft }]}>
-          <T w="medium" style={{ color: t.okText, fontSize: 13 }}>{`آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات. زوّد الوزن 2.5 كجم ↑`}</T>
+          <T w="medium" style={{ color: t.okText, fontSize: 13 }}>{`آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات. زوّد الوزن ${weightStep} كجم ↑`}</T>
         </View>
       ) : null}
       {ex.tag === 'fail' || ex.tag === 'drop' ? (
@@ -140,6 +160,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
   num: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  counter: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginBottom: 10, borderRadius: 14, paddingVertical: 8, paddingStart: 12, paddingEnd: 8 },
   hint: { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
   sets: { paddingHorizontal: 14, paddingBottom: 14, gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },

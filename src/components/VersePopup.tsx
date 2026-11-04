@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { Animated, AppState, Easing, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import Svg, { Circle, Rect } from 'react-native-svg';
+import { create } from 'zustand';
 import { VERSES, type Verse } from '../data/verses';
 import { arabicDigits, nextVerseIndex } from '../lib/logic';
 import { storage } from '../lib/storage';
+import { useSettings } from '../lib/settings';
 import { F, tint, useTheme } from '../theme';
 import { T } from './ui';
 
@@ -29,15 +31,16 @@ function reference(v: Verse): string {
 /** Tanzil puts a space before pause marks (ۖ ۗ ۚ …); dropping it seats each mark over the end of its word, as in print. */
 const glueMarks = (line: string) => line.replace(/ ([ۖ-ۜ])/g, '$1');
 
-// Picked once per launch; a second call (StrictMode, remount) gets the same verse instead of advancing the list.
-let launchVerse: Verse | undefined;
-const firstVerse = () => (launchVerse ??= pickVerse());
+/** Popup state. Created once per launch, so the launch verse is picked exactly once (when the setting is on). */
+export const useVersePopup = create<{ verse: Verse | null; open: boolean; show: () => void; close: () => void }>((set) => {
+  const first = useSettings.getState().verse ? pickVerse() : null;
+  return { verse: first, open: first != null, show: () => set({ verse: pickVerse(), open: true }), close: () => set({ open: false }) };
+});
 
-/** A Quran verse shown when the app opens (cold start, or back after a long time away). */
+/** A Quran verse shown when the app opens (cold start, or back after a long time away). Settings can turn either off. */
 export function VersePopup() {
   const t = useTheme();
-  const [verse, setVerse] = useState<Verse>(firstVerse);
-  const [open, setOpen] = useState(true);
+  const { verse, open, close } = useVersePopup();
   const [pop] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -45,10 +48,8 @@ export function VersePopup() {
     const sub = AppState.addEventListener('change', (s) => {
       if (s === 'background') leftAt = Date.now();
       else if (s === 'active' && leftAt != null) {
-        if (Date.now() - leftAt >= AWAY_MS) {
-          setVerse(pickVerse());
-          setOpen(true);
-        }
+        const { verse: on, verseOnReturn } = useSettings.getState();
+        if (on && verseOnReturn && Date.now() - leftAt >= AWAY_MS) useVersePopup.getState().show();
         leftAt = null;
       }
     });
@@ -61,7 +62,7 @@ export function VersePopup() {
     Animated.timing(pop, { toValue: 1, duration: 420, delay: 80, easing: Easing.out(Easing.back(1.4)), useNativeDriver: native }).start();
   }, [open, verse, pop]);
 
-  const close = () => setOpen(false);
+  if (!verse) return null;
   const long = verse.text.join(' ').length > 110;
   const size = long ? 22 : 26;
 

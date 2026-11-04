@@ -3,7 +3,8 @@ import { View } from 'react-native';
 import { dayFor, MUSCLE_AR, WEEKDAY_LETTERS_AR, WEEKDAYS_AR } from '../../data/program';
 import { ExerciseCard } from '../../components/ExerciseCard';
 import { TimerBar } from '../../components/TimerBar';
-import { Btn, Card, DayChips, Ring, Screen, T, TagBadge } from '../../components/ui';
+import { router } from 'expo-router';
+import { Btn, Card, DayChips, HeaderBtn, Ring, Screen, T, TagBadge } from '../../components/ui';
 import { dateKey } from '../../lib/logic';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
@@ -36,14 +37,18 @@ export default function Workout() {
   let done = 0, total = 0;
   for (const e of day?.exercises ?? []) {
     total += e.sets;
-    done += storage.setsFor(date, e.id).filter((x) => x.done).length;
+    done += storage.setsFor(date, e.id).slice(0, e.sets).filter((x) => x.done).length;
   }
 
   // Rough session length: each set's work (~45 s) plus its rest.
   const minutes = Math.round((day?.exercises ?? []).reduce((a, e) => a + e.sets * (e.restSec + 45), 0) / 60);
 
   return (
-    <Screen title="تمرين النهارده" sub="برنامج 5 أيام · قوة وعضل" footer={<TimerBar />}>
+    <Screen
+      title="تمرين النهارده"
+      sub="برنامج 5 أيام · قوة وعضل"
+      footer={<TimerBar />}
+      action={<HeaderBtn icon="settings-outline" label="الإعدادات" onPress={() => router.push('/settings')} />}>
       <DayChips days={chips} value={sel} today={today} onChange={(k) => { setSel(k); setConfirm(false); }} />
 
       {!day ? (

@@ -4,6 +4,7 @@ import { AppState, Platform } from 'react-native';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
+import { useSettings } from './settings';
 
 type TimerState = {
   endAt: number | null;
@@ -68,7 +69,7 @@ export const useTimer = create<TimerState>((set, get) => ({
   label: '',
   start: (sec, label) => {
     set({ endAt: Date.now() + sec * 1000, total: sec, label });
-    if (native) activateKeepAwakeAsync(KEEP).catch(() => {});
+    if (native && useSettings.getState().keepAwake) activateKeepAwakeAsync(KEEP).catch(() => {});
   },
   add: (sec) => {
     const { endAt: e, total } = get();
@@ -89,14 +90,14 @@ export const useTimer = create<TimerState>((set, get) => ({
 if (native) {
   AppState.addEventListener('change', (s) => {
     const { endAt, label } = useTimer.getState();
-    if (s === 'background' && endAt && endAt > Date.now()) scheduleNotif(endAt, label);
+    if (s === 'background' && endAt && endAt > Date.now() && useSettings.getState().restAlert) scheduleNotif(endAt, label);
     if (s === 'active') cancelNotif();
   });
 }
 
 export function buzz() {
-  if (native) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+  if (native && useSettings.getState().haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
 export function tap() {
-  if (native) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
+  if (native && useSettings.getState().haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }

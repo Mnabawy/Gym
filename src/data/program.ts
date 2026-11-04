@@ -113,3 +113,23 @@ export const ALL_EXERCISES: Exercise[] = PROGRAM.flatMap((d) => d.exercises);
 export const exerciseById = (id: string) => ALL_EXERCISES.find((e) => e.id === id);
 /** Program day an exercise belongs to. */
 export const dayOfExercise = (id: string) => PROGRAM.find((d) => d.exercises.some((e) => e.id === id));
+
+/** Sets per exercise as written in the PDF, before any change from the settings page. */
+export const DEFAULT_SETS: Readonly<Record<string, number>> = Object.fromEntries(ALL_EXERCISES.map((e) => [e.id, e.sets]));
+export const DEFAULT_REST = { heavy: 150, normal: 90 } as const;
+export const SETS_MIN = 1;
+export const SETS_MAX = 8;
+
+export type PlanSettings = { sets: Readonly<Record<string, number>>; restHeavy: number; restNormal: number };
+
+/**
+ * Applies the settings page's numbers to PROGRAM in place, so every screen (workout, calendar, gaps) reads the same plan.
+ * Called by src/lib/settings.ts on load and on every change.
+ */
+export function applyPlan(p: PlanSettings): void {
+  for (const e of ALL_EXERCISES) {
+    const n = p.sets[e.id] ?? DEFAULT_SETS[e.id];
+    e.sets = Math.min(SETS_MAX, Math.max(SETS_MIN, Math.round(n)));
+    e.restSec = e.tag === 'heavy' ? p.restHeavy : p.restNormal;
+  }
+}

@@ -12,18 +12,28 @@ export function T({ style, w = 'body', ...p }: TextProps & { w?: keyof typeof F 
   return <Text {...p} style={[{ color: t.fg, fontFamily: F[w], fontSize: 15 }, style]} />;
 }
 
-export function Screen({ title, sub, children, footer, onBack }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void }) {
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+/** Round 44pt header button (back, settings). */
+export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; label: string; onPress: () => void; style?: ViewStyle }) {
+  const t = useTheme();
+  return (
+    <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={label} style={({ pressed }) => [s.round, { backgroundColor: t.card, boxShadow: t.shadow, opacity: pressed ? 0.7 : 1 }, style]}>
+      <Ionicons name={icon} size={22} color={t.fg} />
+    </Pressable>
+  );
+}
+
+/** `action` sits at the end of the header (left in RTL), opposite the back button. */
+export function Screen({ title, sub, children, footer, onBack, action }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode }) {
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <View style={[s.head, onBack ? { paddingHorizontal: 52 } : null]}>
-          {onBack ? (
-            // RTL: back sits at the start (right) and points right.
-            <Pressable onPress={onBack} accessibilityRole="button" accessibilityLabel="رجوع" style={[s.back, { backgroundColor: t.card, boxShadow: t.shadow }]}>
-              <Ionicons name="chevron-forward" size={22} color={t.fg} />
-            </Pressable>
-          ) : null}
+        <View style={[s.head, onBack || action ? { paddingHorizontal: 52 } : null]}>
+          {/* RTL: back sits at the start (right) and points right. */}
+          {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} style={s.back} /> : null}
+          {action ? <View style={s.action}>{action}</View> : null}
           <T w="bold" style={{ fontSize: 19, lineHeight: 28, textAlign: 'center' }}>{title}</T>
           {sub ? <T style={{ color: t.mute, fontSize: 12.5, textAlign: 'center' }}>{sub}</T> : null}
         </View>
@@ -223,12 +233,95 @@ export function Check({ on, onPress, label }: { on: boolean; onPress: () => void
   );
 }
 
+/** − value + counter. Buttons dim at the limits. */
+export function Stepper({ value, min, max, step = 1, onChange, label, format }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label: string; format?: (v: number) => string }) {
+  const t = useTheme();
+  const btn = (dir: -1 | 1) => {
+    const off = dir < 0 ? value <= min : value >= max;
+    return (
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={`${dir > 0 ? 'زوّد' : 'قلّل'} ${label}`}
+        accessibilityState={{ disabled: off }}
+        disabled={off}
+        hitSlop={4}
+        onPress={() => onChange(Math.min(max, Math.max(min, value + dir * step)))}
+        style={({ pressed }) => [s.stepBtn, { backgroundColor: t.soft, opacity: off ? 0.35 : pressed ? 0.7 : 1 }]}>
+        <Ionicons name={dir > 0 ? 'add' : 'remove'} size={20} color={t.fg} />
+      </Pressable>
+    );
+  };
+  return (
+    <View style={s.stepper}>
+      {btn(-1)}
+      <T w="numBold" style={{ minWidth: 46, textAlign: 'center', fontSize: 16 }} accessibilityLabel={`${label}: ${format ? format(value) : value}`}>
+        {`\u2066${format ? format(value) : value}\u2069`}
+      </T>
+      {btn(1)}
+    </View>
+  );
+}
+
+/** Settings row with a switch. The whole row is the touch target; the switch is just the picture (drawn by hand: RN Web's Switch breaks in RTL). */
+export function SwitchRow({ label, sub, value, onChange, disabled }: { label: string; sub?: string; value: boolean; onChange: (v: boolean) => void; disabled?: boolean }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={label}
+      accessibilityHint={sub}
+      accessibilityState={{ checked: value, disabled }}
+      disabled={disabled}
+      onPress={() => onChange(!value)}
+      style={[s.row, { opacity: disabled ? 0.45 : 1 }]}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <T w="medium">{label}</T>
+        {sub ? <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>{sub}</T> : null}
+      </View>
+      {/* RTL: off = thumb at the start (right), on = end (left), like the system switch. */}
+      <View
+        importantForAccessibility="no-hide-descendants"
+        accessibilityElementsHidden
+        style={[s.track, { backgroundColor: value ? t.ok : t.line, alignItems: value ? 'flex-end' : 'flex-start' }]}>
+        <View style={s.thumb} />
+      </View>
+    </Pressable>
+  );
+}
+
+/** Settings row: label (+ hint) at the start, any control at the end. */
+export function Row({ label, sub, children }: { label: string; sub?: string; children?: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <View style={s.row}>
+      <View style={{ flex: 1, gap: 2 }}>
+        <T w="medium">{label}</T>
+        {sub ? <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>{sub}</T> : null}
+      </View>
+      {children}
+    </View>
+  );
+}
+
+/** Hairline between rows inside a Card. */
+export function Sep() {
+  const t = useTheme();
+  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line, marginHorizontal: 14 }} />;
+}
+
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
 
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 140, gap: 12, maxWidth: 620, width: '100%', alignSelf: 'center' },
   head: { alignItems: 'center', justifyContent: 'center', paddingBottom: 4, minHeight: 44 },
-  back: { position: 'absolute', start: 0, top: 0, width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  round: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  back: { position: 'absolute', start: 0, top: 0 },
+  action: { position: 'absolute', end: 0, top: 0 },
+  track: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
+  thumb: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' },
+  stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  stepBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10 },
   // Inactive chips are 40pt wide + 2pt hitSlop each side = 44pt touch target; the selected chip takes the rest.
   chips: { flexDirection: 'row', gap: 4, minHeight: 72 }, // fits name + 2 legend lines, so the row doesn't jump between days
   chipOff: { width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 6 },
