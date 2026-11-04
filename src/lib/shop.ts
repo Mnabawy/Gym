@@ -1,9 +1,9 @@
-// Split the weekly shopping list into several trips (settings → "بتشتري كام مرة في الأسبوع"), plus your own items.
+// Split the weekly shopping list into several trips (settings → "بتشتري كام مرة في الأسبوع").
 // Pure — unit tested in __tests__/shop.test.ts.
 //
 // The shopping week starts Friday (see shopWeekKey) and trip k covers a run of days. Items are never split: each one
 // is bought whole on one trip, and trips get an equal number of items (they differ by one at most) — see assignTrips.
-// You can move any item to another trip (`moves`).
+// You choose another trip for any item from the shopping tab's edit mode (`moves`); the list itself never changes.
 import { SHOPPING, type ShopItem } from '../data/shopping';
 import { WEEKDAYS_AR } from '../data/program';
 
@@ -14,24 +14,6 @@ export const TRIPS_MAX = 5;
 
 type Group = (typeof SHOPPING)[number];
 
-/** Group for your own items that don't fit the others. */
-export const OTHER = 'حاجات تانية';
-/** Groups you can add an item to. */
-export const CUSTOM_GROUPS = ['بروتين', 'نشويات', 'فاكهة وخضار', 'دهون وإضافات', OTHER];
-/** An item you added (settings → shopCustom). Ids start with "c:" so they never clash with the list's. */
-export type CustomItem = { id: string; name: string; buy: string; group: string };
-export const isCustom = (id: string) => id.startsWith('c:');
-
-/** The list with your items added at the end of their groups ("حاجات تانية" gets its own group at the end). */
-export function withCustom(custom: readonly CustomItem[], data: readonly Group[] = SHOPPING): Group[] {
-  const groups: Group[] = data.map((g) => ({ ...g, items: [...g.items] }));
-  for (const c of custom) {
-    let g = groups.find((x) => x.title === c.group);
-    if (!g) groups.push((g = { title: OTHER, color: 'veg', items: [] }));
-    g.items.push({ id: c.id, name: c.name, note: '', exact: '', buy: c.buy, days: [] });
-  }
-  return groups;
-}
 export type TripItem = {
   item: ShopItem;
   /** Check-off key; includes the trip count so changing it mid-week doesn't carry ticks to the wrong trip. */
@@ -64,7 +46,7 @@ export function daysLabel(weekdays: number[], short = false): string {
   return weekdays.length > 1 ? `${a} – ${name(weekdays[weekdays.length - 1])}` : a;
 }
 
-/** Shopping-week position of the first day an item is eaten (Friday = 0); no days (your own items, lemons) → 0. */
+/** Shopping-week position of the first day an item is eaten (Friday = 0); no days (lemons) → 0. */
 export function firstDay(item: Pick<ShopItem, 'days'>): number {
   const at = item.days.map((d) => SHOP_WEEK.indexOf(WEEKDAYS_AR.indexOf(d))).filter((i) => i >= 0);
   return at.length ? Math.min(...at) : 0;
@@ -73,7 +55,7 @@ export function firstDay(item: Pick<ShopItem, 'days'>): number {
 /**
  * Which trip each item goes on. Trips get equal counts (bigger ones first). Items eaten on few days are placed first,
  * on the trip that covers the first day they're eaten (liver on Monday → Monday's trip); when that trip is full they go
- * to the nearest earlier trip, then the nearest later one. Everyday items and your own items fill the rest — bought
+ * to the nearest earlier trip, then the nearest later one. Everyday items fill the rest — bought
  * every week at the same point, they last until the next time anyway. `moves` (id → trip) override.
  */
 export function assignTrips(k: number, data: readonly Group[], moves: Readonly<Record<string, number>> = {}): Map<string, number> {

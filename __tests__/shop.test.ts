@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { SHOPPING } from '../src/data/shopping';
-import { daysLabel, firstDay, isCustom, movesFor, OTHER, SHOP_WEEK, splitShopping, tripDays, tripFor, withCustom } from '../src/lib/shop';
+import { daysLabel, firstDay, movesFor, SHOP_WEEK, splitShopping, tripDays, tripFor } from '../src/lib/shop';
 
 const items = SHOPPING.flatMap((g) => g.items);
 
@@ -65,7 +65,7 @@ describe('which trip an item goes on', () => {
   });
 });
 
-describe('moves and your own items', () => {
+describe('moves', () => {
   test('a move puts the item on that trip; bad moves are ignored', () => {
     const t = splitShopping(3, SHOPPING, { بيض: 0, كبدة: 9, nope: 1 });
     expect(ids(t[0])).toContain('بيض');
@@ -74,19 +74,7 @@ describe('moves and your own items', () => {
   test('movesFor reads the moves saved for one trip count', () => {
     expect(movesFor(3, { '3:بيض': 0, '5:بيض': 4, '3:c:x': 2 })).toEqual({ بيض: 0, 'c:x': 2 });
   });
-  test('your items join their group, or a new "حاجات تانية" group at the end', () => {
-    const data = withCustom([
-      { id: 'c:1', name: 'مناديل', buy: '2 باكو', group: OTHER },
-      { id: 'c:2', name: 'جمبري', buy: 'نص كيلو', group: 'بروتين' },
-    ]);
-    expect(data[0].items[data[0].items.length - 1]).toMatchObject({ id: 'c:2', name: 'جمبري', buy: 'نص كيلو', days: [] });
-    expect(data[data.length - 1]).toMatchObject({ title: OTHER, items: [{ id: 'c:1', name: 'مناديل' }] });
-    expect(isCustom('c:1')).toBe(true);
-    expect(isCustom('بيض')).toBe(false);
-    const trips = splitShopping(2, data, { 'c:1': 1 });
-    expect(ids(trips[1])).toContain('c:1');
-    expect(trips.flatMap(ids)).toHaveLength(items.length + 2);
-  });
+
 });
 
 test('daysLabel', () => {

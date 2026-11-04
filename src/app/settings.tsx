@@ -10,7 +10,7 @@ import { countAr, dateKey, formatClock } from '../lib/logic';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
-import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN, withCustom } from '../lib/shop';
+import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
@@ -32,7 +32,7 @@ export default function SettingsScreen() {
   const plan = PROGRAM.find((d) => d.weekday === day)!;
   const changed = plan.exercises.filter((e) => st.sets[e.id] != null);
   const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
-  const trips = splitShopping(st.shopTrips, withCustom(st.shopCustom), movesFor(tripDays(st.shopTrips).length, st.shopMoves));
+  const trips = splitShopping(st.shopTrips, undefined, movesFor(tripDays(st.shopTrips).length, st.shopMoves));
   const need = energyFor(st.body);
 
   return (
@@ -111,7 +111,7 @@ export default function SettingsScreen() {
 
       <Label>المشتريات</Label>
       <Card>
-        <Row label="بتشتري كام مرة في الأسبوع" sub="الأصناف بتتقسم بالتساوي على المرات، وكل صنف بيتشرى مرة واحدة بكميته كلها. تنقل أصناف أو تضيف جديدة من زرار التعديل في تاب المشتريات">
+        <Row label="بتشتري كام مرة في الأسبوع" sub="أصناف القايمة بتتقسم بالتساوي على المرات، وكل صنف بيتشرى مرة واحدة بكميته كلها. تختار أصناف كل مرة من زرار التعديل في تاب المشتريات">
           <Stepper value={st.shopTrips} min={TRIPS_MIN} max={TRIPS_MAX} onChange={(v) => st.update({ shopTrips: v })} label="مرات الشراء" />
         </Row>
         <Sep />

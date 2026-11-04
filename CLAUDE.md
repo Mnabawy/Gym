@@ -23,7 +23,7 @@ Exercise names stay in English (gym vocabulary).
 - `src/lib/settings.ts` — settings store (zustand), saved as JSON under storage meta key `settings`
 - `src/lib/prayer.ts` (times, adhan, offline) + `src/lib/place.ts` (phone location, expo-location) — prayer times tab `(tabs)/prayer.tsx`, shown only when turned on in settings
 - `src/lib/energy.ts` — calorie/macro calculator (`/calories`, from the food tab header or settings); formulas and sources at the top of the file
-- `src/lib/shop.ts` — splits the weekly shopping list into N trips (settings) with equal item counts; items are never split, few-day items go on the trip before they're eaten (`assignTrips`). Your own items (`shopCustom`) and manual moves (`shopMoves`) live in settings and are edited from the shopping tab's edit button
+- `src/lib/shop.ts` — splits the weekly shopping list into N trips (settings) with equal item counts; items are never split, few-day items go on the trip before they're eaten (`assignTrips`). The list itself is fixed; the trip chosen for any item (`shopMoves`) lives in settings and is edited from the shopping tab's edit button
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
 - `src/data/verses.ts` — Quran verses for the launch popup (`src/components/VersePopup.tsx`). Tanzil Uthmani text copied verbatim from api.alquran.cloud; never retype or edit a verse by hand
 - Source PDFs live in `docs/`
