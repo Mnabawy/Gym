@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, TARGETS, WEEK_MENU } from '../../data/nutrition';
+import { WEEKDAY_LETTERS_AR } from '../../data/program';
 import { Btn, Card, DayChips, FoodChip, Progress, Screen, T } from '../../components/ui';
 import { dateKey, mealMacros } from '../../lib/logic';
 import { storage } from '../../lib/storage';
@@ -31,7 +32,13 @@ export default function Food() {
   const order = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
   const chips = order.map((wd) => {
     const d = WEEK_MENU.find((x) => x.weekday === wd)!;
-    return { key: wd, label: d.day, colors: [d.training ? t.ok : t.line] };
+    return {
+      key: wd,
+      label: d.day,
+      short: WEEKDAY_LETTERS_AR[wd],
+      colors: [d.training ? t.ok : t.line],
+      details: [d.training ? { color: t.ok, label: 'يوم تمرين' } : { label: 'راحة' }],
+    };
   });
 
   const tiles = [

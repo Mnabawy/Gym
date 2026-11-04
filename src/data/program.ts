@@ -28,6 +28,8 @@ export const MUSCLE_AR: Record<Muscle, string> = {
 
 // weekday: 0 = Sunday … 6 = Saturday (JS Date.getDay())
 export const WEEKDAYS_AR = ['الحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'];
+// One-letter names for the unselected day chips.
+export const WEEKDAY_LETTERS_AR = ['ح', 'ن', 'ت', 'ر', 'خ', 'ج', 'س'];
 
 const ex = (name: string, muscle: Muscle, sets: number, repLow: number, repHigh: number, tag: Tag = null, perLeg = false): Exercise => ({
   id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),

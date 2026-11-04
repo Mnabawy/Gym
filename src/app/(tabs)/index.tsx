@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { dayFor, WEEKDAYS_AR } from '../../data/program';
+import { dayFor, MUSCLE_AR, WEEKDAY_LETTERS_AR, WEEKDAYS_AR } from '../../data/program';
 import { ExerciseCard } from '../../components/ExerciseCard';
 import { TimerBar } from '../../components/TimerBar';
 import { Btn, Card, DayChips, Progress, Screen, T, TagBadge } from '../../components/ui';
@@ -21,7 +21,14 @@ export default function Workout() {
 
   const chips = WEEKDAYS_AR.map((label, i) => {
     const d = dayFor(i);
-    return { key: i, label, colors: d ? [...new Set(d.exercises.map((e) => e.muscle))].map((m) => t.muscle[m]) : [] };
+    const muscles = d ? [...new Set(d.exercises.map((e) => e.muscle))] : [];
+    return {
+      key: i,
+      label,
+      short: WEEKDAY_LETTERS_AR[i],
+      colors: muscles.map((m) => t.muscle[m]),
+      details: d ? muscles.map((m) => ({ color: t.muscle[m], label: MUSCLE_AR[m] })) : [{ label: 'راحة' }],
+    };
   });
 
   // Logging always goes to today's date; other days are view/plan mode with today's date too (log ahead if you train off-schedule).

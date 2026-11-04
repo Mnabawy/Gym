@@ -1,5 +1,5 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
+import { LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { F, tint, useTheme } from '../theme';
 import { TAG_INFO } from '../data/rules';
@@ -63,29 +63,53 @@ export function TagBadge({ tag }: { tag: Tag }) {
   );
 }
 
-export type DayChip = { key: number; label: string; colors: string[]; sub?: string };
+/** `short` is the one-letter name shown when the chip isn't selected; `details` is the color legend shown when it is. */
+export type DayChip = { key: number; label: string; short: string; colors: string[]; details: { color?: string; label: string }[] };
 export function DayChips({ days, value, today, onChange }: { days: DayChip[]; value: number; today: number; onChange: (k: number) => void }) {
   const t = useTheme();
+  const pick = (k: number) => {
+    if (k === value) return;
+    LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
+    onChange(k);
+  };
   return (
     <View style={s.chips}>
       {days.map((d) => {
         const on = d.key === value;
+        const isToday = d.key === today;
         return (
           <Pressable
             key={d.key}
             accessibilityRole="button"
+            accessibilityLabel={isToday ? `${d.label} · النهارده` : d.label}
             accessibilityState={{ selected: on }}
-            onPress={() => onChange(d.key)}
-            style={[s.chip, { backgroundColor: on ? t.ink : t.card, borderColor: on ? t.ink : t.line }]}>
-            <T w="semi" style={{ fontSize: 11.5, color: on ? t.onInk : t.fg }} numberOfLines={1} adjustsFontSizeToFit>
-              {d.label}
-              {d.key === today ? <T style={{ color: t.ok, fontSize: 12.5 }}> •</T> : null}
-            </T>
-            <View style={[s.bar, { backgroundColor: t.soft }]}>
-              {d.colors.map((c, i) => (
-                <View key={i} style={{ flex: 1, backgroundColor: c }} />
-              ))}
-            </View>
+            hitSlop={2}
+            onPress={() => pick(d.key)}
+            style={[on ? s.chipOn : s.chipOff, { backgroundColor: on ? t.ink : t.card, borderColor: on ? t.ink : t.line }]}>
+            {on ? (
+              <>
+                <View style={s.chipHead}>
+                  <T w="bold" style={{ fontSize: 14, color: t.onInk, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>{d.label}</T>
+                  {isToday ? <View style={[s.todayDot, { backgroundColor: t.ok }]} /> : null}
+                </View>
+                {d.details.map((x, i) => (
+                  <View key={i} style={s.legendRow}>
+                    {x.color ? <View style={[s.legendDot, { backgroundColor: x.color }]} /> : null}
+                    <T style={{ fontSize: 11, color: t.onInk, opacity: x.color ? 0.92 : 0.6, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>{x.label}</T>
+                  </View>
+                ))}
+              </>
+            ) : (
+              <>
+                <T w="semi" style={{ fontSize: 15, lineHeight: 22, color: t.fg }}>{d.short}</T>
+                <View style={[s.bar, { backgroundColor: t.soft }]}>
+                  {d.colors.map((c, i) => (
+                    <View key={i} style={{ flex: 1, backgroundColor: c }} />
+                  ))}
+                </View>
+                {isToday ? <View style={[s.todayDot, s.todayCorner, { backgroundColor: t.ok }]} /> : null}
+              </>
+            )}
           </Pressable>
         );
       })}
@@ -126,7 +150,14 @@ export function Btn({ label, onPress, kind = 'ghost' }: { label: string; onPress
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 140, gap: 12, maxWidth: 620, width: '100%', alignSelf: 'center' },
   head: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
-  chips: { flexDirection: 'row', gap: 4 },
-  chip: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 10, paddingTop: 7, paddingBottom: 8, alignItems: 'center', gap: 4, minHeight: 44 },
-  bar: { flexDirection: 'row', width: '70%', height: 4, borderRadius: 2, overflow: 'hidden' },
+  // Inactive chips are 40pt wide + 2pt hitSlop each side = 44pt touch target; the selected chip takes the rest.
+  chips: { flexDirection: 'row', gap: 4, minHeight: 72 }, // fits name + 2 legend lines, so the row doesn't jump between days
+  chipOff: { width: 40, borderWidth: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 6 },
+  chipOn: { flex: 1, minWidth: 0, borderWidth: 1, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8, justifyContent: 'center', gap: 4 },
+  chipHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  legendRow: { flexDirection: 'row', alignItems: 'center', gap: 5 },
+  legendDot: { width: 8, height: 8, borderRadius: 4 },
+  todayDot: { width: 6, height: 6, borderRadius: 3 },
+  todayCorner: { position: 'absolute', top: 5, end: 5 },
+  bar: { flexDirection: 'row', width: 20, height: 4, borderRadius: 2, overflow: 'hidden' },
 });
