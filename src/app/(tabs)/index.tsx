@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { LayoutAnimation, View } from 'react-native';
 import { dayFor } from '../../data/program';
-import { ExerciseCard } from '../../components/ExerciseCard';
+import { ExerciseRow } from '../../components/ExerciseRow';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
 import { router, useFocusEffect } from 'expo-router';
@@ -44,17 +44,27 @@ function WorkoutScreen() {
   const cur = currentWorkout(storage.trainedDays(), date);
   const sel = picked?.date === date ? picked.id : cur.id; // a pick from yesterday doesn't stick
   const day = dayFor(sel)!;
+  // Which exercise is open: the one you tapped, else the first one not finished (it moves on by itself as you tick).
+  const [tapped, setTapped] = useState<string | null>(null);
   const pick = (id: number) => {
     setPicked({ date, id });
+    setTapped(null);
     setConfirm(false);
+  };
+  const openOne = (id: string) => {
+    LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
+    setTapped(id);
   };
 
   // Logging always goes to today's date, whichever workout is open.
   let done = 0, total = 0;
+  const doneBy: Record<string, number> = {};
   for (const e of day.exercises) {
     total += e.sets;
-    done += storage.setsFor(date, e.id).slice(0, e.sets).filter((x) => x.done).length;
+    doneBy[e.id] = storage.setsFor(date, e.id).slice(0, e.sets).filter((x) => x.done).length;
+    done += doneBy[e.id];
   }
+  const openId = tapped && day.exercises.some((e) => e.id === tapped) ? tapped : day.exercises.find((e) => doneBy[e.id] < e.sets)?.id;
 
   // Rough session length: each set's work (~45 s) plus its rest.
   const minutes = Math.round(day.exercises.reduce((a, e) => a + e.sets * (e.restSec + 45), 0) / 60);
@@ -93,9 +103,21 @@ function WorkoutScreen() {
           <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
         </View>
       ) : null}
-      {day.exercises.map((e, i) => (
-        <ExerciseCard key={`${e.id}-${date}-${cards}`} ex={e} index={i} date={date} weekday={sel} onChange={bump} />
-      ))}
+      <Card style={{ overflow: 'hidden' }}>
+        {day.exercises.map((e, i) => (
+          <ExerciseRow
+            key={`${e.id}-${date}-${cards}`}
+            ex={e}
+            index={i}
+            date={date}
+            weekday={sel}
+            first={i === 0}
+            open={e.id === openId}
+            onOpen={() => openOne(e.id)}
+            onChange={bump}
+          />
+        ))}
+      </Card>
       <View style={{ gap: 8, marginTop: 4 }}>
         {!confirm ? (
           <Btn label="امسح تسجيل النهارده" onPress={() => setConfirm(true)} />
