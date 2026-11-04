@@ -154,6 +154,13 @@ export default function SettingsScreen() {
         {st.prayer ? (
           <>
             <Sep />
+            <SwitchRow
+              label="عداد الصلاة الجاية في كل الصفحات"
+              sub="أيقونة صغيرة بتعد لحد الصلاة الجاية، ولو دوست عليها تفتح المواقيت"
+              value={st.prayerFloat}
+              onChange={(v) => st.setQuiet({ prayerFloat: v })}
+            />
+            <Sep />
             <View style={{ padding: 14, gap: 10 }}>
               <T w="medium">طريقة الحساب</T>
               <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>

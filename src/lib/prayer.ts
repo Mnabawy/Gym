@@ -90,6 +90,15 @@ export function clock12(d: Date): string {
 const HOURS: [string, string, string, string] = ['ساعة', 'ساعتين', 'ساعات', 'ساعة'];
 const MINUTES: [string, string, string, string] = ['دقيقة', 'دقيقتين', 'دقايق', 'دقيقة'];
 
+/** Countdown clock: "1:05:09", or "4:07" under an hour. */
+export function countdown(ms: number): string {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const h = Math.floor(total / 3600);
+  const m = Math.floor((total % 3600) / 60);
+  const sec = String(total % 60).padStart(2, '0');
+  return h ? `${h}:${String(m).padStart(2, '0')}:${sec}` : `${m}:${sec}`;
+}
+
 /** "ساعة و25 دقيقة", "3 دقايق", "أقل من دقيقة". Rounds minutes up so it never says 0 too early. */
 export function untilAr(ms: number): string {
   const total = Math.ceil(Math.max(0, ms) / 60000);
