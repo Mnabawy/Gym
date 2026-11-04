@@ -7,7 +7,7 @@ Exercise names stay in English (gym vocabulary).
 - Expo SDK 58, TypeScript strict, expo-router (routes in `src/app/`, tabs in `src/app/(tabs)/`)
 - State: zustand (`src/lib/timer.ts`, `src/lib/bus.ts`)
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
-- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded), expo-clipboard
+- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded), expo-clipboard, expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
 - Fonts: Readex Pro (Arabic) + Inter (numbers/Latin) via @expo-google-fonts
 - No backend. Offline-first.
 
@@ -25,7 +25,7 @@ Exercise names stay in English (gym vocabulary).
 - `src/lib/energy.ts` — calorie/macro calculator (`/calories`, from the food tab header or settings); formulas and sources at the top of the file
 - `src/lib/shop.ts` — splits the weekly shopping list into N trips (settings) with equal item counts; items are never split, few-day items go on the trip before they're eaten (`assignTrips`). The list itself is fixed; the trip chosen for any item (`shopMoves`) lives in settings and is edited from the shopping tab's edit button
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
-- `src/data/videos.ts` — one short YouTube form video per exercise ("فيديو" button on each exercise card); how they were picked is at the top of the file
+- `src/data/videos.ts` — one short YouTube form video per exercise ("فيديو" button on each exercise card opens `VideoSheet`, which plays it in-app); how they were picked is at the top of the file
 - `src/data/verses.ts` — Quran verses for the launch popup (`src/components/VersePopup.tsx`). Tanzil Uthmani text copied verbatim from api.alquran.cloud; never retype or edit a verse by hand
 - Source PDFs live in `docs/`
 - `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file

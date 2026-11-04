@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { ALL_EXERCISES } from '../src/data/program';
-import { FORM_VIDEOS, videoUrl } from '../src/data/videos';
+import { embedUrl, FORM_VIDEOS, videoUrl, viewsAr } from '../src/data/videos';
 
 test('every exercise has a form video with a valid YouTube id', () => {
   for (const e of ALL_EXERCISES) {
@@ -15,4 +15,11 @@ test('every exercise has a form video with a valid YouTube id', () => {
 test('shorts and regular videos get the right link', () => {
   expect(videoUrl({ id: 'abcdefghijk', short: true, title: '', channel: '', views: 1 })).toBe('https://www.youtube.com/shorts/abcdefghijk');
   expect(videoUrl({ id: 'abcdefghijk', short: false, title: '', channel: '', views: 1 })).toBe('https://www.youtube.com/watch?v=abcdefghijk');
+});
+
+test('embed link and view counts', () => {
+  expect(embedUrl('abcdefghijk')).toBe('https://www.youtube-nocookie.com/embed/abcdefghijk?autoplay=1&playsinline=1&rel=0&modestbranding=1');
+  expect(viewsAr(59_000_000)).toBe('59 مليون');
+  expect(viewsAr(1_520_865)).toBe('1.5 مليون');
+  expect(viewsAr(563_000)).toBe('563 ألف');
 });

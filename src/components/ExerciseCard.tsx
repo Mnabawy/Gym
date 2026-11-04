@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Exercise } from '../data/program';
 import { MUSCLE_AR } from '../data/program';
 import { TAG_INFO } from '../data/rules';
-import { FORM_VIDEOS, videoUrl } from '../data/videos';
+import { FORM_VIDEOS } from '../data/videos';
 import { parseNum, shouldIncrease, type SetEntry } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
 import { useTimer, tap } from '../lib/timer';
 import { F, tint, useTheme } from '../theme';
 import { Card, Check, ColorChip, Progress, Stepper, TagBadge, T } from './ui';
+import { VideoSheet } from './VideoSheet';
 
 type Props = { ex: Exercise; index: number; date: string; weekday: number; onChange: () => void };
 type Row = { kg: string; reps: string; done: boolean };
@@ -78,9 +79,11 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
 
   const doneCount = rows.filter((r) => r.done).length;
   const video = FORM_VIDEOS[ex.id];
+  const [watching, setWatching] = useState(false);
 
   return (
     <Card style={allDone ? { opacity: 0.8 } : undefined}>
+      {video ? <VideoSheet video={video} name={ex.name} visible={watching} onClose={() => setWatching(false)} /> : null}
       <View style={s.head}>
         <View style={[s.num, { backgroundColor: tint(color, 0.2) }]}>
           <T w="numBold" style={{ fontSize: 13 }}>{index + 1}</T>
@@ -90,9 +93,9 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
             <T w="num" style={{ fontSize: 16.5, flexShrink: 1 }}>{ex.name}</T>
             {video ? (
               <Pressable
-                onPress={() => Linking.openURL(videoUrl(video)).catch(() => {})}
-                accessibilityRole="link"
-                accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name} على يوتيوب`}
+                onPress={() => setWatching(true)}
+                accessibilityRole="button"
+                accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name}`}
                 hitSlop={8}
                 style={({ pressed }) => [s.video, { backgroundColor: t.okSoft, opacity: pressed ? 0.7 : 1 }]}>
                 <Ionicons name="play" size={12} color={t.okText} />

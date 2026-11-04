@@ -35,5 +35,15 @@ export const FORM_VIDEOS: Record<string, FormVideo> = {
   "standing-calf-raise": { id: "-M4-G8p8fmc", short: false, title: "How to Do a Calf Raise | Sexy Legs Workout", channel: "Howcast", views: 3543499 },
 };
 
+/** Player inside the app: autoplay, inline on iPhone, no unrelated videos at the end. */
+export const embedUrl = (id: string) => `https://www.youtube-nocookie.com/embed/${id}?autoplay=1&playsinline=1&rel=0&modestbranding=1`;
+
+/** "59 مليون", "563 ألف". */
+export function viewsAr(n: number): string {
+  if (n >= 1e6) return `${Math.round(n / 1e5) / 10} مليون`;
+  if (n >= 1e3) return `${Math.round(n / 1e3)} ألف`;
+  return String(n);
+}
+
 /** Shorts open in the Shorts player; longer videos in the normal one. */
 export const videoUrl = (v: FormVideo) => (v.short ? `https://www.youtube.com/shorts/${v.id}` : `https://www.youtube.com/watch?v=${v.id}`);
