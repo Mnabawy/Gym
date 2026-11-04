@@ -57,6 +57,13 @@ export const storage: Storage = {
       )
       .map((r) => ({ date: r.date, weekdays: r.wds.split(',').map(Number), sets: r.n }));
   },
+  allSets() {
+    return db
+      .getAllSync<{ date: string; weekday: number; ex_id: string; idx: number; kg: number | null; reps: number | null; done: number }>(
+        'SELECT date, weekday, ex_id, idx, kg, reps, done FROM set_logs ORDER BY date, ex_id, idx',
+      )
+      .map((r) => ({ date: r.date, weekday: r.weekday, exId: r.ex_id, idx: r.idx, kg: r.kg, reps: r.reps, done: r.done }));
+  },
   mealChecks(date) {
     return db.getAllSync<{ meal: string }>('SELECT meal FROM meal_checks WHERE date = ?', date).map((r) => r.meal);
   },

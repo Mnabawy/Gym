@@ -2,7 +2,7 @@
 import { PLAN_WEEKDAYS, PROGRAM, dayFor, dayMuscles } from '../src/data/program';
 import { MEALS, MEAL_ORDER, TARGETS, WEEK_MENU, FOODS } from '../src/data/nutrition';
 import { SHOPPING } from '../src/data/shopping';
-import { addMonths, bestE1rm, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, weekdayOf } from '../src/lib/logic';
+import { addMonths, bestE1rm, countAr, TIMES, SETS, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, weekdayOf } from '../src/lib/logic';
 
 describe('program data matches the PDF', () => {
   test('training days are Mon, Tue, Wed, Fri, Sat', () => {
@@ -58,6 +58,13 @@ describe('numbers and dates', () => {
     expect(shopWeekKey(new Date(2026, 10, 6))).toBe('2026-11-06'); // Fri
     expect(shopWeekKey(new Date(2026, 10, 5))).toBe('2026-10-30'); // Thu → previous Fri
     expect(shopWeekKey(new Date(2026, 10, 7))).toBe('2026-11-06'); // Sat
+  });
+  test('arabic counts', () => {
+    expect(countAr(1, TIMES)).toBe('مرة');
+    expect(countAr(2, SETS)).toBe('مجموعتين');
+    expect(countAr(3, TIMES)).toBe('3 مرات');
+    expect(countAr(14, SETS)).toBe('14 مجموعة');
+    expect(countAr(0, SETS)).toBe('0 مجموعة');
   });
   test('clock', () => {
     expect(formatClock(90_000)).toBe('1:30');

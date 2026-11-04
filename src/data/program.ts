@@ -111,3 +111,5 @@ export const PLAN_WEEKDAYS = PROGRAM.map((d) => d.weekday);
 export const dayMuscles = (weekday: number): Muscle[] => [...new Set((dayFor(weekday)?.exercises ?? []).map((e) => e.muscle))];
 export const ALL_EXERCISES: Exercise[] = PROGRAM.flatMap((d) => d.exercises);
 export const exerciseById = (id: string) => ALL_EXERCISES.find((e) => e.id === id);
+/** Program day an exercise belongs to. */
+export const dayOfExercise = (id: string) => PROGRAM.find((d) => d.exercises.some((e) => e.id === id));

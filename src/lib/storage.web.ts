@@ -60,6 +60,9 @@ export const storage: Storage = {
     }
     return [...m.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
   },
+  allSets() {
+    return [...S.sets].sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.exId !== b.exId ? (a.exId < b.exId ? -1 : 1) : a.idx - b.idx));
+  },
   mealChecks(date) {
     return S.meals.filter((m) => m.date === date).map((m) => m.meal);
   },

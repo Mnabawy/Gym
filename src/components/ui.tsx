@@ -71,8 +71,8 @@ export function TagBadge({ tag }: { tag: Tag }) {
   );
 }
 
-/** Rounded pill: slate-navy when selected, soft grey otherwise. */
-export function Pill({ label, on, onPress, num }: { label: string; on: boolean; onPress: () => void; num?: boolean }) {
+/** Rounded pill: slate-navy when selected, soft grey otherwise. `color` adds a dot (muscle). */
+export function Pill({ label, on, onPress, num, color }: { label: string; on: boolean; onPress: () => void; num?: boolean; color?: string }) {
   const t = useTheme();
   return (
     <Pressable
@@ -80,7 +80,8 @@ export function Pill({ label, on, onPress, num }: { label: string; on: boolean; 
       accessibilityState={{ selected: on }}
       hitSlop={4}
       onPress={onPress}
-      style={{ minHeight: 38, paddingHorizontal: 14, justifyContent: 'center', borderRadius: 999, backgroundColor: on ? t.ink : t.soft }}>
+      style={{ minHeight: 38, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: on ? t.ink : t.soft }}>
+      {color ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color, borderWidth: on ? 1 : 0, borderColor: t.onInk }} /> : null}
       <T w={num ? 'num' : 'medium'} style={{ fontSize: 13, color: on ? t.onInk : t.fg }}>{label}</T>
     </Pressable>
   );

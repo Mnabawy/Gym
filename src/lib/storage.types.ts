@@ -16,6 +16,8 @@ export interface Storage {
   sessionDates(from: string, to: string): string[];
   /** Every date with at least one done set, oldest first: which program days were logged and how many sets. */
   trainedDays(): TrainedDay[];
+  /** Every logged set, sorted by date then exercise. Feeds the gaps dashboard. */
+  allSets(): SetRow[];
 
   mealChecks(date: string): string[];
   setMealCheck(date: string, meal: string, on: boolean): void;

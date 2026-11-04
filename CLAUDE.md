@@ -22,9 +22,10 @@ Exercise names stay in English (gym vocabulary).
 - `src/data/program.ts` — the 5-day program (edit here to change exercises)
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
 - Source PDFs live in `docs/`
+- `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file
 
 ## Commands
 - `npx expo start` — run
-- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, data integrity)
+- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, data integrity)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions

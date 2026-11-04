@@ -107,3 +107,17 @@ export function formatClock(ms: number): string {
   const s = Math.round(Math.abs(ms) / 1000);
   return `${over ? '+' : ''}${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 }
+
+/**
+ * Arabic count phrase: 1 → "مرة", 2 → "مرتين", 3–10 → "3 مرات", 11+ → "11 مرة".
+ * forms = [one, two, plural (3–10), singular for 11+].
+ */
+export function countAr(n: number, [one, two, few, many]: readonly [string, string, string, string]): string {
+  if (n === 1) return one;
+  if (n === 2) return two;
+  return n >= 3 && n <= 10 ? `${n} ${few}` : `${n} ${many}`;
+}
+export const TIMES: [string, string, string, string] = ['مرة', 'مرتين', 'مرات', 'مرة'];
+export const SETS: [string, string, string, string] = ['مجموعة', 'مجموعتين', 'مجموعات', 'مجموعة'];
+export const WEEKS: [string, string, string, string] = ['أسبوع', 'أسبوعين', 'أسابيع', 'أسبوع'];
+export const DAYS: [string, string, string, string] = ['يوم', 'يومين', 'أيام', 'يوم'];
