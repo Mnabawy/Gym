@@ -24,7 +24,8 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
   const start = useTimer((s) => s.start);
   const autoRest = useSettings((s) => s.autoRest);
   const weightStep = useSettings((s) => s.weightStep);
-  // Parent remounts this card (key) when date or data version changes, so storage is read once per mount.
+  // Parent remounts this card (key) when the date changes or something outside it changes the data (clearing the day,
+  // a new plan). Its own writes keep its state, so ticks and the counter can animate.
   const [rows, setRows] = useState<Row[]>(() => {
     const cur = storage.setsFor(date, ex.id);
     return Array.from({ length: ex.sets }, (_, i) => toRow(cur[i]));

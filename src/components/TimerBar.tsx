@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
 
 import { buzz, useTimer } from '../lib/timer';
 import { formatClock } from '../lib/logic';
+import { useTween } from '../lib/motion';
 import { Ring, T } from './ui';
 import { useTheme } from '../theme';
 
@@ -11,6 +12,8 @@ export function TimerBar() {
   const { endAt, total, label, add, stop } = useTimer();
   const [now, setNow] = useState(() => Date.now());
   const fired = useRef<number | null>(null);
+  // Slides up when a rest starts.
+  const enter = useTween(endAt ? 1 : 0, 260, true);
 
   useEffect(() => {
     if (!endAt) return;
@@ -29,8 +32,10 @@ export function TimerBar() {
   const left = endAt - now;
   const over = left <= 0;
   return (
-    <View style={[s.bar, { backgroundColor: t.ink, boxShadow: t.shadow }]} accessibilityLiveRegion="polite">
-      <Ring value={over ? 1 : left / (total * 1000)} size={62} stroke={5} color={t.ok} track="rgba(255,255,255,0.18)">
+    <Animated.View
+      style={[s.bar, { backgroundColor: t.ink, boxShadow: t.shadow, opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] }]}
+      accessibilityLiveRegion="polite">
+      <Ring animated={false} value={over ? 1 : left / (total * 1000)} size={62} stroke={5} color={t.ok} track="rgba(255,255,255,0.18)">
         <T w="numBold" style={{ color: '#FFFFFF', fontSize: 15 }}>{formatClock(left)}</T>
       </Ring>
       <View style={{ flex: 1, minWidth: 0 }}>
@@ -43,7 +48,7 @@ export function TimerBar() {
       <Pressable onPress={stop} style={[s.btn, { backgroundColor: t.ok, borderColor: t.ok }]} accessibilityRole="button">
         <T w="semi" style={{ color: '#FFFFFF' }}>خلاص</T>
       </Pressable>
-    </View>
+    </Animated.View>
   );
 }
 

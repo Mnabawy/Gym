@@ -18,7 +18,7 @@ export default function Workout() {
   const date = dateKey();
   const [picked, setPicked] = useState<{ date: string; id: number } | null>(null);
   const [confirm, setConfirm] = useState(false);
-  const { v, bump } = useDataVersion();
+  const { cards, bump, bumpAll } = useDataVersion();
 
   // Workouts run in one sequence, not by weekday: open on the one after your last session (src/lib/schedule.ts).
   // Re-read on every render; the screen re-renders when the data version (v) changes.
@@ -85,7 +85,7 @@ export default function Workout() {
         </View>
       ) : null}
       {day.exercises.map((e, i) => (
-        <ExerciseCard key={`${e.id}-${date}-${v}`} ex={e} index={i} date={date} weekday={sel} onChange={bump} />
+        <ExerciseCard key={`${e.id}-${date}-${cards}`} ex={e} index={i} date={date} weekday={sel} onChange={bump} />
       ))}
       <View style={{ gap: 8, marginTop: 6 }}>
         <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 20 }}>
@@ -96,7 +96,7 @@ export default function Workout() {
         ) : (
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <T style={{ color: t.mute }}>متأكد؟</T>
-            <Btn label="أيوه امسح" kind="solid" onPress={() => { storage.clearDay(date, day.exercises.map((e) => e.id)); setConfirm(false); bump(); }} />
+            <Btn label="أيوه امسح" kind="solid" onPress={() => { storage.clearDay(date, day.exercises.map((e) => e.id)); setConfirm(false); bumpAll(); }} />
             <Btn label="لا" onPress={() => setConfirm(false)} />
           </View>
         )}

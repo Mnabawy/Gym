@@ -113,7 +113,7 @@ export const useSettings = create<Store>((set, get) => {
     set(next);
     storage.setMeta(KEY, JSON.stringify(next));
     applyPlan(next);
-    useDataVersion.getState().bump(); // screens re-read the plan
+    useDataVersion.getState().bumpAll(); // screens and exercise cards re-read the plan
   };
   const save = (next: Settings) => {
     set(next);

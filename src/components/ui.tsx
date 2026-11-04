@@ -1,9 +1,10 @@
-import React from 'react';
-import { LayoutAnimation, Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Animated, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { F, tint, useTheme } from '../theme';
+import { usePop, useTween } from '../lib/motion';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
 
@@ -162,21 +163,73 @@ export function DayChips({ days, value, today, onChange }: { days: DayChip[]; va
   );
 }
 
+/** Bar that grows smoothly to `value` (0–1). */
 export function Progress({ value, color, height = 6 }: { value: number; color?: string; height?: number }) {
   const t = useTheme();
+  const v = useTween(clamp01(value), 380);
   return (
     <View style={{ height, backgroundColor: t.soft, borderRadius: height / 2, overflow: 'hidden' }}>
-      <View style={{ width: `${clamp01(value) * 100}%`, height: '100%', borderRadius: height / 2, backgroundColor: color ?? t.ok }} />
+      <Animated.View style={{ width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), height: '100%', borderRadius: height / 2, backgroundColor: color ?? t.ok }} />
     </View>
   );
 }
 
-/** Circular progress; children render in the middle. */
-export function Ring({ value, size = 60, stroke = 5, color, track, children }: { value: number; size?: number; stroke?: number; color?: string; track?: string; children?: React.ReactNode }) {
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+const web = Platform.OS === 'web';
+
+/** Current number of an Animated.Value as state (web: SVG props can't take animated values there). */
+function useFrames(v: Animated.Value, on: boolean, start: number): number {
+  const [n, setN] = useState(start);
+  useEffect(() => {
+    if (!on) return;
+    const id = v.addListener(({ value }) => setN(value));
+    return () => v.removeListener(id);
+  }, [v, on]);
+  return n;
+}
+
+/** Circular progress; children render in the middle. It sweeps to a new value unless `animated` is false (the rest timer ticks on its own). */
+export function Ring({ value, size = 60, stroke = 5, color, track, children, animated = true }: { value: number; size?: number; stroke?: number; color?: string; track?: string; children?: React.ReactNode; animated?: boolean }) {
   const t = useTheme();
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const v = clamp01(value);
+  const tw = useTween(v, 600);
+  const frame = useFrames(tw, animated && web, v);
+  if (animated && web)
+    return (
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+          <Circle cx={size / 2} cy={size / 2} r={r} stroke={track ?? t.soft} strokeWidth={stroke} fill="none" />
+          {frame > 0.004 ? (
+            <Circle cx={size / 2} cy={size / 2} r={r} stroke={color ?? t.ok} strokeWidth={stroke} fill="none" strokeLinecap="round" strokeDasharray={`${c} ${c}`} strokeDashoffset={c * (1 - frame)} transform={`rotate(-90 ${size / 2} ${size / 2})`} />
+          ) : null}
+        </Svg>
+        {children}
+      </View>
+    );
+  if (animated)
+    return (
+      <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
+          <Circle cx={size / 2} cy={size / 2} r={r} stroke={track ?? t.soft} strokeWidth={stroke} fill="none" />
+          <AnimatedCircle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            stroke={color ?? t.ok}
+            strokeWidth={stroke}
+            fill="none"
+            strokeLinecap="round"
+            strokeDasharray={`${c} ${c}`}
+            strokeDashoffset={tw.interpolate({ inputRange: [0, 1], outputRange: [c, 0] })}
+            opacity={tw.interpolate({ inputRange: [0, 0.004, 1], outputRange: [0, 1, 1] })}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
+          />
+        </Svg>
+        {children}
+      </View>
+    );
   return (
     <View style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
       <Svg width={size} height={size} style={StyleSheet.absoluteFill}>
@@ -218,17 +271,19 @@ export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; 
   );
 }
 
-/** Check button used for sets and meals. */
+/** Check button used for sets and meals. Ticking it pops and fills with color. */
 export function Check({ on, onPress, label }: { on: boolean; onPress: () => void; label: string }) {
   const t = useTheme();
+  const fill = useTween(on ? 1 : 0, 180, true);
+  const pop = usePop(on, on ? 0.8 : 0.92);
   return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked: on }}
-      accessibilityLabel={label}
-      style={{ width: 48, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.ok : t.soft }}>
-      <T w="bold" style={{ color: on ? '#FFFFFF' : t.mute, fontSize: 18 }}>✓</T>
+    <Pressable onPress={onPress} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={label} style={{ width: 48, height: 44 }}>
+      <Animated.View style={[s.check, { backgroundColor: t.soft, transform: [{ scale: pop }] }]}>
+        <T w="bold" style={{ color: t.mute, fontSize: 18 }}>✓</T>
+        <Animated.View style={[s.check, StyleSheet.absoluteFill, { backgroundColor: t.ok, opacity: fill }]}>
+          <T w="bold" style={{ color: '#FFFFFF', fontSize: 18 }}>✓</T>
+        </Animated.View>
+      </Animated.View>
     </Pressable>
   );
 }
@@ -236,6 +291,7 @@ export function Check({ on, onPress, label }: { on: boolean; onPress: () => void
 /** − value + counter. Buttons dim at the limits. */
 export function Stepper({ value, min, max, step = 1, onChange, label, format }: { value: number; min: number; max: number; step?: number; onChange: (v: number) => void; label: string; format?: (v: number) => string }) {
   const t = useTheme();
+  const pop = usePop(value, 0.8);
   const btn = (dir: -1 | 1) => {
     const off = dir < 0 ? value <= min : value >= max;
     return (
@@ -254,9 +310,11 @@ export function Stepper({ value, min, max, step = 1, onChange, label, format }: 
   return (
     <View style={s.stepper}>
       {btn(-1)}
-      <T w="numBold" style={{ minWidth: 46, textAlign: 'center', fontSize: 16 }} accessibilityLabel={`${label}: ${format ? format(value) : value}`}>
-        {`\u2066${format ? format(value) : value}\u2069`}
-      </T>
+      <Animated.View style={{ transform: [{ scale: pop }] }}>
+        <T w="numBold" style={{ minWidth: 46, textAlign: 'center', fontSize: 16 }} accessibilityLabel={`${label}: ${format ? format(value) : value}`}>
+          {`\u2066${format ? format(value) : value}\u2069`}
+        </T>
+      </Animated.View>
       {btn(1)}
     </View>
   );
@@ -319,6 +377,7 @@ const s = StyleSheet.create({
   action: { position: 'absolute', end: 0, top: 0 },
   track: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
   thumb: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' },
+  check: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10 },
