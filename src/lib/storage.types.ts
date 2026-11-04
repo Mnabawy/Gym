@@ -1,5 +1,6 @@
 import type { SetEntry } from './logic';
 
+export type TrainedDay = { date: string; weekdays: number[]; sets: number };
 export type SetRow = { date: string; weekday: number; exId: string; idx: number; kg: number | null; reps: number | null; done: number };
 
 export interface Storage {
@@ -13,6 +14,8 @@ export interface Storage {
   /** Done sets per exercise between two dates (inclusive). */
   doneSetsBetween(from: string, to: string): { exId: string; n: number }[];
   sessionDates(from: string, to: string): string[];
+  /** Every date with at least one done set, oldest first: which program days were logged and how many sets. */
+  trainedDays(): TrainedDay[];
 
   mealChecks(date: string): string[];
   setMealCheck(date: string, meal: string, on: boolean): void;

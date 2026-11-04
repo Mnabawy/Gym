@@ -1,8 +1,8 @@
 /// <reference types="jest" />
-import { PROGRAM, dayFor } from '../src/data/program';
+import { PLAN_WEEKDAYS, PROGRAM, dayFor, dayMuscles } from '../src/data/program';
 import { MEALS, MEAL_ORDER, TARGETS, WEEK_MENU, FOODS } from '../src/data/nutrition';
 import { SHOPPING } from '../src/data/shopping';
-import { bestE1rm, dateKey, epley, formatClock, mealMacros, parseNum, shopWeekKey, shouldIncrease } from '../src/lib/logic';
+import { addMonths, bestE1rm, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, weekdayOf } from '../src/lib/logic';
 
 describe('program data matches the PDF', () => {
   test('training days are Mon, Tue, Wed, Fri, Sat', () => {
@@ -78,5 +78,43 @@ describe('nutrition data', () => {
   test('week has 7 days and shopping has items', () => {
     expect(WEEK_MENU).toHaveLength(7);
     expect(SHOPPING.flatMap((g) => g.items).length).toBeGreaterThan(20);
+  });
+});
+
+describe('attendance calendar', () => {
+  test('weekdayOf and addMonths', () => {
+    expect(weekdayOf('2026-11-04')).toBe(3); // Wednesday
+    expect(addMonths(2026, 0, -1)).toEqual({ y: 2025, m: 11 });
+    expect(addMonths(2026, 11, 1)).toEqual({ y: 2027, m: 0 });
+  });
+  test('month grid starts on Saturday and pads to whole weeks', () => {
+    const nov = monthCells(2026, 10); // Nov 1 2026 is a Sunday → one pad cell
+    expect(nov[0]).toBeNull();
+    expect(nov[1]).toBe('2026-11-01');
+    expect(nov.length).toBe(35);
+    expect(nov.filter(Boolean).length).toBe(30);
+    const aug = monthCells(2026, 7); // Aug 1 2026 is a Saturday → no padding
+    expect(aug[0]).toBe('2026-08-01');
+    expect(aug.length % 7).toBe(0);
+  });
+  test('day status', () => {
+    const trained = new Set(['2026-11-02', '2026-11-01']);
+    const st = (k: string) => dayStatus(k, trained, PLAN_WEEKDAYS, '2026-11-04', '2026-11-01');
+    expect(st('2026-11-02')).toBe('done');
+    expect(st('2026-11-01')).toBe('done'); // trained on a rest day still counts
+    expect(st('2026-11-03')).toBe('missed');
+    expect(st('2026-10-31')).toBe('off'); // before the first session
+    expect(st('2026-11-04')).toBe('upcoming'); // today isn't missed yet
+    expect(st('2026-11-05')).toBe('off'); // Thursday rest
+    expect(st('2026-11-06')).toBe('upcoming');
+  });
+  test('month stats', () => {
+    const r = monthStats(monthCells(2026, 10), new Set(['2026-11-02']), PLAN_WEEKDAYS, '2026-11-04', '2026-11-02');
+    expect(r).toEqual({ done: 1, missed: 1, left: 19, rate: 0.5 });
+    expect(monthStats(monthCells(2026, 10), new Set(), PLAN_WEEKDAYS, '2026-11-04', undefined).rate).toBeNull();
+  });
+  test('day muscles', () => {
+    expect(dayMuscles(1)).toEqual(['back', 'shoulders']);
+    expect(dayMuscles(0)).toEqual([]);
   });
 });

@@ -9,6 +9,55 @@ export function dateKey(d: Date = new Date()): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+/** Weekday (0 = Sunday) of a YYYY-MM-DD key, local time. */
+export function weekdayOf(key: string): number {
+  const [y, m, d] = key.split('-').map(Number);
+  return new Date(y, m - 1, d).getDay();
+}
+
+/** Month `delta` months away; month is 0-based. */
+export function addMonths(year: number, month: number, delta: number): { y: number; m: number } {
+  const d = new Date(year, month + delta, 1);
+  return { y: d.getFullYear(), m: d.getMonth() };
+}
+
+/** Calendar grid for a month, weeks starting Saturday; null cells pad the first and last week. */
+export function monthCells(year: number, month: number): (string | null)[] {
+  const pad = (new Date(year, month, 1).getDay() + 1) % 7;
+  const days = new Date(year, month + 1, 0).getDate();
+  const cells: (string | null)[] = Array(pad).fill(null);
+  for (let d = 1; d <= days; d++) cells.push(dateKey(new Date(year, month, d)));
+  while (cells.length % 7) cells.push(null);
+  return cells;
+}
+
+/**
+ * done: trained that day (any day, rest days too).
+ * missed: a past training day with nothing done, on or after the first ever session.
+ * upcoming: a training day from today on (today isn't missed until it's over).
+ * off: rest day, or before tracking started.
+ */
+export type DayStatus = 'done' | 'missed' | 'upcoming' | 'off';
+export function dayStatus(key: string, trained: ReadonlySet<string>, plan: readonly number[], today: string, since: string | undefined): DayStatus {
+  if (trained.has(key)) return 'done';
+  if (!plan.includes(weekdayOf(key))) return 'off';
+  if (key >= today) return 'upcoming';
+  return since && key >= since ? 'missed' : 'off';
+}
+
+/** Attendance for one month's cells. rate = done / (done + missed), null when there's nothing to judge yet. */
+export function monthStats(cells: (string | null)[], trained: ReadonlySet<string>, plan: readonly number[], today: string, since: string | undefined) {
+  let done = 0, missed = 0, left = 0;
+  for (const k of cells) {
+    if (!k) continue;
+    const st = dayStatus(k, trained, plan, today, since);
+    if (st === 'done') done++;
+    else if (st === 'missed') missed++;
+    else if (st === 'upcoming') left++;
+  }
+  return { done, missed, left, rate: done + missed ? done / (done + missed) : null };
+}
+
 /** Friday that starts the shopping week containing d (shopping resets every Friday). */
 export function shopWeekKey(d: Date = new Date()): string {
   const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());

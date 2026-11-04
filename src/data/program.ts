@@ -30,6 +30,7 @@ export const MUSCLE_AR: Record<Muscle, string> = {
 export const WEEKDAYS_AR = ['الحد', 'الاتنين', 'التلات', 'الأربع', 'الخميس', 'الجمعة', 'السبت'];
 // One-letter names for the unselected day chips.
 export const WEEKDAY_LETTERS_AR = ['ح', 'ن', 'ت', 'ر', 'خ', 'ج', 'س'];
+export const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
 const ex = (name: string, muscle: Muscle, sets: number, repLow: number, repHigh: number, tag: Tag = null, perLeg = false): Exercise => ({
   id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -104,5 +105,9 @@ export const PROGRAM: Day[] = [
 ];
 
 export const dayFor = (weekday: number): Day | undefined => PROGRAM.find((d) => d.weekday === weekday);
+/** Training weekdays, in program order. */
+export const PLAN_WEEKDAYS = PROGRAM.map((d) => d.weekday);
+/** Muscles trained on a weekday, in order, without repeats. */
+export const dayMuscles = (weekday: number): Muscle[] => [...new Set((dayFor(weekday)?.exercises ?? []).map((e) => e.muscle))];
 export const ALL_EXERCISES: Exercise[] = PROGRAM.flatMap((d) => d.exercises);
 export const exerciseById = (id: string) => ALL_EXERCISES.find((e) => e.id === id);

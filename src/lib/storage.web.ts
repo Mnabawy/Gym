@@ -49,6 +49,17 @@ export const storage: Storage = {
   sessionDates(from, to) {
     return [...new Set(S.sets.filter((r) => r.done && r.date >= from && r.date <= to).map((r) => r.date))].sort();
   },
+  trainedDays() {
+    const m = new Map<string, { date: string; weekdays: number[]; sets: number }>();
+    for (const r of S.sets) {
+      if (!r.done) continue;
+      const d = m.get(r.date) ?? { date: r.date, weekdays: [], sets: 0 };
+      if (!d.weekdays.includes(r.weekday)) d.weekdays.push(r.weekday);
+      d.sets++;
+      m.set(r.date, d);
+    }
+    return [...m.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+  },
   mealChecks(date) {
     return S.meals.filter((m) => m.date === date).map((m) => m.meal);
   },

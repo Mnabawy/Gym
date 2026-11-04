@@ -7,6 +7,8 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 
 type TimerState = {
   endAt: number | null;
+  /** Full rest length in seconds (grows with +30), for the countdown ring. */
+  total: number;
   label: string;
   start: (sec: number, label: string) => void;
   add: (sec: number) => void;
@@ -62,14 +64,15 @@ async function scheduleNotif(endAt: number, label: string) {
 
 export const useTimer = create<TimerState>((set, get) => ({
   endAt: null,
+  total: 0,
   label: '',
   start: (sec, label) => {
-    set({ endAt: Date.now() + sec * 1000, label });
+    set({ endAt: Date.now() + sec * 1000, total: sec, label });
     if (native) activateKeepAwakeAsync(KEEP).catch(() => {});
   },
   add: (sec) => {
-    const e = get().endAt;
-    if (e) set({ endAt: e + sec * 1000 });
+    const { endAt: e, total } = get();
+    if (e) set({ endAt: e + sec * 1000, total: total + sec });
   },
   stop: () => {
     set({ endAt: null });

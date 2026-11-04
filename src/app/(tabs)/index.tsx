@@ -3,7 +3,7 @@ import { View } from 'react-native';
 import { dayFor, MUSCLE_AR, WEEKDAY_LETTERS_AR, WEEKDAYS_AR } from '../../data/program';
 import { ExerciseCard } from '../../components/ExerciseCard';
 import { TimerBar } from '../../components/TimerBar';
-import { Btn, Card, DayChips, Progress, Screen, T, TagBadge } from '../../components/ui';
+import { Btn, Card, DayChips, Ring, Screen, T, TagBadge } from '../../components/ui';
 import { dateKey } from '../../lib/logic';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
@@ -39,23 +39,34 @@ export default function Workout() {
     done += storage.setsFor(date, e.id).filter((x) => x.done).length;
   }
 
+  // Rough session length: each set's work (~45 s) plus its rest.
+  const minutes = Math.round((day?.exercises ?? []).reduce((a, e) => a + e.sets * (e.restSec + 45), 0) / 60);
+
   return (
     <Screen title="تمرين النهارده" sub="برنامج 5 أيام · قوة وعضل" footer={<TimerBar />}>
       <DayChips days={chips} value={sel} today={today} onChange={(k) => { setSel(k); setConfirm(false); }} />
 
       {!day ? (
-        <Card style={{ padding: 24, alignItems: 'center', borderStyle: 'dashed' }}>
+        <Card style={{ padding: 24, alignItems: 'center', gap: 6 }}>
+          <View style={{ width: 52, height: 52, borderRadius: 26, backgroundColor: t.okSoft, alignItems: 'center', justifyContent: 'center' }}>
+            <T style={{ fontSize: 24 }}>😴</T>
+          </View>
           <T w="bold" style={{ fontSize: 18 }}>{`${WEEKDAYS_AR[sel]} · يوم راحة`}</T>
-          <T style={{ color: t.mute, textAlign: 'center', marginTop: 4 }}>العضلة بتكبر وانت مرتاح. نام كويس، واشرب مية، وكُل زي نظامك.</T>
+          <T style={{ color: t.mute, textAlign: 'center' }}>العضلة بتكبر وانت مرتاح. نام كويس، واشرب مية، وكُل زي نظامك.</T>
         </Card>
       ) : (
         <>
-          <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
-            <T w="bold" style={{ fontSize: 18 }}>{`${WEEKDAYS_AR[sel]} · ${day.titleAr}`}</T>
-            <T w="numRegular" style={{ color: t.mute, fontSize: 13 }}>{`${done} / ${total}`}</T>
-          </View>
-          <Progress value={total ? done / total : 0} />
-          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+          <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+            <Ring value={total ? done / total : 0} size={64} stroke={5}>
+              <T w="numBold" style={{ fontSize: 14, color: t.okText }}>{`${total ? Math.round((done / total) * 100) : 0}%`}</T>
+            </Ring>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T style={{ color: t.mute, fontSize: 13 }}>{`${WEEKDAYS_AR[sel]} · ${day.exercises.length} تمارين · ${done} من ${total} مجموعة`}</T>
+              <T w="bold" style={{ fontSize: 18 }}>{day.titleAr}</T>
+            </View>
+            <T style={{ color: t.mute, fontSize: 12.5, alignSelf: 'flex-start' }}>{`~ ${minutes} د`}</T>
+          </Card>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 2 }}>
             {(['heavy', 'fail', 'drop'] as const).map((k) => (
               <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
                 <TagBadge tag={k} />
@@ -64,7 +75,7 @@ export default function Workout() {
             ))}
           </View>
           {sel !== today ? (
-            <View style={{ backgroundColor: t.warnSoft, borderRadius: 10, padding: 10 }}>
+            <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, padding: 12 }}>
               <T style={{ color: t.warn, fontSize: 13 }}>ده مش يوم النهارده. لو هتلعبه النهارده، اللي هتسجله هيتحفظ بتاريخ النهارده.</T>
             </View>
           ) : null}

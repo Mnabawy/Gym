@@ -1,10 +1,13 @@
 import { Tabs } from 'expo-router';
-import { Text } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ColorValue } from 'react-native';
 import { F, useTheme } from '../../theme';
 
-function icon(glyph: string) {
-  return function TabIcon({ focused }: { focused: boolean }) {
-    return <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.5 }}>{glyph}</Text>;
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
+function icon(name: string) {
+  return function TabIcon({ focused, color }: { focused: boolean; color: ColorValue }) {
+    return <Ionicons name={(focused ? name : `${name}-outline`) as IconName} size={23} color={color as string} />;
   };
 }
 
@@ -14,15 +17,15 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: t.fg,
+        tabBarActiveTintColor: t.okText,
         tabBarInactiveTintColor: t.mute,
         tabBarStyle: { backgroundColor: t.card, borderTopColor: t.line },
-        tabBarLabelStyle: { fontFamily: F.semi, fontSize: 11.5, lineHeight: 16 },
+        tabBarLabelStyle: { fontFamily: F.medium, fontSize: 11, lineHeight: 16 },
       }}>
-      <Tabs.Screen name="index" options={{ title: 'التمرين', tabBarIcon: icon('🏋') }} />
-      <Tabs.Screen name="progress" options={{ title: 'التقدم', tabBarIcon: icon('📈') }} />
-      <Tabs.Screen name="food" options={{ title: 'الأكل', tabBarIcon: icon('🍽') }} />
-      <Tabs.Screen name="shop" options={{ title: 'المشتريات', tabBarIcon: icon('🛒') }} />
+      <Tabs.Screen name="index" options={{ title: 'التمرين', tabBarIcon: icon('barbell') }} />
+      <Tabs.Screen name="progress" options={{ title: 'التقدم', tabBarIcon: icon('stats-chart') }} />
+      <Tabs.Screen name="food" options={{ title: 'الأكل', tabBarIcon: icon('restaurant') }} />
+      <Tabs.Screen name="shop" options={{ title: 'المشتريات', tabBarIcon: icon('cart') }} />
     </Tabs>
   );
 }

@@ -50,6 +50,13 @@ export const storage: Storage = {
   sessionDates(from, to) {
     return db.getAllSync<{ date: string }>('SELECT DISTINCT date FROM set_logs WHERE done = 1 AND date BETWEEN ? AND ? ORDER BY date', from, to).map((r) => r.date);
   },
+  trainedDays() {
+    return db
+      .getAllSync<{ date: string; wds: string; n: number }>(
+        'SELECT date, GROUP_CONCAT(DISTINCT weekday) AS wds, COUNT(*) AS n FROM set_logs WHERE done = 1 GROUP BY date ORDER BY date',
+      )
+      .map((r) => ({ date: r.date, weekdays: r.wds.split(',').map(Number), sets: r.n }));
+  },
   mealChecks(date) {
     return db.getAllSync<{ meal: string }>('SELECT meal FROM meal_checks WHERE date = ?', date).map((r) => r.meal);
   },
