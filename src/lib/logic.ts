@@ -121,3 +121,17 @@ export const TIMES: [string, string, string, string] = ['مرة', 'مرتين', 
 export const SETS: [string, string, string, string] = ['مجموعة', 'مجموعتين', 'مجموعات', 'مجموعة'];
 export const WEEKS: [string, string, string, string] = ['أسبوع', 'أسبوعين', 'أسابيع', 'أسبوع'];
 export const DAYS: [string, string, string, string] = ['يوم', 'يومين', 'أيام', 'يوم'];
+
+/**
+ * Which verse to show next: walks the list in order so every verse comes up once before any repeats.
+ * No (or a stale) previous index → start somewhere random.
+ */
+export function nextVerseIndex(last: number | null, count: number, rand: () => number = Math.random): number {
+  if (last == null || !Number.isInteger(last) || last < 0 || last >= count) return Math.floor(rand() * count);
+  return (last + 1) % count;
+}
+
+/** 286 → "٢٨٦" (verse references use Arabic-Indic digits). */
+export function arabicDigits(v: number | string): string {
+  return String(v).replace(/\d/g, (d) => '٠١٢٣٤٥٦٧٨٩'[Number(d)]);
+}

@@ -25,6 +25,10 @@ export interface Storage {
   shopChecks(week: string): string[];
   setShopCheck(week: string, item: string, on: boolean): void;
   clearShop(week: string): void;
+
+  /** Small key/value app state (e.g. the last Quran verse shown). */
+  getMeta(key: string): string | null;
+  setMeta(key: string, value: string): void;
 }
 
 export function rowsToSets(rows: { idx: number; kg: number | null; reps: number | null; done: number }[]): SetEntry[] {

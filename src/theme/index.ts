@@ -79,6 +79,7 @@ export const F = {
   num: 'Inter_600SemiBold',
   numBold: 'Inter_700Bold',
   numRegular: 'Inter_400Regular',
+  quran: 'AmiriQuran_400Regular',
 };
 
 /** Mix a hex color with the background for tinted fills. */

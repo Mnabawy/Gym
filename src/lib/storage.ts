@@ -13,6 +13,7 @@ db.execSync(`
   CREATE INDEX IF NOT EXISTS set_logs_ex ON set_logs (ex_id, date);
   CREATE TABLE IF NOT EXISTS meal_checks (date TEXT NOT NULL, meal TEXT NOT NULL, PRIMARY KEY (date, meal));
   CREATE TABLE IF NOT EXISTS shop_checks (week TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (week, item));
+  CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
 
 type Row = { idx: number; kg: number | null; reps: number | null; done: number };
@@ -80,5 +81,11 @@ export const storage: Storage = {
   },
   clearShop(week) {
     db.runSync('DELETE FROM shop_checks WHERE week = ?', week);
+  },
+  getMeta(key) {
+    return db.getFirstSync<{ value: string }>('SELECT value FROM meta WHERE key = ?', key)?.value ?? null;
+  },
+  setMeta(key, value) {
+    db.runSync('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', key, value);
   },
 };

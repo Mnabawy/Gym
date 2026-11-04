@@ -1,15 +1,15 @@
 // Web storage: localStorage (used for the web preview; the phone app uses SQLite)
 import { rowsToSets, type SetRow, type Storage } from './storage.types';
 
-type State = { sets: SetRow[]; meals: { date: string; meal: string }[]; shop: { week: string; item: string }[] };
+type State = { sets: SetRow[]; meals: { date: string; meal: string }[]; shop: { week: string; item: string }[]; meta: Record<string, string> };
 const KEY = 'gym-app-v1';
 
 function load(): State {
   try {
     const raw = globalThis.localStorage?.getItem(KEY);
-    if (raw) return JSON.parse(raw);
+    if (raw) return { meta: {}, ...JSON.parse(raw) };
   } catch {}
-  return { sets: [], meals: [], shop: [] };
+  return { sets: [], meals: [], shop: [], meta: {} };
 }
 let S = load();
 function persist() {
@@ -81,6 +81,13 @@ export const storage: Storage = {
   },
   clearShop(week) {
     S.shop = S.shop.filter((s) => s.week !== week);
+    persist();
+  },
+  getMeta(key) {
+    return S.meta[key] ?? null;
+  },
+  setMeta(key, value) {
+    S.meta[key] = value;
     persist();
   },
 };

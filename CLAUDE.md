@@ -21,6 +21,7 @@ Exercise names stay in English (gym vocabulary).
 ## Data
 - `src/data/program.ts` — the 5-day program (edit here to change exercises)
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
+- `src/data/verses.ts` — Quran verses for the launch popup (`src/components/VersePopup.tsx`). Tanzil Uthmani text copied verbatim from api.alquran.cloud; never retype or edit a verse by hand
 - Source PDFs live in `docs/`
 - `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file
 
