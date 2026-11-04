@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { Platform, View } from 'react-native';
+import { Platform, Pressable, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { DEFAULT_SETS, PROGRAM, SETS_MAX, SETS_MIN, WEEKDAYS_AR } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
@@ -7,6 +8,7 @@ import { useVersePopup } from '../components/VersePopup';
 import { formatClock } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { tripDays, daysLabel, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
+import { energyFor } from '../lib/energy';
 import { useTheme } from '../theme';
 
 const phone = Platform.OS !== 'web';
@@ -22,9 +24,19 @@ export default function SettingsScreen() {
   const changed = plan.exercises.filter((e) => st.sets[e.id] != null);
   const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
   const trips = tripDays(st.shopTrips);
+  const need = energyFor(st.body);
 
   return (
     <Screen title="الإعدادات" sub="التمرين والراحة والمشتريات والآية" onBack={() => router.back()}>
+      <Label>بياناتك</Label>
+      <Pressable onPress={() => router.push('/calories')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+        <Card>
+          <Row label="احسب احتياجك من السعرات" sub={need ? `${need.kcal.toLocaleString('en-US')} سعر · ${need.protein} جم بروتين في اليوم` : 'السن والطول والوزن ونشاطك وهدفك'}>
+            <Ionicons name="chevron-back" size={20} color={t.mute} />
+          </Row>
+        </Card>
+      </Pressable>
+
       <Label>عدد المجموعات لكل تمرين</Label>
       <Card>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 12, paddingBottom: 6 }}>

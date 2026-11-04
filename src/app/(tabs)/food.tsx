@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { View } from 'react-native';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, TARGETS, WEEK_MENU } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
-import { Btn, Card, Check, DayChips, FoodChip, Ring, Screen, T } from '../../components/ui';
+import { router } from 'expo-router';
+import { Btn, Card, Check, DayChips, FoodChip, HeaderBtn, Ring, Screen, T } from '../../components/ui';
 import { dateKey, mealMacros } from '../../lib/logic';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
@@ -49,7 +50,10 @@ export default function Food() {
   ];
 
   return (
-    <Screen title="الأكل" sub="183 سم · 82 كجم · زيادة عضل">
+    <Screen
+      title="الأكل"
+      sub="183 سم · 82 كجم · زيادة عضل"
+      action={<HeaderBtn icon="calculator-outline" label="احسب احتياجك من السعرات" onPress={() => router.push('/calories')} />}>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {tiles.map((x, i) => (
           <View key={i} style={{ flex: 1, minWidth: 0, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: x.solid ? t.ink : tint(x.c, 0.15) }}>

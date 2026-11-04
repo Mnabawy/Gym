@@ -3,6 +3,7 @@ import { create } from 'zustand';
 import { applyPlan, DEFAULT_REST, DEFAULT_SETS } from '../data/program';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
+import { DEFAULT_BODY, parseBody, type Body } from './energy';
 
 export type Settings = {
   /** Only exercises changed from the PDF; missing id = default. */
@@ -24,6 +25,8 @@ export type Settings = {
   verseOnReturn: boolean;
   /** Shopping trips per week; the list is split across them (src/lib/shop.ts). */
   shopTrips: number;
+  /** Body data for the calorie calculator (/calories). */
+  body: Body;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -38,13 +41,14 @@ export const DEFAULT_SETTINGS: Settings = {
   verse: true,
   verseOnReturn: true,
   shopTrips: 1,
+  body: DEFAULT_BODY,
 };
 
 const KEY = 'settings';
 
 /** Parse saved settings, dropping unknown or wrong-typed fields so a bad value never breaks the app. */
 export function parseSettings(raw: string | null): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS, sets: {} };
+  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY } };
   if (!raw) return out;
   let v: unknown;
   try {
@@ -55,7 +59,7 @@ export function parseSettings(raw: string | null): Settings {
   if (!v || typeof v !== 'object') return out;
   const o = v as Record<string, unknown>;
   for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
-    if (k === 'sets') continue;
+    if (k === 'sets' || k === 'body') continue;
     if (typeof o[k] === typeof DEFAULT_SETTINGS[k]) (out as Record<string, unknown>)[k] = o[k];
   }
   if (o.sets && typeof o.sets === 'object') {
@@ -63,6 +67,7 @@ export function parseSettings(raw: string | null): Settings {
       if (id in DEFAULT_SETS && typeof n === 'number' && Number.isFinite(n)) out.sets[id] = n;
     }
   }
+  out.body = parseBody(o.body);
   return out;
 }
 
@@ -70,6 +75,8 @@ type Store = Settings & {
   update: (p: Partial<Settings>) => void;
   /** Set one exercise's sets; going back to the PDF number removes the override. */
   setSets: (id: string, n: number) => void;
+  /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
+  setBody: (p: Partial<Body>) => void;
   reset: () => void;
 };
 
@@ -98,6 +105,11 @@ export const useSettings = create<Store>((set, get) => {
       else sets[id] = n;
       commit({ ...pick(get()), sets });
     },
-    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {} }),
+    setBody: (p) => {
+      const next = { ...pick(get()), body: { ...get().body, ...p } };
+      set(next);
+      storage.setMeta(KEY, JSON.stringify(next));
+    },
+    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body }), // body data isn't a "setting" to reset
   };
 });
