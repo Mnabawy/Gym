@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { dayFor, MUSCLE_AR, PROGRAM } from '../../data/program';
+import { dayFor, PROGRAM } from '../../data/program';
 import { ExerciseCard } from '../../components/ExerciseCard';
+import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
 import { router } from 'expo-router';
-import { Btn, Card, DayChips, HeaderBtn, Ring, Screen, T, TagBadge } from '../../components/ui';
+import { Btn, Card, HeaderBtn, Ring, Screen, T, TagBadge } from '../../components/ui';
 import { countAr, dateKey, DAYS } from '../../lib/logic';
 import { daysBetween } from '../../lib/gaps';
 import { after, currentWorkout, seqIndex } from '../../lib/schedule';
@@ -29,17 +30,6 @@ export default function Workout() {
     setConfirm(false);
   };
 
-  const chips = PROGRAM.map((d, i) => {
-    const muscles = [...new Set(d.exercises.map((e) => e.muscle))];
-    return {
-      key: d.weekday,
-      label: `تمرين ${i + 1}`,
-      short: String(i + 1),
-      colors: muscles.map((m) => t.muscle[m]),
-      details: muscles.map((m) => ({ color: t.muscle[m], label: MUSCLE_AR[m] })),
-    };
-  });
-
   const ago = cur.last ? daysBetween(cur.last.date, date) : 0;
   const sub = cur.last
     ? `آخر تمرين: ${dayFor(cur.last.id)?.titleAr} · ${ago === 1 ? 'امبارح' : `من ${countAr(ago, DAYS)}`}`
@@ -62,7 +52,7 @@ export default function Workout() {
       sub={sub}
       footer={<TimerBar />}
       action={<HeaderBtn icon="settings-outline" label="الإعدادات" onPress={() => router.push('/settings')} />}>
-      <DayChips days={chips} value={sel} today={cur.id} onChange={pick} />
+      <WorkoutChips value={sel} current={cur.id} onChange={pick} />
 
       <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <Ring value={total ? done / total : 0} size={64} stroke={5}>

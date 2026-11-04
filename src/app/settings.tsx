@@ -2,10 +2,13 @@ import React, { useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { DEFAULT_SETS, PROGRAM, SETS_MAX, SETS_MIN, WEEKDAYS_AR } from '../data/program';
+import { DEFAULT_SETS, PROGRAM, SETS_MAX, SETS_MIN } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { useVersePopup } from '../components/VersePopup';
-import { formatClock } from '../lib/logic';
+import { WorkoutChips } from '../components/WorkoutChips';
+import { dateKey, formatClock } from '../lib/logic';
+import { currentWorkout, seqIndex } from '../lib/schedule';
+import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
 import { tripDays, daysLabel, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
@@ -20,7 +23,9 @@ const STEPS = [1, 1.25, 2.5, 5];
 export default function SettingsScreen() {
   const t = useTheme();
   const st = useSettings();
-  const [day, setDay] = useState(() => PROGRAM.find((d) => d.weekday === new Date().getDay())?.weekday ?? PROGRAM[0].weekday);
+  // Same workouts and order as the workout tab; opens on the one that's due now.
+  const [due] = useState(() => currentWorkout(storage.trainedDays(), dateKey()).id);
+  const [day, setDay] = useState(due);
   const [confirm, setConfirm] = useState(false);
   const plan = PROGRAM.find((d) => d.weekday === day)!;
   const changed = plan.exercises.filter((e) => st.sets[e.id] != null);
@@ -41,12 +46,13 @@ export default function SettingsScreen() {
 
       <Label>عدد المجموعات لكل تمرين</Label>
       <Card>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6, padding: 12, paddingBottom: 6 }}>
-          {PROGRAM.map((d) => (
-            <Pill key={d.weekday} label={WEEKDAYS_AR[d.weekday]} on={d.weekday === day} onPress={() => setDay(d.weekday)} />
-          ))}
+        <View style={{ padding: 10, paddingBottom: 6 }}>
+          <WorkoutChips value={day} current={due} onChange={setDay} />
         </View>
-        <T style={{ color: t.mute, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 4 }}>{`${plan.titleAr} · ${total} مجموعة في اليوم`}</T>
+        <View style={{ paddingHorizontal: 14, paddingBottom: 8, gap: 1 }}>
+          <T style={{ color: t.mute, fontSize: 12.5 }}>{`تمرين ${seqIndex(day) + 1} من ${PROGRAM.length} · ${plan.exercises.length} تمارين · ${total} مجموعة`}</T>
+          <T w="bold" style={{ fontSize: 16 }}>{plan.titleAr}</T>
+        </View>
         {plan.exercises.map((e) => {
           const base = DEFAULT_SETS[e.id];
           const diff = e.sets !== base;
@@ -68,7 +74,7 @@ export default function SettingsScreen() {
           <>
             <Sep />
             <View style={{ padding: 12 }}>
-              <Btn label="رجّع اليوم ده للأصلي" onPress={() => changed.forEach((e) => st.setSets(e.id, DEFAULT_SETS[e.id]))} />
+              <Btn label="رجّع التمرين ده للأصلي" onPress={() => changed.forEach((e) => st.setSets(e.id, DEFAULT_SETS[e.id]))} />
             </View>
           </>
         ) : null}
