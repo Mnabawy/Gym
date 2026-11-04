@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MUSCLE_AR, PLAN_WEEKDAYS, WEEKDAYS_AR, dayFor, dayOfExercise, exerciseById } from '../data/program';
+import { MUSCLE_AR, dayOfExercise, exerciseById } from '../data/program';
 import { MEV, type Gap, type Report } from '../lib/gaps';
 import { countAr, DAYS, TIMES, WEEKS } from '../lib/logic';
 import { useTheme } from '../theme';
@@ -11,7 +11,6 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const iso = (s: string) => `⁦${s}⁩`; // keep Latin names and numbers in their own direction
 const pct = (x: number) => iso(`${Math.round(x * 100)}%`);
-const REST = [0, 1, 2, 3, 4, 5, 6].filter((d) => !PLAN_WEEKDAYS.includes(d)).map((d) => WEEKDAYS_AR[d]).join(' أو ');
 
 /** "في آخر 4 أسابيع", or since you started when that's shorter. */
 export const periodAr = (r: Report) => (r.tracked >= 28 ? 'في آخر 4 أسابيع' : `من ساعة ما بدأت تسجّل (${countAr(r.tracked, DAYS)})`);
@@ -23,8 +22,9 @@ export function gapText(g: Gap, r: Report): { icon: IconName; title: string; bod
     case 'day':
       return {
         icon: 'calendar-clear',
-        title: `بتفوّت يوم ${WEEKDAYS_AR[g.weekday]} (${dayFor(g.weekday)?.titleAr})`,
-        body: `عملته ${g.due - g.missed} من ${g.due} ${period}. لو ميعاده مش مناسبك، العبه ${REST} بداله.`,
+        title: `فوّت ${countAr(g.missed, DAYS)} تمرين`,
+        // Workouts run in sequence: a missed day doesn't lose a workout, it pushes the whole cycle back a day.
+        body: `اتمرنت ${g.due - g.missed} من ${countAr(g.due, DAYS)} ${period}. ترتيب التمارين ما بيتلخبطش، بس كل يوم بتفوّته بيأخّر الدورة كلها يوم.`,
       };
     case 'volume': {
       const perWeek = g.done / (r.tracked / 7);
@@ -80,7 +80,7 @@ export function gapText(g: Gap, r: Report): { icon: IconName; title: string; bod
   }
 }
 
-export const gapKey = (g: Gap) => `${g.kind}:${'exId' in g ? g.exId : 'muscle' in g ? g.muscle : 'weekday' in g ? g.weekday : ''}`;
+export const gapKey = (g: Gap) => `${g.kind}:${'exId' in g ? g.exId : 'muscle' in g ? g.muscle : ''}`;
 /** The one exercise a gap is about, if any (its chart opens under the card). */
 export const gapExercise = (g: Gap): string | undefined => ('exId' in g ? g.exId : g.kind === 'stalled' && g.exIds.length === 1 ? g.exIds[0] : undefined);
 

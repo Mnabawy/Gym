@@ -6,6 +6,7 @@ import { MONTHS_AR, MUSCLE_AR, WEEKDAYS_AR, WEEKDAY_LETTERS_AR, dayFor, dayMuscl
 import { Card, ColorChip, Label, Pill, Ring, Screen, T } from '../components/ui';
 import { MUSCLES, ctxOf, dayInfo, planSets, prSet, toSessions, type Session } from '../lib/gaps';
 import { addMonths, countAr, dateKey, monthCells, weekdayOf, DAYS, SETS, TIMES, type DayStatus } from '../lib/logic';
+import { currentWorkout, projected } from '../lib/schedule';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { tint, useTheme, type Theme } from '../theme';
@@ -29,11 +30,11 @@ export default function Attendance() {
   const [muscle, setMuscle] = useState<Muscle | null>(MUSCLES.includes(params.muscle as Muscle) ? (params.muscle as Muscle) : null);
   const [sel, setSel] = useState<string>(startDate);
 
-  const { byDate, c, prs } = useMemo(() => {
+  const { byDate, c, prs, trained } = useMemo(() => {
     const sess = toSessions(storage.allSets());
     const byDate = new Map<string, Session[]>();
     for (const s of sess) byDate.set(s.date, [...(byDate.get(s.date) ?? []), s]);
-    return { byDate, c: ctxOf(sess, today), prs: prSet(sess) };
+    return { byDate, c: ctxOf(sess, today), prs: prSet(sess), trained: storage.trainedDays() };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- v = data version: re-read storage after writes
   }, [v, today]);
   const info = (k: string) => dayInfo(k, byDate.get(k) ?? [], c, muscle ?? undefined);
@@ -177,7 +178,15 @@ export default function Attendance() {
         </View>
       </Card>
 
-      <DayDetail date={sel} sessions={byDate.get(sel) ?? []} overall={dayInfo(sel, byDate.get(sel) ?? [], c)} prs={prs} muscle={muscle} t={t} />
+      <DayDetail
+        date={sel}
+        sessions={byDate.get(sel) ?? []}
+        overall={dayInfo(sel, byDate.get(sel) ?? [], c)}
+        due={sel < today ? currentWorkout(trained, sel).id : projected(sel, today, currentWorkout(trained, today))}
+        prs={prs}
+        muscle={muscle}
+        t={t}
+      />
 
       <Label>{muscle ? `آخر 6 شهور · ${title}` : 'آخر 6 شهور'}</Label>
       <Card style={{ padding: 14 }}>
@@ -213,11 +222,15 @@ export default function Attendance() {
   );
 }
 
-/** What happened on the selected day: each program day logged, every exercise's sets against the plan, and records. */
-function DayDetail({ date, sessions, overall, prs, muscle, t }: {
+/**
+ * What happened on the selected day: each program day logged, every exercise's sets against the plan, and records.
+ * `due` = the workout in sequence for a day you didn't train: what was due on a missed day (still due after it), or what's projected for an upcoming one.
+ */
+function DayDetail({ date, sessions, overall, due, prs, muscle, t }: {
   date: string;
   sessions: Session[];
   overall: ReturnType<typeof dayInfo>;
+  due: number;
   prs: Set<string>;
   muscle: Muscle | null;
   t: Theme;
@@ -268,12 +281,14 @@ function DayDetail({ date, sessions, overall, prs, muscle, t }: {
       );
     });
   } else if (overall.status === 'missed' || overall.status === 'upcoming') {
-    const d = dayFor(wd)!;
+    const d = dayFor(due)!;
+    const missed = overall.status === 'missed';
     body = (
       <View style={{ gap: 8 }}>
-        <T style={{ fontSize: 14 }}>{`${overall.status === 'missed' ? 'فوّت' : 'جاي'} يوم ${d.titleAr} · ${countAr(planSets(wd), SETS)}`}</T>
+        <T style={{ fontSize: 14 }}>{`${missed ? 'كان عليك' : 'عليك'} يوم ${d.titleAr} · ${countAr(planSets(due), SETS)}`}</T>
+        {missed ? <T style={{ color: t.mute, fontSize: 12.5 }}>الترتيب ما اتحركش، والتمرين ده فضل عليه الدور.</T> : null}
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-          {dayMuscles(wd).map((m) => (
+          {dayMuscles(due).map((m) => (
             <ColorChip key={m} label={MUSCLE_AR[m]} color={t.muscle[m]} size={12.5} />
           ))}
         </View>

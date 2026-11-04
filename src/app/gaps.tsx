@@ -71,8 +71,8 @@ export default function Gaps() {
   }
 
   const period = periodAr(r);
-  const daysDue = r.days.reduce((a, d) => a + d.due, 0);
-  const daysDone = r.days.reduce((a, d) => a + Math.min(d.done, d.due), 0);
+  const daysDue = r.attendance.due;
+  const daysDone = Math.min(r.attendance.done, r.attendance.due);
   const setsPlanned = MUSCLES.reduce((a, m) => a + r.volume[m].planned, 0);
   const setsDone = MUSCLES.reduce((a, m) => a + r.volume[m].done, 0);
   const counts = Object.fromEntries(TREND_ORDER.map((k) => [k, 0])) as Record<Trend, number>;

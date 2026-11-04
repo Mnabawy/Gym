@@ -76,10 +76,8 @@ describe('gaps report', () => {
   const rows = [...day('2026-10-26'), ...day('2026-10-27'), ...day('2026-10-28'), ...day('2026-10-31'), ...day('2026-11-02')];
   const r = analyze(rows, TODAY);
 
-  test('missed program days', () => {
-    expect(r.days.find((d) => d.weekday === 5)).toEqual({ weekday: 5, due: 1, done: 0 });
-    expect(r.days.find((d) => d.weekday === 2)).toEqual({ weekday: 2, due: 2, done: 1 });
-    expect(r.days.find((d) => d.weekday === 1)).toEqual({ weekday: 1, due: 2, done: 2 });
+  test('missed sessions: 7 plan days owed (26 Oct → yesterday), 5 trained', () => {
+    expect(r.attendance).toEqual({ due: 7, done: 5 });
   });
   test('muscle volume against the plan', () => {
     expect(r.volume.shoulders).toEqual({ done: 6, planned: 17 });
@@ -87,14 +85,14 @@ describe('gaps report', () => {
     expect(r.volume.back).toEqual({ done: 28, planned: 28 });
   });
   test('gaps are ranked: big ones first', () => {
-    expect(r.gaps.map((g) => [g.kind, g.level, 'muscle' in g ? g.muscle : 'weekday' in g ? g.weekday : ''])).toEqual([
+    expect(r.gaps.map((g) => [g.kind, g.level, 'muscle' in g ? g.muscle : ''])).toEqual([
+      ['day', 2, ''], // 2 of 7 missed ≥ a quarter
       ['volume', 2, 'triceps'],
       ['volume', 2, 'shoulders'],
-      ['day', 1, 5],
-      ['day', 1, 2],
       ['volume', 1, 'chest'],
       ['volume', 1, 'biceps'],
     ]);
+    expect(r.gaps[0]).toEqual({ kind: 'day', level: 2, missed: 2, due: 7 });
   });
   test('score = share of planned sets done', () => {
     expect(r.score).toBeCloseTo(83 / 120);
@@ -132,9 +130,16 @@ describe('exercise gaps', () => {
     const twice = [...day('2026-10-19', { skip: ['straight-arm-pulldown'] }), ...day('2026-10-26', { skip: ['straight-arm-pulldown'] }), ...day('2026-11-02')];
     expect(analyze(twice, TODAY).gaps).toContainEqual({ kind: 'skipped', level: 1, exId: 'straight-arm-pulldown', times: 2 });
   });
-  test('moving a day to another date still counts it as done', () => {
-    const r = analyze([...day('2026-10-26'), ...day('2026-10-29', { weekday: 5 })], '2026-10-31');
-    expect(r.days.find((d) => d.weekday === 5)).toEqual({ weekday: 5, due: 1, done: 1 });
+  test('training on a rest day counts as a session', () => {
+    // Mon 26 trained, Thu 29 (a rest day) trained; owed Mon, Tue, Wed, Fri up to yesterday.
+    const r = analyze([...day('2026-10-26'), ...day('2026-10-29', { weekday: 2 })], '2026-10-31');
+    expect(r.attendance).toEqual({ due: 4, done: 2 });
+    expect(r.gaps).toContainEqual({ kind: 'day', level: 2, missed: 2, due: 4 });
+  });
+  test('one missed day in four weeks is a small gap', () => {
+    // Every plan day from Fri 9 Oct (first session) to yesterday — 19 of them — except Tue 20 Oct.
+    const rows = block('2026-10-08', '2026-11-03').filter((x) => x.date !== '2026-10-20');
+    expect(analyze(rows, TODAY).gaps.find((g) => g.kind === 'day')).toEqual({ kind: 'day', level: 1, missed: 1, due: 19 });
   });
   test('stalled and dropping lifts, only when trained recently', () => {
     const mondays = ['2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02'];

@@ -134,14 +134,15 @@ export function exerciseTrends(sess: readonly Session[]): Record<string, TrendIn
   return out;
 }
 
-/** Per program day: times due in [from, to] and distinct dates you logged it (any date — moving a day still counts). */
-export function dayAdherence(sess: readonly Session[], from: string, to: string, c: Ctx) {
-  const due = dueDates(from, to, c);
-  return PLAN_WEEKDAYS.map((weekday) => ({
-    weekday,
-    due: due.filter((d) => weekdayOf(d) === weekday).length,
-    done: new Set(sess.filter((s) => s.weekday === weekday && s.done > 0 && s.date >= from && s.date <= to).map((s) => s.date)).size,
-  }));
+/**
+ * Sessions owed vs trained in [from, to]. Workouts run in one sequence (src/lib/schedule.ts), so a missed day doesn't
+ * skip a particular workout — it delays the whole cycle. Any date you trained counts, rest days included.
+ */
+export function attendance(sess: readonly Session[], from: string, to: string, c: Ctx): { due: number; done: number } {
+  return {
+    due: dueDates(from, to, c).length,
+    done: new Set(sess.filter((s) => s.done > 0 && s.date >= from && s.date <= to).map((s) => s.date)).size,
+  };
 }
 
 /** For each exercise, the last `n` times its program day was logged: how often it was skipped, and the average sets ticked when it wasn't. */
@@ -216,7 +217,7 @@ export function prSet(sess: readonly Session[]): Set<string> {
 
 export type Level = 1 | 2;
 export type Gap =
-  | { kind: 'day'; level: Level; weekday: number; missed: number; due: number }
+  | { kind: 'day'; level: Level; missed: number; due: number }
   | { kind: 'down'; level: Level; exId: string; drop: number }
   | { kind: 'skipped'; level: Level; exId: string; times: number }
   | { kind: 'volume'; level: Level; muscle: Muscle; done: number; planned: number }
@@ -234,17 +235,16 @@ export function analyze(rows: readonly SetRow[], today: string = dateKey(), week
   const c = ctxOf(sess, today);
   const from = addDays(today, -(WINDOW_DAYS - 1));
   const volume = muscleVolume(sess, from, today, c);
-  const days = dayAdherence(sess, from, today, c);
+  const att = attendance(sess, from, today, c);
   const trends = exerciseTrends(sess);
   const exAdh = exerciseAdherence(sess);
   const lightWeeks = weeksSinceLight(sess, c);
   const recent = new Set(sess.filter((s) => s.date >= from).map((s) => s.exId));
 
   const gaps: Gap[] = [];
-  for (const d of days) {
-    const missed = Math.max(0, d.due - d.done);
-    if (missed) gaps.push({ kind: 'day', level: missed >= 2 ? 2 : 1, weekday: d.weekday, missed, due: d.due });
-  }
+  // Missed sessions in the window; a quarter or more of them is a pattern, not a bad week.
+  const missed = Math.max(0, att.due - att.done);
+  if (missed) gaps.push({ kind: 'day', level: missed / att.due >= 0.25 ? 2 : 1, missed, due: att.due });
   for (const m of MUSCLES) {
     const { done, planned } = volume[m];
     if (planned && done / planned < LOW) gaps.push({ kind: 'volume', level: done / planned < VERY_LOW ? 2 : 1, muscle: m, done, planned });
@@ -281,7 +281,8 @@ export function analyze(rows: readonly SetRow[], today: string = dateKey(), week
     score: planned ? capped / planned : null,
     volume,
     grid: weekGrid(sess, weeks, c),
-    days,
+    /** Sessions owed vs trained in the window. */
+    attendance: att,
     trends,
     exAdh,
     lightWeeks,
