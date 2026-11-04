@@ -1,8 +1,10 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Exercise } from '../data/program';
 import { MUSCLE_AR } from '../data/program';
 import { TAG_INFO } from '../data/rules';
+import { FORM_VIDEOS, videoUrl } from '../data/videos';
 import { parseNum, shouldIncrease, type SetEntry } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
@@ -75,6 +77,7 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
   const range = `${ex.repLow}–${ex.repHigh}`;
 
   const doneCount = rows.filter((r) => r.done).length;
+  const video = FORM_VIDEOS[ex.id];
 
   return (
     <Card style={allDone ? { opacity: 0.8 } : undefined}>
@@ -83,7 +86,20 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
           <T w="numBold" style={{ fontSize: 13 }}>{index + 1}</T>
         </View>
         <View style={{ flex: 1, gap: 6 }}>
-          <T w="num" style={{ fontSize: 16.5 }}>{ex.name}</T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <T w="num" style={{ fontSize: 16.5, flexShrink: 1 }}>{ex.name}</T>
+            {video ? (
+              <Pressable
+                onPress={() => Linking.openURL(videoUrl(video)).catch(() => {})}
+                accessibilityRole="link"
+                accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name} على يوتيوب`}
+                hitSlop={8}
+                style={({ pressed }) => [s.video, { backgroundColor: t.okSoft, opacity: pressed ? 0.7 : 1 }]}>
+                <Ionicons name="play" size={12} color={t.okText} />
+                <T w="semi" style={{ fontSize: 12, color: t.okText }}>فيديو</T>
+              </Pressable>
+            ) : null}
+          </View>
           <View style={s.meta}>
             <ColorChip label={MUSCLE_AR[ex.muscle]} color={color} size={12.5} />
             <T w="num" style={{ fontSize: 13.5, color: t.mute }}>{`\u2066${ex.sets} × ${range}\u2069`}</T>
@@ -160,6 +176,7 @@ const s = StyleSheet.create({
   head: { flexDirection: 'row', gap: 10, paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10 },
   num: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
+  video: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 9, height: 28 },
   counter: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginBottom: 10, borderRadius: 14, paddingVertical: 8, paddingStart: 12, paddingEnd: 8 },
   hint: { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
   sets: { paddingHorizontal: 14, paddingBottom: 14, gap: 6 },
