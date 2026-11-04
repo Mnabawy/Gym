@@ -24,6 +24,16 @@ describe('parseSettings', () => {
     expect(s.shopTrips).toBe(2);
     expect(s.sets).toEqual({ deadlift: 4 });
   });
+  test('keeps valid shopping items and moves only', () => {
+    const s = parseSettings(
+      JSON.stringify({
+        shopCustom: [{ id: 'c:1', name: 'مناديل', buy: '2', group: 'زفت' }, { id: 'x', name: 'bad' }, { id: 'c:2', name: ' ' }],
+        shopMoves: { '3:بيض': 1, '3:لبن': -1, '3:عيش': 'x' },
+      }),
+    );
+    expect(s.shopCustom).toEqual([{ id: 'c:1', name: 'مناديل', buy: '2', group: 'حاجات تانية' }]);
+    expect(s.shopMoves).toEqual({ '3:بيض': 1 });
+  });
 });
 
 describe('applyPlan', () => {

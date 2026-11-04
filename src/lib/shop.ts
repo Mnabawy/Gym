@@ -1,33 +1,46 @@
-// Split the weekly shopping list into several trips (settings → "بتشتري كام مرة في الأسبوع").
+// Split the weekly shopping list into several trips (settings → "بتشتري كام مرة في الأسبوع"), plus your own items.
 // Pure — unit tested in __tests__/shop.test.ts.
 //
-// The shopping week starts Friday (see shopWeekKey). Trip k covers a run of days; a fresh item gets the share of
-// its weekly amount for the days it's eaten in that run (liver eaten only Monday → all of it on the trip that covers Monday).
-// Dry goods, jars and supplements keep well, so they're bought once, on the first trip.
+// The shopping week starts Friday (see shopWeekKey) and trip k covers a run of days. Items are never split: each one
+// is bought whole on one trip, and trips get an equal number of items (they differ by one at most) — see assignTrips.
+// You can move any item to another trip (`moves`).
 import { SHOPPING, type ShopItem } from '../data/shopping';
 import { WEEKDAYS_AR } from '../data/program';
-import { countAr } from './logic';
 
 /** Weekday numbers (0 = Sunday) in shopping-week order: Friday first. */
 export const SHOP_WEEK = [5, 6, 0, 1, 2, 3, 4];
 export const TRIPS_MIN = 1;
 export const TRIPS_MAX = 5;
 
-/** Bought once a week whatever the trip count. */
-export const PANTRY = new Set(['رز', 'مكرونة', 'شوفان', 'فول', 'عدس', 'سوداني', 'زبدة فول سوداني', 'طحينة', 'عسل', 'كاكاو', 'قرفة', 'creatine']);
-
 type Group = (typeof SHOPPING)[number];
+
+/** Group for your own items that don't fit the others. */
+export const OTHER = 'حاجات تانية';
+/** Groups you can add an item to. */
+export const CUSTOM_GROUPS = ['بروتين', 'نشويات', 'فاكهة وخضار', 'دهون وإضافات', OTHER];
+/** An item you added (settings → shopCustom). Ids start with "c:" so they never clash with the list's. */
+export type CustomItem = { id: string; name: string; buy: string; group: string };
+export const isCustom = (id: string) => id.startsWith('c:');
+
+/** The list with your items added at the end of their groups ("حاجات تانية" gets its own group at the end). */
+export function withCustom(custom: readonly CustomItem[], data: readonly Group[] = SHOPPING): Group[] {
+  const groups: Group[] = data.map((g) => ({ ...g, items: [...g.items] }));
+  for (const c of custom) {
+    let g = groups.find((x) => x.title === c.group);
+    if (!g) groups.push((g = { title: OTHER, color: 'veg', items: [] }));
+    g.items.push({ id: c.id, name: c.name, note: '', exact: '', buy: c.buy, days: [] });
+  }
+  return groups;
+}
 export type TripItem = {
   item: ShopItem;
   /** Check-off key; includes the trip count so changing it mid-week doesn't carry ticks to the wrong trip. */
   key: string;
+  /** What to buy and the exact weekly need, as written in the list. */
   buy: string;
-  /** Exact amount needed for this trip ("" when unknown). */
   need: string;
-  /** Days in this trip the item is eaten. */
+  /** Days of the week the item is eaten. */
   days: string[];
-  /** Bought once for the week (pantry, or no usage days). */
-  once: boolean;
 };
 export type Trip = { index: number; weekdays: number[]; label: string; groups: { title: string; color: Group['color']; items: TripItem[] }[] };
 
@@ -51,74 +64,59 @@ export function daysLabel(weekdays: number[], short = false): string {
   return weekdays.length > 1 ? `${a} – ${name(weekdays[weekdays.length - 1])}` : a;
 }
 
-/** "1,140 جم" → { n: 1140, unit: 'جم' }. Anything else ("رشة في كل سموزي") → null. */
-export function parseQty(s: string): { n: number; unit: string } | null {
-  const m = /^(\d[\d,]*(?:\.\d+)?)\s+(\S+)$/.exec(s.trim());
-  return m ? { n: Number(m[1].replace(/,/g, '')), unit: m[2] } : null;
+/** Shopping-week position of the first day an item is eaten (Friday = 0); no days (your own items, lemons) → 0. */
+export function firstDay(item: Pick<ShopItem, 'days'>): number {
+  const at = item.days.map((d) => SHOP_WEEK.indexOf(WEEKDAYS_AR.indexOf(d))).filter((i) => i >= 0);
+  return at.length ? Math.min(...at) : 0;
 }
-
-const COUNT_FORMS: Record<string, [string, string, string, string]> = {
-  بيضة: ['بيضة', 'بيضتين', 'بيضات', 'بيضة'],
-  علبة: ['علبة', 'علبتين', 'علب', 'علبة'],
-  رغيف: ['رغيف', 'رغيفين', 'أرغفة', 'رغيف'],
-  صباع: ['صباع', 'صباعين', 'صوابع', 'صباع'],
-  بلحة: ['بلحة', 'بلحتين', 'بلحات', 'بلحة'],
-};
-const QUARTER = ['', 'ربع', 'نص', 'تلات تربع'];
 
 /**
- * Grams to buy: rounded up to 50 g (100 g from a kilo up). Quarter-kilo amounts use the words people say at the shop:
- * 300 جم · ربع كيلو · نص كيلو · 1.1 كيلو · 1 كيلو ونص.
+ * Which trip each item goes on. Trips get equal counts (bigger ones first). Items eaten on few days are placed first,
+ * on the trip that covers the first day they're eaten (liver on Monday → Monday's trip); when that trip is full they go
+ * to the nearest earlier trip, then the nearest later one. Everyday items and your own items fill the rest — bought
+ * every week at the same point, they last until the next time anyway. `moves` (id → trip) override.
  */
-export function gramsToBuy(g: number): string {
-  const up = (step: number) => Math.max(step, Math.ceil(g / step - 1e-9) * step);
-  const fine = up(g < 1000 ? 50 : 100);
-  const quarter = up(250);
-  const x = quarter <= fine ? quarter : fine;
-  if (x % 250) return x < 1000 ? `${x} جم` : `${x / 1000} كيلو`;
-  const kilos = Math.floor(x / 1000);
-  const q = QUARTER[(x % 1000) / 250];
-  if (!kilos) return `${q} كيلو`;
-  return q ? `${kilos} كيلو و${q}` : `${kilos} كيلو`;
-}
-
-/** Amount to buy and amount needed for a share of a weekly quantity. */
-function share(q: { n: number; unit: string }, frac: number): { buy: string; need: string } {
-  const v = q.n * frac;
-  if (q.unit === 'جم') return { buy: gramsToBuy(v), need: `${Math.max(10, Math.round(v / 10) * 10)} جم` };
-  if (q.unit === 'لتر') {
-    const need = Math.round(v * 10) / 10;
-    return { buy: `${Math.ceil(v * 2) / 2} لتر`, need: `${need} لتر` };
+export function assignTrips(k: number, data: readonly Group[], moves: Readonly<Record<string, number>> = {}): Map<string, number> {
+  const runs = tripDays(k);
+  const items = data.flatMap((g) => g.items);
+  const room = runs.map((_, t) => Math.floor(items.length / k) + (t < items.length % k ? 1 : 0));
+  const want = (item: ShopItem) => Math.max(0, runs.findIndex((r) => r.includes(SHOP_WEEK[firstDay(item)])));
+  const spread = (item: ShopItem) => item.days.length || 8; // no days = most flexible
+  const order = items.map((item, i) => ({ item, i })).sort((a, b) => spread(a.item) - spread(b.item) || firstDay(a.item) - firstDay(b.item) || a.i - b.i);
+  const out = new Map<string, number>();
+  for (const { item } of order) {
+    const p = want(item);
+    const tries = [p, ...Array.from({ length: p }, (_, d) => p - 1 - d), ...Array.from({ length: k - 1 - p }, (_, d) => p + 1 + d)];
+    const t = tries.find((x) => room[x] > 0) ?? p;
+    room[t]--;
+    out.set(item.id, t);
   }
-  const c = Math.ceil(v - 1e-9);
-  const text = countAr(c, COUNT_FORMS[q.unit] ?? [q.unit, q.unit, q.unit, q.unit]);
-  return { buy: text, need: '' };
+  for (const [id, t] of Object.entries(moves)) if (out.has(id) && Number.isInteger(t) && t >= 0 && t < k) out.set(id, t);
+  return out;
 }
 
-/** The week's list as `n` trips. n = 1 gives the list exactly as written (same buy text, same check keys). */
-export function splitShopping(n: number, data: readonly Group[] = SHOPPING): Trip[] {
+/** The week's list as `n` trips; every item lands, whole, on exactly one. n = 1 gives the list as written. */
+export function splitShopping(n: number, data: readonly Group[] = SHOPPING, moves: Readonly<Record<string, number>> = {}): Trip[] {
   const runs = tripDays(n);
   const whole = runs.length === 1;
+  const tripOf = assignTrips(runs.length, data, moves);
   return runs.map((weekdays, index) => {
-    const names = weekdays.map((d) => WEEKDAYS_AR[d]);
-    const groups = data.map((g) => {
-      const items: TripItem[] = [];
-      for (const item of g.items) {
-        const key = whole ? item.id : `${item.id}#${runs.length}.${index}`;
-        const q = parseQty(item.exact);
-        const once = whole || PANTRY.has(item.id) || !item.days.length || !q;
-        if (once) {
-          if (index === 0) items.push({ item, key, buy: item.buy, need: item.exact, days: whole ? item.days : [], once: !whole });
-          continue;
-        }
-        const days = item.days.filter((d) => names.includes(d));
-        if (!days.length) continue;
-        items.push({ item, key, ...share(q, days.length / item.days.length), days, once: false });
-      }
-      return { title: g.title, color: g.color, items };
-    });
+    const groups = data.map((g) => ({
+      title: g.title,
+      color: g.color,
+      items: g.items
+        .filter((item) => tripOf.get(item.id) === index)
+        .map((item) => ({ item, key: whole ? item.id : `${item.id}#${runs.length}.${index}`, buy: item.buy, need: item.exact, days: item.days })),
+    }));
     return { index, weekdays, label: daysLabel(weekdays), groups: groups.filter((g) => g.items.length) };
   });
+}
+
+/** Moves saved for a trip count ("5:بيض" → 3) as id → trip. */
+export function movesFor(k: number, all: Readonly<Record<string, number>>): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const [key, t] of Object.entries(all)) if (key.startsWith(`${k}:`)) out[key.slice(String(k).length + 1)] = t;
+  return out;
 }
 
 /** Trip that covers a weekday (0 = Sunday). */

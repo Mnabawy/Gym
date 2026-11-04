@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { SHOPPING } from '../src/data/shopping';
-import { daysLabel, gramsToBuy, PANTRY, parseQty, SHOP_WEEK, splitShopping, tripDays, tripFor } from '../src/lib/shop';
+import { daysLabel, firstDay, isCustom, movesFor, OTHER, SHOP_WEEK, splitShopping, tripDays, tripFor, withCustom } from '../src/lib/shop';
 
 const items = SHOPPING.flatMap((g) => g.items);
 
@@ -19,34 +19,40 @@ describe('tripDays', () => {
   });
 });
 
-test('every pantry id is on the list', () => {
-  for (const id of PANTRY) expect(items.some((i) => i.id === id)).toBe(true);
+const ids = (trip: ReturnType<typeof splitShopping>[number]) => trip.groups.flatMap((g) => g.items.map((i) => i.item.id));
+
+test('every item lands on exactly one trip, whole, as written', () => {
+  for (const n of [1, 2, 3, 4, 5]) {
+    const trips = splitShopping(n);
+    const got = trips.flatMap(ids);
+    expect(got.slice().sort()).toEqual(items.map((i) => i.id).sort());
+    for (const i of trips.flatMap((t) => t.groups.flatMap((g) => g.items))) {
+      expect(i.buy).toBe(i.item.buy);
+      expect(i.need).toBe(i.item.exact);
+    }
+  }
 });
 
 test('one trip = the list as written', () => {
   const [trip] = splitShopping(1);
-  const got = trip.groups.flatMap((g) => g.items);
-  expect(got.map((i) => [i.key, i.buy, i.need])).toEqual(items.map((i) => [i.id, i.buy, i.exact]));
+  expect(trip.groups.flatMap((g) => g.items).map((i) => i.key)).toEqual(items.map((i) => i.id));
 });
 
-describe('two trips', () => {
-  const trips = splitShopping(2);
-  const find = (k: number, id: string) => trips[k].groups.flatMap((g) => g.items).find((i) => i.item.id === id);
-
-  test('an item eaten one day goes on the trip that covers that day, in full', () => {
-    expect(find(0, 'كبدة')?.need).toBe('200 جم'); // Monday → Fri–Mon trip
-    expect(find(1, 'كبدة')).toBeUndefined();
-  });
-  test('pantry and no-day items are bought once, on the first trip', () => {
-    for (const id of [...PANTRY, 'ليمون']) {
-      expect(find(0, id)?.once).toBe(true);
-      expect(find(1, id)).toBeUndefined();
+describe('which trip an item goes on', () => {
+  const trips = splitShopping(5); // Fri–Sat, Sun–Mon, Tue, Wed, Thu
+  const where = (id: string) => trips.findIndex((t) => ids(t).includes(id));
+  const sizes = (tr: typeof trips) => tr.map((t) => t.groups.reduce((a, g) => a + g.items.length, 0));
+  test('equal counts, differing by one at most', () => {
+    for (const n of [2, 3, 4, 5]) {
+      const z = sizes(splitShopping(n));
+      expect(Math.max(...z) - Math.min(...z)).toBeLessThanOrEqual(1);
     }
   });
-  test('fresh items are shared by days and never short', () => {
-    const eggs = [find(0, 'بيض')!, find(1, 'بيض')!].map((i) => Number(i.buy.split(' ')[0]));
-    expect(eggs[0] + eggs[1]).toBeGreaterThanOrEqual(32);
-    expect(find(0, 'بيض')!.days).toHaveLength(4);
+  test('items eaten on one day go on the trip that covers it', () => {
+    expect(firstDay({ days: ['الاتنين'] })).toBe(3);
+    expect(where('كبدة')).toBe(1); // Monday
+    expect(where('مانجا')).toBe(2); // Tuesday
+    expect(where('عدس')).toBe(3); // Wednesday
   });
   test('check keys are unique and differ from the one-trip keys', () => {
     const keys = trips.flatMap((t) => t.groups.flatMap((g) => g.items.map((i) => i.key)));
@@ -55,7 +61,31 @@ describe('two trips', () => {
   });
   test('today picks the trip that covers it', () => {
     expect(tripFor(trips, 5)).toBe(0); // Friday
-    expect(tripFor(trips, 3)).toBe(1); // Wednesday
+    expect(tripFor(trips, 3)).toBe(3); // Wednesday
+  });
+});
+
+describe('moves and your own items', () => {
+  test('a move puts the item on that trip; bad moves are ignored', () => {
+    const t = splitShopping(3, SHOPPING, { بيض: 0, كبدة: 9, nope: 1 });
+    expect(ids(t[0])).toContain('بيض');
+    expect(t.flatMap(ids).filter((id) => id === 'كبدة')).toHaveLength(1);
+  });
+  test('movesFor reads the moves saved for one trip count', () => {
+    expect(movesFor(3, { '3:بيض': 0, '5:بيض': 4, '3:c:x': 2 })).toEqual({ بيض: 0, 'c:x': 2 });
+  });
+  test('your items join their group, or a new "حاجات تانية" group at the end', () => {
+    const data = withCustom([
+      { id: 'c:1', name: 'مناديل', buy: '2 باكو', group: OTHER },
+      { id: 'c:2', name: 'جمبري', buy: 'نص كيلو', group: 'بروتين' },
+    ]);
+    expect(data[0].items[data[0].items.length - 1]).toMatchObject({ id: 'c:2', name: 'جمبري', buy: 'نص كيلو', days: [] });
+    expect(data[data.length - 1]).toMatchObject({ title: OTHER, items: [{ id: 'c:1', name: 'مناديل' }] });
+    expect(isCustom('c:1')).toBe(true);
+    expect(isCustom('بيض')).toBe(false);
+    const trips = splitShopping(2, data, { 'c:1': 1 });
+    expect(ids(trips[1])).toContain('c:1');
+    expect(trips.flatMap(ids)).toHaveLength(items.length + 2);
   });
 });
 
@@ -63,21 +93,4 @@ test('daysLabel', () => {
   expect(daysLabel([5, 6])).toBe('الجمعة – السبت');
   expect(daysLabel([5, 6], true)).toBe('جمعة – سبت');
   expect(daysLabel([2], true)).toBe('تلات');
-});
-
-test('parseQty', () => {
-  expect(parseQty('1,140 جم')).toEqual({ n: 1140, unit: 'جم' });
-  expect(parseQty('2.5 لتر')).toEqual({ n: 2.5, unit: 'لتر' });
-  expect(parseQty('رشة في كل سموزي')).toBeNull();
-  expect(parseQty('35 جم في الأسبوع')).toBeNull();
-});
-
-test('gramsToBuy rounds up to what you ask for at the shop', () => {
-  expect(gramsToBuy(180)).toBe('200 جم');
-  expect(gramsToBuy(250)).toBe('ربع كيلو');
-  expect(gramsToBuy(290)).toBe('300 جم');
-  expect(gramsToBuy(750)).toBe('تلات تربع كيلو');
-  expect(gramsToBuy(1090)).toBe('1.1 كيلو');
-  expect(gramsToBuy(1250)).toBe('1 كيلو وربع');
-  expect(gramsToBuy(1500)).toBe('1 كيلو ونص');
 });

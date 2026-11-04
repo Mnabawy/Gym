@@ -5,6 +5,7 @@ import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { DEFAULT_BODY, parseBody, type Body } from './energy';
 import { METHODS, parsePlace, type Method, type Place } from './prayer';
+import { CUSTOM_GROUPS, type CustomItem } from './shop';
 
 export type Settings = {
   /** Only exercises changed from the PDF; missing id = default. */
@@ -33,6 +34,10 @@ export type Settings = {
   prayerMethod: Method;
   /** Last known location for prayer times (refreshed from the phone's location). */
   place: Place | null;
+  /** Items you added to the shopping list. */
+  shopCustom: CustomItem[];
+  /** Items you moved to another trip: "tripCount:itemId" → trip index. */
+  shopMoves: Record<string, number>;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -51,13 +56,15 @@ export const DEFAULT_SETTINGS: Settings = {
   prayer: false,
   prayerMethod: 'egyptian',
   place: null,
+  shopCustom: [],
+  shopMoves: {},
 };
 
 const KEY = 'settings';
 
 /** Parse saved settings, dropping unknown or wrong-typed fields so a bad value never breaks the app. */
 export function parseSettings(raw: string | null): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY } };
+  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY }, shopCustom: [], shopMoves: {} };
   if (!raw) return out;
   let v: unknown;
   try {
@@ -68,7 +75,7 @@ export function parseSettings(raw: string | null): Settings {
   if (!v || typeof v !== 'object') return out;
   const o = v as Record<string, unknown>;
   for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
-    if (k === 'sets' || k === 'body' || k === 'place' || k === 'prayerMethod') continue;
+    if (['sets', 'body', 'place', 'prayerMethod', 'shopCustom', 'shopMoves'].includes(k)) continue;
     if (typeof o[k] === typeof DEFAULT_SETTINGS[k]) (out as Record<string, unknown>)[k] = o[k];
   }
   if (o.sets && typeof o.sets === 'object') {
@@ -78,6 +85,16 @@ export function parseSettings(raw: string | null): Settings {
   }
   out.body = parseBody(o.body);
   out.place = parsePlace(o.place);
+  if (Array.isArray(o.shopCustom)) {
+    for (const c of o.shopCustom as Record<string, unknown>[]) {
+      if (c && typeof c.id === 'string' && c.id.startsWith('c:') && typeof c.name === 'string' && c.name.trim()) {
+        out.shopCustom.push({ id: c.id, name: c.name, buy: typeof c.buy === 'string' ? c.buy : '', group: CUSTOM_GROUPS.includes(c.group as string) ? (c.group as string) : CUSTOM_GROUPS[CUSTOM_GROUPS.length - 1] });
+      }
+    }
+  }
+  if (o.shopMoves && typeof o.shopMoves === 'object') {
+    for (const [key, t] of Object.entries(o.shopMoves as Record<string, unknown>)) if (typeof t === 'number' && Number.isInteger(t) && t >= 0) out.shopMoves[key] = t;
+  }
   if (typeof o.prayerMethod === 'string' && o.prayerMethod in METHODS) out.prayerMethod = o.prayerMethod as Method;
   return out;
 }
@@ -89,7 +106,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopCustom' | 'shopMoves'>>) => void;
   reset: () => void;
 };
 
@@ -124,7 +141,7 @@ export const useSettings = create<Store>((set, get) => {
     },
     setBody: (p) => save({ ...pick(get()), body: { ...get().body, ...p } }),
     setQuiet: (p) => save({ ...pick(get()), ...p }),
-    // Body data and the saved location aren't "settings" to reset.
-    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place }),
+    // Body data, the saved location and your own shopping items aren't "settings" to reset.
+    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place, shopCustom: get().shopCustom, shopMoves: {} }),
   };
 });

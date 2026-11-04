@@ -6,11 +6,11 @@ import { DEFAULT_SETS, PROGRAM, SETS_MAX, SETS_MIN } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { useVersePopup } from '../components/VersePopup';
 import { WorkoutChips } from '../components/WorkoutChips';
-import { dateKey, formatClock } from '../lib/logic';
+import { countAr, dateKey, formatClock } from '../lib/logic';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
-import { tripDays, daysLabel, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
+import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN, withCustom } from '../lib/shop';
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
@@ -19,6 +19,8 @@ import { useTheme } from '../theme';
 const phone = Platform.OS !== 'web';
 const clock = (sec: number) => formatClock(sec * 1000);
 const STEPS = [1, 1.25, 2.5, 5];
+const ITEMS: [string, string, string, string] = ['صنف واحد', 'صنفين', 'أصناف', 'صنف'];
+const itemsAr = (n: number) => (n ? countAr(n, ITEMS) : 'مفيش حاجة');
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -30,7 +32,7 @@ export default function SettingsScreen() {
   const plan = PROGRAM.find((d) => d.weekday === day)!;
   const changed = plan.exercises.filter((e) => st.sets[e.id] != null);
   const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
-  const trips = tripDays(st.shopTrips);
+  const trips = splitShopping(st.shopTrips, withCustom(st.shopCustom), movesFor(tripDays(st.shopTrips).length, st.shopMoves));
   const need = energyFor(st.body);
 
   return (
@@ -109,7 +111,7 @@ export default function SettingsScreen() {
 
       <Label>المشتريات</Label>
       <Card>
-        <Row label="بتشتري كام مرة في الأسبوع" sub="القايمة بتتقسم على الأيام، والحاجات الناشفة والبرطمانات بتتشرى مرة واحدة">
+        <Row label="بتشتري كام مرة في الأسبوع" sub="الأصناف بتتقسم بالتساوي على المرات، وكل صنف بيتشرى مرة واحدة بكميته كلها. تنقل أصناف أو تضيف جديدة من زرار التعديل في تاب المشتريات">
           <Stepper value={st.shopTrips} min={TRIPS_MIN} max={TRIPS_MAX} onChange={(v) => st.update({ shopTrips: v })} label="مرات الشراء" />
         </Row>
         <Sep />
@@ -118,7 +120,7 @@ export default function SettingsScreen() {
             <T style={{ color: t.mute, fontSize: 12.5 }}>مرة واحدة كل جمعة للأسبوع كله</T>
           ) : (
             trips.map((d, i) => (
-              <T key={i} style={{ color: t.mute, fontSize: 12.5 }}>{`المرة ${i + 1}: أكل ${daysLabel(d)}`}</T>
+              <T key={i} style={{ color: t.mute, fontSize: 12.5 }}>{`المرة ${i + 1}: ${d.label} · ${itemsAr(d.groups.reduce((a, g) => a + g.items.length, 0))}`}</T>
             ))
           )}
         </View>
