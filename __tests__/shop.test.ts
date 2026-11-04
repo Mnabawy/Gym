@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { SHOPPING } from '../src/data/shopping';
-import { gramsToBuy, PANTRY, parseQty, SHOP_WEEK, splitShopping, tripDays, tripFor } from '../src/lib/shop';
+import { daysLabel, gramsToBuy, PANTRY, parseQty, SHOP_WEEK, splitShopping, tripDays, tripFor } from '../src/lib/shop';
 
 const items = SHOPPING.flatMap((g) => g.items);
 
@@ -10,11 +10,12 @@ describe('tripDays', () => {
     expect(tripDays(2)).toEqual([[5, 6, 0, 1], [2, 3, 4]]);
     expect(tripDays(3).map((d) => d.length)).toEqual([3, 2, 2]);
     expect(tripDays(4).map((d) => d.length)).toEqual([2, 2, 2, 1]);
-    for (const n of [1, 2, 3, 4]) expect(tripDays(n).flat()).toEqual(SHOP_WEEK);
+    expect(tripDays(5).map((d) => d.length)).toEqual([2, 2, 1, 1, 1]);
+    for (const n of [1, 2, 3, 4, 5]) expect(tripDays(n).flat()).toEqual(SHOP_WEEK);
   });
   test('out-of-range counts are clamped', () => {
     expect(tripDays(0)).toHaveLength(1);
-    expect(tripDays(9)).toHaveLength(4);
+    expect(tripDays(9)).toHaveLength(5);
   });
 });
 
@@ -56,6 +57,12 @@ describe('two trips', () => {
     expect(tripFor(trips, 5)).toBe(0); // Friday
     expect(tripFor(trips, 3)).toBe(1); // Wednesday
   });
+});
+
+test('daysLabel', () => {
+  expect(daysLabel([5, 6])).toBe('الجمعة – السبت');
+  expect(daysLabel([5, 6], true)).toBe('جمعة – سبت');
+  expect(daysLabel([2], true)).toBe('تلات');
 });
 
 test('parseQty', () => {

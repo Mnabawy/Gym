@@ -11,7 +11,7 @@ import { countAr } from './logic';
 /** Weekday numbers (0 = Sunday) in shopping-week order: Friday first. */
 export const SHOP_WEEK = [5, 6, 0, 1, 2, 3, 4];
 export const TRIPS_MIN = 1;
-export const TRIPS_MAX = 4;
+export const TRIPS_MAX = 5;
 
 /** Bought once a week whatever the trip count. */
 export const PANTRY = new Set(['رز', 'مكرونة', 'شوفان', 'فول', 'عدس', 'سوداني', 'زبدة فول سوداني', 'طحينة', 'عسل', 'كاكاو', 'قرفة', 'creatine']);
@@ -44,10 +44,11 @@ export function tripDays(n: number): number[][] {
   return out;
 }
 
-/** "الجمعة – الاتنين", or one day name. */
-export function daysLabel(weekdays: number[]): string {
-  const a = WEEKDAYS_AR[weekdays[0]];
-  return weekdays.length > 1 ? `${a} – ${WEEKDAYS_AR[weekdays[weekdays.length - 1]]}` : a;
+/** "الجمعة – الاتنين", or one day name. `short` drops the "ال" ("جمعة – اتنين") for tight spots. */
+export function daysLabel(weekdays: number[], short = false): string {
+  const name = (d: number) => (short ? WEEKDAYS_AR[d].replace(/^ال/, '') : WEEKDAYS_AR[d]);
+  const a = name(weekdays[0]);
+  return weekdays.length > 1 ? `${a} – ${name(weekdays[weekdays.length - 1])}` : a;
 }
 
 /** "1,140 جم" → { n: 1140, unit: 'جم' }. Anything else ("رشة في كل سموزي") → null. */

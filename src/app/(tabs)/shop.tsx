@@ -3,7 +3,7 @@ import { Pressable, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { Btn, Card, Label, Ring, Screen, T } from '../../components/ui';
 import { countAr, shopWeekKey, TIMES } from '../../lib/logic';
-import { splitShopping, tripFor } from '../../lib/shop';
+import { daysLabel, splitShopping, tripFor } from '../../lib/shop';
 import { useSettings } from '../../lib/settings';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
@@ -55,7 +55,7 @@ export default function Shop() {
                 onPress={() => setPicked(tr.index)}
                 style={{ flex: 1, minWidth: 0, minHeight: 56, borderRadius: 14, paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: on ? t.ink : t.soft }}>
                 <T w="bold" style={{ fontSize: 14, color: on ? t.onInk : t.fg }}>{`المرة ${tr.index + 1}`}</T>
-                <T style={{ fontSize: 11, color: on ? t.onInk : t.mute, opacity: on ? 0.85 : 1 }} numberOfLines={1} adjustsFontSizeToFit>{tr.label}</T>
+                <T style={{ fontSize: 11, color: on ? t.onInk : t.mute, opacity: on ? 0.85 : 1 }} numberOfLines={2} adjustsFontSizeToFit>{daysLabel(tr.weekdays, true)}</T>
               </Pressable>
             );
           })}
