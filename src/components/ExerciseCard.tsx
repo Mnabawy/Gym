@@ -3,14 +3,13 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Exercise } from '../data/program';
 import { MUSCLE_AR } from '../data/program';
-import { TAG_INFO } from '../data/rules';
 import { FORM_VIDEOS } from '../data/videos';
 import { parseNum, shouldIncrease, type SetEntry } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
 import { useTimer, tap } from '../lib/timer';
 import { F, tint, useTheme } from '../theme';
-import { Card, Check, ColorChip, Progress, Stepper, TagBadge, T } from './ui';
+import { Card, Check, ColorChip, InfoPopup, Progress, Stepper, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
 
 type Props = { ex: Exercise; index: number; date: string; weekday: number; onChange: () => void };
@@ -81,6 +80,7 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
   const doneCount = rows.filter((r) => r.done).length;
   const video = FORM_VIDEOS[ex.id];
   const [watching, setWatching] = useState(false);
+  const [why, setWhy] = useState(false);
 
   return (
     <Card style={allDone ? { opacity: 0.8 } : undefined}>
@@ -109,39 +109,31 @@ export function ExerciseCard({ ex, index, date, weekday, onChange }: Props) {
             <T w="num" style={{ fontSize: 13.5, color: t.mute }}>{`\u2066${ex.sets} × ${range}\u2069`}</T>
             {ex.perLeg ? <T style={{ color: t.mute, fontSize: 12.5 }}>لكل رجل</T> : null}
             <TagBadge tag={ex.tag} />
-            <T style={{ color: t.mute, fontSize: 12.5 }}>{ex.tag === 'heavy' ? 'راحة 2–3 د' : 'راحة 1–2 د'}</T>
+            {up ? (
+              <Pressable onPress={() => setWhy(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`زوّد ${weightStep} كجم، اعرف ليه`} style={[s.up, { backgroundColor: t.okSoft }]}>
+                <T w="semi" style={{ fontSize: 12, color: t.okText }}>{`\u2066+${weightStep}\u2069 كجم ↑`}</T>
+              </Pressable>
+            ) : null}
           </View>
         </View>
       </View>
 
+      {up ? (
+        <InfoPopup
+          visible={why}
+          onClose={() => setWhy(false)}
+          title={<T w="bold" style={{ fontSize: 16, color: t.okText }}>{`زوّد ${weightStep} كجم`}</T>}
+          body={`آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات، فالوزن بقى خفيف عليك. زوّده ${weightStep} كجم المرة دي.`}
+        />
+      ) : null}
       <View style={[s.counter, { backgroundColor: t.soft }]}>
-        <View style={{ flex: 1, gap: 6 }}>
-          <T w="medium" style={{ fontSize: 13, color: doneCount ? t.okText : t.mute }}>
-            {allDone ? 'خلصت كل المجموعات' : doneCount ? `خلصت ${doneCount} من ${ex.sets}` : 'لسه مبدأتش'}
-          </T>
-          <Progress value={doneCount / ex.sets} color={color} height={5} />
+        <View style={{ flex: 1 }}>
+          <Progress value={doneCount / ex.sets} color={color} height={6} track={t.card} />
         </View>
         <Stepper value={doneCount} min={0} max={ex.sets} onChange={setCount} label="المجموعات اللي خلصت" format={(v) => `${v} / ${ex.sets}`} />
       </View>
 
-      {up ? (
-        <View style={[s.hint, { backgroundColor: t.okSoft }]}>
-          <T w="medium" style={{ color: t.okText, fontSize: 13 }}>{`آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات. زوّد الوزن ${weightStep} كجم ↑`}</T>
-        </View>
-      ) : null}
-      {ex.tag === 'fail' || ex.tag === 'drop' ? (
-        <View style={[s.hint, { backgroundColor: t.warnSoft }]}>
-          <T w="medium" style={{ color: t.warn, fontSize: 13 }}>{TAG_INFO[ex.tag].short}</T>
-        </View>
-      ) : null}
-
       <View style={s.sets}>
-        <View style={s.row}>
-          <T style={[s.c0, { color: t.mute, fontSize: 11 }]}>#</T>
-          <T style={[s.cin, { color: t.mute, fontSize: 11, textAlign: 'center' }]}>الوزن (كجم)</T>
-          <T style={[s.cin, { color: t.mute, fontSize: 11, textAlign: 'center' }]}>تكرارات</T>
-          <View style={s.c3} />
-        </View>
         {rows.map((r, i) => {
           const pv = last?.[i];
           const lastSet = i === ex.sets - 1 && (ex.tag === 'fail' || ex.tag === 'drop');
@@ -182,11 +174,10 @@ const s = StyleSheet.create({
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 8 },
   video: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 9, height: 28 },
   counter: { flexDirection: 'row', alignItems: 'center', gap: 12, marginHorizontal: 14, marginBottom: 10, borderRadius: 14, paddingVertical: 8, paddingStart: 12, paddingEnd: 8 },
-  hint: { marginHorizontal: 14, marginBottom: 8, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 6 },
+  up: { borderRadius: 999, paddingHorizontal: 8, paddingVertical: 1 },
   sets: { paddingHorizontal: 14, paddingBottom: 14, gap: 6 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   c0: { width: 28, textAlign: 'center' },
   cin: { flex: 1, minWidth: 0 },
-  c3: { width: 48 },
   input: { fontFamily: F.num, fontSize: 17, textAlign: 'center', paddingVertical: 10, borderRadius: 12, writingDirection: 'ltr' },
 });

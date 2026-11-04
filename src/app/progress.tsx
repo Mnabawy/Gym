@@ -2,15 +2,15 @@ import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { ALL_EXERCISES, MONTHS_AR, MUSCLE_AR, PLAN_WEEKDAYS, PROGRAM, WEEKDAYS_AR, type Muscle } from '../../data/program';
-import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../../components/ui';
-import { E1rmChart } from '../../components/E1rmChart';
-import { gapText } from '../../components/GapCard';
-import { useReport } from '../../lib/useReport';
-import { bestE1rm, countAr, dateKey, monthCells, monthStats } from '../../lib/logic';
-import { storage } from '../../lib/storage';
-import { useDataVersion } from '../../lib/bus';
-import { useTheme } from '../../theme';
+import { ALL_EXERCISES, MONTHS_AR, MUSCLE_AR, PLAN_WEEKDAYS, PROGRAM, WEEKDAYS_AR, type Muscle } from '../data/program';
+import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../components/ui';
+import { E1rmChart } from '../components/E1rmChart';
+import { gapText } from '../components/GapCard';
+import { useReport } from '../lib/useReport';
+import { bestE1rm, countAr, dateKey, monthCells, monthStats } from '../lib/logic';
+import { storage } from '../lib/storage';
+import { useDataVersion } from '../lib/bus';
+import { useTheme } from '../theme';
 
 const TARGET = 10;
 
@@ -52,7 +52,7 @@ export default function ProgressScreen() {
   const points = hist.map((h) => ({ date: h.date, v: bestE1rm(h.sets) }));
 
   return (
-    <Screen title="التقدم" sub="الأسبوع بيبدأ السبت">
+    <Screen title="التقدم" sub="الأسبوع بيبدأ السبت" onBack={() => router.back()}>
       <Pressable onPress={() => router.push('/gaps')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
         <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
           <Ring value={report.score ?? 0} size={54} stroke={5}>

@@ -1,14 +1,13 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { dayFor, PROGRAM } from '../../data/program';
+import { dayFor } from '../../data/program';
 import { ExerciseCard } from '../../components/ExerciseCard';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
 import { router } from 'expo-router';
-import { Btn, Card, HeaderBtn, Ring, Screen, T, TagBadge } from '../../components/ui';
-import { countAr, dateKey, DAYS } from '../../lib/logic';
-import { daysBetween } from '../../lib/gaps';
-import { after, currentWorkout, seqIndex } from '../../lib/schedule';
+import { Btn, Card, HeaderBtn, Ring, Screen, T } from '../../components/ui';
+import { dateKey } from '../../lib/logic';
+import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
 import { useTheme } from '../../theme';
@@ -30,11 +29,6 @@ export default function Workout() {
     setConfirm(false);
   };
 
-  const ago = cur.last ? daysBetween(cur.last.date, date) : 0;
-  const sub = cur.last
-    ? `آخر تمرين: ${dayFor(cur.last.id)?.titleAr} · ${ago === 1 ? 'امبارح' : `من ${countAr(ago, DAYS)}`}`
-    : 'برنامج 5 أيام · قوة وعضل';
-
   // Logging always goes to today's date, whichever workout is open.
   let done = 0, total = 0;
   for (const e of day.exercises) {
@@ -49,9 +43,14 @@ export default function Workout() {
   return (
     <Screen
       title="تمرين النهارده"
-      sub={sub}
       footer={<TimerBar />}
-      action={<HeaderBtn icon="settings-outline" label="الإعدادات" onPress={() => router.push('/settings')} />}>
+      actionWidth={104}
+      action={
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <HeaderBtn icon="settings-outline" label="الإعدادات" onPress={() => router.push('/settings')} />
+          <HeaderBtn icon="stats-chart-outline" label="التقدم" onPress={() => router.push('/progress')} />
+        </View>
+      }>
       <WorkoutChips value={sel} current={cur.id} onChange={pick} />
 
       <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
@@ -59,40 +58,26 @@ export default function Workout() {
           <T w="numBold" style={{ fontSize: 14, color: t.okText }}>{`${total ? Math.round((done / total) * 100) : 0}%`}</T>
         </Ring>
         <View style={{ flex: 1, gap: 2 }}>
-          <T style={{ color: t.mute, fontSize: 13 }}>{`تمرين ${seqIndex(sel) + 1} من ${PROGRAM.length} · ${day.exercises.length} تمارين · ${done} من ${total} مجموعة`}</T>
           <T w="bold" style={{ fontSize: 18 }}>{day.titleAr}</T>
+          <T w="num" style={{ color: t.mute, fontSize: 13 }}>{`\u2066${done} / ${total}\u2069 مجموعة · \u2066${minutes}\u2069 د`}</T>
         </View>
-        <T style={{ color: t.mute, fontSize: 12.5, alignSelf: 'flex-start' }}>{`~ ${minutes} د`}</T>
       </Card>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, paddingHorizontal: 2 }}>
-        {(['heavy', 'fail', 'drop'] as const).map((k) => (
-          <View key={k} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <TagBadge tag={k} />
-            <T style={{ color: t.mute, fontSize: 12 }}>{k === 'heavy' ? 'وقّف قبل الفشل' : k === 'fail' ? 'آخر مجموعة لحد الفشل' : 'آخر مجموعة دروب سِت'}</T>
-          </View>
-        ))}
-      </View>
       {finished ? (
         <View style={{ backgroundColor: t.okSoft, borderRadius: 12, padding: 12 }}>
-          <T w="medium" style={{ color: t.okText, fontSize: 13 }}>{`خلصت تمرين النهارده. الجاي: ${dayFor(after(cur.id))?.titleAr}`}</T>
+          <T w="medium" style={{ color: t.okText, fontSize: 13 }}>{`خلصت ✓ · الجاي: ${dayFor(after(cur.id))?.titleAr}`}</T>
         </View>
       ) : null}
       {sel !== cur.id ? (
         <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, padding: 12 }}>
-          <T style={{ color: t.warn, fontSize: 13 }}>
-            {`ده مش التمرين اللي عليه الدور (الدور على ${dayFor(cur.id)?.titleAr}). لو سجّلت فيه النهارده، الترتيب هيكمّل من بعده.`}
-          </T>
+          <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
         </View>
       ) : null}
       {day.exercises.map((e, i) => (
         <ExerciseCard key={`${e.id}-${date}-${cards}`} ex={e} index={i} date={date} weekday={sel} onChange={bump} />
       ))}
       <View style={{ gap: 8, marginTop: 6 }}>
-        <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 20 }}>
-          اكتب الوزن والتكرارات وعلّم ✓ بعد كل مجموعة، وعداد الراحة هيشتغل لوحده. الأرقام الباهتة هي اللي لعبتها المرة اللي فاتت، ولو علّمت ✓ والخانة فاضية هياخدها.
-        </T>
         {!confirm ? (
-          <Btn label="امسح تسجيل النهارده للتمرين ده" onPress={() => setConfirm(true)} />
+          <Btn label="امسح تسجيل النهارده" onPress={() => setConfirm(true)} />
         ) : (
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <T style={{ color: t.mute }}>متأكد؟</T>

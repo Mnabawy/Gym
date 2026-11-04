@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, LayoutAnimation, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
+import { Animated, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -26,12 +26,12 @@ export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; lab
 }
 
 /** `action` sits at the end of the header (left in RTL), opposite the back button. */
-export function Screen({ title, sub, children, footer, onBack, action }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode }) {
+export function Screen({ title, sub, children, footer, onBack, action, actionWidth = 52 }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; actionWidth?: number }) {
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={s.scroll} keyboardShouldPersistTaps="handled">
-        <View style={[s.head, onBack || action ? { paddingHorizontal: 52 } : null]}>
+        <View style={[s.head, onBack || action ? { paddingHorizontal: Math.max(onBack ? 52 : 0, action ? actionWidth : 0) } : null]}>
           {/* RTL: back sits at the start (right) and points right. */}
           {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} style={s.back} /> : null}
           {action ? <View style={s.action}>{action}</View> : null}
@@ -62,9 +62,40 @@ export function Label({ children, color }: { children: React.ReactNode; color?: 
   );
 }
 
-export function TagBadge({ tag }: { tag: Tag }) {
+/** Small popup with a title and a short explanation (tags, tips). Tap anywhere or "تمام" to close. */
+export function InfoPopup({ visible, onClose, title, body }: { visible: boolean; onClose: () => void; title: React.ReactNode; body: string }) {
   const t = useTheme();
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <Pressable style={s.popBack} onPress={onClose} accessibilityLabel="قفل">
+        <Pressable accessibilityViewIsModal onPress={() => {}} style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)' }]}>
+          <View style={{ alignItems: 'flex-start' }}>{title}</View>
+          <T style={{ fontSize: 15, lineHeight: 25 }}>{body}</T>
+          <Btn label="تمام" kind="solid" onPress={onClose} />
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+/** Technique tag (تقيل / فشل / دروب). Tapping it explains what to do; pass `info={false}` for a plain label. */
+export function TagBadge({ tag, info = true }: { tag: Tag; info?: boolean }) {
+  const [open, setOpen] = useState(false);
   if (!tag) return null;
+  const badge = <TagLabel tag={tag} />;
+  if (!info) return badge;
+  return (
+    <>
+      <Pressable onPress={() => setOpen(true)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`${TAG_INFO[tag].label}، اعرف المطلوب`} style={({ pressed }) => ({ opacity: pressed ? 0.6 : 1 })}>
+        {badge}
+      </Pressable>
+      <InfoPopup visible={open} onClose={() => setOpen(false)} title={<TagLabel tag={tag} />} body={TAG_INFO[tag].long} />
+    </>
+  );
+}
+
+function TagLabel({ tag }: { tag: Exclude<Tag, null> }) {
+  const t = useTheme();
   const filled = tag === 'heavy';
   return (
     <View
@@ -164,11 +195,11 @@ export function DayChips({ days, value, today, onChange }: { days: DayChip[]; va
 }
 
 /** Bar that grows smoothly to `value` (0–1). */
-export function Progress({ value, color, height = 6 }: { value: number; color?: string; height?: number }) {
+export function Progress({ value, color, height = 6, track }: { value: number; color?: string; height?: number; track?: string }) {
   const t = useTheme();
   const v = useTween(clamp01(value), 380);
   return (
-    <View style={{ height, backgroundColor: t.soft, borderRadius: height / 2, overflow: 'hidden' }}>
+    <View style={{ height, backgroundColor: track ?? t.soft, borderRadius: height / 2, overflow: 'hidden' }}>
       <Animated.View style={{ width: v.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), height: '100%', borderRadius: height / 2, backgroundColor: color ?? t.ok }} />
     </View>
   );
@@ -378,6 +409,8 @@ const s = StyleSheet.create({
   track: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
   thumb: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' },
   check: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  popBack: { flex: 1, backgroundColor: 'rgba(8, 14, 20, 0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  pop: { width: '100%', maxWidth: 380, borderRadius: 22, padding: 18, gap: 12 },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10 },
