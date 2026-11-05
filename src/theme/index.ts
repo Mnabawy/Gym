@@ -18,6 +18,7 @@ const light = {
   okSoft: '#DCF3F3',
   warn: '#A35F00',
   warnSoft: '#FFF0DC',
+  bad: '#C62828', // missing input (a set ticked without weight or reps)
   shadow: '0px 3px 14px rgba(30, 50, 70, 0.08)',
   /** Neon theme only: thin borders and glows instead of soft shadows. */
   neon: false,
@@ -55,6 +56,7 @@ const dark: typeof light = {
   okSoft: '#113437',
   warn: '#F2B04A',
   warnSoft: '#3A2C12',
+  bad: '#FF6B6B',
   shadow: '0px 3px 14px rgba(0, 0, 0, 0.35)',
   neon: false,
   border: 'transparent',
@@ -98,6 +100,7 @@ export const neon: Theme = {
   okSoft: '#0E2A2E',
   warn: '#FFB020',
   warnSoft: '#2A2210',
+  bad: '#FF4D6D',
   shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
   neon: true,
   border: '#1A2638',

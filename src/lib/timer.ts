@@ -98,6 +98,10 @@ if (native) {
 export function buzz() {
   if (native && useSettings.getState().haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
 }
+/** Something you tried didn't go through (e.g. ticking a set with no weight or reps). */
+export function nope() {
+  if (native && useSettings.getState().haptics) Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning).catch(() => {});
+}
 export function tap() {
   if (native && useSettings.getState().haptics) Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light).catch(() => {});
 }

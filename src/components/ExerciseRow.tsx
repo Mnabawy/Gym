@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { Animated, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Exercise } from '../data/program';
@@ -7,7 +7,7 @@ import { bestE1rm, parseNum, shouldIncrease, type SetEntry } from '../lib/logic'
 import { usePop } from '../lib/motion';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
-import { useTimer, tap } from '../lib/timer';
+import { nope, useTimer, tap } from '../lib/timer';
 import { F, glow, tint, useTheme } from '../theme';
 import { InfoPopup, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
@@ -26,12 +26,15 @@ type Props = {
   onChange: (finished: boolean) => void;
 };
 type Row = { kg: string; reps: string; done: boolean };
+type Input = React.ComponentRef<typeof TextInput>;
 /** What the selected set's fields show, and for which set (`at`). */
 type Draft = { at: number; kg: string; reps: string };
 
 const toRow = (s?: SetEntry): Row => ({ kg: s?.kg != null ? String(s.kg) : '', reps: s?.reps != null ? String(s.reps) : '', done: !!s?.done });
 const iso = (s: string) => `⁦${s}⁩`;
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
+/** A set can only be ticked with a weight (0 is fine for bodyweight) and at least one rep. */
+const missingOf = (v: { kg: string; reps: string }) => ({ kg: parseNum(v.kg) == null, reps: !((parseNum(v.reps) ?? 0) > 0) });
 
 /** The set you're on: the first one not done; once all are done, the last one. */
 const lineAt = (rows: Row[]) => {
@@ -83,6 +86,10 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
   const [draftState, setDraft] = useState<Draft>(() => suggest(lineAt(rows), rows, last));
   const [watching, setWatching] = useState(false);
   const [why, setWhy] = useState(false);
+  // Set you tried to tick without weight or reps: those fields turn red until filled.
+  const [missing, setMissing] = useState<{ at: number; kg: boolean; reps: boolean } | null>(null);
+  const kgRef = useRef<Input>(null);
+  const repsRef = useRef<Input>(null);
 
   const doneCount = rows.filter((r) => r.done).length;
   const allDone = rows.length > 0 && doneCount === rows.length;
@@ -104,11 +111,13 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
     if (i === sel) return;
     setPicked(i);
     setDraft(suggest(i, rows, last));
+    setMissing(null);
   };
 
   /** Typing or − / + on the selected set. Saved right away (a done set stays done), so nothing is lost if you leave. */
   const setField = (field: 'kg' | 'reps', v: string) => {
     setDraft({ ...draft, [field]: v });
+    if (missing?.at === sel && missing[field]) setMissing({ ...missing, [field]: missingOf({ ...draft, [field]: v })[field] });
     put(sel, { ...rows[sel], [field]: v });
   };
   const step = (field: 'kg' | 'reps', dir: -1 | 1) => {
@@ -123,6 +132,21 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
   const toggle = (i: number) => {
     const cur = rows[i];
     const vals = open && i === sel ? draft : suggest(i, rows, last);
+    // No weight or reps yet: don't tick. Open that set with the empty fields in red and the keyboard on the first one.
+    const miss = missingOf(vals);
+    if (!cur.done && (miss.kg || miss.reps)) {
+      nope();
+      setMissing({ at: i, ...miss });
+      if (open && i === sel) {
+        (miss.kg ? kgRef : repsRef).current?.focus();
+      } else {
+        setPicked(i);
+        setDraft({ ...vals, at: i });
+        if (!open) onOpen();
+      }
+      return;
+    }
+    setMissing(null);
     const r: Row = cur.done ? { ...cur, done: false } : { kg: vals.kg, reps: vals.reps, done: true };
     const next = put(i, r);
     Keyboard.dismiss();
@@ -218,13 +242,40 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
           <View style={s.sets}>
             {rows.map((r, i) => {
               if (i === sel) {
+                const err = missing?.at === i ? missing : null;
                 return (
-                  <View key={i} style={[s.srow, { borderColor: color, backgroundColor: tint(color, 0.08), boxShadow: t.neon ? glow(t, color, 8) : undefined }]}>
-                    <T w="numBold" style={[s.sn, { color: ink }]}>{i + 1}</T>
-                    <Field value={draft.kg} unit="كجم" decimal label={`الوزن مجموعة ${i + 1}`} onChange={(v) => setField('kg', v)} onStep={(d) => step('kg', d)} />
-                    <Field value={draft.reps} unit="تكرار" label={`التكرارات مجموعة ${i + 1}`} onChange={(v) => setField('reps', v)} onStep={(d) => step('reps', d)} />
-                    <Tick on={r.done} primary onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
-                  </View>
+                  <React.Fragment key={i}>
+                    <View style={[s.srow, { borderColor: color, backgroundColor: tint(color, 0.08), boxShadow: t.neon ? glow(t, color, 8) : undefined }]}>
+                      <T w="numBold" style={[s.sn, { color: ink }]}>{i + 1}</T>
+                      <Field
+                        inputRef={kgRef}
+                        value={draft.kg}
+                        unit="كجم"
+                        decimal
+                        error={!!err?.kg}
+                        autoFocus={!!err?.kg}
+                        label={`الوزن مجموعة ${i + 1}`}
+                        onChange={(v) => setField('kg', v)}
+                        onStep={(d) => step('kg', d)}
+                      />
+                      <Field
+                        inputRef={repsRef}
+                        value={draft.reps}
+                        unit="تكرار"
+                        error={!!err?.reps}
+                        autoFocus={!!err?.reps && !err.kg}
+                        label={`التكرارات مجموعة ${i + 1}`}
+                        onChange={(v) => setField('reps', v)}
+                        onStep={(d) => step('reps', d)}
+                      />
+                      <Tick on={r.done} primary onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
+                    </View>
+                    {err && (err.kg || err.reps) ? (
+                      <T accessibilityLiveRegion="polite" style={{ fontSize: 11.5, color: t.bad, marginTop: -1, marginStart: 27 }}>
+                        {err.kg && err.reps ? 'اكتب الوزن والتكرارات الأول' : err.kg ? 'اكتب الوزن الأول' : 'اكتب التكرارات الأول'}
+                      </T>
+                    ) : null}
+                  </React.Fragment>
                 );
               }
               const v = r.done ? r : suggest(i, rows, last);
@@ -302,7 +353,18 @@ function Tick({ on, primary, onPress, label }: { on: boolean; primary?: boolean;
 }
 
 /** Weight or reps on the selected set: − value unit + . Tap the number to type any value (it's selected, so typing replaces it). */
-function Field({ value, unit, label, decimal, onChange, onStep }: { value: string; unit: string; label: string; decimal?: boolean; onChange: (v: string) => void; onStep: (dir: -1 | 1) => void }) {
+function Field({ value, unit, label, decimal, error, autoFocus, inputRef, onChange, onStep }: {
+  value: string;
+  unit: string;
+  label: string;
+  decimal?: boolean;
+  /** Empty when you tried to tick the set: red border. */
+  error?: boolean;
+  autoFocus?: boolean;
+  inputRef?: React.Ref<Input>;
+  onChange: (v: string) => void;
+  onStep: (dir: -1 | 1) => void;
+}) {
   const t = useTheme();
   const [focus, setFocus] = useState(false);
   const btn = (dir: -1 | 1) => (
@@ -316,9 +378,19 @@ function Field({ value, unit, label, decimal, onChange, onStep }: { value: strin
     </Pressable>
   );
   return (
-    <View style={[s.fld, { backgroundColor: t.soft, borderColor: focus ? t.ok : 'transparent', boxShadow: focus ? glow(t, t.ok, 8) : undefined }]}>
+    <View
+      style={[
+        s.fld,
+        {
+          backgroundColor: error ? tint(t.bad, 0.1) : t.soft,
+          borderColor: error ? t.bad : focus ? t.ok : 'transparent',
+          boxShadow: error ? glow(t, t.bad, 8) : focus ? glow(t, t.ok, 8) : undefined,
+        },
+      ]}>
       {btn(-1)}
       <TextInput
+        ref={inputRef}
+        autoFocus={autoFocus}
         value={value}
         onChangeText={(v) => onChange(v.replace(/[^0-9.,٠-٩۰-۹٫]/g, ''))}
         placeholder="–"
