@@ -1,0 +1,32 @@
+// Swap-for-today alternatives: same muscle and movement as the program exercise, for when the machine or bench is taken.
+// The swapped sets are still logged on the program exercise (so weekly volume and attendance don't change), with the
+// swap saved per date in meta `swaps` (src/lib/journal.ts); weights and records are compared only within the same exercise.
+export const ALTERNATIVES: Record<string, string[]> = {
+  deadlift: ['Trap Bar Deadlift', 'Rack Pull', 'Back Extension'],
+  'lat-pulldown': ['Pull-Up', 'Assisted Pull-Up', 'Single-Arm Lat Pulldown'],
+  'barbell-row': ['Pendlay Row', 'One-Arm DB Row', 'Seated Cable Row'],
+  'chest-supported-row': ['Seated Cable Row', 'Machine Row', 'One-Arm DB Row'],
+  'straight-arm-pulldown': ['Cable Pullover', 'DB Pullover', 'Single-Arm Lat Pulldown'],
+  'db-lateral-raise': ['Cable Lateral Raise', 'Machine Lateral Raise', 'Lean-Away DB Lateral Raise'],
+  'barbell-bench-press': ['DB Bench Press', 'Machine Chest Press', 'Smith Machine Bench Press'],
+  'incline-db-press': ['Incline Barbell Press', 'Incline Machine Press', 'Incline Smith Press'],
+  'low-to-high-cable-fly': ['Pec Deck', 'Incline DB Fly', 'Cable Crossover'],
+  'ez-bar-curl': ['Barbell Curl', 'DB Curl', 'Cable Curl'],
+  'preacher-curl': ['EZ-Bar Preacher Curl', 'Machine Preacher Curl', 'Incline DB Curl'],
+  'hammer-curl': ['Rope Hammer Curl', 'Cross-Body Hammer Curl', 'Reverse Curl'],
+  'romanian-deadlift': ['Stiff-Leg Deadlift', 'DB Romanian Deadlift', 'Good Morning'],
+  'seated-leg-curl': ['Lying Leg Curl', 'Standing Leg Curl', 'Nordic Curl'],
+  'bulgarian-split-squat': ['Reverse Lunge', 'Walking Lunge', 'Step-Up'],
+  'barbell-hip-thrust': ['Machine Hip Thrust', 'Glute Bridge', 'Cable Pull-Through'],
+  'seated-calf-raise': ['Leg Press Calf Raise', 'Smith Machine Calf Raise', 'Single-Leg DB Calf Raise'],
+  'seated-db-shoulder-press': ['Machine Shoulder Press', 'Barbell Overhead Press', 'Arnold Press'],
+  'cable-lateral-raise': ['DB Lateral Raise', 'Machine Lateral Raise', 'Lean-Away DB Lateral Raise'],
+  'reverse-pec-deck': ['Face Pull', 'Cable Reverse Fly', 'Bent-Over DB Reverse Fly'],
+  'weighted-dips': ['Close-Grip Bench Press', 'Machine Dip', 'Bench Dip'],
+  'overhead-triceps-extension': ['Cable Overhead Extension', 'EZ-Bar Skull Crusher', 'DB Overhead Extension'],
+  'rope-pushdown': ['Straight-Bar Pushdown', 'Single-Arm Cable Pushdown', 'DB Kickback'],
+  'barbell-back-squat': ['Hack Squat', 'Front Squat', 'Smith Machine Squat'],
+  'leg-press': ['Hack Squat', 'Pendulum Squat', 'Goblet Squat'],
+  'leg-extension': ['Single-Leg Extension', 'Sissy Squat', 'Spanish Squat'],
+  'standing-calf-raise': ['Leg Press Calf Raise', 'Smith Machine Calf Raise', 'Single-Leg DB Calf Raise'],
+};

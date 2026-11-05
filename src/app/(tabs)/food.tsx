@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU } from '../../data/nutrition';
+import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU, type MealKey } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
-import { Btn, Card, Check, DayChips, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
-import { targetsFor } from '../../lib/energy';
+import { energyFor, targetsFor } from '../../lib/energy';
+import { adherence, CUP_ML, dayKey, foodHistory, MEAL_PICKS_KEY, waterGoalMl, WATER_KEY } from '../../lib/journal';
+import { readNumbers, writeEntry } from '../../lib/meta';
 import { useSettings } from '../../lib/settings';
 import { dateKey, mealMacros } from '../../lib/logic';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
@@ -13,6 +15,7 @@ import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
 import { tint, useTheme, type Theme } from '../../theme';
 
+const l1 = (ml: number) => String(Math.round(ml / 100) / 10);
 const typeColor = (t: Theme, ty: string) => (ty === 'p' ? t.protein : ty === 'c' ? t.carbs : ty === 'f' ? t.fat : t.veg);
 
 export default function Food() {
@@ -22,9 +25,11 @@ export default function Food() {
   const date = dateKey(now);
   const [sel, setSel] = useState(today);
   const [showSwaps, setShowSwaps] = useState(false);
+  const [swapMeal, setSwapMeal] = useState<MealKey | null>(null);
   const { bump } = useDataVersion();
   // Your own targets once the calorie calculator has your data (side menu → حساب السعرات), else the plan's.
-  const goal = targetsFor(useSettings((s) => s.body));
+  const body = useSettings((s) => s.body);
+  const goal = targetsFor(body);
   const day = WEEK_MENU.find((d) => d.weekday === sel)!;
   const isToday = sel === today;
   // Training or rest comes from the workout log, not fixed weekdays (src/lib/schedule.ts). Re-read when v changes.
@@ -40,10 +45,31 @@ export default function Food() {
   };
 
   const checks = new Set(storage.mealChecks(date)); // re-read when v changes
+  // A meal can be swapped for another option of the same meal, for that date only (meta mealPicks).
+  const selDate = isToday ? date : dateInWeek(sel, date);
+  const picks = readNumbers(MEAL_PICKS_KEY);
+  const pickOf = (m: MealKey) => {
+    const i = picks[dayKey(selDate, m)];
+    return i != null && MEALS.find((x) => x.meal === m)!.options[i] ? i : day.picks[m];
+  };
   const meals = MEAL_ORDER.map((m) => {
-    const opt = MEALS.find((x) => x.meal === m)!.options[day.picks[m]];
-    return { meal: m, ...opt, mac: mealMacros(opt.items) };
+    const opt = MEALS.find((x) => x.meal === m)!.options[pickOf(m)];
+    return { meal: m, ...opt, mac: mealMacros(opt.items), swapped: pickOf(m) !== day.picks[m] };
   });
+  const setPick = (m: MealKey, i: number) => {
+    setSwapMeal(null);
+    writeEntry(MEAL_PICKS_KEY, 'number', dayKey(selDate, m), i === day.picks[m] ? undefined : i, { dated: true });
+  };
+
+  // Water (today only): cups of 250 ml against the calculator's goal (or 3 L), +0.5 L on a training day.
+  const waterMap = readNumbers(WATER_KEY);
+  const waterMl = waterMap[date] ?? 0;
+  const baseWater = energyFor(body)?.water ?? null;
+  const waterGoal = waterGoalMl(baseWater, training(today));
+  const addWater = (ml: number) => writeEntry(WATER_KEY, 'number', date, Math.max(0, waterMl + ml) || undefined, { dated: true });
+  const history = foodHistory(storage.allMealChecks(), waterMap, date, 14);
+  const adh = adherence(history, MEAL_ORDER.length, date);
+  const waterDays = history.filter((d) => d.water >= waterGoalMl(baseWater, false)).length;
   const total = meals.reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: 0, p: 0 });
   const eaten = meals.filter((m) => isToday && checks.has(m.meal)).reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: 0, p: 0 });
 
@@ -112,6 +138,25 @@ export default function Food() {
         </View>
       </Card>
 
+      {isToday ? (
+        <Card style={{ paddingVertical: 8, paddingHorizontal: 12, gap: 6 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="water-outline" size={18} color={t.protein} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T w="semi" style={{ fontSize: 13.5 }}>{`المية · \u2066${l1(waterMl)}\u2069 من \u2066${l1(waterGoal)}\u2069 لتر`}</T>
+              <T style={{ fontSize: 11.5, color: t.mute }}>{waterMl >= waterGoal ? 'كمّلت مية النهارده ✓' : `فاضل ${Math.ceil((waterGoal - waterMl) / CUP_ML)} كوباية`}</T>
+            </View>
+            <Pressable onPress={() => addWater(-CUP_ML)} disabled={!waterMl} hitSlop={6} accessibilityRole="button" accessibilityLabel="شيل كوباية" style={({ pressed }) => [s.wbtn, { backgroundColor: t.soft, opacity: !waterMl ? 0.35 : pressed ? 0.7 : 1 }]}>
+              <Ionicons name="remove" size={18} color={t.fg} />
+            </Pressable>
+            <Pressable onPress={() => addWater(CUP_ML)} hitSlop={6} accessibilityRole="button" accessibilityLabel="زوّد كوباية مية" style={({ pressed }) => [s.wadd, { backgroundColor: tint(t.protein, 0.15), opacity: pressed ? 0.7 : 1 }]}>
+              <T w="semi" style={{ fontSize: 12.5, color: t.protein }} numberOfLines={1}>+ كوباية</T>
+            </Pressable>
+          </View>
+          <Progress value={waterMl / waterGoal} color={t.protein} height={6} />
+        </Card>
+      ) : null}
+
       {meals.map((m) => {
         const on = isToday && checks.has(m.meal);
         return (
@@ -121,6 +166,14 @@ export default function Food() {
                 <T w="bold" style={{ fontSize: 14, flexShrink: 1 }} numberOfLines={1}>{`${m.meal} · ${m.name}`}</T>
                 <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={1}>{isTraining ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
               </View>
+              <Pressable
+                onPress={() => setSwapMeal(m.meal)}
+                hitSlop={10}
+                accessibilityRole="button"
+                accessibilityLabel={`بدّل ${m.meal}`}
+                style={({ pressed }) => [s.swap, { backgroundColor: m.swapped ? t.warnSoft : t.soft, opacity: pressed ? 0.6 : 1 }]}>
+                <Ionicons name="swap-horizontal" size={15} color={m.swapped ? t.warn : t.mute} />
+              </Pressable>
               {isToday ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(date, m.meal, !on); bump(); }} /> : null}
             </View>
             {/* The meal's items as a list: colored dot (protein / carbs / fat / veg), item, its calories. */}
@@ -151,6 +204,65 @@ export default function Food() {
           </View>
         ))}
       </View>
+
+      {history.length ? (
+        <Card style={{ paddingVertical: 10, paddingHorizontal: 12, gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+            <T w="bold" style={{ fontSize: 14, flex: 1 }}>{`التزامك آخر ${history.length} يوم`}</T>
+            {adh != null ? <T w="numBold" style={{ fontSize: 14, color: adh >= 0.8 ? t.okText : t.warn }}>{`${Math.round(adh * 100)}%`}</T> : null}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 3, height: 56, alignItems: 'flex-end' }}>
+            {history.map((d) => {
+              const f = Math.min(1, d.meals / MEAL_ORDER.length);
+              const full = d.meals >= MEAL_ORDER.length;
+              return (
+                <View key={d.date} style={{ flex: 1, alignItems: 'center', gap: 3 }} accessible accessibilityLabel={`${d.date}: ${d.meals} من ${MEAL_ORDER.length} وجبات`}>
+                  <View style={{ width: '100%', maxWidth: 16, height: 36, borderRadius: 4, backgroundColor: t.soft, justifyContent: 'flex-end', overflow: 'hidden' }}>
+                    <View style={{ height: `${f * 100}%`, backgroundColor: full ? t.ok : tint(t.ok, 0.5) }} />
+                  </View>
+                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.water >= waterGoalMl(baseWater, false) ? t.protein : 'transparent' }} />
+                  <T w="num" style={{ fontSize: 9, color: d.date === date ? t.fg : t.mute }}>{String(+d.date.slice(8))}</T>
+                </View>
+              );
+            })}
+          </View>
+          <T style={{ fontSize: 11.5, color: t.mute }}>{`العمود = الوجبات اللي علّمت عليها · النقطة الزرقا = كمّلت المية (${waterDays} يوم)`}</T>
+        </Card>
+      ) : null}
+
+      <Sheet
+        visible={swapMeal != null}
+        onClose={() => setSwapMeal(null)}
+        title={swapMeal ? `بدّل ${swapMeal} · ${day.day}` : ''}
+        sub="أي اختيار من نفس الوجبة بماكروز قريبة. التبديل لليوم ده بس، وقايمة المشتريات زي ما هي">
+        {swapMeal
+          ? (() => {
+              const opts = MEALS.find((x) => x.meal === swapMeal)!.options;
+              const base = mealMacros(opts[day.picks[swapMeal]].items);
+              const cur = pickOf(swapMeal);
+              return opts
+                .map((o, i) => ({ o, i, mac: mealMacros(o.items) }))
+                .sort((a, b) => Math.abs(a.mac.kcal - base.kcal) - Math.abs(b.mac.kcal - base.kcal))
+                .map(({ o, i, mac }) => {
+                  const on = i === cur;
+                  const dk = Math.round(mac.kcal - base.kcal);
+                  return (
+                    <Pressable key={i} onPress={() => setPick(swapMeal, i)} accessibilityRole="button" accessibilityState={{ selected: on }} style={({ pressed }) => [s.opt, { backgroundColor: on ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 }]}>
+                      <View style={{ flex: 1, gap: 1 }}>
+                        <T w="semi" style={{ fontSize: 14 }}>{`${o.name}${i === day.picks[swapMeal] ? ' · الأصلي' : ''}`}</T>
+                        <T style={{ fontSize: 11.5, color: t.mute }} numberOfLines={2}>{o.items.join('، ')}</T>
+                      </View>
+                      <View style={{ alignItems: 'flex-end' }}>
+                        <T w="num" style={{ fontSize: 12 }}>{`${Math.round(mac.kcal)} سعر`}</T>
+                        <T w="num" style={{ fontSize: 11, color: t.protein }}>{`${Math.round(mac.p)} بروتين`}</T>
+                        {dk ? <T w="num" style={{ fontSize: 10.5, color: t.mute }}>{`\u2066${dk > 0 ? '+' : ''}${dk}\u2069`}</T> : null}
+                      </View>
+                    </Pressable>
+                  );
+                });
+            })()
+          : null}
+      </Sheet>
 
       <Btn label={showSwaps ? 'اخفي البدائل والمكملات' : 'البدائل والمكملات'} onPress={() => setShowSwaps(!showSwaps)} />
       {showSwaps ? (
@@ -189,5 +301,9 @@ export default function Food() {
 const s = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   dot: { width: 7, height: 7, borderRadius: 4 },
+  wbtn: { width: 36, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  wadd: { height: 32, borderRadius: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
+  swap: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
+  opt: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minHeight: 48 },
   pill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
 });

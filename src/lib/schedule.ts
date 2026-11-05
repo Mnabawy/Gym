@@ -68,3 +68,18 @@ export function isTrainingDay(date: string, today: string, trained: ReadonlySet<
 
 /** Date of weekday `wd` in the Saturday–Friday week that holds `today` (the food tab's day chips). */
 export const dateInWeek = (wd: number, today: string) => addDays(weekStart(today), (wd + 1) % 7);
+
+/**
+ * Workout reminder times: the next `count` days (within two weeks) whose weekday is in `days`, at `minutes` after
+ * midnight. Today is skipped once its time has passed or you've already trained.
+ */
+export function reminderTimes(now: Date, minutes: number, days: readonly number[], trainedToday: boolean, count = 7): Date[] {
+  const out: Date[] = [];
+  for (let i = 0; i < 14 && out.length < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, Math.floor(minutes / 60), minutes % 60);
+    if (!days.includes(d.getDay())) continue;
+    if (i === 0 && (trainedToday || d <= now)) continue;
+    out.push(d);
+  }
+  return out;
+}

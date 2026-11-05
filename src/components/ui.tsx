@@ -98,6 +98,31 @@ export function InfoPopup({ visible, onClose, title, body }: { visible: boolean;
   );
 }
 
+/** Popup with a title, a close button and any content (swap list, plates, notes, backups). Tap outside to close. */
+export function Sheet({ visible, onClose, title, sub, children }: { visible: boolean; onClose: () => void; title: string; sub?: string; children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      <Pressable style={s.popBack} onPress={onClose} accessibilityLabel="قفل">
+        <Pressable accessibilityViewIsModal onPress={() => {}} style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)', maxHeight: '85%' }]}>
+          <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T w="bold" style={{ fontSize: 16 }}>{title}</T>
+              {sub ? <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>{sub}</T> : null}
+            </View>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityRole="button" accessibilityLabel="قفل" style={({ pressed }) => ({ width: 32, height: 32, alignItems: 'center', justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+              <Ionicons name="close" size={22} color={t.mute} />
+            </Pressable>
+          </View>
+          <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled">
+            {children}
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
 /** Technique tag (تقيل / فشل / دروب). Tapping it explains what to do; pass `info={false}` for a plain label. */
 export function TagBadge({ tag, info = true }: { tag: Tag; info?: boolean }) {
   const [open, setOpen] = useState(false);

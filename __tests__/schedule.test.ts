@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { PROGRAM } from '../src/data/program';
-import { after, currentWorkout, dateInWeek, isTrainingDay, lastOf, projected, seqAt } from '../src/lib/schedule';
+import { after, currentWorkout, dateInWeek, isTrainingDay, lastOf, projected, reminderTimes, seqAt } from '../src/lib/schedule';
 import type { TrainedDay } from '../src/lib/storage.types';
 
 // Program days by id (the weekday each was written for): 1 ظهر → 2 صدر وبايسبس → 3 خلفية → 5 كتف وترايسبس → 6 أمامية → 1 …
@@ -82,5 +82,21 @@ describe('food tab training day', () => {
     expect(dateInWeek(6, TODAY)).toBe('2026-10-31'); // Sat
     expect(dateInWeek(3, TODAY)).toBe(TODAY); // Wed
     expect(dateInWeek(5, TODAY)).toBe('2026-11-06'); // Fri
+  });
+});
+
+describe('reminderTimes', () => {
+  // Wednesday 4 Nov 2026, 10:00; the window is two weeks
+  const now = new Date(2026, 10, 4, 10, 0);
+  const keys = (ds: Date[]) => ds.map((d) => `${d.getDate()} ${d.getHours()}:${d.getMinutes()}`);
+  test('next plan days at the time, today included while it is ahead', () => {
+    expect(keys(reminderTimes(now, 19 * 60 + 30, [1, 2, 3, 5, 6], false, 4))).toEqual(['4 19:30', '6 19:30', '7 19:30', '9 19:30']);
+  });
+  test('today skipped once trained or past the time', () => {
+    expect(keys(reminderTimes(now, 19 * 60, [3], true, 2))).toEqual(['11 19:0']);
+    expect(keys(reminderTimes(now, 9 * 60, [3], false, 1))).toEqual(['11 9:0']);
+  });
+  test('no days → nothing', () => {
+    expect(reminderTimes(now, 600, [], false)).toEqual([]);
   });
 });

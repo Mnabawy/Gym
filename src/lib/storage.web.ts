@@ -66,6 +66,9 @@ export const storage: Storage = {
   mealChecks(date) {
     return S.meals.filter((m) => m.date === date).map((m) => m.meal);
   },
+  allMealChecks() {
+    return [...S.meals].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  },
   setMealCheck(date, meal, on) {
     S.meals = S.meals.filter((m) => !(m.date === date && m.meal === meal));
     if (on) S.meals.push({ date, meal });
@@ -88,6 +91,13 @@ export const storage: Storage = {
   },
   setMeta(key, value) {
     S.meta[key] = value;
+    persist();
+  },
+  dump() {
+    return { sets: this.allSets(), meals: this.allMealChecks(), shop: [...S.shop], meta: { ...S.meta } };
+  },
+  restore(d) {
+    S = { sets: d.sets.map((r) => ({ ...r })), meals: d.meals.map((m) => ({ ...m })), shop: d.shop.map((x) => ({ ...x })), meta: { ...d.meta } };
     persist();
   },
 };

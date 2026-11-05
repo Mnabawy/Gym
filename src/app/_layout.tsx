@@ -8,6 +8,9 @@ import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google
 import { AmiriQuran_400Regular } from '@expo-google-fonts/amiri-quran';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VersePopup } from '../components/VersePopup';
+import { useDataVersion } from '../lib/bus';
+import { syncReminders } from '../lib/reminder';
+import { useSettings } from '../lib/settings';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -34,6 +37,20 @@ export default function RootLayout() {
       <StatusBar style="auto" />
       <Stack screenOptions={{ headerShown: false }} />
       <VersePopup />
+      <ReminderSync />
     </SafeAreaProvider>
   );
+}
+
+/** Keeps the workout reminders in step with the settings and the log (a few seconds after the last change). */
+function ReminderSync() {
+  const on = useSettings((s) => s.reminder);
+  const time = useSettings((s) => s.reminderTime);
+  const days = useSettings((s) => s.reminderDays);
+  const v = useDataVersion((s) => s.v);
+  useEffect(() => {
+    const id = setTimeout(() => syncReminders(), 2000);
+    return () => clearTimeout(id);
+  }, [on, time, days, v]);
+  return null;
 }

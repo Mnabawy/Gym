@@ -7,7 +7,7 @@ Exercise names stay in English (gym vocabulary).
 - Expo SDK 58, TypeScript strict, expo-router (routes in `src/app/`, tabs in `src/app/(tabs)/`)
 - State: zustand (`src/lib/timer.ts`, `src/lib/bus.ts`)
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
-- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded), expo-clipboard, expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
+- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
 - Fonts: Readex Pro (Arabic) + Inter (numbers/Latin) via @expo-google-fonts
 - No backend. Offline-first.
 
@@ -25,18 +25,25 @@ Exercise names stay in English (gym vocabulary).
 - `src/lib/settings.ts` — settings store (zustand), saved as JSON under storage meta key `settings`
 - `src/lib/prayer.ts` (times, adhan, offline) + `src/lib/place.ts` (phone location, expo-location) — prayer times page `src/app/prayer.tsx` (`/prayer`), opened from a moon icon in the workout tab header, which shows only when prayer times are turned on in settings
 - `src/lib/energy.ts` — calorie/macro calculator (`/calories`, from the side menu or settings); formulas and sources at the top of the file. Once it has your data, `targetsFor` makes its numbers the food tab's daily targets instead of the plan's `TARGETS`
-- `src/components/SideMenu.tsx` — ☰ on the three tab headers: animated side menu with التقدم، الكالندر، مواقيت الصلاة (when on)، حساب السعرات، الإعدادات
+- `src/components/SideMenu.tsx` — ☰ on the three tab headers: animated side menu with التقدم، وزنك، الكالندر، مواقيت الصلاة (when on)، حساب السعرات، الإعدادات
 - `src/lib/shop.ts` — splits the weekly shopping list into N trips (settings) with equal item counts; items are never split, few-day items go on the trip before they're eaten (`assignTrips`). The list itself is fixed; the trip chosen for any item (`shopMoves`) lives in settings and is edited from the shopping tab's edit button
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
 - Food tab training vs rest day isn't the PDF's fixed weekdays (`WEEK_MENU.training` is unused): `isTrainingDay` in `src/lib/schedule.ts` — a day with a logged workout is training, a past day without one was rest, today counts as training unless switched to rest from the food tab (meta key `restDay`)
 - `src/data/videos.ts` — one short YouTube form video per exercise ("فيديو" button on each exercise card opens `VideoSheet`, which plays it in-app); how they were picked is at the top of the file
 - `src/data/verses.ts` — Quran verses for the launch popup (`src/components/VersePopup.tsx`). Tanzil Uthmani text copied verbatim from api.alquran.cloud; never retype or edit a verse by hand
 - Source PDFs live in `docs/`
+- `src/lib/backup.ts` (format, parsing) + `src/lib/backupIO.ts` / `.web.ts` (share sheet, file picker, clipboard) — backup and restore of everything (`Storage.dump` / `restore`), from the settings page. Meta `lastBackup`; the end-of-workout card nudges after 7 days
+- `src/lib/weight.ts` — body weight log (`/weight`, side menu وزنك), meta `weights`; weekly rate vs the goal. Logging a weight also sets the calculator's weight
+- `src/lib/journal.ts` (pure) + `src/lib/meta.ts` (read/write) — JSON maps in meta: `swaps` (exercise swapped for today, `date|exId` → name; sets stay on the program exercise, records/prefill/progress chart only compare the same variant, `toSessions` gets the swapped set), `notes` (per exercise), `water` (ml per day), `mealPicks` (meal option per `date|meal`); food history for the food tab
+- `src/data/alternatives.ts` — swap alternatives per exercise
+- `src/lib/plates.ts` — plate calculator (which exercises use a bar, bar weight `barKg` in settings)
+- `src/lib/summary.ts` — end-of-workout summary card (volume, change from last time, records)
+- `src/lib/reminder.ts` — workout reminder notifications (settings `reminder*`), next week scheduled ahead (`reminderTimes` in schedule.ts), re-synced from the root layout
 - `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file
 - `src/lib/schedule.ts` — workout order: one continuous sequence through `PROGRAM`, not fixed weekdays. The workout tab opens on the one after your last session; missed and rest days don't move it. A program day's id is still `Day.weekday` (logged rows keep it), and plan weekdays only set the weekly attendance/volume target
 
 ## Commands
 - `npx expo start` — run
-- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, settings, data integrity incl. videos)
+- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, settings, data integrity incl. videos and alternatives)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions

@@ -10,6 +10,8 @@ import { useReport } from '../lib/useReport';
 import { bestE1rm, countAr, dateKey } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
+import { dayKey, SWAPS_KEY } from '../lib/journal';
+import { readStrings } from '../lib/meta';
 import { useTheme } from '../theme';
 
 const TARGET = 10;
@@ -46,7 +48,9 @@ export default function ProgressScreen() {
   const top = report.gaps[0];
 
   const hist = storage.history(sel).filter((h) => h.sets.some((s) => s.kg && s.reps));
-  const points = hist.map((h) => ({ date: h.date, v: bestE1rm(h.sets) }));
+  // Days you swapped this exercise for another one stay in the list (marked) but out of the chart.
+  const swaps = readStrings(SWAPS_KEY);
+  const points = hist.filter((h) => !swaps[dayKey(h.date, sel)]).map((h) => ({ date: h.date, v: bestE1rm(h.sets) }));
 
   return (
     <Screen title="التقدم" sub="الأسبوع بيبدأ السبت" onBack={() => router.back()}>
@@ -112,7 +116,10 @@ export default function ProgressScreen() {
         <E1rmChart points={points} color={t.muscle[ex.muscle]} />
         {hist.slice().reverse().slice(0, 8).map((h) => (
           <View key={h.date} style={{ flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: t.line, paddingTop: 8 }}>
-            <T w="numRegular" style={{ color: t.mute, fontSize: 13 }}>{h.date}</T>
+            <View style={{ flexShrink: 1 }}>
+              <T w="numRegular" style={{ color: t.mute, fontSize: 13 }}>{h.date}</T>
+              {swaps[dayKey(h.date, sel)] ? <T w="num" style={{ color: t.warn, fontSize: 11 }} numberOfLines={1}>{swaps[dayKey(h.date, sel)]}</T> : null}
+            </View>
             <T w="num" style={{ fontSize: 13 }}>
               {h.sets.filter((s) => s.kg || s.reps).map((s) => `${s.kg ?? '–'}×${s.reps ?? '–'}`).join('  ')}
             </T>

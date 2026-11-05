@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { DEFAULT_SETS, PROGRAM, SETS_MAX, SETS_MIN } from '../data/program';
+import { DEFAULT_SETS, MONTHS_AR, PROGRAM, SETS_MAX, SETS_MIN, WEEKDAYS_AR } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { useVersePopup } from '../components/VersePopup';
 import { WorkoutChips } from '../components/WorkoutChips';
-import { countAr, dateKey, formatClock } from '../lib/logic';
+import { countAr, dateKey, DAYS, formatClock, SETS } from '../lib/logic';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
@@ -14,6 +14,13 @@ import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
+import { BACKUP_STALE_DAYS, backupInfo, LAST_BACKUP_KEY, parseBackup, type BackupInfo } from '../lib/backup';
+import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
+import { daysBetween } from '../lib/gaps';
+import { BAR_CHOICES } from '../lib/plates';
+import { allowReminders } from '../lib/reminder';
+import { useDataVersion } from '../lib/bus';
+import type { Dump } from '../lib/storage.types';
 import { useTheme } from '../theme';
 
 const phone = Platform.OS !== 'web';
@@ -21,6 +28,15 @@ const clock = (sec: number) => formatClock(sec * 1000);
 const STEPS = [1, 1.25, 2.5, 5];
 const ITEMS: [string, string, string, string] = ['صنف واحد', 'صنفين', 'أصناف', 'صنف'];
 const itemsAr = (n: number) => (n ? countAr(n, ITEMS) : 'مفيش حاجة');
+/** Minutes after midnight → "7:30 م". */
+const timeAr = (m: number) => {
+  const h = Math.floor(m / 60), mm = m % 60;
+  return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
+};
+const WEEK = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
+const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
+const infoAr = (i: BackupInfo) =>
+  !i.sets && !i.meals ? 'مفيش تسجيل لسه' : `${countAr(i.sets, SETS)} في ${countAr(i.days, DAYS)}${i.from && i.to ? ` (من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''} · ${countAr(i.meals, ['وجبة', 'وجبتين', 'وجبات', 'وجبة'])}`;
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -34,6 +50,41 @@ export default function SettingsScreen() {
   const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
   const trips = splitShopping(st.shopTrips, undefined, movesFor(tripDays(st.shopTrips).length, st.shopMoves));
   const need = energyFor(st.body);
+  useDataVersion((x) => x.v);
+  const today = dateKey();
+  const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
+  const since = lastBackup ? daysBetween(lastBackup, today) : null;
+  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
+  const [denied, setDenied] = useState(false);
+  const [pending, setPending] = useState<{ data: Dump; info: BackupInfo; exportedAt: string | null } | null>(null);
+  const mine = backupInfo(storage.dump());
+
+  const run = async (f: () => Promise<void>) => {
+    setMsg(null);
+    try {
+      await f();
+    } catch {
+      setMsg({ text: 'حصلت مشكلة، جرّب تاني.', bad: true });
+    }
+  };
+  const done = (text: string) => {
+    storage.setMeta(LAST_BACKUP_KEY, today);
+    useDataVersion.getState().bump();
+    setMsg({ text });
+  };
+  const load = (text: string | null) => {
+    if (text == null) return;
+    const p = parseBackup(text);
+    if (!p.ok) return setMsg({ text: p.error, bad: true });
+    setPending({ data: p.data, info: p.info, exportedAt: p.exportedAt });
+  };
+  const restore = () => {
+    if (!pending) return;
+    storage.restore(pending.data);
+    st.reload();
+    setPending(null);
+    setMsg({ text: 'رجّعت النسخة ✓' });
+  };
 
   return (
     <Screen title="الإعدادات" sub="التمرين والراحة والمشتريات والآية" onBack={() => router.back()}>
@@ -45,6 +96,38 @@ export default function SettingsScreen() {
           </Row>
         </Card>
       </Pressable>
+
+      <Label>نسخة احتياطية</Label>
+      <Card>
+        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, gap: 3 }}>
+          <T w="medium" style={{ color: since == null || since >= BACKUP_STALE_DAYS ? t.warn : t.okText }}>
+            {since == null ? 'لسه ما عملتش نسخة احتياطية' : since === 0 ? 'آخر نسخة النهارده ✓' : `آخر نسخة من ${countAr(since, DAYS)}`}
+          </T>
+          <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>
+            {`كل حاجة متسجلة على الموبايل بس. احفظ ملف على Drive أو ابعته لنفسك، عشان لو مسحت التطبيق أو غيّرت الموبايل ترجّعه. عندك دلوقتي: ${infoAr(mine)}`}
+          </T>
+        </View>
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
+          <Btn label="احفظ نسخة" kind="solid" style={{ flexGrow: 1 }} onPress={() => run(async () => done((await saveBackup()) === 'copied' ? 'اتنسخت في الحافظة، الصقها في رسالة لنفسك' : 'اتحفظت ✓'))} />
+          <Btn label="انسخها" style={{ flexGrow: 1 }} onPress={() => run(async () => { await copyBackup(); done('اتنسخت، الصقها في رسالة لنفسك أو في ملاحظة'); })} />
+        </View>
+        <Sep />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
+          <Btn label="رجّع من ملف" style={{ flexGrow: 1 }} onPress={() => run(async () => load(await pickBackup()))} />
+          <Btn label="رجّع من الحافظة" style={{ flexGrow: 1 }} onPress={() => run(async () => load(await pasteBackup()))} />
+        </View>
+        {pending ? (
+          <View style={{ marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: t.warnSoft, gap: 8 }}>
+            <T w="semi" style={{ color: t.warn }}>{`النسخة دي${pending.exportedAt ? ` (اتعملت ${dayAr(pending.exportedAt.slice(0, 10))})` : ''} فيها ${infoAr(pending.info)}`}</T>
+            <T style={{ fontSize: 12.5, lineHeight: 19 }}>هتمسح كل اللي على الموبايل دلوقتي (التمرين والأكل والإعدادات) وتحط النسخة دي مكانه. متأكد؟</T>
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Btn label="أيوه رجّعها" kind="solid" style={{ flex: 1 }} onPress={restore} />
+              <Btn label="لا" onPress={() => setPending(null)} />
+            </View>
+          </View>
+        ) : null}
+        {msg ? <T accessibilityLiveRegion="polite" style={{ color: msg.bad ? t.bad : t.okText, fontSize: 13, paddingHorizontal: 14, paddingBottom: 12 }}>{msg.text}</T> : null}
+      </Card>
 
       <Label>عدد المجموعات لكل تمرين</Label>
       <Card>
@@ -110,6 +193,48 @@ export default function SettingsScreen() {
             <Pill key={k} num label={`${k} كجم`} on={st.weightStep === k} onPress={() => st.update({ weightStep: k })} />
           ))}
         </View>
+        <Sep />
+        <T w="medium">وزن البار (لحساب الطارات)</T>
+        <View style={{ flexDirection: 'row', gap: 6 }}>
+          {BAR_CHOICES.map((k) => (
+            <Pill key={k} num label={`${k} كجم`} on={st.barKg === k} onPress={() => st.setQuiet({ barKg: k })} />
+          ))}
+        </View>
+        <T style={{ color: t.mute, fontSize: 12 }}>البار الأولمبي العادي 20 كجم. بار الـ EZ محسوب 10 كجم.</T>
+      </Card>
+
+      <Label>تذكير التمرين</Label>
+      <Card>
+        <SwitchRow
+          label="فكّرني بالتمرين"
+          sub={phone ? 'إشعار في الميعاد فيه اسم التمرين اللي عليه الدور، ومش بيجي لو اتمرنت النهارده' : 'على الموبايل بس'}
+          value={st.reminder}
+          disabled={!phone}
+          onChange={async (v) => {
+            const ok = !v || (await allowReminders());
+            setDenied(!ok);
+            if (ok) st.setQuiet({ reminder: v });
+          }}
+        />
+        {denied ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>اسمح للتطبيق بالإشعارات من إعدادات الموبايل الأول</T> : null}
+        {st.reminder ? (
+          <>
+            <Sep />
+            <Row label="الميعاد">
+              <Stepper value={st.reminderTime} min={0} max={24 * 60 - 15} step={15} onChange={(v) => st.setQuiet({ reminderTime: v })} label="ميعاد التذكير" format={timeAr} />
+            </Row>
+            <Sep />
+            <View style={{ padding: 14, gap: 10 }}>
+              <T w="medium">الأيام</T>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                {WEEK.map((wd) => {
+                  const on = st.reminderDays.includes(wd);
+                  return <Pill key={wd} label={WEEKDAYS_AR[wd]} on={on} onPress={() => st.setQuiet({ reminderDays: on ? st.reminderDays.filter((d) => d !== wd) : [...st.reminderDays, wd].sort() })} />;
+                })}
+              </View>
+            </View>
+          </>
+        ) : null}
       </Card>
 
       <Label>المشتريات</Label>

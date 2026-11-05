@@ -8,6 +8,8 @@ import { MUSCLES, ctxOf, dayInfo, planSets, prSet, toSessions, type Session } fr
 import { addMonths, countAr, dateKey, monthCells, weekdayOf, DAYS, SETS, TIMES, type DayStatus } from '../lib/logic';
 import { currentWorkout, projected } from '../lib/schedule';
 import { storage } from '../lib/storage';
+import { SWAPS_KEY, swappedSet } from '../lib/journal';
+import { readStrings } from '../lib/meta';
 import { useDataVersion } from '../lib/bus';
 import { tint, useTheme, type Theme } from '../theme';
 
@@ -31,7 +33,7 @@ export default function Attendance() {
   const [sel, setSel] = useState<string>(startDate);
 
   const { byDate, c, prs, trained } = useMemo(() => {
-    const sess = toSessions(storage.allSets());
+    const sess = toSessions(storage.allSets(), swappedSet(readStrings(SWAPS_KEY)));
     const byDate = new Map<string, Session[]>();
     for (const s of sess) byDate.set(s.date, [...(byDate.get(s.date) ?? []), s]);
     return { byDate, c: ctxOf(sess, today), prs: prSet(sess), trained: storage.trainedDays() };

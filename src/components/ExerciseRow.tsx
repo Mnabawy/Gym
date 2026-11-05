@@ -2,14 +2,18 @@ import React, { useRef, useState } from 'react';
 import { Animated, Keyboard, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import type { Exercise } from '../data/program';
+import { ALTERNATIVES } from '../data/alternatives';
 import { FORM_VIDEOS } from '../data/videos';
-import { bestE1rm, parseNum, shouldIncrease, type SetEntry } from '../lib/logic';
+import { dayKey, lastFor, NOTES_KEY, SWAPS_KEY } from '../lib/journal';
+import { readStrings, writeEntry } from '../lib/meta';
+import { barFor, platesFor } from '../lib/plates';
+import { bestE1rm, countAr, parseNum, SETS, shouldIncrease, type SetEntry } from '../lib/logic';
 import { usePop } from '../lib/motion';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
 import { nope, useTimer, tap } from '../lib/timer';
 import { F, glow, tint, useTheme } from '../theme';
-import { InfoPopup, TagBadge, T } from './ui';
+import { Btn, InfoPopup, Sheet, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
 
 type Props = {
@@ -67,20 +71,28 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
   const start = useTimer((s) => s.start);
   const autoRest = useSettings((s) => s.autoRest);
   const weightStep = useSettings((s) => s.weightStep);
+  const barKg = useSettings((s) => s.barKg);
+  // Swap for today (src/data/alternatives.ts): sets still go on this exercise, but prefill and records only look at the same variant.
+  const [swaps] = useState(() => readStrings(SWAPS_KEY));
+  const alt = swaps[dayKey(date, ex.id)] ?? null;
+  const name = alt ?? ex.name;
+  const [hist] = useState(() => storage.history(ex.id));
   // Parent remounts this row (key) when the date changes or something outside it changes the data (clearing the day,
   // a new plan). Its own writes keep its state, so ticks can animate.
   const [rows, setRows] = useState<Row[]>(() => {
     const cur = storage.setsFor(date, ex.id);
     return Array.from({ length: ex.sets }, (_, i) => toRow(cur[i]));
   });
-  const [last] = useState<SetEntry[] | undefined>(() => storage.lastSession(ex.id, date));
-  // Best estimated 1RM before today, for the "new record" badge on the summary line.
+  const [last] = useState<SetEntry[] | undefined>(() => lastFor(hist, date, ex.id, swaps, alt));
+  // Best estimated 1RM before today (same variant), for the "new record" badge on the summary line.
   const [prevBest] = useState(() =>
-    storage
-      .history(ex.id)
-      .filter((h) => h.date < date)
+    hist
+      .filter((h) => h.date < date && (swaps[dayKey(h.date, ex.id)] ?? null) === alt)
       .reduce((m, h) => Math.max(m, bestE1rm(h.sets.filter((x) => x.done))), 0),
   );
+  const [sheet, setSheet] = useState<'swap' | 'plates' | 'note' | null>(null);
+  const [note, setNote] = useState(() => readStrings(NOTES_KEY)[ex.id] ?? '');
+  const [noteDraft, setNoteDraft] = useState(note);
   // The set being edited: the one you tapped, else the one you're on.
   const [picked, setPicked] = useState<number | null>(null);
   const [draftState, setDraft] = useState<Draft>(() => suggest(lineAt(rows), rows, last));
@@ -153,13 +165,25 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
     setPicked(null); // back to the set you're on
     setDraft(suggest(lineAt(next), next, last));
     tap();
-    if (r.done && autoRest) start(ex.restSec, ex.name);
+    if (r.done && autoRest) start(ex.restSec, name);
     onChange(open && r.done && next.every((x) => x.done));
   };
 
   const up = shouldIncrease(ex, last);
   const range = `${ex.repLow}–${ex.repHigh}`;
-  const video = FORM_VIDEOS[ex.id];
+  const video = alt ? undefined : FORM_VIDEOS[ex.id];
+  const bar = barFor(name, barKg);
+  const alts = ALTERNATIVES[ex.id] ?? [];
+  const pickSwap = (to: string | null) => {
+    setSheet(null);
+    writeEntry(SWAPS_KEY, 'string', dayKey(date, ex.id), to ?? undefined, { all: true }); // card remounts with the new variant
+  };
+  const saveNote = () => {
+    const v = noteDraft.trim();
+    setNote(v);
+    setSheet(null);
+    writeEntry(NOTES_KEY, 'string', ex.id, v || undefined);
+  };
   const summary = allDone && !open;
   const doneSets: SetEntry[] = rows.filter((r) => r.done).map((r) => ({ kg: parseNum(r.kg), reps: parseNum(r.reps), done: true }));
   const record = summary && prevBest > 0 && bestE1rm(doneSets) > prevBest;
@@ -174,6 +198,42 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
         open ? { backgroundColor: tint(color, t.neon ? 0.07 : 0.06), borderStartWidth: 3, borderStartColor: color } : null,
       ]}>
       {video ? <VideoSheet video={video} name={ex.name} visible={watching} onClose={() => setWatching(false)} /> : null}
+      {open ? (
+        <>
+          <Sheet visible={sheet === 'swap'} onClose={() => setSheet(null)} title="بدّل التمرين النهارده بس" sub={`لو الجهاز مشغول. المجموعات بتتحسب على ${ex.name} في الحجم والحضور، والأوزان والأرقام بتتقارن بنفس التمرين البديل بس.`}>
+            {[...(alt ? [null] : []), ...alts].map((a) => {
+              const on = a === alt;
+              return (
+                <Pressable
+                  key={a ?? 'orig'}
+                  onPress={() => pickSwap(a)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  style={({ pressed }) => [s.opt, { backgroundColor: on ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 }]}>
+                  <T w="num" style={{ flex: 1, fontSize: 14 }}>{a ?? ex.name}</T>
+                  <T style={{ fontSize: 12, color: t.mute }}>{a ? (on ? 'النهارده' : '') : 'رجّع الأصلي'}</T>
+                </Pressable>
+              );
+            })}
+            {doneCount ? <T style={{ fontSize: 12, color: t.warn }}>{`سجلت ${countAr(doneCount, SETS)} النهارده. لو بدّلت هتتحسب على التمرين الجديد.`}</T> : null}
+          </Sheet>
+          {bar != null ? <PlatesSheet visible={sheet === 'plates'} onClose={() => setSheet(null)} total={parseNum(draft.kg)} bar={bar} name={name} /> : null}
+          <Sheet visible={sheet === 'note'} onClose={() => setSheet(null)} title={`ملاحظة · ${ex.name}`} sub="بتظهرلك كل مرة تفتح التمرين ده (زي رقم الكرسي أو إحساسك)">
+            <TextInput
+              value={noteDraft}
+              onChangeText={setNoteDraft}
+              multiline
+              autoFocus
+              maxLength={200}
+              placeholder="مثلًا: الكرسي على رقم 4"
+              placeholderTextColor={t.mute}
+              accessibilityLabel="الملاحظة"
+              style={[s.note, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+            />
+            <Btn label="احفظ" kind="solid" onPress={saveNote} />
+          </Sheet>
+        </>
+      ) : null}
       {up ? (
         <InfoPopup
           visible={why}
@@ -189,13 +249,13 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
           onPress={open ? undefined : onOpen}
           accessibilityRole="button"
           accessibilityState={{ expanded: open }}
-          accessibilityLabel={`${ex.name}، ${doneCount} من ${ex.sets} مجموعات`}
+          accessibilityLabel={`${name}، ${doneCount} من ${ex.sets} مجموعات`}
           hitSlop={{ top: 7, bottom: 7 }}
           style={s.title}>
           <View style={[s.num, { backgroundColor: tint(color, t.neon ? 0.16 : 0.2), boxShadow: glow(t, color, 6) }]}>
             <T w="numBold" style={{ fontSize: 11, color: ink }}>{index + 1}</T>
           </View>
-          <T w="num" style={{ fontSize: open ? 13 : 14.5, flexShrink: summary ? 0 : 1 }} numberOfLines={1}>{ex.name}</T>
+          <T w="num" style={{ fontSize: open ? 13 : 14.5, flexShrink: summary ? 0 : 1 }} numberOfLines={1}>{name}</T>
           {summary ? (
             <>
               <T w="bold" style={{ fontSize: 14, color: t.okText }}>✓</T>
@@ -234,10 +294,20 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
                 <T style={{ fontSize: 10.5, color: t.okText }}>فيديو</T>
               </Pressable>
             ) : null}
+            <MetaChip icon="swap-horizontal" label={alt ? 'متبدّل' : 'بدّل'} on={!!alt} a11y={`بدّل ${name} بتمرين تاني النهارده`} onPress={() => setSheet('swap')} />
+            {bar != null ? <MetaChip icon="barbell-outline" label="طارات" a11y="احسب الطارات" onPress={() => setSheet('plates')} /> : null}
+            <MetaChip icon="create-outline" label={note ? undefined : 'ملاحظة'} a11y={note ? 'عدّل الملاحظة' : 'اكتب ملاحظة'} onPress={() => { setNoteDraft(note); setSheet('note'); }} />
             <T style={{ marginStart: 'auto', fontSize: 10.5, color: t.mute }} numberOfLines={1}>
               {`تكرار ${iso(range)}${ex.perLeg ? ' · لكل رجل' : ''}`}
             </T>
           </View>
+          {alt ? <T style={{ fontSize: 11, color: t.warn, marginTop: 3 }} numberOfLines={1}>{`بدل ${iso(ex.name)} النهارده`}</T> : null}
+          {note ? (
+            <Pressable onPress={() => { setNoteDraft(note); setSheet('note'); }} accessibilityRole="button" accessibilityLabel={`ملاحظة: ${note}، دوس تعدّلها`} style={[s.noteLine, { backgroundColor: t.soft }]}>
+              <Ionicons name="document-text-outline" size={12} color={t.mute} />
+              <T style={{ flex: 1, fontSize: 11.5, color: t.fg }} numberOfLines={2}>{note}</T>
+            </Pressable>
+          ) : null}
 
           <View style={s.sets}>
             {rows.map((r, i) => {
@@ -334,6 +404,66 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
   );
 }
 
+/** Small outlined button on the open exercise's second line (swap, plates, note). */
+function MetaChip({ icon, label, a11y, on, onPress }: { icon: React.ComponentProps<typeof Ionicons>['name']; label?: string; a11y: string; on?: boolean; onPress: () => void }) {
+  const t = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      hitSlop={8}
+      accessibilityRole="button"
+      accessibilityLabel={a11y}
+      style={({ pressed }) => [s.chip, { borderColor: on ? t.warn : t.line, backgroundColor: on ? t.warnSoft : undefined, opacity: pressed ? 0.6 : 1 }]}>
+      <Ionicons name={icon} size={11} color={on ? t.warn : t.mute} />
+      {label ? <T style={{ fontSize: 10.5, color: on ? t.warn : t.mute }}>{label}</T> : null}
+    </Pressable>
+  );
+}
+
+/** Plate colors (the usual competition colors); light plates get an outline so they show on a white card. */
+const PLATE_LOOK: Record<number, { bg: string; fg: string; h: number }> = {
+  25: { bg: '#D32F2F', fg: '#FFFFFF', h: 64 },
+  20: { bg: '#1565C0', fg: '#FFFFFF', h: 60 },
+  15: { bg: '#F9A825', fg: '#1A1200', h: 54 },
+  10: { bg: '#2E7D32', fg: '#FFFFFF', h: 48 },
+  5: { bg: '#ECEFF1', fg: '#1E2833', h: 38 },
+  2.5: { bg: '#455A64', fg: '#FFFFFF', h: 30 },
+  1.25: { bg: '#B0BEC5', fg: '#1E2833', h: 26 },
+};
+
+/** Which plates to put on each side for the selected set's weight (total with the bar). */
+function PlatesSheet({ visible, onClose, total, bar, name }: { visible: boolean; onClose: () => void; total: number | null; bar: number; name: string }) {
+  const t = useTheme();
+  const load = total != null ? platesFor(total, bar) : null;
+  return (
+    <Sheet visible={visible} onClose={onClose} title={total != null ? `${iso(fmt(total))} كجم · ${name}` : `الطارات · ${name}`} sub={`الوزن الكلي مع البار (${bar} كجم). البار بيتغير من الإعدادات`}>
+      {total == null ? (
+        <T style={{ color: t.mute }}>اكتب وزن المجموعة الأول.</T>
+      ) : !load ? (
+        <T style={{ color: t.mute }}>{`الوزن أقل من البار نفسه (${bar} كجم).`}</T>
+      ) : (
+        <>
+          <T w="medium">{load.perSide.length ? `على كل ناحية: ${iso(load.perSide.map(fmt).join(' + '))} كجم` : 'البار لوحده، من غير طارات'}</T>
+          {load.perSide.length ? (
+            <View style={s.plates}>
+              <View style={[s.sleeve, { backgroundColor: t.line }]} />
+              {load.perSide.map((p, i) => {
+                const lk = PLATE_LOOK[p];
+                return (
+                  <View key={i} style={[s.plate, { height: lk.h, backgroundColor: lk.bg, borderColor: tint('#000000', 0.25) }]}>
+                    <T w="numBold" style={{ fontSize: 10, color: lk.fg }}>{fmt(p)}</T>
+                  </View>
+                );
+              })}
+            </View>
+          ) : null}
+          {load.left > 0 ? <T style={{ color: t.warn, fontSize: 12.5 }}>{`فاضل ${iso(fmt(load.left))} كجم مش هينفع بالطارات العادية، قرّب الوزن.`}</T> : null}
+        </>
+      )}
+    </Sheet>
+  );
+}
+
 /** ✓ at the end of a set row: filled once done. On the selected set it's outlined until then (the next thing to press). */
 function Tick({ on, primary, onPress, label }: { on: boolean; primary?: boolean; onPress: () => void; label: string }) {
   const t = useTheme();
@@ -416,7 +546,13 @@ const s = StyleSheet.create({
   num: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7 },
   pr: { backgroundColor: '#FFC53D', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
-  meta: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 3 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 4, marginTop: 3 },
+  opt: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 46, borderRadius: 12, paddingHorizontal: 12 },
+  note: { minHeight: 84, borderRadius: 12, padding: 10, fontSize: 14, textAlignVertical: 'top', textAlign: 'right' },
+  noteLine: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },
+  plates: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 6 },
+  sleeve: { width: 28, height: 10, borderRadius: 3 },
+  plate: { width: 22, borderRadius: 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   chip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, height: 19 },
   sets: { gap: 4, marginTop: 6 },
   srow: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 36, borderRadius: 10, borderWidth: 1, paddingHorizontal: 4 },

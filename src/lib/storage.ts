@@ -1,6 +1,6 @@
 // Native storage: expo-sqlite (iOS / Android)
 import * as SQLite from 'expo-sqlite';
-import { rowsToSets, type SetRow, type Storage } from './storage.types';
+import { rowsToSets, type Dump, type SetRow, type Storage } from './storage.types';
 
 const db = SQLite.openDatabaseSync('gym.db');
 db.execSync(`
@@ -68,6 +68,9 @@ export const storage: Storage = {
   mealChecks(date) {
     return db.getAllSync<{ meal: string }>('SELECT meal FROM meal_checks WHERE date = ?', date).map((r) => r.meal);
   },
+  allMealChecks() {
+    return db.getAllSync<{ date: string; meal: string }>('SELECT date, meal FROM meal_checks ORDER BY date');
+  },
   setMealCheck(date, meal, on) {
     if (on) db.runSync('INSERT OR IGNORE INTO meal_checks (date, meal) VALUES (?, ?)', date, meal);
     else db.runSync('DELETE FROM meal_checks WHERE date = ? AND meal = ?', date, meal);
@@ -87,5 +90,26 @@ export const storage: Storage = {
   },
   setMeta(key, value) {
     db.runSync('INSERT INTO meta (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value', key, value);
+  },
+  dump(): Dump {
+    const meta: Record<string, string> = {};
+    for (const r of db.getAllSync<{ key: string; value: string }>('SELECT key, value FROM meta')) meta[r.key] = r.value;
+    return {
+      sets: this.allSets(),
+      meals: this.allMealChecks(),
+      shop: db.getAllSync<{ week: string; item: string }>('SELECT week, item FROM shop_checks ORDER BY week'),
+      meta,
+    };
+  },
+  restore(d) {
+    db.withTransactionSync(() => {
+      db.execSync('DELETE FROM set_logs; DELETE FROM meal_checks; DELETE FROM shop_checks; DELETE FROM meta;');
+      for (const r of d.sets) {
+        db.runSync('INSERT OR REPLACE INTO set_logs (date, weekday, ex_id, idx, kg, reps, done) VALUES (?, ?, ?, ?, ?, ?, ?)', r.date, r.weekday, r.exId, r.idx, r.kg, r.reps, r.done);
+      }
+      for (const m of d.meals) db.runSync('INSERT OR IGNORE INTO meal_checks (date, meal) VALUES (?, ?)', m.date, m.meal);
+      for (const x of d.shop) db.runSync('INSERT OR IGNORE INTO shop_checks (week, item) VALUES (?, ?)', x.week, x.item);
+      for (const [k, v] of Object.entries(d.meta)) db.runSync('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', k, v);
+    });
   },
 };

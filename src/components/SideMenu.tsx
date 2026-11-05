@@ -9,7 +9,7 @@ import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type Item = { icon: IconName; label: string; path: '/progress' | '/attendance' | '/prayer' | '/calories' | '/settings' };
+type Item = { icon: IconName; label: string; path: '/progress' | '/weight' | '/attendance' | '/prayer' | '/calories' | '/settings' };
 
 /**
  * ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
@@ -27,6 +27,7 @@ export function MenuButton() {
 
   const items: Item[] = [
     { icon: 'stats-chart-outline', label: 'التقدم', path: '/progress' },
+    { icon: 'scale-outline', label: 'وزنك', path: '/weight' },
     { icon: 'calendar-outline', label: 'الكالندر', path: '/attendance' },
     ...(prayer ? [{ icon: 'moon-outline', label: 'مواقيت الصلاة', path: '/prayer' } as Item] : []),
     { icon: 'calculator-outline', label: 'حساب السعرات', path: '/calories' },

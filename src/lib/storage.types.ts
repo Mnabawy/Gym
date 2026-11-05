@@ -2,6 +2,10 @@ import type { SetEntry } from './logic';
 
 export type TrainedDay = { date: string; weekdays: number[]; sets: number };
 export type SetRow = { date: string; weekday: number; exId: string; idx: number; kg: number | null; reps: number | null; done: number };
+export type MealCheck = { date: string; meal: string };
+export type ShopCheck = { week: string; item: string };
+/** Everything the app saved, for the backup file (src/lib/backup.ts). */
+export type Dump = { sets: SetRow[]; meals: MealCheck[]; shop: ShopCheck[]; meta: Record<string, string> };
 
 export interface Storage {
   setsFor(date: string, exId: string): SetEntry[];
@@ -20,6 +24,8 @@ export interface Storage {
   allSets(): SetRow[];
 
   mealChecks(date: string): string[];
+  /** Every ticked meal, oldest first (food history on the food tab). */
+  allMealChecks(): MealCheck[];
   setMealCheck(date: string, meal: string, on: boolean): void;
 
   shopChecks(week: string): string[];
@@ -29,6 +35,11 @@ export interface Storage {
   /** Small key/value app state (e.g. the last Quran verse shown). */
   getMeta(key: string): string | null;
   setMeta(key: string, value: string): void;
+
+  /** Everything saved, for a backup. */
+  dump(): Dump;
+  /** Replaces everything saved with a backup's data. */
+  restore(d: Dump): void;
 }
 
 export function rowsToSets(rows: { idx: number; kg: number | null; reps: number | null; done: number }[]): SetEntry[] {

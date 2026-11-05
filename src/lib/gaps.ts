@@ -39,17 +39,21 @@ export function daysBetween(a: string, b: string): number {
 /** Saturday that starts the week containing `key`. */
 export const weekStart = (key: string) => addDays(key, -((weekdayOf(key) + 1) % 7));
 
-/** One exercise on one date. done = sets ticked; e1rm = best Epley over sets with weight and reps (ticked or not, like the progress chart). */
+/**
+ * One exercise on one date. done = sets ticked; e1rm = best Epley over sets with weight and reps (ticked or not, like the progress chart).
+ * `swapped` (`date|exId`, src/lib/journal.ts): days you did an alternative instead; they count as done sets but have no e1rm,
+ * so another exercise's weights never look like a record or a drop.
+ */
 export type Session = { date: string; weekday: number; exId: string; done: number; e1rm: number };
 
-export function toSessions(rows: readonly SetRow[]): Session[] {
+export function toSessions(rows: readonly SetRow[], swapped: ReadonlySet<string> = new Set()): Session[] {
   const m = new Map<string, Session>();
   for (const r of rows) {
     const k = `${r.date}|${r.exId}`;
     let s = m.get(k);
     if (!s) m.set(k, (s = { date: r.date, weekday: r.weekday, exId: r.exId, done: 0, e1rm: 0 }));
     if (r.done) s.done++;
-    s.e1rm = Math.max(s.e1rm, epley(r.kg ?? 0, r.reps ?? 0));
+    if (!swapped.has(k)) s.e1rm = Math.max(s.e1rm, epley(r.kg ?? 0, r.reps ?? 0));
   }
   return [...m.values()].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
 }
@@ -230,8 +234,8 @@ const KIND_ORDER: Gap['kind'][] = ['day', 'down', 'skipped', 'volume', 'stalled'
 export type Report = ReturnType<typeof analyze>;
 
 /** Everything the gaps dashboard shows, over the last WINDOW_DAYS ending today. */
-export function analyze(rows: readonly SetRow[], today: string = dateKey(), weeks = 6) {
-  const sess = toSessions(rows);
+export function analyze(rows: readonly SetRow[], today: string = dateKey(), weeks = 6, swapped: ReadonlySet<string> = new Set()) {
+  const sess = toSessions(rows, swapped);
   const c = ctxOf(sess, today);
   const from = addDays(today, -(WINDOW_DAYS - 1));
   const volume = muscleVolume(sess, from, today, c);
