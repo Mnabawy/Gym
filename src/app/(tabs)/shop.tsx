@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SHOPPING } from '../../data/shopping';
 import { Btn, Card, HeaderBtn, Label, Ring, Screen, T } from '../../components/ui';
+import { MenuButton } from '../../components/SideMenu';
 import { countAr, shopWeekKey, TIMES } from '../../lib/logic';
 import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } from '../../lib/shop';
 import { useSettings } from '../../lib/settings';
@@ -57,7 +58,12 @@ export default function Shop() {
       title="المشتريات"
       dense
       sub={split ? `أسبوع ${week} · بتشتري ${countAr(n, TIMES)} · بيتصفّر كل جمعة` : `أسبوع ${week} · بيتصفّر كل جمعة`}
-      action={split ? <HeaderBtn icon={editing ? 'checkmark' : 'create-outline'} label={editing ? 'خلصت التعديل' : 'عدّل أصناف كل مرة'} onPress={() => setEditing(!editing)} /> : undefined}>
+      action={
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {split ? <HeaderBtn icon={editing ? 'checkmark' : 'create-outline'} label={editing ? 'خلصت التعديل' : 'عدّل أصناف كل مرة'} onPress={() => setEditing(!editing)} /> : null}
+          <MenuButton />
+        </View>
+      }>
       {split ? (
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {trips.map((tr) => {

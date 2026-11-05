@@ -1,5 +1,6 @@
 /// <reference types="jest" />
-import { bmiLabel, DEFAULT_BODY, energyFor, parseBody, type Body } from '../src/lib/energy';
+import { TARGETS } from '../src/data/nutrition';
+import { bmiLabel, DEFAULT_BODY, energyFor, parseBody, targetsFor, type Body } from '../src/lib/energy';
 
 const man: Body = { sex: 'male', age: 25, height: 183, weight: 82, bodyFat: null, activity: 'moderate', goal: 'maintain' };
 
@@ -54,4 +55,10 @@ test('bmiLabel', () => {
 test('parseBody keeps valid fields only', () => {
   expect(parseBody(null)).toEqual(DEFAULT_BODY);
   expect(parseBody({ sex: 'x', age: '25', weight: 80, activity: 'couch', goal: 'cut' })).toEqual({ ...DEFAULT_BODY, weight: 80, goal: 'cut' });
+});
+
+test('targetsFor: your numbers once the calculator has your data, else the plan', () => {
+  expect(targetsFor(DEFAULT_BODY)).toEqual({ ...TARGETS, mine: false });
+  const e = energyFor(man)!;
+  expect(targetsFor(man)).toEqual({ kcal: e.kcal, protein: e.protein, carbs: e.carbs, fat: e.fat, mine: true });
 });

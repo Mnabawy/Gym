@@ -144,7 +144,7 @@ export default function SettingsScreen() {
       <Card>
         <SwitchRow
           label="اعرض مواقيت الصلاة"
-          sub="تاب جديد بيحسب المواقيت من مكانك الحالي"
+          sub="أيقونة في هيدر صفحة التمرين، بتحسب المواقيت من مكانك الحالي"
           value={st.prayer}
           onChange={(v) => {
             st.setQuiet({ prayer: v });

@@ -23,8 +23,9 @@ Exercise names stay in English (gym vocabulary).
 ## Data
 - `src/data/program.ts` — the 5-day program (edit here to change exercises). Sets and rest can be changed in the app's settings page (`/settings`, gear on the workout tab); `applyPlan` writes those onto `PROGRAM` in place so every screen reads the same plan
 - `src/lib/settings.ts` — settings store (zustand), saved as JSON under storage meta key `settings`
-- `src/lib/prayer.ts` (times, adhan, offline) + `src/lib/place.ts` (phone location, expo-location) — prayer times tab `(tabs)/prayer.tsx`, shown only when turned on in settings
-- `src/lib/energy.ts` — calorie/macro calculator (`/calories`, from the food tab header or settings); formulas and sources at the top of the file
+- `src/lib/prayer.ts` (times, adhan, offline) + `src/lib/place.ts` (phone location, expo-location) — prayer times page `src/app/prayer.tsx` (`/prayer`), opened from a moon icon in the workout tab header, which shows only when prayer times are turned on in settings
+- `src/lib/energy.ts` — calorie/macro calculator (`/calories`, from the side menu or settings); formulas and sources at the top of the file. Once it has your data, `targetsFor` makes its numbers the food tab's daily targets instead of the plan's `TARGETS`
+- `src/components/SideMenu.tsx` — ☰ on the three tab headers: animated side menu with التقدم، الكالندر، مواقيت الصلاة (when on)، حساب السعرات، الإعدادات
 - `src/lib/shop.ts` — splits the weekly shopping list into N trips (settings) with equal item counts; items are never split, few-day items go on the trip before they're eaten (`assignTrips`). The list itself is fixed; the trip chosen for any item (`shopMoves`) lives in settings and is edited from the shopping tab's edit button
 - `src/data/nutrition.ts`, `src/data/shopping.ts` — generated from the nutrition plan / shopping list PDFs
 - Food tab training vs rest day isn't the PDF's fixed weekdays (`WEEK_MENU.training` is unused): `isTrainingDay` in `src/lib/schedule.ts` — a day with a logged workout is training, a past day without one was rest, today counts as training unless switched to rest from the food tab (meta key `restDay`)

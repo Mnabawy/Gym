@@ -164,6 +164,11 @@ export default function Calories() {
             ) : null}
           </Card>
 
+          {/* These numbers replace the plan's targets on the food tab (targetsFor in src/lib/energy.ts). */}
+          <View style={{ backgroundColor: t.okSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
+            <T w="medium" style={{ color: t.okText, fontSize: 13 }}>✓ الأرقام دي بقت أهدافك في صفحة الأكل</T>
+          </View>
+
           <Card style={{ padding: 14, gap: 4 }}>
             <T w="semi">مقارنة بنظام الأكل بتاعك</T>
             <T style={{ color: t.mute, fontSize: 13 }}>{`النظام: ${n(TARGETS.kcal)} سعر · ${TARGETS.protein} جم بروتين`}</T>

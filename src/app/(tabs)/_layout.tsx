@@ -30,7 +30,6 @@ function TabLabel({ color, children }: { color: ColorValue; children: string }) 
 export default function TabsLayout() {
   const t = useTheme();
   const inset = useSafeAreaInsets();
-  const prayer = useSettings((s) => s.prayer); // the prayer tab only shows when it's turned on in settings
   const neonOn = useSettings((s) => s.neonMode);
   // Android draws edge to edge: the bar must clear the system navigation bar itself. Phones with the gesture bar hidden
   // report no bottom inset at all, and their rounded screen corners then cut the outer labels, so Android keeps 14pt.
@@ -60,7 +59,6 @@ export default function TabsLayout() {
       />
       <Tabs.Screen name="food" options={{ title: 'الأكل', tabBarIcon: icon('restaurant') }} />
       <Tabs.Screen name="shop" options={{ title: 'المشتريات', tabBarIcon: icon('cart') }} />
-      <Tabs.Screen name="prayer" options={{ title: 'الصلاة', tabBarIcon: icon('moon'), href: prayer ? undefined : null }} />
     </Tabs>
   );
 }

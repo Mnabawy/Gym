@@ -4,9 +4,10 @@ import { dayFor } from '../../data/program';
 import { ExerciseRow } from '../../components/ExerciseRow';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
-import { router, useFocusEffect } from 'expo-router';
+import { useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { Btn, Card, HeaderBtn, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, Ring, Screen, T } from '../../components/ui';
+import { MenuButton } from '../../components/SideMenu';
 import { dateKey } from '../../lib/logic';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
@@ -77,13 +78,7 @@ function WorkoutScreen() {
       title="تمرين النهارده"
       dense
       footer={<TimerBar />}
-      actionWidth={104}
-      action={
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          <HeaderBtn icon="settings-outline" label="الإعدادات" onPress={() => router.push('/settings')} />
-          <HeaderBtn icon="stats-chart-outline" label="التقدم" onPress={() => router.push('/progress')} />
-        </View>
-      }>
+      action={<MenuButton />}>
       <WorkoutChips dense value={sel} current={cur.id} onChange={pick} />
 
       <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>

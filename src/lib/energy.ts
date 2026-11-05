@@ -9,6 +9,7 @@
 // - Protein 1.6–2.2 g/kg covers muscle gain (Morton et al. 2018); more in a deficit to keep muscle (Helms et al. 2014).
 // - Fat ≥ 25% of calories (and ≥ 0.6 g/kg) for hormones; carbs get the rest, they fuel training.
 // - Fiber 14 g per 1000 kcal; water ≈ 35 ml/kg plus ~0.5 L on training days. 1 kg of body weight ≈ 7700 kcal.
+import { TARGETS } from '../data/nutrition';
 
 export type Sex = 'male' | 'female';
 export type Activity = 'sedentary' | 'light' | 'moderate' | 'high' | 'athlete';
@@ -115,6 +116,14 @@ export function energyFor(b: Body): Energy | null {
 }
 
 /** Saved body data → a valid Body (unknown or wrong-typed fields fall back to defaults). */
+/**
+ * Daily targets the app uses (food tab): your own numbers once the calculator has your data, else the nutrition plan's.
+ */
+export function targetsFor(b: Body): { kcal: number; protein: number; carbs: number; fat: number; mine: boolean } {
+  const e = energyFor(b);
+  return e ? { kcal: e.kcal, protein: e.protein, carbs: e.carbs, fat: e.fat, mine: true } : { ...TARGETS, mine: false };
+}
+
 export function parseBody(v: unknown): Body {
   const out = { ...DEFAULT_BODY };
   if (!v || typeof v !== 'object') return out;

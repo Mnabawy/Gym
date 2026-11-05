@@ -1,13 +1,13 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Linking, Platform, StyleSheet, View } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
-import { Btn, Card, Label, Pill, Screen, T } from '../../components/ui';
-import { pickCity, refreshPlace, PLACE_STALE_MS, type LocateResult } from '../../lib/place';
-import { CITIES, clock12, METHODS, nextPrayer, PRAYER_AR, PRAYERS, timesFor, untilAr, type PrayerKey } from '../../lib/prayer';
-import { useSettings } from '../../lib/settings';
-import { tint, useTheme } from '../../theme';
+import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
+import { Btn, Card, Label, Pill, Screen, T } from '../components/ui';
+import { pickCity, refreshPlace, PLACE_STALE_MS, type LocateResult } from '../lib/place';
+import { CITIES, clock12, METHODS, nextPrayer, PRAYER_AR, PRAYERS, timesFor, untilAr, type PrayerKey } from '../lib/prayer';
+import { useSettings } from '../lib/settings';
+import { tint, useTheme } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const ICON: Record<PrayerKey, IconName> = {
@@ -91,7 +91,7 @@ export default function PrayerScreen() {
 
   if (!place) {
     return (
-      <Screen title="مواقيت الصلاة" sub="بتتحسب من مكانك الحالي">
+      <Screen onBack={() => router.back()} title="مواقيت الصلاة" sub="بتتحسب من مكانك الحالي">
         <Card style={{ padding: 20, alignItems: 'center', gap: 10 }}>
           {busy ? <ActivityIndicator color={t.ok} /> : <Ionicons name="location-outline" size={36} color={t.mute} />}
           <T w="bold" style={{ fontSize: 16 }}>{busy ? 'بنحدد مكانك…' : 'محتاجين مكانك'}</T>
@@ -121,7 +121,7 @@ export default function PrayerScreen() {
         : `المكان اتحدّث ${agoAr(now.getTime() - place.at)}`;
 
   return (
-    <Screen title="مواقيت الصلاة" sub={`${placeLabel(place)} · ${METHODS[method].label}`}>
+    <Screen onBack={() => router.back()} title="مواقيت الصلاة" sub={`${placeLabel(place)} · ${METHODS[method].label}`}>
       <View style={[s.hero, { backgroundColor: t.ink }]}>
         <T style={{ color: t.onInk, opacity: 0.8, fontSize: 13 }}>{nextIsTomorrow ? 'الصلاة الجاية · بكرة' : 'الصلاة الجاية'}</T>
         <T w="bold" style={{ color: t.onInk, fontSize: 28, lineHeight: 40 }}>{PRAYER_AR[next.key]}</T>

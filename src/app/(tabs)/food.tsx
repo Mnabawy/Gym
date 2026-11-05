@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, TARGETS, WEEK_MENU } from '../../data/nutrition';
+import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
-import { router } from 'expo-router';
-import { Btn, Card, Check, DayChips, HeaderBtn, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, Check, DayChips, Ring, Screen, T } from '../../components/ui';
+import { MenuButton } from '../../components/SideMenu';
+import { targetsFor } from '../../lib/energy';
+import { useSettings } from '../../lib/settings';
 import { dateKey, mealMacros } from '../../lib/logic';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
@@ -21,6 +23,8 @@ export default function Food() {
   const [sel, setSel] = useState(today);
   const [showSwaps, setShowSwaps] = useState(false);
   const { bump } = useDataVersion();
+  // Your own targets once the calorie calculator has your data (side menu → حساب السعرات), else the plan's.
+  const goal = targetsFor(useSettings((s) => s.body));
   const day = WEEK_MENU.find((d) => d.weekday === sel)!;
   const isToday = sel === today;
   // Training or rest comes from the workout log, not fixed weekdays (src/lib/schedule.ts). Re-read when v changes.
@@ -56,18 +60,18 @@ export default function Food() {
   });
 
   const tiles = [
-    { v: TARGETS.kcal.toLocaleString('en-US'), u: 'سعر', l: 'في اليوم', c: t.ink, solid: true },
-    { v: TARGETS.protein, u: 'جم', l: 'بروتين', c: t.protein },
-    { v: TARGETS.carbs, u: 'جم', l: 'كارب', c: t.carbs },
-    { v: TARGETS.fat, u: 'جم', l: 'دهون', c: t.fat },
+    { v: goal.kcal.toLocaleString('en-US'), u: 'سعر', l: goal.mine ? 'احتياجك' : 'في اليوم', c: t.ink, solid: true },
+    { v: goal.protein, u: 'جم', l: 'بروتين', c: t.protein },
+    { v: goal.carbs, u: 'جم', l: 'كارب', c: t.carbs },
+    { v: goal.fat, u: 'جم', l: 'دهون', c: t.fat },
   ];
 
   return (
     <Screen
       title="الأكل"
-      sub="183 سم · 82 كجم · زيادة عضل"
+      sub={goal.mine ? 'أهدافك من حساب السعرات' : '183 سم · 82 كجم · زيادة عضل'}
       dense
-      action={<HeaderBtn icon="calculator-outline" label="احسب احتياجك من السعرات" onPress={() => router.push('/calories')} />}>
+      action={<MenuButton />}>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {tiles.map((x, i) => (
           <View key={i} style={{ flex: 1, minWidth: 0, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 9, backgroundColor: x.solid ? t.ink : tint(x.c, 0.15) }}>
@@ -80,11 +84,11 @@ export default function Food() {
       <DayChips dense days={chips} value={sel} today={today} onChange={setSel} />
 
       <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Ring value={isToday ? eaten.kcal / total.kcal : 0} size={46} stroke={4}>
-          <T w="numBold" style={{ fontSize: 12, color: isToday ? t.okText : t.mute }}>{isToday ? `${Math.round((eaten.kcal / total.kcal) * 100)}%` : '–'}</T>
+        <Ring value={isToday ? Math.min(1, eaten.kcal / goal.kcal) : 0} size={46} stroke={4}>
+          <T w="numBold" style={{ fontSize: 12, color: isToday ? t.okText : t.mute }}>{isToday ? `${Math.round((eaten.kcal / goal.kcal) * 100)}%` : '–'}</T>
         </Ring>
         <View style={{ flex: 1, gap: 1 }}>
-          <T style={{ color: t.mute, fontSize: 12.5 }}>{`${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
+          <T style={{ color: t.mute, fontSize: 12.5 }}>{`أكل اليوم ${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <T w="bold" style={{ fontSize: 16 }}>{day.day}</T>
             {canSwitch ? (
@@ -103,7 +107,7 @@ export default function Food() {
             )}
           </View>
           <T style={{ color: t.mute, fontSize: 12 }}>
-            {isToday ? `كلت لحد دلوقتي: ${Math.round(eaten.kcal)} سعر · ${Math.round(eaten.p)} جم بروتين` : 'التعليم على الوجبات بيشتغل في يوم النهارده بس.'}
+            {isToday ? `كلت ${Math.round(eaten.kcal)} من ${goal.kcal.toLocaleString('en-US')} سعر · ${Math.round(eaten.p)} من ${goal.protein} جم بروتين` : 'التعليم على الوجبات بيشتغل في يوم النهارده بس.'}
           </T>
         </View>
       </Card>

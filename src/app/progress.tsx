@@ -2,12 +2,12 @@ import React, { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { ALL_EXERCISES, MONTHS_AR, MUSCLE_AR, PLAN_WEEKDAYS, PROGRAM, WEEKDAYS_AR, type Muscle } from '../data/program';
+import { ALL_EXERCISES, MUSCLE_AR, PROGRAM, WEEKDAYS_AR, type Muscle } from '../data/program';
 import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { gapText } from '../components/GapCard';
 import { useReport } from '../lib/useReport';
-import { bestE1rm, countAr, dateKey, monthCells, monthStats } from '../lib/logic';
+import { bestE1rm, countAr, dateKey } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { useTheme } from '../theme';
@@ -41,9 +41,6 @@ export default function ProgressScreen() {
     return { perMuscle, sessions: storage.sessionDates(from, to).length };
   })();
 
-  const now = new Date();
-  const trainedDays = storage.trainedDays();
-  const month = monthStats(monthCells(now.getFullYear(), now.getMonth()), new Set(trainedDays.map((d) => d.date)), PLAN_WEEKDAYS, dateKey(now), trainedDays[0]?.date);
 
   const report = useReport();
   const top = report.gaps[0];
@@ -93,21 +90,6 @@ export default function ProgressScreen() {
           </View>
         ))}
       </Card>
-
-      <Pressable onPress={() => router.push('/attendance')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-        <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-          <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: t.okSoft, alignItems: 'center', justifyContent: 'center' }}>
-            <Ionicons name="calendar" size={22} color={t.okText} />
-          </View>
-          <View style={{ flex: 1, gap: 2 }}>
-            <T w="bold" style={{ fontSize: 16 }}>الكالندر</T>
-            <T style={{ color: t.mute, fontSize: 12.5 }}>
-              {`${MONTHS_AR[now.getMonth()]} · حضرت ${month.done} · فوّت ${month.missed}${month.rate == null ? '' : ` · ⁦${Math.round(month.rate * 100)}%⁩`}`}
-            </T>
-          </View>
-          <Ionicons name="chevron-back" size={20} color={t.mute} />
-        </Card>
-      </Pressable>
 
       <T w="bold" style={{ fontSize: 17, marginTop: 6 }}>تمرين بتمرين</T>
       {PROGRAM.map((d) => (

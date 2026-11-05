@@ -43,17 +43,20 @@ export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; lab
 
 /** `action` sits at the end of the header (left in RTL), opposite the back button. */
 /** `dense`: tighter gaps and side padding (the workout tab). */
-export function Screen({ title, sub, children, footer, onBack, action, actionWidth = 52, dense }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; actionWidth?: number; dense?: boolean }) {
+/** Page with a header: back button (if any) and the title at the start (right), the page's buttons at the end (left). */
+export function Screen({ title, sub, children, footer, onBack, action, dense }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; dense?: boolean }) {
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={[s.scroll, dense ? s.dense : null]} keyboardShouldPersistTaps="handled">
-        <View style={[s.head, onBack || action ? { paddingHorizontal: Math.max(onBack ? 52 : 0, action ? actionWidth : 0) } : null]}>
+        <View style={s.head}>
           {/* RTL: back sits at the start (right) and points right. */}
-          {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} style={s.back} /> : null}
-          {action ? <View style={s.action}>{action}</View> : null}
-          <T w="bold" style={{ fontSize: 19, lineHeight: 28, textAlign: 'center' }}>{title}</T>
-          {sub ? <T style={{ color: t.mute, fontSize: 12.5, textAlign: 'center' }}>{sub}</T> : null}
+          {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} /> : null}
+          <View style={s.titles}>
+            <T w="bold" style={{ fontSize: 16, lineHeight: 24 }} numberOfLines={1}>{title}</T>
+            {sub ? <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={2}>{sub}</T> : null}
+          </View>
+          {action}
         </View>
         {children}
       </ScrollView>
@@ -435,10 +438,9 @@ const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v))
 const s = StyleSheet.create({
   scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 140, gap: 12, maxWidth: 620, width: '100%', alignSelf: 'center' },
   dense: { paddingHorizontal: 12, gap: 8 },
-  head: { alignItems: 'center', justifyContent: 'center', paddingBottom: 4, minHeight: 44 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2, minHeight: 44 },
+  titles: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   round: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  back: { position: 'absolute', start: 0, top: 0 },
-  action: { position: 'absolute', end: 0, top: 0 },
   track: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
   thumb: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' },
   check: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
