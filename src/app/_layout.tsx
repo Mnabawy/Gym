@@ -11,6 +11,7 @@ import { VersePopup } from '../components/VersePopup';
 import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
+import { syncDrive } from '../lib/drive';
 import { useSettings } from '../lib/settings';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -31,9 +32,12 @@ export default function RootLayout() {
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
   }, [loaded]);
-  // Weekly automatic backup, a little after opening so it doesn't slow the start.
+  // Automatic backups, a little after opening so they don't slow the start.
   useEffect(() => {
-    const id = setTimeout(() => runAutoBackup().catch(() => {}), 5000);
+    const id = setTimeout(async () => {
+      await runAutoBackup().catch(() => {});
+      await syncDrive().catch(() => {}); // Google Drive: once a day when something changed
+    }, 5000);
     return () => clearTimeout(id);
   }, []);
 
