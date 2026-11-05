@@ -7,7 +7,7 @@ Exercise names stay in English (gym vocabulary).
 - Expo SDK 58, TypeScript strict, expo-router (routes in `src/app/`, tabs in `src/app/(tabs)/`)
 - State: zustand (`src/lib/timer.ts`, `src/lib/bus.ts`)
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
-- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker (progress photos), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
+- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
 - Fonts: Readex Pro (Arabic) + Inter (numbers/Latin) via @expo-google-fonts
 - No backend. Offline-first.
 
@@ -42,7 +42,7 @@ Exercise names stay in English (gym vocabulary).
 - Workout tab can log or fix a past day (calendar button, last 14 days): sets go to that date, the rest timer stays off. Food tab can tick meals, water and supplements for earlier days of the week
 - `src/lib/report.ts` — weekly report (`/week`, side menu; a card on the workout tab on Fridays)
 - `src/lib/plates.ts` also has `warmups` (warm-up ramp for heavy-tagged exercises, "إحماء" on the exercise card)
-- `src/lib/weight.ts` also has body measurements (meta `measures`); `src/lib/photos.ts` (expo-image-picker, files in the app's document folder, not in backups; web stub) — both on `/weight`
+- `src/lib/weight.ts` also has body measurements (meta `measures`); `src/lib/photos.ts` (expo-image-picker, shrunk with expo-image-manipulator, files in the app's document folder; in the backup file as base64 — "احفظ نسخة" and the automatic copy in your folder, not the clipboard copy or the in-app auto copies; restore adds missing ones; web stub) — both on `/weight`
 - `src/lib/journal.ts` also has food outside the plan (meta `extras`) and supplements ticked (meta `supps`)
 - `src/lib/autoBackup.ts` — weekly automatic backup (last 4 inside the app, plus a folder you pick with `Directory.pickDirectoryAsync`, settings `autoBackup` / `backupDir`); runs from the root layout
 - `src/lib/reminder.ts` — workout reminder notifications (settings `reminder*`), next week scheduled ahead (`reminderTimes` in schedule.ts), re-synced from the root layout

@@ -13,20 +13,25 @@ const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const num = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v);
 const numOrNull = (v: unknown): v is number | null => v === null || num(v);
 
-export function toBackup(d: Dump, now: Date = new Date()): string {
-  return JSON.stringify({ app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), data: d });
+/** A progress photo inside a backup file: its file name (date_time.jpg) and the JPEG as base64. */
+export type PhotoData = { name: string; data: string };
+export const PHOTO_NAME = /^\d{4}-\d{2}-\d{2}_\d+\.jpg$/;
+
+/** Backup file text. Photos are optional: the file backup has them, the clipboard copy doesn't (too big to paste). */
+export function toBackup(d: Dump, now: Date = new Date(), photos: readonly PhotoData[] = []): string {
+  return JSON.stringify({ app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), data: d, ...(photos.length ? { photos } : null) });
 }
 
 export const backupFileName = (date: string) => `gym-backup-${date}.json`;
 
-export type BackupInfo = { sets: number; days: number; meals: number; from: string | null; to: string | null };
+export type BackupInfo = { sets: number; days: number; meals: number; photos: number; from: string | null; to: string | null };
 
-export function backupInfo(d: Dump): BackupInfo {
+export function backupInfo(d: Dump, photos = 0): BackupInfo {
   const dates = [...new Set(d.sets.filter((r) => r.done).map((r) => r.date))].sort();
-  return { sets: d.sets.filter((r) => r.done).length, days: dates.length, meals: d.meals.length, from: dates[0] ?? null, to: dates[dates.length - 1] ?? null };
+  return { sets: d.sets.filter((r) => r.done).length, days: dates.length, meals: d.meals.length, photos, from: dates[0] ?? null, to: dates[dates.length - 1] ?? null };
 }
 
-export type Parsed = { ok: true; data: Dump; exportedAt: string | null; info: BackupInfo } | { ok: false; error: string };
+export type Parsed = { ok: true; data: Dump; photos: PhotoData[]; exportedAt: string | null; info: BackupInfo } | { ok: false; error: string };
 
 /**
  * Reads a backup file's text. A file that isn't ours fails with a message to show; inside a good file, rows with
@@ -70,6 +75,12 @@ export function parseBackup(text: string): Parsed {
   const meta: Record<string, string> = {};
   if (d.meta && typeof d.meta === 'object') for (const [k, val] of Object.entries(d.meta as Record<string, unknown>)) if (typeof val === 'string') meta[k] = val;
 
+  const photos: PhotoData[] = [];
+  for (const x of arr(o.photos)) {
+    const r = (x ?? {}) as Record<string, unknown>;
+    if (typeof r.name === 'string' && PHOTO_NAME.test(r.name) && typeof r.data === 'string' && r.data.length > 0 && /^[A-Za-z0-9+/=\r\n]+$/.test(r.data)) photos.push({ name: r.name, data: r.data });
+  }
+
   const data = { sets, meals, shop, meta };
-  return { ok: true, data, exportedAt: typeof o.exportedAt === 'string' ? o.exportedAt : null, info: backupInfo(data) };
+  return { ok: true, data, photos, exportedAt: typeof o.exportedAt === 'string' ? o.exportedAt : null, info: backupInfo(data, photos.length) };
 }

@@ -6,15 +6,16 @@ import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { backupFileName, toBackup } from './backup';
 import { dateKey } from './logic';
+import { exportPhotos } from './photos';
 import { storage } from './storage';
 
-/** Saves a backup file and opens the share sheet; falls back to the clipboard when sharing isn't available. */
+/** Saves a backup file (with the progress photos) and opens the share sheet; falls back to the clipboard (no photos) when sharing isn't available. */
 export async function saveBackup(): Promise<'shared' | 'copied'> {
-  const text = toBackup(storage.dump());
   if (!(await Sharing.isAvailableAsync())) {
-    await Clipboard.setStringAsync(text);
+    await Clipboard.setStringAsync(toBackup(storage.dump()));
     return 'copied';
   }
+  const text = toBackup(storage.dump(), new Date(), await exportPhotos());
   const file = new File(Paths.cache, backupFileName(dateKey()));
   if (file.exists) file.delete();
   file.create();

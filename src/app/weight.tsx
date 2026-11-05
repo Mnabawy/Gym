@@ -198,7 +198,7 @@ export default function WeightScreen() {
           <T style={{ color: t.mute, fontSize: 13 }}>الصور على الموبايل بس.</T>
         ) : (
           <>
-            <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>نفس الإضاءة والمكان والوقفة كل مرة. الصور بتفضل على الموبايل بس ومش بتدخل في النسخة الاحتياطية.</T>
+            <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>نفس الإضاءة والمكان والوقفة كل مرة. الصور بتدخل في النسخة الاحتياطية لما تدوس «احفظ نسخة» (مش «انسخها»)، وفي النسخة التلقائية اللي في الفولدر بتاعك.</T>
             {photos.length ? (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
                 {photos.slice().reverse().map((p) => (

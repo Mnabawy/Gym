@@ -19,7 +19,8 @@ test('round trip keeps everything', () => {
   if (!p.ok) return;
   expect(p.data).toEqual(dump);
   expect(p.exportedAt).toBe('2026-11-05T10:00:00.000Z');
-  expect(p.info).toEqual({ sets: 2, days: 2, meals: 1, from: '2026-11-01', to: '2026-11-03' });
+  expect(p.info).toEqual({ sets: 2, days: 2, meals: 1, photos: 0, from: '2026-11-01', to: '2026-11-03' });
+  expect(p.photos).toEqual([]);
 });
 
 test('rejects files that are not ours or from a newer app', () => {
@@ -48,6 +49,19 @@ test('drops broken rows, keeps the good ones', () => {
 });
 
 test('info and file name', () => {
-  expect(backupInfo({ sets: [], meals: [], shop: [], meta: {} })).toEqual({ sets: 0, days: 0, meals: 0, from: null, to: null });
+  expect(backupInfo({ sets: [], meals: [], shop: [], meta: {} })).toEqual({ sets: 0, days: 0, meals: 0, photos: 0, from: null, to: null });
   expect(backupFileName('2026-11-05')).toBe('gym-backup-2026-11-05.json');
+});
+
+test('photos ride along in the file, broken ones are dropped', () => {
+  const photos = [{ name: '2026-11-01_1800000000000.jpg', data: '/9j/4AAQSkZJRg==' }];
+  const p = parseBackup(toBackup(dump, new Date(), photos));
+  expect(p.ok && p.photos).toEqual(photos);
+  expect(p.ok && p.info.photos).toBe(1);
+  const bad = JSON.parse(toBackup(dump, new Date(), photos));
+  bad.photos.push({ name: '../evil.jpg', data: 'AAAA' }, { name: '2026-11-02_1.jpg', data: 'not base64!' });
+  const q = parseBackup(JSON.stringify(bad));
+  expect(q.ok && q.photos).toEqual(photos);
+  // without photos the file has no photos field at all
+  expect(JSON.parse(toBackup(dump)).photos).toBeUndefined();
 });

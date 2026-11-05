@@ -12,7 +12,7 @@ import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
-import { BACKUP_STALE_DAYS, backupInfo, LAST_BACKUP_KEY, parseBackup, type BackupInfo } from '../lib/backup';
+import { BACKUP_STALE_DAYS, backupInfo, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
 import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { daysBetween } from '../lib/gaps';
@@ -20,6 +20,7 @@ import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
+import { importPhotos, listPhotos, photosSupported } from '../lib/photos';
 import { useTheme } from '../theme';
 
 const phone = Platform.OS !== 'web';
@@ -34,8 +35,11 @@ const timeAr = (m: number) => {
 };
 const WEEK = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
+const PHOTOS: [string, string, string, string] = ['صورة', 'صورتين', 'صور', 'صورة'];
 const infoAr = (i: BackupInfo) =>
-  !i.sets && !i.meals ? 'مفيش تسجيل لسه' : `${countAr(i.sets, SETS)} في ${countAr(i.days, DAYS)}${i.from && i.to ? ` (من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''} · ${countAr(i.meals, ['وجبة', 'وجبتين', 'وجبات', 'وجبة'])}`;
+  !i.sets && !i.meals && !i.photos
+    ? 'مفيش تسجيل لسه'
+    : `${countAr(i.sets, SETS)} في ${countAr(i.days, DAYS)}${i.from && i.to ? ` (من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''} · ${countAr(i.meals, ['وجبة', 'وجبتين', 'وجبات', 'وجبة'])}${i.photos ? ` · ${countAr(i.photos, PHOTOS)}` : ''}`;
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -49,8 +53,8 @@ export default function SettingsScreen() {
   const since = lastBackup ? daysBetween(lastBackup, today) : null;
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [denied, setDenied] = useState(false);
-  const [pending, setPending] = useState<{ data: Dump; info: BackupInfo; exportedAt: string | null } | null>(null);
-  const mine = backupInfo(storage.dump());
+  const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
+  const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
 
   const run = async (f: () => Promise<void>) => {
     setMsg(null);
@@ -69,14 +73,15 @@ export default function SettingsScreen() {
     if (text == null) return;
     const p = parseBackup(text);
     if (!p.ok) return setMsg({ text: p.error, bad: true });
-    setPending({ data: p.data, info: p.info, exportedAt: p.exportedAt });
+    setPending({ data: p.data, photos: p.photos, info: p.info, exportedAt: p.exportedAt });
   };
   const restore = () => {
     if (!pending) return;
     storage.restore(pending.data);
+    const added = photosSupported ? importPhotos(pending.photos) : 0;
     st.reload();
     setPending(null);
-    setMsg({ text: 'رجّعت النسخة ✓' });
+    setMsg({ text: added ? `رجّعت النسخة ✓ ومعاها ${countAr(added, PHOTOS)}` : 'رجّعت النسخة ✓' });
   };
 
   return (
@@ -102,7 +107,7 @@ export default function SettingsScreen() {
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
           <Btn label="احفظ نسخة" kind="solid" style={{ flexGrow: 1 }} onPress={() => run(async () => done((await saveBackup()) === 'copied' ? 'اتنسخت في الحافظة، الصقها في رسالة لنفسك' : 'اتحفظت ✓'))} />
-          <Btn label="انسخها" style={{ flexGrow: 1 }} onPress={() => run(async () => { await copyBackup(); done('اتنسخت، الصقها في رسالة لنفسك أو في ملاحظة'); })} />
+          <Btn label="انسخها" style={{ flexGrow: 1 }} onPress={() => run(async () => { await copyBackup(); done('اتنسخت من غير الصور، الصقها في رسالة لنفسك أو في ملاحظة'); })} />
         </View>
         <Sep />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
@@ -112,7 +117,7 @@ export default function SettingsScreen() {
         {pending ? (
           <View style={{ marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: t.warnSoft, gap: 8 }}>
             <T w="semi" style={{ color: t.warn }}>{`النسخة دي${pending.exportedAt ? ` (اتعملت ${dayAr(pending.exportedAt.slice(0, 10))})` : ''} فيها ${infoAr(pending.info)}`}</T>
-            <T style={{ fontSize: 12.5, lineHeight: 19 }}>هتمسح كل اللي على الموبايل دلوقتي (التمرين والأكل والإعدادات) وتحط النسخة دي مكانه. متأكد؟</T>
+            <T style={{ fontSize: 12.5, lineHeight: 19 }}>هتمسح كل اللي على الموبايل دلوقتي (التمرين والأكل والإعدادات) وتحط النسخة دي مكانه. الصور اللي على الموبايل بتفضل، واللي في النسخة بتتضاف. متأكد؟</T>
             <View style={{ flexDirection: 'row', gap: 8 }}>
               <Btn label="أيوه رجّعها" kind="solid" style={{ flex: 1 }} onPress={restore} />
               <Btn label="لا" onPress={() => setPending(null)} />

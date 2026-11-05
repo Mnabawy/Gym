@@ -6,6 +6,7 @@ import { LAST_BACKUP_KEY, toBackup } from './backup';
 import { daysBetween } from './gaps';
 import { dateKey } from './logic';
 import { useSettings } from './settings';
+import { exportPhotos } from './photos';
 import { storage } from './storage';
 
 export const autoSupported = true;
@@ -51,8 +52,9 @@ export async function runAutoBackup(force = false): Promise<'saved' | 'skipped'>
   storage.setMeta(AUTO_KEY, today);
   if (st.backupDir) {
     try {
+      // The copy in your folder has the photos too (the ones inside the app don't need them: they're in the app already).
       const out = new Directory(st.backupDir).createFile(name, 'application/json');
-      out.write(text);
+      await out.write(toBackup(data, new Date(), await exportPhotos()));
       storage.setMeta(LAST_BACKUP_KEY, today); // a copy outside the app counts as a backup
       storage.setMeta(AUTO_ERROR_KEY, '');
     } catch {
