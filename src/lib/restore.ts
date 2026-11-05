@@ -2,7 +2,7 @@
 // The Google account link belongs to the phone, not to the backup, so it stays as it is.
 import type { Dump } from './storage.types';
 import type { PhotoData } from './backup';
-import { importPhotos, photosSupported } from './photos';
+import { deleteAllPhotos, importPhotos, photosSupported } from './photos';
 import { useSettings } from './settings';
 import { storage } from './storage';
 
@@ -19,4 +19,11 @@ export function applyBackup(data: Dump, photos: readonly PhotoData[]): number {
   const added = photosSupported ? importPhotos(photos) : 0;
   useSettings.getState().reload();
   return added;
+}
+
+/** Signing out with "wipe this phone": everything saved here goes (data, settings, photos). The account keys go too. */
+export function wipeLocal() {
+  storage.restore({ sets: [], meals: [], shop: [], meta: {} });
+  if (photosSupported) deleteAllPhotos();
+  useSettings.getState().reload();
 }

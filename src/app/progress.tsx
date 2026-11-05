@@ -12,6 +12,7 @@ import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { dayKey, SWAPS_KEY } from '../lib/journal';
 import { readStrings } from '../lib/meta';
+import { exerciseInfo, PAST_KEY, parsePast } from '../lib/programEdit';
 import { useTheme } from '../theme';
 
 const TARGET = 10;
@@ -28,16 +29,20 @@ function weekRange(d = new Date()) {
 export default function ProgressScreen() {
   const t = useTheme();
   const [sel, setSel] = useState(PROGRAM[0].exercises[0].id);
-  const ex = ALL_EXERCISES.find((e) => e.id === sel)!;
   const { from, to } = weekRange();
 
   useDataVersion((s) => s.v); // re-render after new logs
+  // Exercises you logged that aren't in the program any more (deleted or replaced at /program): their history stays here.
+  const past = parsePast(storage.getMeta(PAST_KEY));
+  const info = (id: string) => exerciseInfo(id, ALL_EXERCISES, past);
+  const gone = [...new Set(storage.allSets().filter((r) => r.kg != null || r.reps != null).map((r) => r.exId))].filter((id) => !ALL_EXERCISES.some((e) => e.id === id) && info(id));
+  const ex = info(sel) ?? { name: sel, muscle: ALL_EXERCISES[0].muscle };
   const week = (() => {
     const done = storage.doneSetsBetween(from, to);
     const perMuscle = {} as Record<Muscle, number>;
     for (const m of Object.keys(MUSCLE_AR) as Muscle[]) perMuscle[m] = 0;
     for (const d of done) {
-      const e = ALL_EXERCISES.find((x) => x.id === d.exId);
+      const e = info(d.exId);
       if (e) perMuscle[e.muscle] += d.n;
     }
     return { perMuscle, sessions: storage.sessionDates(from, to).length };
@@ -106,6 +111,16 @@ export default function ProgressScreen() {
           </View>
         </View>
       ))}
+      {gone.length ? (
+        <View style={{ gap: 8 }}>
+          <Label>اتشالت من البرنامج</Label>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {gone.map((id) => (
+              <Pill key={id} label={info(id)!.name} num on={id === sel} onPress={() => setSel(id)} />
+            ))}
+          </View>
+        </View>
+      ) : null}
 
       <Card style={{ padding: 14, gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>

@@ -74,3 +74,42 @@ export function move<T>(list: readonly T[], i: number, by: number): T[] {
   out.splice(j, 0, x);
   return out;
 }
+
+/**
+ * Exercises that were ever in your program (meta `pastExercises`, id → name and muscle), so one you deleted still has
+ * a name and color where its logged sets show up (the progress page's "اتشالت من البرنامج").
+ */
+export const PAST_KEY = 'pastExercises';
+export type PastExercise = { name: string; muscle: Muscle };
+
+export function parsePast(raw: string | null): Record<string, PastExercise> {
+  const out: Record<string, PastExercise> = {};
+  let v: unknown;
+  try {
+    v = raw ? JSON.parse(raw) : null;
+  } catch {
+    return out;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [id, x] of Object.entries(v as Record<string, unknown>)) {
+    const o = (x ?? {}) as Record<string, unknown>;
+    if (typeof o.name === 'string' && typeof o.muscle === 'string' && o.muscle in MUSCLE_AR) out[id] = { name: o.name, muscle: o.muscle as Muscle };
+  }
+  return out;
+}
+
+/** Adds (or updates the name of) every exercise in `defs`. */
+export function remember(past: Record<string, PastExercise>, defs: readonly { id: string; name: string; muscle: Muscle }[]): Record<string, PastExercise> {
+  const out = { ...past };
+  for (const d of defs) out[d.id] = { name: d.name, muscle: d.muscle };
+  return out;
+}
+
+/** Name and muscle for any exercise id: the program's now, else one you had before, else the PDF's. */
+export function exerciseInfo(id: string, current: readonly { id: string; name: string; muscle: Muscle }[], past: Record<string, PastExercise>): PastExercise | null {
+  const c = current.find((e) => e.id === id);
+  if (c) return { name: c.name, muscle: c.muscle };
+  if (past[id]) return past[id];
+  const pdf = Object.values(PDF_PROGRAM).flat().find((e) => e.id === id);
+  return pdf ? { name: pdf.name, muscle: pdf.muscle } : null;
+}

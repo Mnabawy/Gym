@@ -8,6 +8,7 @@ import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google
 import { AmiriQuran_400Regular } from '@expo-google-fonts/amiri-quran';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VersePopup } from '../components/VersePopup';
+import { AppLock } from '../components/AppLock';
 import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
@@ -48,6 +49,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }} />
       <VersePopup />
       <ReminderSync />
+      <AppLock />
     </SafeAreaProvider>
   );
 }

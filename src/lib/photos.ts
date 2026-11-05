@@ -68,3 +68,8 @@ export function deletePhoto(p: Photo) {
   const f = new File(dir(), p.name);
   if (f.exists) f.delete();
 }
+
+/** Deletes every progress photo on the phone (signing out with "wipe this phone"). */
+export function deleteAllPhotos() {
+  for (const p of listPhotos()) deletePhoto(p);
+}

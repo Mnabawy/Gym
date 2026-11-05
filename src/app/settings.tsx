@@ -21,7 +21,8 @@ import { allowReminders } from '../lib/reminder';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
 import { listPhotos, photosSupported } from '../lib/photos';
-import { applyBackup } from '../lib/restore';
+import { applyBackup, WELCOME_KEY, wipeLocal } from '../lib/restore';
+import { canLock, lockSupported, unlock } from '../lib/lock';
 import { DRIVE_AT, DRIVE_ERROR, DRIVE_USER, driveSupported, fetchDrive, linkDrive, syncDrive, unlinkDrive } from '../lib/drive';
 import { useTheme } from '../theme';
 
@@ -55,6 +56,24 @@ export default function SettingsScreen() {
   const since = lastBackup ? daysBetween(lastBackup, today) : null;
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [denied, setDenied] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [lockMsg, setLockMsg] = useState<string | null>(null);
+  /** Sign out of Google; `wipe` first saves everything to Drive, then clears this phone. Back to the welcome screen. */
+  const signOut = (wipe: boolean) =>
+    run(async () => {
+      if (wipe) {
+        try {
+          await syncDrive(true);
+        } catch {
+          return setMsg({ text: 'معرفتش أرفع آخر نسخة على Drive، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
+        }
+      }
+      await unlinkDrive();
+      if (wipe) wipeLocal();
+      storage.setMeta(WELCOME_KEY, '');
+      setLeaving(false);
+      router.replace('/welcome');
+    });
   const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
   const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
 
@@ -128,7 +147,7 @@ export default function SettingsScreen() {
         ) : null}
         <Sep />
         <View style={{ paddingHorizontal: 14, paddingVertical: 10, gap: 8 }}>
-          <T w="medium" style={{ alignSelf: 'flex-start' }}>Google Drive</T>
+          <T w="medium" style={{ alignSelf: 'flex-start' }}>حسابك (Google Drive)</T>
           {!driveSupported ? (
             <T style={{ color: t.mute, fontSize: 12.5 }}>على الموبايل بس</T>
           ) : storage.getMeta(DRIVE_USER) ? (
@@ -141,7 +160,18 @@ export default function SettingsScreen() {
                 <Btn label="ارفع دلوقتي" kind="solid" style={{ flexGrow: 1 }} onPress={() => run(async () => { await syncDrive(true); setMsg({ text: 'اترفعت على Drive ✓' }); })} />
                 <Btn label="رجّع من Drive" style={{ flexGrow: 1 }} onPress={() => run(async () => { const x = await fetchDrive(); if (x == null) setMsg({ text: 'مفيش نسخة على Drive لسه', bad: true }); else load(x); })} />
               </View>
-              <Btn label="افصل Google Drive" onPress={() => run(async () => { await unlinkDrive(); setMsg({ text: 'اتفصل. الملف اللي على Drive زي ما هو' }); })} />
+              {!leaving ? (
+                <Btn label="تسجيل الخروج" onPress={() => setLeaving(true)} />
+              ) : (
+                <View style={{ gap: 8, padding: 12, borderRadius: 12, backgroundColor: t.warnSoft }}>
+                  <T w="semi" style={{ color: t.warn }}>تسجيل الخروج</T>
+                  <T style={{ fontSize: 12.5, lineHeight: 19 }}>نسختك على Drive بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
+                  <Btn label="اخرج بس (البيانات تفضل على الموبايل)" onPress={() => signOut(false)} />
+                  <Btn label="اخرج وامسح بياناتي من الموبايل" kind="solid" onPress={() => signOut(true)} />
+                  <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيرفع آخر نسخة على Drive الأول، ومش بيمسح غير لو الرفع نجح.</T>
+                  <Btn label="لا" onPress={() => setLeaving(false)} />
+                </View>
+              )}
             </>
           ) : (
             <>
@@ -356,6 +386,20 @@ export default function SettingsScreen() {
 
       <Label>عام</Label>
       <Card>
+        <SwitchRow
+          label="قفل التطبيق"
+          sub={lockSupported ? 'بالبصمة أو الوش (أو رقم الموبايل السري) لما تفتحه، أو ترجعله بعد دقيقة' : 'على الموبايل بس'}
+          value={st.appLock}
+          disabled={!lockSupported}
+          onChange={async (v) => {
+            setLockMsg(null);
+            if (!v) return st.setQuiet({ appLock: false });
+            if (!(await canLock())) return setLockMsg('فعّل البصمة أو قفل الشاشة في إعدادات الموبايل الأول');
+            if (await unlock()) st.setQuiet({ appLock: true });
+          }}
+        />
+        {lockMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{lockMsg}</T> : null}
+        <Sep />
         <SwitchRow label="وضع النيون في صفحة التمرين" sub="خلفية غامقة وألوان بتنور" value={st.neonMode} onChange={(v) => st.setQuiet({ neonMode: v })} />
         <Sep />
         <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />

@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { ALL_EXERCISES, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, dayFor, exerciseById, PDF_PROGRAM, PROGRAM } from '../src/data/program';
-import { isPdf, move, newId, parseProgram } from '../src/lib/programEdit';
+import { exerciseInfo, isPdf, move, newId, parsePast, parseProgram, remember } from '../src/lib/programEdit';
 
 const pdf = () => Object.fromEntries(Object.entries(PDF_PROGRAM).map(([k, v]) => [k, v.map((d) => ({ ...d }))]));
 const plan = { sets: {}, restHeavy: DEFAULT_REST.heavy, restNormal: DEFAULT_REST.normal };
@@ -54,4 +54,15 @@ test('applyProgram replaces a day everywhere, null brings the PDF back', () => {
   expect(ALL_EXERCISES.length).toBe(Object.values(PDF_PROGRAM).flat().length);
   expect(exerciseById('deadlift')).toBeDefined();
   expect(PROGRAM.length).toBe(5);
+});
+
+test('past exercises keep a name and muscle after they leave the program', () => {
+  const past = remember(parsePast(null), [{ id: 'cable-row', name: 'Cable Row', muscle: 'back' }]);
+  expect(parsePast(JSON.stringify({ ...past, bad: { name: 1 }, worse: { name: 'x', muscle: 'wings' } }))).toEqual(past);
+  expect(exerciseInfo('cable-row', ALL_EXERCISES, past)).toEqual({ name: 'Cable Row', muscle: 'back' });
+  expect(exerciseInfo('deadlift', ALL_EXERCISES, {})).toEqual({ name: 'Deadlift', muscle: 'back' });
+  // a PDF exercise you deleted still has its PDF name
+  applyProgram({ 1: [{ id: 'cable-row', name: 'Cable Row', muscle: 'back', sets: 3, repLow: 8, repHigh: 12, tag: null }] });
+  expect(exerciseInfo('deadlift', ALL_EXERCISES, {})).toEqual({ name: 'Deadlift', muscle: 'back' });
+  expect(exerciseInfo('nope', ALL_EXERCISES, {})).toBeNull();
 });

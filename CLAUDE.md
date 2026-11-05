@@ -7,7 +7,7 @@ Exercise names stay in English (gym vocabulary).
 - Expo SDK 58, TypeScript strict, expo-router (routes in `src/app/`, tabs in `src/app/(tabs)/`)
 - State: zustand (`src/lib/timer.ts`, `src/lib/bus.ts`)
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
-- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
+- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-local-authentication (app lock), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
 - Fonts: Readex Pro (Arabic) + Inter (numbers/Latin) via @expo-google-fonts
 - No backend. Offline-first.
 
@@ -47,6 +47,9 @@ Exercise names stay in English (gym vocabulary).
 - `src/lib/journal.ts` also has food outside the plan (meta `extras`) and supplements ticked (meta `supps`)
 - `src/lib/drive.ts` (sign-in with @react-native-google-signin/google-signin, scope drive.file, no config plugin needed on Android; web stub) + `src/lib/driveApi.ts` (pure REST calls, tested) — backup to Google Drive: one file "Gym backup.json" updated in place, at most daily when the data changed, from the root layout; settings → Google Drive. Setup steps for the owner: `docs/google-drive-setup.md`. Restore keeps the phone's own drive* meta keys
 - Sign-in: `src/app/welcome.tsx` on first launch (phone; redirect from the tabs layout until meta `welcomeDone` or signed in): one-tap Google sign-in (the Drive link above), then restores from Drive on an empty phone or asks which data to keep; or skip. Account (name, photo) at the top of the side menu. `src/lib/restore.ts` `applyBackup` is the one way to put a backup back (keeps the phone's account keys)
+- Sign-out (settings → حسابك): just sign out, or upload to Drive first and then wipe the phone (`wipeLocal` in restore.ts; nothing is wiped if the upload fails); both go back to the welcome screen
+- App lock: `src/lib/lock.ts` (expo-local-authentication) + `src/components/AppLock.tsx` (a modal over everything, on open and after a minute in the background); settings `appLock`
+- Deleted exercises keep their history: `pastExercises` meta (id → name, muscle; written by `setProgram`), `exerciseInfo` in programEdit.ts; the progress page lists them under "اتشالت من البرنامج"
 - `src/lib/autoBackup.ts` — weekly automatic backup (last 4 inside the app, plus a folder you pick with `Directory.pickDirectoryAsync`, settings `autoBackup` / `backupDir`); runs from the root layout
 - `src/lib/reminder.ts` — workout reminder and morning brief notifications (settings `reminder*`, `brief`, `briefTime`; `reminderDays` = your training days for both), next week scheduled ahead (`reminderTimes` in schedule.ts), re-synced from the root layout
 - `src/lib/brief.ts` — the morning brief's text: workout or rest (projected over your training days), meals with times (with meal swaps), water, what to get ready, weigh-in after 7 days, shopping day

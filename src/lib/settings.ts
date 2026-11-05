@@ -1,7 +1,7 @@
 // User settings: plan overrides (sets, rest) and app toggles. Saved as JSON in storage meta; applied to PROGRAM on load and change.
 import { create } from 'zustand';
-import { applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, PLAN_WEEKDAYS, type ProgramEdit } from '../data/program';
-import { isPdf, parseProgram, PROGRAM_KEY } from './programEdit';
+import { ALL_EXERCISES, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, PLAN_WEEKDAYS, type ProgramEdit } from '../data/program';
+import { isPdf, PAST_KEY, parsePast, parseProgram, PROGRAM_KEY, remember } from './programEdit';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { DEFAULT_BODY, parseBody, type Body } from './energy';
@@ -50,6 +50,8 @@ export type Settings = {
   brief: boolean;
   /** Minutes after midnight. */
   briefTime: number;
+  /** Fingerprint / face lock when the app opens (src/lib/lock.ts). */
+  appLock: boolean;
   /** Ask how many reps were left after ticking a set (RIR). */
   askRir: boolean;
   /** Weekly automatic backup file (src/lib/autoBackup.ts). */
@@ -83,6 +85,7 @@ export const DEFAULT_SETTINGS: Settings = {
   askRir: true,
   brief: false,
   briefTime: 6 * 60,
+  appLock: false,
   autoBackup: true,
   backupDir: '',
 };
@@ -129,7 +132,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;
@@ -174,6 +177,8 @@ export const useSettings = create<Store>((set, get) => {
     reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays] }),
     setProgram: (edit) => {
       const keep = edit && !isPdf(edit) ? edit : null;
+      // Remember every exercise you had, so a deleted one keeps its name on the progress page.
+      storage.setMeta(PAST_KEY, JSON.stringify(remember(parsePast(storage.getMeta(PAST_KEY)), [...ALL_EXERCISES, ...Object.values(edit ?? {}).flat()])));
       if (keep) storage.setMeta(PROGRAM_KEY, JSON.stringify(keep));
       else storage.setMeta(PROGRAM_KEY, '');
       applyProgram(keep);

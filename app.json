@@ -65,6 +65,12 @@
           "cameraPermission": "التطبيق بيستخدم الكاميرا عشان تصوّر صور التقدم.",
           "microphonePermission": false
         }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "التطبيق بيستخدم Face ID عشان محدش غيرك يفتحه."
+        }
       ]
     ],
     "scheme": "gym",
