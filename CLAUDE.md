@@ -54,3 +54,6 @@ Exercise names stay in English (gym vocabulary).
 - `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, settings, data integrity incl. videos and alternatives)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions
+
+## Git
+- Work, commit and push directly on `main`. No feature branches (the owner asked for this).
