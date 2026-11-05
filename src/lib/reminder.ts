@@ -8,7 +8,7 @@ import { dateKey } from './logic';
 import { after, currentWorkout, reminderTimes } from './schedule';
 import { useSettings } from './settings';
 import { storage } from './storage';
-import { morningBrief } from './brief';
+import { morningBrief, type BriefInput } from './brief';
 import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
@@ -33,6 +33,31 @@ export async function allowReminders(): Promise<boolean> {
   }
 }
 
+/** What the morning brief is built from, as of `today`. */
+function briefInput(today: string): BriefInput {
+  const st = useSettings.getState();
+  return {
+    today,
+    cur: currentWorkout(storage.trainedDays(), today),
+    days: st.reminderDays,
+    workoutAt: st.reminder ? st.reminderTime : null,
+    picks: readNumbers(MEAL_PICKS_KEY),
+    waterL: energyFor(st.body)?.water ?? null,
+    weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
+    shopTrips: st.shopTrips,
+    shopMoves: st.shopMoves,
+  };
+}
+
+/** Shows today's morning brief right now (the "try it" button in settings). False without notification permission. */
+export async function testBrief(): Promise<boolean> {
+  if (!(await allowReminders())) return false;
+  const today = dateKey();
+  const b = morningBrief(today, briefInput(today));
+  await Notifications.scheduleNotificationAsync({ content: { title: b.title, body: b.body, sound: true }, trigger: null });
+  return true;
+}
+
 let running: Promise<void> | null = null;
 
 /** Cancels our scheduled reminders and schedules the next ones from the current settings and log. */
@@ -48,17 +73,7 @@ export function syncReminders(): Promise<void> {
       const today = dateKey();
       const cur = currentWorkout(storage.trainedDays(), today);
       if (st.brief) {
-        const input = {
-          today,
-          cur,
-          days: st.reminderDays,
-          workoutAt: st.reminder ? st.reminderTime : null,
-          picks: readNumbers(MEAL_PICKS_KEY),
-          waterL: energyFor(st.body)?.water ?? null,
-          weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
-          shopTrips: st.shopTrips,
-          shopMoves: st.shopMoves,
-        };
+        const input = briefInput(today);
         // Every day, training or not (all 7 weekdays).
         for (const date of reminderTimes(new Date(), st.briefTime, [0, 1, 2, 3, 4, 5, 6], false)) {
           const b = morningBrief(dateKey(date), input);
