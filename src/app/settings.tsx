@@ -132,7 +132,7 @@ export default function SettingsScreen() {
         ) : null}
         <Sep />
         <View style={{ paddingHorizontal: 14, paddingVertical: 10, gap: 8 }}>
-          <T w="medium">Google Drive</T>
+          <T w="medium" style={{ alignSelf: 'flex-start' }}>Google Drive</T>
           {!driveSupported ? (
             <T style={{ color: t.mute, fontSize: 12.5 }}>على الموبايل بس</T>
           ) : storage.getMeta(DRIVE_USER) ? (

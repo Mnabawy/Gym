@@ -170,10 +170,10 @@ export default function Shop() {
                         {on ? <T w="bold" style={{ color: '#fff', fontSize: 12 }}>✓</T> : null}
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <T w="semi" style={{ fontSize: 14, textDecorationLine: on ? 'line-through' : 'none' }}>{i.item.name}</T>
-                        {sub ? <T style={{ color: t.mute, fontSize: 11.5 }}>{sub}</T> : null}
+                        <T w="semi" style={{ fontSize: 13.5, lineHeight: 20, textDecorationLine: on ? 'line-through' : 'none' }}>{i.item.name}</T>
+                        {sub ? <T style={{ color: t.mute, fontSize: 11, lineHeight: 16 }}>{sub}</T> : null}
                       </View>
-                      <T w="bold" style={{ fontSize: 13 }}>{i.buy}</T>
+                      <T w="bold" style={{ fontSize: 12.5 }}>{i.buy}</T>
                     </Pressable>
                   );
                 })}
@@ -202,7 +202,7 @@ export default function Shop() {
 
 const s = StyleSheet.create({
   // 44pt rows: the whole row is the checkbox, so that's its touch target.
-  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 5, minHeight: 44 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 3, minHeight: 44 },
   tip: { borderRadius: 12, padding: 10, gap: 3 },
   picker: { flexDirection: 'row', gap: 4 },
   opt: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },

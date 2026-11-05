@@ -18,6 +18,7 @@ Exercise names stay in English (gym vocabulary).
 - Food chip colors: protein blue, carbs orange, fat green, veg grey.
 - Light + dark from one token file. Touch targets ≥ 44pt.
 - Small font app-wide: `T` (`src/components/ui.tsx`) draws every size × `TEXT_SCALE` (0.9). Write sizes at full scale; tight spacing (`Screen dense`) on the workout, food and shopping tabs.
+- One button size: `Btn` (40pt, one line of 14pt text that shrinks to fit) — use it for every text button. `T` caps the phone's font-size setting at ×1.15 (`maxFontSizeMultiplier`).
 - Neon look for the workout tab only (`neon` theme + `ThemeProvider` in `src/theme/index.ts`, design in `docs/mockups/workout-neon.html`), switched by `neonMode` in settings. Components read `t.neon` / `glow()` for borders and glows.
 
 ## Data

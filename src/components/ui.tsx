@@ -15,7 +15,8 @@ export function T({ style, w = 'body', ...p }: TextProps & { w?: keyof typeof F 
   const t = useTheme();
   const flat = StyleSheet.flatten([{ color: t.fg, fontFamily: F[w], fontSize: 15 }, style]) ?? {};
   const size = { fontSize: (flat.fontSize ?? 15) * TEXT_SCALE, ...(flat.lineHeight ? { lineHeight: flat.lineHeight * TEXT_SCALE } : null) };
-  return <Text {...p} style={[flat, size]} />;
+  // The phone's text-size setting still applies, capped so a big system font doesn't blow up the compact layout.
+  return <Text maxFontSizeMultiplier={1.15} {...p} style={[flat, size]} />;
 }
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -339,19 +340,25 @@ export function Ring({ value, size = 60, stroke = 5, color, track, children, ani
   );
 }
 
+/** The app's one button size: 40pt tall (44pt touch target with hitSlop), one line of 14pt text that shrinks to fit. */
 export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; onPress: () => void; kind?: 'ghost' | 'solid'; style?: ViewStyle }) {
   const t = useTheme();
   const solid = kind === 'solid';
   return (
     <Pressable
       accessibilityRole="button"
+      accessibilityLabel={label}
       onPress={onPress}
+      hitSlop={{ top: 2, bottom: 2 }}
       style={({ pressed }) => [
-        { minHeight: 48, paddingHorizontal: 18, borderRadius: 12, justifyContent: 'center', alignItems: 'center', opacity: pressed ? 0.8 : 1 },
-        solid ? { backgroundColor: t.ok } : { borderWidth: 1.5, borderColor: t.ink },
+        s.btn,
+        solid ? { backgroundColor: t.ok } : { borderWidth: 1.2, borderColor: t.ink },
+        { opacity: pressed ? 0.8 : 1 },
         style,
       ]}>
-      <T w="bold" style={{ fontSize: 15, color: solid ? '#FFFFFF' : t.ink }}>{label}</T>
+      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 14, color: solid ? '#FFFFFF' : t.ink }}>
+        {label}
+      </T>
     </Pressable>
   );
 }
@@ -471,6 +478,7 @@ const s = StyleSheet.create({
   check: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
   popBack: { flex: 1, backgroundColor: 'rgba(8, 14, 20, 0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
   pop: { width: '100%', maxWidth: 380, borderRadius: 22, padding: 18, gap: 12 },
+  btn: { height: 40, paddingHorizontal: 14, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   stepBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   stepBtnSm: { width: 30, height: 30, borderRadius: 9 },

@@ -101,7 +101,7 @@ export function VersePopup() {
               onPress={close}
               accessibilityRole="button"
               style={({ pressed }) => [s.btn, { backgroundColor: t.ok, opacity: pressed ? 0.85 : 1 }]}>
-              <T w="semi" style={{ color: t.onOk, fontSize: 16 }}>يلا بينا</T>
+              <T w="semi" style={{ color: t.onOk, fontSize: 14 }}>يلا بينا</T>
             </Pressable>
           </Pressable>
         </Animated.View>
@@ -142,5 +142,5 @@ const s = StyleSheet.create({
   divider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 8 },
   rule: { height: 1, width: 44 },
   diamond: { width: 7, height: 7, borderWidth: 1.2, transform: [{ rotate: '45deg' }] },
-  btn: { minHeight: 50, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' }, // same size as Btn
 });

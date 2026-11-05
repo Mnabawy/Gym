@@ -185,12 +185,13 @@ export default function Food() {
       {meals.map((m) => {
         const on = canLog && checks.has(m.meal);
         return (
-          <Card key={m.meal} style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4, opacity: on ? 0.7 : 1 }}>
+          <Card key={m.meal} style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 7, gap: 2, opacity: on ? 0.7 : 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-                <T w="bold" style={{ fontSize: 14, flexShrink: 1 }} numberOfLines={1}>{`${m.meal} · ${m.name}`}</T>
-                <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={1}>{isTraining ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
-              </View>
+              {/* Full meal name (wraps if long), its time after it in small muted text. */}
+              <T w="bold" style={{ flex: 1, fontSize: 14 }}>
+                {`${m.meal} · ${m.name}  `}
+                <T style={{ color: t.mute, fontSize: 11.5 }}>{isTraining ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
+              </T>
               <Pressable
                 onPress={() => setSwapMeal(m.meal)}
                 hitSlop={10}
@@ -206,12 +207,12 @@ export default function Food() {
               {m.items.map((it, i) => (
                 <View key={it} style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
                   <View style={[s.dot, { backgroundColor: typeColor(t, FOODS[it]?.type ?? 'v') }]} />
-                  <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{it}</T>
+                  <T style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{it}</T>
                   {FOODS[it] ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${Math.round(FOODS[it].kcal)} سعر`}</T> : null}
                 </View>
               ))}
             </View>
-            <View style={{ flexDirection: 'row', gap: 12 }}>
+            <View style={{ flexDirection: 'row', gap: 12, marginTop: 1 }}>
               <T w="num" style={{ fontSize: 12 }}>{`${Math.round(m.mac.kcal)} سعر`}</T>
               <T w="num" style={{ fontSize: 12, color: t.protein }}>{`${Math.round(m.mac.p)} بروتين`}</T>
               <T w="num" style={{ fontSize: 12, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
@@ -377,7 +378,7 @@ export default function Food() {
 }
 
 const s = StyleSheet.create({
-  item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   wbtn: { width: 36, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   input: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 15, outlineWidth: 0 },
