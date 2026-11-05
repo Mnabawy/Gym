@@ -15,18 +15,22 @@ db.execSync(`
   CREATE TABLE IF NOT EXISTS shop_checks (week TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (week, item));
   CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
 `);
+// Columns added later: reps left in the tank (rir) and when the set was ticked (at, ms).
+const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(set_logs)').map((c) => c.name);
+if (!cols.includes('rir')) db.execSync('ALTER TABLE set_logs ADD COLUMN rir INTEGER');
+if (!cols.includes('at')) db.execSync('ALTER TABLE set_logs ADD COLUMN at INTEGER');
 
-type Row = { idx: number; kg: number | null; reps: number | null; done: number };
+type Row = { idx: number; kg: number | null; reps: number | null; done: number; rir: number | null; at: number | null };
 
 export const storage: Storage = {
   setsFor(date, exId) {
-    return rowsToSets(db.getAllSync<Row>('SELECT idx, kg, reps, done FROM set_logs WHERE date = ? AND ex_id = ? ORDER BY idx', date, exId));
+    return rowsToSets(db.getAllSync<Row>('SELECT idx, kg, reps, done, rir, at FROM set_logs WHERE date = ? AND ex_id = ? ORDER BY idx', date, exId));
   },
   saveSet(r: SetRow) {
     db.runSync(
-      `INSERT INTO set_logs (date, weekday, ex_id, idx, kg, reps, done) VALUES (?, ?, ?, ?, ?, ?, ?)
-       ON CONFLICT(date, ex_id, idx) DO UPDATE SET kg = excluded.kg, reps = excluded.reps, done = excluded.done`,
-      r.date, r.weekday, r.exId, r.idx, r.kg, r.reps, r.done,
+      `INSERT INTO set_logs (date, weekday, ex_id, idx, kg, reps, done, rir, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+       ON CONFLICT(date, ex_id, idx) DO UPDATE SET kg = excluded.kg, reps = excluded.reps, done = excluded.done, rir = excluded.rir, at = excluded.at`,
+      r.date, r.weekday, r.exId, r.idx, r.kg, r.reps, r.done, r.rir ?? null, r.at ?? null,
     );
   },
   lastSession(exId, date) {
@@ -60,10 +64,10 @@ export const storage: Storage = {
   },
   allSets() {
     return db
-      .getAllSync<{ date: string; weekday: number; ex_id: string; idx: number; kg: number | null; reps: number | null; done: number }>(
-        'SELECT date, weekday, ex_id, idx, kg, reps, done FROM set_logs ORDER BY date, ex_id, idx',
+      .getAllSync<{ date: string; weekday: number; ex_id: string; idx: number; kg: number | null; reps: number | null; done: number; rir: number | null; at: number | null }>(
+        'SELECT date, weekday, ex_id, idx, kg, reps, done, rir, at FROM set_logs ORDER BY date, ex_id, idx',
       )
-      .map((r) => ({ date: r.date, weekday: r.weekday, exId: r.ex_id, idx: r.idx, kg: r.kg, reps: r.reps, done: r.done }));
+      .map((r) => ({ date: r.date, weekday: r.weekday, exId: r.ex_id, idx: r.idx, kg: r.kg, reps: r.reps, done: r.done, rir: r.rir, at: r.at }));
   },
   mealChecks(date) {
     return db.getAllSync<{ meal: string }>('SELECT meal FROM meal_checks WHERE date = ?', date).map((r) => r.meal);
@@ -105,7 +109,10 @@ export const storage: Storage = {
     db.withTransactionSync(() => {
       db.execSync('DELETE FROM set_logs; DELETE FROM meal_checks; DELETE FROM shop_checks; DELETE FROM meta;');
       for (const r of d.sets) {
-        db.runSync('INSERT OR REPLACE INTO set_logs (date, weekday, ex_id, idx, kg, reps, done) VALUES (?, ?, ?, ?, ?, ?, ?)', r.date, r.weekday, r.exId, r.idx, r.kg, r.reps, r.done);
+        db.runSync(
+          'INSERT OR REPLACE INTO set_logs (date, weekday, ex_id, idx, kg, reps, done, rir, at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+          r.date, r.weekday, r.exId, r.idx, r.kg, r.reps, r.done, r.rir ?? null, r.at ?? null,
+        );
       }
       for (const m of d.meals) db.runSync('INSERT OR IGNORE INTO meal_checks (date, meal) VALUES (?, ?)', m.date, m.meal);
       for (const x of d.shop) db.runSync('INSERT OR IGNORE INTO shop_checks (week, item) VALUES (?, ?)', x.week, x.item);

@@ -4,7 +4,7 @@ import type { Dump } from '../src/lib/storage.types';
 
 const dump: Dump = {
   sets: [
-    { date: '2026-11-01', weekday: 1, exId: 'deadlift', idx: 0, kg: 100, reps: 5, done: 1 },
+    { date: '2026-11-01', weekday: 1, exId: 'deadlift', idx: 0, kg: 100, reps: 5, done: 1, rir: 2, at: 1_800_000_000_000 },
     { date: '2026-11-01', weekday: 1, exId: 'deadlift', idx: 1, kg: null, reps: null, done: 0 },
     { date: '2026-11-03', weekday: 2, exId: 'barbell-bench-press', idx: 0, kg: 70, reps: 8, done: 1 },
   ],

@@ -52,7 +52,10 @@ export function parseBackup(text: string): Parsed {
     const r = x as Record<string, unknown>;
     if (typeof r.date !== 'string' || !DATE.test(r.date) || typeof r.exId !== 'string' || !r.exId) continue;
     if (!num(r.weekday) || !num(r.idx) || r.idx < 0 || !Number.isInteger(r.idx) || !numOrNull(r.kg) || !numOrNull(r.reps)) continue;
-    sets.push({ date: r.date, weekday: r.weekday, exId: r.exId, idx: r.idx, kg: r.kg, reps: r.reps, done: r.done ? 1 : 0 });
+    const row: SetRow = { date: r.date, weekday: r.weekday, exId: r.exId, idx: r.idx, kg: r.kg, reps: r.reps, done: r.done ? 1 : 0 };
+    if (num(r.rir)) row.rir = r.rir;
+    if (num(r.at)) row.at = r.at;
+    sets.push(row);
   }
   const meals: MealCheck[] = [];
   for (const x of arr(d.meals)) {

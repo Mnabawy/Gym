@@ -72,3 +72,67 @@ export function rateVerdict(rate: number, goal: Goal, kg: number): Verdict {
   if (goal === 'cut') return rate > hi ? { level: 'slow', text: 'النزول أبطأ من المطلوب، قلّل حوالي 150–200 سعر في اليوم' } : { level: 'fast', text: 'بتنزل أسرع من المطلوب، ممكن تخسر عضل. زوّد حوالي 150–200 سعر' };
   return rate < lo ? { level: 'slow', text: 'وزنك بينزل، زوّد شوية أكل' } : { level: 'fast', text: 'وزنك بيزيد، قلّل شوية أكل' };
 }
+
+// Body measurements (cm), saved as JSON under meta key `measures`; one entry per date. Measure every 2–4 weeks,
+// same time of day, relaxed, tape snug but not pressing. Waist going up fast while bulking means much of the gain is fat.
+export const MEASURES_KEY = 'measures';
+export type Part = 'waist' | 'chest' | 'arm' | 'thigh' | 'neck';
+export const PARTS: { k: Part; label: string; hint: string }[] = [
+  { k: 'waist', label: 'الوسط', hint: 'عند السرة، بعد ما تطلّع النفس' },
+  { k: 'chest', label: 'الصدر', hint: 'أعرض حتة، تحت الباط' },
+  { k: 'arm', label: 'الدراع', hint: 'أعرض حتة، مشدود' },
+  { k: 'thigh', label: 'الفخد', hint: 'نص المسافة بين الورك والركبة' },
+  { k: 'neck', label: 'الرقبة', hint: 'تحت تفاحة آدم' },
+];
+export type Measure = { date: string } & Partial<Record<Part, number>>;
+const validCm = (v: unknown): v is number => typeof v === 'number' && v >= 10 && v <= 250;
+
+export function parseMeasures(raw: string | null): Measure[] {
+  let v: unknown;
+  try {
+    v = raw ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+  if (!Array.isArray(v)) return [];
+  const by = new Map<string, Measure>();
+  for (const x of v) {
+    if (!x || typeof x !== 'object' || typeof x.date !== 'string' || !DATE.test(x.date)) continue;
+    const m: Measure = { date: x.date };
+    for (const p of PARTS) if (validCm(x[p.k])) m[p.k] = x[p.k];
+    if (Object.keys(m).length > 1) by.set(m.date, m);
+  }
+  return [...by.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+/** Adds the measurements for a date (replacing that date's), rounded to 0.5 cm; an entry with nothing in it is dropped. */
+export function addMeasure(list: readonly Measure[], m: Measure): Measure[] {
+  const clean: Measure = { date: m.date };
+  for (const p of PARTS) if (validCm(m[p.k])) clean[p.k] = Math.round((m[p.k] as number) * 2) / 2;
+  const rest = list.filter((x) => x.date !== m.date);
+  return (Object.keys(clean).length > 1 ? [...rest, clean] : rest).sort((a, b) => (a.date < b.date ? -1 : 1));
+}
+
+/** Change per part from the first measurement of that part to the latest (null when measured once or never). */
+export function measureChange(list: readonly Measure[], k: Part): { last: number; change: number | null; since: string } | null {
+  const has = list.filter((m) => m[k] != null);
+  if (!has.length) return null;
+  const a = has[0], b = has[has.length - 1];
+  return { last: b[k] as number, change: has.length > 1 ? Math.round(((b[k] as number) - (a[k] as number)) * 10) / 10 : null, since: a.date };
+}
+
+/**
+ * One line on what the waist says about a bulk or cut, comparing the first and last measurements at least 2 weeks apart.
+ * Rough rule: about 1 cm of waist per month while bulking is fine; more is mostly fat.
+ */
+export function waistNote(list: readonly Measure[], goal: Goal): string | null {
+  const has = list.filter((m) => m.waist != null);
+  if (has.length < 2) return null;
+  const a = has[0], b = has[has.length - 1];
+  const days = daysBetween(a.date, b.date);
+  if (days < 14) return null;
+  const perMonth = (((b.waist as number) - (a.waist as number)) / days) * 30;
+  if (goal === 'bulk') return perMonth > 1 ? 'الوسط بيزيد أسرع من سم في الشهر: جزء كبير من الزيادة دهون، قلّل السعرات شوية' : 'الوسط ثابت تقريبًا: الزيادة أغلبها عضل ✓';
+  if (goal === 'cut') return perMonth < -0.3 ? 'الوسط بينزل: التنشيف ماشي ✓' : 'الوسط مش بينزل: راجع السعرات';
+  return Math.abs(perMonth) <= 1 ? 'الوسط ثابت ✓' : perMonth > 0 ? 'الوسط بيزيد' : 'الوسط بينزل';
+}

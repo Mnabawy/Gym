@@ -57,6 +57,14 @@
         {
           "locationWhenInUsePermission": "التطبيق بيستخدم مكانك عشان يحسب مواقيت الصلاة."
         }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "التطبيق بيستخدم الصور عشان تحفظ صور التقدم.",
+          "cameraPermission": "التطبيق بيستخدم الكاميرا عشان تصوّر صور التقدم.",
+          "microphonePermission": false
+        }
       ]
     ],
     "scheme": "gym",

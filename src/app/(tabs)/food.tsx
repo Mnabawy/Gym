@@ -1,19 +1,19 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU, type MealKey } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
 import { Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { energyFor, targetsFor } from '../../lib/energy';
-import { adherence, CUP_ML, dayKey, foodHistory, MEAL_PICKS_KEY, waterGoalMl, WATER_KEY } from '../../lib/journal';
+import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
 import { readNumbers, writeEntry } from '../../lib/meta';
 import { useSettings } from '../../lib/settings';
-import { dateKey, mealMacros } from '../../lib/logic';
+import { dateKey, mealMacros, parseNum } from '../../lib/logic';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
-import { tint, useTheme, type Theme } from '../../theme';
+import { F, tint, useTheme, type Theme } from '../../theme';
 
 const l1 = (ml: number) => String(Math.round(ml / 100) / 10);
 const typeColor = (t: Theme, ty: string) => (ty === 'p' ? t.protein : ty === 'c' ? t.carbs : ty === 'f' ? t.fat : t.veg);
@@ -26,6 +26,7 @@ export default function Food() {
   const [sel, setSel] = useState(today);
   const [showSwaps, setShowSwaps] = useState(false);
   const [swapMeal, setSwapMeal] = useState<MealKey | null>(null);
+  const [extraForm, setExtraForm] = useState<{ name: string; kcal: string; p: string } | null>(null);
   const { bump } = useDataVersion();
   // Your own targets once the calorie calculator has your data (side menu → حساب السعرات), else the plan's.
   const body = useSettings((s) => s.body);
@@ -44,9 +45,11 @@ export default function Food() {
     bump();
   };
 
-  const checks = new Set(storage.mealChecks(date)); // re-read when v changes
   // A meal can be swapped for another option of the same meal, for that date only (meta mealPicks).
   const selDate = isToday ? date : dateInWeek(sel, date);
+  // Today and earlier days of this week can be ticked (a day you forgot); later days only show the plan.
+  const canLog = selDate <= date;
+  const checks = new Set(storage.mealChecks(selDate)); // re-read when v changes
   const picks = readNumbers(MEAL_PICKS_KEY);
   const pickOf = (m: MealKey) => {
     const i = picks[dayKey(selDate, m)];
@@ -63,15 +66,37 @@ export default function Food() {
 
   // Water (today only): cups of 250 ml against the calculator's goal (or 3 L), +0.5 L on a training day.
   const waterMap = readNumbers(WATER_KEY);
-  const waterMl = waterMap[date] ?? 0;
+  const waterMl = waterMap[selDate] ?? 0;
   const baseWater = energyFor(body)?.water ?? null;
-  const waterGoal = waterGoalMl(baseWater, training(today));
-  const addWater = (ml: number) => writeEntry(WATER_KEY, 'number', date, Math.max(0, waterMl + ml) || undefined, { dated: true });
+  const waterGoal = waterGoalMl(baseWater, isTraining);
+  const addWater = (ml: number) => writeEntry(WATER_KEY, 'number', selDate, Math.max(0, waterMl + ml) || undefined, { dated: true });
+  // Supplements ticked per day (meta supps).
+  const supps = readNumbers(SUPPS_KEY);
   const history = foodHistory(storage.allMealChecks(), waterMap, date, 14);
   const adh = adherence(history, MEAL_ORDER.length, date);
   const waterDays = history.filter((d) => d.water >= waterGoalMl(baseWater, false)).length;
+  const creatine = SUPPLEMENTS[0]?.name;
+  const creatineDays = creatine ? history.filter((d) => supps[dayKey(d.date, creatine)]).length : 0;
   const total = meals.reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: 0, p: 0 });
-  const eaten = meals.filter((m) => isToday && checks.has(m.meal)).reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: 0, p: 0 });
+  // Food outside the plan counts toward what you ate.
+  const extrasAll = parseExtras(storage.getMeta(EXTRAS_KEY));
+  const extras = extrasAll[selDate] ?? [];
+  const ext = extrasTotal(extras);
+  const eaten = meals.filter((m) => canLog && checks.has(m.meal)).reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: ext.kcal, p: ext.p });
+  const saveExtras = (list: Extra[]) => {
+    const next = { ...extrasAll, [selDate]: list };
+    if (!list.length) delete next[selDate];
+    storage.setMeta(EXTRAS_KEY, JSON.stringify(next));
+    bump();
+  };
+  const addExtra = () => {
+    if (!extraForm) return;
+    const kcal = parseNum(extraForm.kcal);
+    if (kcal == null) return;
+    setExtraForm(null);
+    saveExtras([...extras, { name: extraForm.name.trim() || 'أكل برة الخطة', kcal: Math.round(kcal), p: Math.round(parseNum(extraForm.p) ?? 0) }]);
+  };
+  const tickSupp = (name: string, on: boolean) => writeEntry(SUPPS_KEY, 'number', dayKey(selDate, name), on ? 1 : undefined, { dated: true });
 
   const order = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
   const chips = order.map((wd) => {
@@ -110,8 +135,8 @@ export default function Food() {
       <DayChips dense days={chips} value={sel} today={today} onChange={setSel} />
 
       <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
-        <Ring value={isToday ? Math.min(1, eaten.kcal / goal.kcal) : 0} size={46} stroke={4}>
-          <T w="numBold" style={{ fontSize: 12, color: isToday ? t.okText : t.mute }}>{isToday ? `${Math.round((eaten.kcal / goal.kcal) * 100)}%` : '–'}</T>
+        <Ring value={canLog ? Math.min(1, eaten.kcal / goal.kcal) : 0} size={46} stroke={4}>
+          <T w="numBold" style={{ fontSize: 12, color: canLog ? t.okText : t.mute }}>{canLog ? `${Math.round((eaten.kcal / goal.kcal) * 100)}%` : '–'}</T>
         </Ring>
         <View style={{ flex: 1, gap: 1 }}>
           <T style={{ color: t.mute, fontSize: 12.5 }}>{`أكل اليوم ${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
@@ -133,18 +158,18 @@ export default function Food() {
             )}
           </View>
           <T style={{ color: t.mute, fontSize: 12 }}>
-            {isToday ? `كلت ${Math.round(eaten.kcal)} من ${goal.kcal.toLocaleString('en-US')} سعر · ${Math.round(eaten.p)} من ${goal.protein} جم بروتين` : 'التعليم على الوجبات بيشتغل في يوم النهارده بس.'}
+            {canLog ? `كلت ${Math.round(eaten.kcal)} من ${goal.kcal.toLocaleString('en-US')} سعر · ${Math.round(eaten.p)} من ${goal.protein} جم بروتين` : 'اليوم ده لسه مجاش. تقدر تعلّم على النهارده والأيام اللي فاتت.'}
           </T>
         </View>
       </Card>
 
-      {isToday ? (
+      {canLog ? (
         <Card style={{ paddingVertical: 8, paddingHorizontal: 12, gap: 6 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ionicons name="water-outline" size={18} color={t.protein} />
             <View style={{ flex: 1, minWidth: 0 }}>
               <T w="semi" style={{ fontSize: 13.5 }}>{`المية · \u2066${l1(waterMl)}\u2069 من \u2066${l1(waterGoal)}\u2069 لتر`}</T>
-              <T style={{ fontSize: 11.5, color: t.mute }}>{waterMl >= waterGoal ? 'كمّلت مية النهارده ✓' : `فاضل ${Math.ceil((waterGoal - waterMl) / CUP_ML)} كوباية`}</T>
+              <T style={{ fontSize: 11.5, color: t.mute }}>{waterMl >= waterGoal ? 'كمّلت المية ✓' : `فاضل ${Math.ceil((waterGoal - waterMl) / CUP_ML)} كوباية`}</T>
             </View>
             <Pressable onPress={() => addWater(-CUP_ML)} disabled={!waterMl} hitSlop={6} accessibilityRole="button" accessibilityLabel="شيل كوباية" style={({ pressed }) => [s.wbtn, { backgroundColor: t.soft, opacity: !waterMl ? 0.35 : pressed ? 0.7 : 1 }]}>
               <Ionicons name="remove" size={18} color={t.fg} />
@@ -158,7 +183,7 @@ export default function Food() {
       ) : null}
 
       {meals.map((m) => {
-        const on = isToday && checks.has(m.meal);
+        const on = canLog && checks.has(m.meal);
         return (
           <Card key={m.meal} style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4, opacity: on ? 0.7 : 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -174,7 +199,7 @@ export default function Food() {
                 style={({ pressed }) => [s.swap, { backgroundColor: m.swapped ? t.warnSoft : t.soft, opacity: pressed ? 0.6 : 1 }]}>
                 <Ionicons name="swap-horizontal" size={15} color={m.swapped ? t.warn : t.mute} />
               </Pressable>
-              {isToday ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(date, m.meal, !on); bump(); }} /> : null}
+              {canLog ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(selDate, m.meal, !on); bump(); }} /> : null}
             </View>
             {/* The meal's items as a list: colored dot (protein / carbs / fat / veg), item, its calories. */}
             <View>
@@ -195,6 +220,59 @@ export default function Food() {
           </Card>
         );
       })}
+
+      {canLog ? (
+        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4 }}>
+          <T w="bold" style={{ fontSize: 14 }}>أكل برة الخطة</T>
+          {extras.map((x, i) => (
+            <View key={i} style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
+              <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
+              <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
+              <Pressable onPress={() => saveExtras(extras.filter((_, j) => j !== i))} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
+                <Ionicons name="close" size={16} color={t.mute} />
+              </Pressable>
+            </View>
+          ))}
+          <Pressable onPress={() => setExtraForm({ name: '', kcal: '', p: '' })} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 36, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+            <T w="semi" style={{ fontSize: 13, color: t.okText }}>+ سجّل حاجة كلتها</T>
+          </Pressable>
+        </Card>
+      ) : null}
+
+      {canLog ? (
+        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 2 }}>
+          <T w="bold" style={{ fontSize: 14 }}>المكملات</T>
+          {SUPPLEMENTS.map((x) => {
+            const on = !!supps[dayKey(selDate, x.name)];
+            return (
+              <View key={x.name} style={[s.item, { minHeight: 40 }]}>
+                <View style={{ flex: 1 }}>
+                  <T style={{ fontSize: 13.5 }}>{x.name}</T>
+                  <T style={{ fontSize: 11, color: t.mute }} numberOfLines={1}>{x.dose}</T>
+                </View>
+                <Check compact on={on} label={`خدت ${x.name}`} onPress={() => tickSupp(x.name, !on)} />
+              </View>
+            );
+          })}
+        </Card>
+      ) : null}
+
+      <Sheet visible={extraForm != null} onClose={() => setExtraForm(null)} title="أكل برة الخطة" sub="السعرات والبروتين من على العلبة أو بالتقريب">
+        {extraForm ? (
+          <>
+            <TextInput value={extraForm.name} onChangeText={(v) => setExtraForm({ ...extraForm, name: v })} placeholder="إيه اللي كلته؟" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="اسم الأكل" style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body, textAlign: 'right' }]} />
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              {(['kcal', 'p'] as const).map((k) => (
+                <View key={k} style={{ flex: 1, gap: 4 }}>
+                  <T w="medium" style={{ fontSize: 13 }}>{k === 'kcal' ? 'السعرات' : 'البروتين (جم)'}</T>
+                  <TextInput value={extraForm[k]} onChangeText={(v) => setExtraForm({ ...extraForm, [k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })} keyboardType="number-pad" placeholder="–" placeholderTextColor={t.mute} maxLength={5} accessibilityLabel={k === 'kcal' ? 'السعرات' : 'البروتين'} style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.numBold, textAlign: 'center' }]} />
+                </View>
+              ))}
+            </View>
+            <Btn label="ضيفه" kind="solid" onPress={addExtra} />
+          </>
+        ) : null}
+      </Sheet>
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {[['بروتين', t.protein], ['كارب', t.carbs], ['دهون', t.fat], ['خضار', t.veg]].map(([l, c]) => (
@@ -226,7 +304,7 @@ export default function Food() {
               );
             })}
           </View>
-          <T style={{ fontSize: 11.5, color: t.mute }}>{`العمود = الوجبات اللي علّمت عليها · النقطة الزرقا = كمّلت المية (${waterDays} يوم)`}</T>
+          <T style={{ fontSize: 11.5, color: t.mute }}>{`العمود = الوجبات اللي علّمت عليها · النقطة الزرقا = كمّلت المية (${waterDays} يوم)${creatine ? ` · ${creatine}: ${creatineDays} من ${history.length} يوم` : ''}`}</T>
         </Card>
       ) : null}
 
@@ -302,6 +380,7 @@ const s = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   wbtn: { width: 36, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  input: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 15, outlineWidth: 0 },
   wadd: { height: 32, borderRadius: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   swap: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   opt: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minHeight: 48 },

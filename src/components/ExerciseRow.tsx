@@ -6,8 +6,8 @@ import { ALTERNATIVES } from '../data/alternatives';
 import { FORM_VIDEOS } from '../data/videos';
 import { dayKey, lastFor, NOTES_KEY, SWAPS_KEY } from '../lib/journal';
 import { readStrings, writeEntry } from '../lib/meta';
-import { barFor, platesFor } from '../lib/plates';
-import { bestE1rm, countAr, parseNum, SETS, shouldIncrease, type SetEntry } from '../lib/logic';
+import { barFor, platesFor, warmups } from '../lib/plates';
+import { bestE1rm, countAr, increaseTip, parseNum, SETS, type SetEntry } from '../lib/logic';
 import { usePop } from '../lib/motion';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
@@ -26,15 +26,22 @@ type Props = {
   onOpen: () => void;
   /** First row in the list: no divider above it. */
   first: boolean;
+  /** Logging today (not a past day): ticks start the rest timer and save the time. */
+  live: boolean;
   /** `finished`: the open exercise's last set was just ticked, so the list can move on to the next exercise. */
   onChange: (finished: boolean) => void;
 };
-type Row = { kg: string; reps: string; done: boolean };
+type Row = { kg: string; reps: string; done: boolean; rir: number | null; at: number | null };
 type Input = React.ComponentRef<typeof TextInput>;
 /** What the selected set's fields show, and for which set (`at`). */
 type Draft = { at: number; kg: string; reps: string };
 
-const toRow = (s?: SetEntry): Row => ({ kg: s?.kg != null ? String(s.kg) : '', reps: s?.reps != null ? String(s.reps) : '', done: !!s?.done });
+const toRow = (s?: SetEntry): Row => ({ kg: s?.kg != null ? String(s.kg) : '', reps: s?.reps != null ? String(s.reps) : '', done: !!s?.done, rir: s?.rir ?? null, at: s?.at ?? null });
+/** When a set was ticked (only called from the tap handler). */
+const tickTime = () => Date.now();
+/** RIR choices after a set: reps you could still have done (4 = 4 or more). */
+const RIR = [0, 1, 2, 3, 4];
+const rirAr = (n: number) => (n === 0 ? 'فشل' : n >= 4 ? 'فاضل +4' : `فاضل ${n}`);
 const iso = (s: string) => `⁦${s}⁩`;
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
 /** A set can only be ticked with a weight (0 is fine for bodyweight) and at least one rep. */
@@ -65,13 +72,17 @@ function suggest(i: number, rows: Row[], last: SetEntry[] | undefined): Draft {
  * selected set (outlined) has − / + and takes any typed number; tap another row to edit it. ✓ on any row ticks or
  * unticks it, and ticking starts the rest. Closed: small set boxes; finished: one summary line.
  */
-export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onChange }: Props) {
+export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, live, onChange }: Props) {
   const t = useTheme();
   const color = t.muscle[ex.muscle];
   const start = useTimer((s) => s.start);
   const autoRest = useSettings((s) => s.autoRest);
   const weightStep = useSettings((s) => s.weightStep);
   const barKg = useSettings((s) => s.barKg);
+  const askRir = useSettings((s) => s.askRir);
+  // Set just ticked: asks how many reps were left (RIR) until you answer or tick the next one.
+  const [rirAt, setRirAt] = useState<number | null>(null);
+  const [finPending, setFinPending] = useState(false);
   // Swap for today (src/data/alternatives.ts): sets still go on this exercise, but prefill and records only look at the same variant.
   const [swaps] = useState(() => readStrings(SWAPS_KEY));
   const alt = swaps[dayKey(date, ex.id)] ?? null;
@@ -90,7 +101,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
       .filter((h) => h.date < date && (swaps[dayKey(h.date, ex.id)] ?? null) === alt)
       .reduce((m, h) => Math.max(m, bestE1rm(h.sets.filter((x) => x.done))), 0),
   );
-  const [sheet, setSheet] = useState<'swap' | 'plates' | 'note' | null>(null);
+  const [sheet, setSheet] = useState<'swap' | 'plates' | 'note' | 'warm' | null>(null);
   const [note, setNote] = useState(() => readStrings(NOTES_KEY)[ex.id] ?? '');
   const [noteDraft, setNoteDraft] = useState(note);
   // The set being edited: the one you tapped, else the one you're on.
@@ -109,7 +120,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
   const draft = draftState.at === sel ? draftState : suggest(sel, rows, last);
 
   const save = (i: number, r: Row) => {
-    storage.saveSet({ date, weekday, exId: ex.id, idx: i, kg: parseNum(r.kg), reps: parseNum(r.reps), done: r.done ? 1 : 0 });
+    storage.saveSet({ date, weekday, exId: ex.id, idx: i, kg: parseNum(r.kg), reps: parseNum(r.reps), done: r.done ? 1 : 0, rir: r.done ? r.rir : null, at: r.done ? r.at : null });
   };
   const put = (i: number, r: Row) => {
     const next = [...rows];
@@ -159,17 +170,33 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
       return;
     }
     setMissing(null);
-    const r: Row = cur.done ? { ...cur, done: false } : { kg: vals.kg, reps: vals.reps, done: true };
+    const r: Row = cur.done ? { ...cur, done: false, rir: null, at: null } : { kg: vals.kg, reps: vals.reps, done: true, rir: null, at: live ? tickTime() : null };
     const next = put(i, r);
+    setRirAt(r.done && askRir && open ? i : null);
     Keyboard.dismiss();
     setPicked(null); // back to the set you're on
     setDraft(suggest(lineAt(next), next, last));
     tap();
-    if (r.done && autoRest) start(ex.restSec, name);
-    onChange(open && r.done && next.every((x) => x.done));
+    if (r.done && autoRest && live) start(ex.restSec, name);
+    // Last set: the list moves on once you've answered how hard it was (or closed the question).
+    const fin = open && r.done && next.every((x) => x.done);
+    setFinPending(fin && askRir);
+    onChange(fin && !askRir);
   };
 
-  const up = shouldIncrease(ex, last);
+  const tip = increaseTip(ex, last);
+  const up = tip != null;
+  const closeRir = () => {
+    setRirAt(null);
+    setFinPending(false);
+    onChange(finPending);
+  };
+  const setRir = (i: number, n: number) => {
+    put(i, { ...rows[i], rir: n });
+    closeRir();
+  };
+  // Warm-up for heavy lifts, from the first set's weight.
+  const workKg = parseNum(suggest(0, rows, last).kg);
   const range = `${ex.repLow}–${ex.repHigh}`;
   const video = alt ? undefined : FORM_VIDEOS[ex.id];
   const bar = barFor(name, barKg);
@@ -217,6 +244,23 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
             })}
             {doneCount ? <T style={{ fontSize: 12, color: t.warn }}>{`سجلت ${countAr(doneCount, SETS)} النهارده. لو بدّلت هتتحسب على التمرين الجديد.`}</T> : null}
           </Sheet>
+          <Sheet visible={sheet === 'warm'} onClose={() => setSheet(null)} title={`إحماء · ${name}`} sub={workKg ? `قبل أول مجموعة (${iso(fmt(workKg))} كجم). راحة دقيقة بينهم، والإحماء مش بيتسجل` : undefined}>
+            {!workKg ? (
+              <T style={{ color: t.mute }}>اكتب وزن أول مجموعة الأول.</T>
+            ) : (
+              warmups(workKg, bar).map((w, i) => {
+                const load = bar != null ? platesFor(w.kg, bar) : null;
+                return (
+                  <View key={i} style={[s.opt, { backgroundColor: t.soft }]}>
+                    <T w="numBold" style={{ fontSize: 14, minWidth: 80 }}>{iso(`${fmt(w.kg)} × ${w.reps}`)}</T>
+                    <T style={{ flex: 1, fontSize: 12, color: t.mute }} numberOfLines={1}>
+                      {bar != null && w.kg === bar ? 'البار فاضي' : load?.perSide.length ? `كل ناحية: ${iso(load.perSide.map(fmt).join(' + '))}` : ''}
+                    </T>
+                  </View>
+                );
+              })
+            )}
+          </Sheet>
           {bar != null ? <PlatesSheet visible={sheet === 'plates'} onClose={() => setSheet(null)} total={parseNum(draft.kg)} bar={bar} name={name} /> : null}
           <Sheet visible={sheet === 'note'} onClose={() => setSheet(null)} title={`ملاحظة · ${ex.name}`} sub="بتظهرلك كل مرة تفتح التمرين ده (زي رقم الكرسي أو إحساسك)">
             <TextInput
@@ -239,7 +283,11 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
           visible={why}
           onClose={() => setWhy(false)}
           title={<T w="bold" style={{ fontSize: 16, color: t.okText }}>{`زوّد ${weightStep} كجم`}</T>}
-          body={`آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات، فالوزن بقى خفيف عليك. زوّده ${weightStep} كجم المرة دي.`}
+          body={
+            tip === 'easy'
+              ? `آخر مرة كان فاضلك 3 تكرارات أو أكتر في كل المجموعات، فالوزن خفيف عليك. زوّده ${weightStep} كجم المرة دي.`
+              : `آخر مرة وصلت ${ex.repHigh} تكرار في كل المجموعات، فالوزن بقى خفيف عليك. زوّده ${weightStep} كجم المرة دي.`
+          }
         />
       ) : null}
 
@@ -294,7 +342,8 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
                 <T style={{ fontSize: 10.5, color: t.okText }}>فيديو</T>
               </Pressable>
             ) : null}
-            <MetaChip icon="swap-horizontal" label={alt ? 'متبدّل' : 'بدّل'} on={!!alt} a11y={`بدّل ${name} بتمرين تاني النهارده`} onPress={() => setSheet('swap')} />
+            {ex.tag === 'heavy' ? <MetaChip icon="flame-outline" label="إحماء" a11y="مجموعات الإحماء" onPress={() => setSheet('warm')} /> : null}
+            {alts.length || alt ? <MetaChip icon="swap-horizontal" label={alt ? 'متبدّل' : 'بدّل'} on={!!alt} a11y={`بدّل ${name} بتمرين تاني النهارده`} onPress={() => setSheet('swap')} /> : null}
             {bar != null ? <MetaChip icon="barbell-outline" label="طارات" a11y="احسب الطارات" onPress={() => setSheet('plates')} /> : null}
             <MetaChip icon="create-outline" label={note ? undefined : 'ملاحظة'} a11y={note ? 'عدّل الملاحظة' : 'اكتب ملاحظة'} onPress={() => { setNoteDraft(note); setSheet('note'); }} />
             <T style={{ marginStart: 'auto', fontSize: 10.5, color: t.mute }} numberOfLines={1}>
@@ -361,13 +410,39 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, onC
                     style={({ pressed }) => [s.cells, { opacity: pressed ? 0.6 : 1 }]}>
                     <T w="numBold" style={[s.sn, { color: t.mute }]}>{i + 1}</T>
                     <View style={cell}><T w="numBold" style={txt}>{v.kg || '–'}</T></View>
-                    <View style={cell}><T w="numBold" style={txt}>{iso(v.reps || range)}</T></View>
+                    <View style={cell}>
+                      <T w="numBold" style={txt}>
+                        {iso(v.reps || range)}
+                        {r.done && r.rir != null ? <T style={{ fontSize: 10.5, color: t.mute }}>{`  ${rirAr(r.rir)}`}</T> : null}
+                      </T>
+                    </View>
                   </Pressable>
                   <Tick on={r.done} onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
                 </View>
               );
             })}
           </View>
+          {rirAt != null && rows[rirAt]?.done ? (
+            <View style={s.rir}>
+              <T style={{ fontSize: 11.5, color: t.mute }}>{`مجموعة ${rirAt + 1}: كان فاضل كام تكرار؟`}</T>
+              <View style={{ flexDirection: 'row', gap: 5 }}>
+                {RIR.map((n) => (
+                  <Pressable
+                    key={n}
+                    onPress={() => setRir(rirAt, n)}
+                    hitSlop={{ top: 8, bottom: 8 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={n === 0 ? 'وصلت للفشل' : n >= 4 ? 'فاضل 4 أو أكتر' : `فاضل ${n}`}
+                    style={({ pressed }) => [s.rirBtn, { backgroundColor: t.soft, borderColor: tint(color, 0.5), opacity: pressed ? 0.6 : 1 }]}>
+                    <T w="numBold" style={{ fontSize: 13 }}>{n >= 4 ? '+4' : String(n)}</T>
+                  </Pressable>
+                ))}
+                <Pressable onPress={closeRir} hitSlop={8} accessibilityRole="button" accessibilityLabel="مش عايز أسجّل" style={({ pressed }) => [s.rirBtn, { borderColor: 'transparent', opacity: pressed ? 0.6 : 1 }]}>
+                  <Ionicons name="close" size={15} color={t.mute} />
+                </Pressable>
+              </View>
+            </View>
+          ) : null}
         </>
       ) : summary ? null : (
         <View style={s.boxes}>
@@ -547,6 +622,8 @@ const s = StyleSheet.create({
   title: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7 },
   pr: { backgroundColor: '#FFC53D', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 4, marginTop: 3 },
+  rir: { gap: 4, marginTop: 6 },
+  rirBtn: { flex: 1, height: 30, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   opt: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 46, borderRadius: 12, paddingHorizontal: 12 },
   note: { minHeight: 84, borderRadius: 12, padding: 10, fontSize: 14, textAlignVertical: 'top', textAlign: 'right' },
   noteLine: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },

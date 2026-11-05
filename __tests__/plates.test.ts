@@ -1,7 +1,7 @@
 /// <reference types="jest" />
 import { ALL_EXERCISES } from '../src/data/program';
 import { ALTERNATIVES } from '../src/data/alternatives';
-import { barFor, EZ_BAR_KG, platesFor } from '../src/lib/plates';
+import { barFor, EZ_BAR_KG, platesFor, warmups } from '../src/lib/plates';
 
 test('plates per side, heaviest first', () => {
   expect(platesFor(100, 20)).toEqual({ perSide: [25, 15], left: 0 });
@@ -30,4 +30,11 @@ test('alternatives: every program exercise has some, none repeats the exercise i
     expect(new Set(a).size).toBe(a.length);
   }
   expect(Object.keys(ALTERNATIVES).sort()).toEqual(ALL_EXERCISES.map((e) => e.id).sort());
+});
+
+test('warm-up ramp', () => {
+  expect(warmups(100, 20)).toEqual([{ kg: 20, reps: 8 }, { kg: 40, reps: 5 }, { kg: 60, reps: 3 }, { kg: 80, reps: 2 }]);
+  expect(warmups(30, 20)).toEqual([{ kg: 20, reps: 8 }, { kg: 25, reps: 2 }]); // 40% and 60% are under the bar
+  expect(warmups(24, null)).toEqual([{ kg: 10, reps: 5 }, { kg: 14, reps: 3 }, { kg: 19, reps: 2 }]);
+  expect(warmups(20, 20)).toEqual([]);
 });

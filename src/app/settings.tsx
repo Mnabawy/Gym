@@ -2,12 +2,10 @@ import React, { useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { DEFAULT_SETS, MONTHS_AR, PROGRAM, SETS_MAX, SETS_MIN, WEEKDAYS_AR } from '../data/program';
+import { MONTHS_AR, PROGRAM, WEEKDAYS_AR } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { useVersePopup } from '../components/VersePopup';
-import { WorkoutChips } from '../components/WorkoutChips';
 import { countAr, dateKey, DAYS, formatClock, SETS } from '../lib/logic';
-import { currentWorkout, seqIndex } from '../lib/schedule';
 import { storage } from '../lib/storage';
 import { useSettings } from '../lib/settings';
 import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
@@ -16,6 +14,7 @@ import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
 import { BACKUP_STALE_DAYS, backupInfo, LAST_BACKUP_KEY, parseBackup, type BackupInfo } from '../lib/backup';
 import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
+import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { daysBetween } from '../lib/gaps';
 import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
@@ -41,13 +40,7 @@ const infoAr = (i: BackupInfo) =>
 export default function SettingsScreen() {
   const t = useTheme();
   const st = useSettings();
-  // Same workouts and order as the workout tab; opens on the one that's due now.
-  const [due] = useState(() => currentWorkout(storage.trainedDays(), dateKey()).id);
-  const [day, setDay] = useState(due);
   const [confirm, setConfirm] = useState(false);
-  const plan = PROGRAM.find((d) => d.weekday === day)!;
-  const changed = plan.exercises.filter((e) => st.sets[e.id] != null);
-  const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
   const trips = splitShopping(st.shopTrips, undefined, movesFor(tripDays(st.shopTrips).length, st.shopMoves));
   const need = energyFor(st.body);
   useDataVersion((x) => x.v);
@@ -126,47 +119,45 @@ export default function SettingsScreen() {
             </View>
           </View>
         ) : null}
+        <Sep />
+        <SwitchRow
+          label="نسخة تلقائية كل أسبوع"
+          sub={autoSupported ? `بتتحفظ جوه التطبيق (آخر ${AUTO_KEEP} نسخ). اختار فولدر كمان عشان تفضل لو مسحت التطبيق` : 'على الموبايل بس'}
+          value={st.autoBackup}
+          disabled={!autoSupported}
+          onChange={(v) => st.setQuiet({ autoBackup: v })}
+        />
+        {autoSupported && st.autoBackup ? (
+          <>
+            <Sep />
+            <Row label="الفولدر" sub={st.backupDir ? decodeURIComponent(st.backupDir.split('/').pop() ?? '').replace(/^primary:/, '') || 'متحدد' : 'جوه التطبيق بس'}>
+              <Btn label={st.backupDir ? 'غيّر' : 'اختار'} onPress={() => run(async () => { const d = await pickBackupDir(); if (d) { st.setQuiet({ backupDir: d }); await runAutoBackup(true); useDataVersion.getState().bump(); setMsg({ text: 'اتحفظت نسخة في الفولدر ✓' }); } })} />
+            </Row>
+            {storage.getMeta(AUTO_ERROR_KEY) ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 8 }}>معرفتش أكتب في الفولدر آخر مرة. اختاره تاني.</T> : null}
+            {listAutoBackups().length ? (
+              <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
+                <T style={{ color: t.mute, fontSize: 12.5 }}>{`النسخ التلقائية (كل ${AUTO_DAYS} أيام):`}</T>
+                {listAutoBackups().map((f) => (
+                  <View key={f.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <T style={{ flex: 1, fontSize: 13 }}>{dayAr(f.date)}</T>
+                    <Btn label="رجّعها" onPress={() => run(async () => load(await readAutoBackup(f.name)))} />
+                  </View>
+                ))}
+              </View>
+            ) : null}
+          </>
+        ) : null}
         {msg ? <T accessibilityLiveRegion="polite" style={{ color: msg.bad ? t.bad : t.okText, fontSize: 13, paddingHorizontal: 14, paddingBottom: 12 }}>{msg.text}</T> : null}
       </Card>
 
-      <Label>عدد المجموعات لكل تمرين</Label>
-      <Card>
-        <View style={{ padding: 10, paddingBottom: 6 }}>
-          <WorkoutChips value={day} current={due} onChange={setDay} />
-        </View>
-        <View style={{ paddingHorizontal: 14, paddingBottom: 8, gap: 1 }}>
-          <T style={{ color: t.mute, fontSize: 12.5 }}>{`تمرين ${seqIndex(day) + 1} من ${PROGRAM.length} · ${plan.exercises.length} تمارين · ${total} مجموعة`}</T>
-          <T w="bold" style={{ fontSize: 16 }}>{plan.titleAr}</T>
-        </View>
-        {plan.exercises.map((e) => {
-          const base = DEFAULT_SETS[e.id];
-          const diff = e.sets !== base;
-          return (
-            <React.Fragment key={e.id}>
-              <Sep />
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8, minHeight: 56 }}>
-                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.muscle[e.muscle] }} />
-                <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
-                  <T w="num" style={{ fontSize: 14.5 }} numberOfLines={2}>{e.name}</T>
-                  <T style={{ color: t.mute, fontSize: 12 }}>
-                    {`${e.repLow}–${e.repHigh} تكرار`}
-                    {diff ? <T style={{ color: t.okText, fontSize: 12 }}>{` · الأصلي ${base} مجموعات`}</T> : null}
-                  </T>
-                </View>
-                <Stepper value={e.sets} min={SETS_MIN} max={SETS_MAX} onChange={(v) => st.setSets(e.id, v)} label={`مجموعات ${e.name}`} />
-              </View>
-            </React.Fragment>
-          );
-        })}
-        {changed.length ? (
-          <>
-            <Sep />
-            <View style={{ padding: 12 }}>
-              <Btn label="رجّع التمرين ده للأصلي" onPress={() => changed.forEach((e) => st.setSets(e.id, DEFAULT_SETS[e.id]))} />
-            </View>
-          </>
-        ) : null}
-      </Card>
+      <Label>البرنامج</Label>
+      <Pressable onPress={() => router.push('/program')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+        <Card>
+          <Row label="عدّل البرنامج" sub={`التمارين والمجموعات والتكرارات · ${PROGRAM.length} أيام · ${PROGRAM.reduce((n, d) => n + d.exercises.length, 0)} تمرين${storage.getMeta('program') ? ' · متعدّل' : ''}`}>
+            <Ionicons name="chevron-back" size={20} color={t.mute} />
+          </Row>
+        </Card>
+      </Pressable>
 
       <Label>الراحة</Label>
       <Card>
@@ -201,6 +192,14 @@ export default function SettingsScreen() {
           ))}
         </View>
         <T style={{ color: t.mute, fontSize: 12 }}>البار الأولمبي العادي 20 كجم. بار الـ EZ محسوب 10 كجم.</T>
+      </Card>
+      <Card>
+        <SwitchRow
+          label="اسألني كان فاضل كام تكرار"
+          sub="بعد كل مجموعة (RIR). لو كان فاضلك 3 أو أكتر في كل المجموعات، التطبيق يقولك تزوّد الوزن حتى لو ما وصلتش لآخر التكرارات"
+          value={st.askRir}
+          onChange={(v) => st.setQuiet({ askRir: v })}
+        />
       </Card>
 
       <Label>تذكير التمرين</Label>

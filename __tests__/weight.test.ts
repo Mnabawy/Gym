@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addWeighIn, parseWeights, rateBand, rateVerdict, removeWeighIn, weeklyRate } from '../src/lib/weight';
+import { addMeasure, addWeighIn, measureChange, parseMeasures, parseWeights, rateBand, rateVerdict, removeWeighIn, waistNote, weeklyRate } from '../src/lib/weight';
 
 test('parse keeps valid weigh-ins in date order, one per day', () => {
   const raw = JSON.stringify([{ date: '2026-11-03', kg: 82 }, { date: '2026-11-01', kg: 81.5 }, { date: 'x', kg: 80 }, { date: '2026-11-02', kg: 900 }, { date: '2026-11-03', kg: 82.4 }]);
@@ -35,4 +35,25 @@ test('verdict against the goal band', () => {
   expect(rateVerdict(-0.2, 'cut', 80).level).toBe('slow');
   expect(rateVerdict(-1.2, 'cut', 80).level).toBe('fast');
   expect(rateVerdict(0, 'maintain', 80).level).toBe('ok');
+});
+
+describe('measurements', () => {
+  test('parse, add (one per date, 0.5 cm) and change', () => {
+    let l = parseMeasures(JSON.stringify([{ date: '2026-10-01', waist: 84, arm: 'x' }, { date: 'bad', waist: 80 }, { date: '2026-10-02' }]));
+    expect(l).toEqual([{ date: '2026-10-01', waist: 84 }]);
+    l = addMeasure(l, { date: '2026-11-01', waist: 85.26, arm: 38 });
+    expect(l[1]).toEqual({ date: '2026-11-01', waist: 85.5, arm: 38 });
+    expect(measureChange(l, 'waist')).toEqual({ last: 85.5, change: 1.5, since: '2026-10-01' });
+    expect(measureChange(l, 'arm')).toEqual({ last: 38, change: null, since: '2026-11-01' });
+    expect(measureChange(l, 'neck')).toBeNull();
+    expect(addMeasure(l, { date: '2026-11-01' })).toHaveLength(1); // empty entry removes that date
+  });
+  test('waist note on a bulk', () => {
+    const fast = [{ date: '2026-10-01', waist: 84 }, { date: '2026-10-31', waist: 86 }];
+    const slow = [{ date: '2026-10-01', waist: 84 }, { date: '2026-10-31', waist: 84.5 }];
+    expect(waistNote(fast, 'bulk')).toMatch(/دهون/);
+    expect(waistNote(slow, 'bulk')).toMatch(/✓/);
+    expect(waistNote([fast[0]], 'bulk')).toBeNull();
+    expect(waistNote([{ date: '2026-10-01', waist: 84 }, { date: '2026-10-05', waist: 90 }], 'bulk')).toBeNull(); // too close
+  });
 });

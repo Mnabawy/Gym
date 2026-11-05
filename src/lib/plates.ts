@@ -32,6 +32,23 @@ export function barFor(name: string, olympicKg: number): number | null {
   return b === 'olympic' ? olympicKg : b === 'ez' ? EZ_BAR_KG : null;
 }
 
+/**
+ * Warm-up sets before a heavy work weight: the empty bar, then about 40%, 60% and 80% of it with fewer reps each time
+ * (the usual ramp, e.g. Rippetoe's Starting Strength, Helms' Muscle & Strength Pyramids). Rounded to what you can load
+ * (2.5 kg with a bar, 1 kg for dumbbells/machines); steps that round to the same weight or to the work weight are dropped.
+ */
+export function warmups(work: number, bar: number | null): { kg: number; reps: number }[] {
+  const step = bar != null ? 2.5 : 1;
+  const out: { kg: number; reps: number }[] = [];
+  if (bar != null && bar < work) out.push({ kg: bar, reps: 8 });
+  for (const [f, reps] of [[0.4, 5], [0.6, 3], [0.8, 2]] as const) {
+    const kg = Math.round((work * f) / step) * step;
+    const prev = out[out.length - 1]?.kg ?? bar ?? 0; // never lighter than the bar itself
+    if (kg > prev && kg < work && kg > 0) out.push({ kg: Math.round(kg * 100) / 100, reps });
+  }
+  return out;
+}
+
 export type Load = { perSide: number[]; /** kg (total, both sides) that can't be made with the plates */ left: number };
 
 /** Plates per side, heaviest first, for a total weight including the bar. Null when the total is less than the bar. */

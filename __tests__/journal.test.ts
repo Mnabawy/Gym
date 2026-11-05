@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { adherence, dayKey, foodHistory, lastFor, parseMap, prune, waterGoalMl } from '../src/lib/journal';
+import { adherence, dayKey, extrasTotal, foodHistory, lastFor, parseExtras, parseMap, prune, waterGoalMl } from '../src/lib/journal';
 
 const set = (kg: number | null, reps: number | null, done = true) => ({ kg, reps, done });
 
@@ -49,4 +49,11 @@ test('food history starts at the first log and counts meals and water', () => {
   expect(adherence(h, 5, '2026-11-05')).toBeCloseTo(3 / 15);
   expect(foodHistory([], {}, '2026-11-05')).toEqual([]);
   expect(adherence([], 5, '2026-11-05')).toBeNull();
+});
+
+test('extras keep valid entries and round', () => {
+  const raw = JSON.stringify({ '2026-11-05': [{ name: 'شاورما', kcal: 650.4, p: 30.6 }, { name: 'x', kcal: -1, p: 0 }, { name: 2, kcal: 1, p: 1 }], bad: [{ name: 'y', kcal: 1, p: 1 }] });
+  expect(parseExtras(raw)).toEqual({ '2026-11-05': [{ name: 'شاورما', kcal: 650, p: 31 }] });
+  expect(extrasTotal([{ name: 'a', kcal: 100, p: 5 }, { name: 'b', kcal: 50, p: 2 }])).toEqual({ kcal: 150, p: 7 });
+  expect(parseExtras('oops')).toEqual({});
 });

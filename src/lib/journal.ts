@@ -91,3 +91,27 @@ export function adherence(days: readonly DayFood[], perDay: number, today: strin
   if (!counted.length) return null;
   return counted.reduce((a, d) => a + Math.min(perDay, d.meals), 0) / (counted.length * perDay);
 }
+
+/** Food outside the plan, per date (meta `extras`): what you ate, its calories and protein. */
+export const EXTRAS_KEY = 'extras';
+export const SUPPS_KEY = 'supps';
+export type Extra = { name: string; kcal: number; p: number };
+
+export function parseExtras(raw: string | null): Record<string, Extra[]> {
+  const out: Record<string, Extra[]> = {};
+  let v: unknown;
+  try {
+    v = raw ? JSON.parse(raw) : null;
+  } catch {
+    return out;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [date, list] of Object.entries(v as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Array.isArray(list)) continue;
+    const ok = list.filter((x): x is Extra => !!x && typeof x === 'object' && typeof x.name === 'string' && typeof x.kcal === 'number' && x.kcal >= 0 && x.kcal <= 5000 && typeof x.p === 'number' && x.p >= 0 && x.p <= 500);
+    if (ok.length) out[date] = ok.map((x) => ({ name: x.name, kcal: Math.round(x.kcal), p: Math.round(x.p) }));
+  }
+  return out;
+}
+
+export const extrasTotal = (list: readonly Extra[] = []) => list.reduce((a, x) => ({ kcal: a.kcal + x.kcal, p: a.p + x.p }), { kcal: 0, p: 0 });

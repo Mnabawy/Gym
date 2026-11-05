@@ -38,3 +38,12 @@ test('swapped days are not records and do not set the bar', () => {
   const more = [...rows, r('2026-10-30', 'deadlift', 0, 200, 5)];
   expect(sessionSummary(more, '2026-11-03', 1, new Set(['2026-10-30|deadlift'])).prs).toEqual(['deadlift']);
 });
+
+test('session length from tick times', () => {
+  const T = 1_800_000_000_000;
+  const timed = [r('2026-11-10', 'deadlift', 0, 100, 5), r('2026-11-10', 'deadlift', 1, 100, 5), r('2026-11-10', 'deadlift', 2, 100, 5)].map((x, i) => ({ ...x, at: T + i * 150_000 }));
+  const s = sessionSummary(timed, '2026-11-10', 1);
+  expect(s.minutes).toBe(6); // 5 min between first and last tick + 1
+  expect(s.gapSec).toBe(150);
+  expect(sessionSummary(rows, '2026-11-03', 1).minutes).toBeNull();
+});

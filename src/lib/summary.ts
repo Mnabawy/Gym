@@ -14,6 +14,10 @@ export type Summary = {
   prev: { date: string; volume: number } | null;
   /** Volume change from `prev`, as a fraction (0.05 = +5%). */
   change: number | null;
+  /** First tick to last, plus a minute for the first set; null until 2 sets have a time (sets logged for a past day don't). */
+  minutes: number | null;
+  /** Average time between ticks, in seconds (rest + the set itself). */
+  gapSec: number | null;
 };
 
 const vol = (rows: readonly SetRow[]) => rows.reduce((a, r) => a + (r.kg ?? 0) * (r.reps ?? 0), 0);
@@ -36,6 +40,8 @@ export function sessionSummary(all: readonly SetRow[], date: string, weekday: nu
     if (b && epley(r.kg, r.reps) > b) prs.add(r.exId);
   }
 
+  const times = today.map((r) => r.at).filter((x): x is number => typeof x === 'number').sort((a, b) => a - b);
+  const span = times.length >= 2 ? times[times.length - 1] - times[0] : null;
   const volume = vol(today);
   const prev = prevDate ? { date: prevDate, volume: vol(before.filter((r) => r.date === prevDate)) } : null;
   return {
@@ -45,5 +51,7 @@ export function sessionSummary(all: readonly SetRow[], date: string, weekday: nu
     prs: [...prs],
     prev: prev ? { ...prev, volume: Math.round(prev.volume) } : null,
     change: prev && prev.volume > 0 ? (volume - prev.volume) / prev.volume : null,
+    minutes: span != null ? Math.round(span / 60000) + 1 : null,
+    gapSec: span != null ? Math.round(span / 1000 / (times.length - 1)) : null,
   };
 }

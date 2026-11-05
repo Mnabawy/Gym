@@ -32,8 +32,11 @@ export const WEEKDAYS_AR = ['الحد', 'الاتنين', 'التلات', 'ال�
 export const WEEKDAY_LETTERS_AR = ['ح', 'ن', 'ت', 'ر', 'خ', 'ج', 'س'];
 export const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 
+/** Exercise id from its name ("Barbell Row" → "barbell-row"). Logged sets keep the id, so a renamed exercise keeps its history. */
+export const slug = (name: string) => name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'exercise';
+
 const ex = (name: string, muscle: Muscle, sets: number, repLow: number, repHigh: number, tag: Tag = null, perLeg = false): Exercise => ({
-  id: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
+  id: slug(name),
   name,
   muscle,
   sets,
@@ -107,15 +110,27 @@ export const PROGRAM: Day[] = [
 export const dayFor = (weekday: number): Day | undefined => PROGRAM.find((d) => d.weekday === weekday);
 /** Training weekdays, in program order. */
 export const PLAN_WEEKDAYS = PROGRAM.map((d) => d.weekday);
+
+/** An exercise as written in the program (without the rest time, which comes from the settings). */
+export type ExerciseDef = Omit<Exercise, 'restSec'>;
+/** Your own program (edited at /program, src/lib/programEdit.ts): exercises per program day; a missing day keeps the PDF's. */
+export type ProgramEdit = Record<number, ExerciseDef[]>;
+
+const toDef = ({ restSec: _r, ...d }: Exercise): ExerciseDef => ({ ...d });
+/** The program as written in the PDF, before any edit. */
+export const PDF_PROGRAM: Readonly<Record<number, readonly ExerciseDef[]>> = Object.fromEntries(PROGRAM.map((d) => [d.weekday, d.exercises.map(toDef)]));
+/** Program days you can't change: their ids are stored with every logged set (Day.weekday). */
+export const PDF_TITLES: Readonly<Record<number, string>> = Object.fromEntries(PROGRAM.map((d) => [d.weekday, d.titleAr]));
 /** Muscles trained on a weekday, in order, without repeats. */
 export const dayMuscles = (weekday: number): Muscle[] => [...new Set((dayFor(weekday)?.exercises ?? []).map((e) => e.muscle))];
+/** Every exercise in the current program (updated in place by applyProgram). */
 export const ALL_EXERCISES: Exercise[] = PROGRAM.flatMap((d) => d.exercises);
 export const exerciseById = (id: string) => ALL_EXERCISES.find((e) => e.id === id);
 /** Program day an exercise belongs to. */
 export const dayOfExercise = (id: string) => PROGRAM.find((d) => d.exercises.some((e) => e.id === id));
 
-/** Sets per exercise as written in the PDF, before any change from the settings page. */
-export const DEFAULT_SETS: Readonly<Record<string, number>> = Object.fromEntries(ALL_EXERCISES.map((e) => [e.id, e.sets]));
+/** Sets per exercise as the program writes them (the PDF, or your edited program), before the settings' changes. Updated in place by applyProgram. */
+export const DEFAULT_SETS: Record<string, number> = Object.fromEntries(ALL_EXERCISES.map((e) => [e.id, e.sets]));
 export const DEFAULT_REST = { heavy: 150, normal: 90 } as const;
 export const SETS_MIN = 1;
 export const SETS_MAX = 8;
@@ -132,4 +147,18 @@ export function applyPlan(p: PlanSettings): void {
     e.sets = Math.min(SETS_MAX, Math.max(SETS_MIN, Math.round(n)));
     e.restSec = e.tag === 'heavy' ? p.restHeavy : p.restNormal;
   }
+}
+
+/**
+ * Puts your edited program (or the PDF's, for `null` or a missing day) into PROGRAM, ALL_EXERCISES and DEFAULT_SETS
+ * in place, so every screen reads it. Call applyPlan afterwards for sets overrides and rest. Done by src/lib/settings.ts.
+ */
+export function applyProgram(edit: ProgramEdit | null): void {
+  for (const d of PROGRAM) {
+    const defs = edit?.[d.weekday] ?? PDF_PROGRAM[d.weekday];
+    d.exercises.splice(0, d.exercises.length, ...defs.map((x) => ({ ...x, restSec: x.tag === 'heavy' ? DEFAULT_REST.heavy : DEFAULT_REST.normal })));
+  }
+  ALL_EXERCISES.splice(0, ALL_EXERCISES.length, ...PROGRAM.flatMap((d) => d.exercises));
+  for (const k of Object.keys(DEFAULT_SETS)) delete DEFAULT_SETS[k];
+  for (const e of ALL_EXERCISES) DEFAULT_SETS[e.id] = e.sets;
 }

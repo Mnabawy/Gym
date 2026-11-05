@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
-import { Btn, Card, Label, Screen, Sep, T } from '../components/ui';
+import { Btn, Card, Label, Screen, Sep, Sheet, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { GOAL } from '../lib/energy';
 import { dateKey, parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
-import { addWeighIn, parseWeights, rateBand, rateVerdict, removeWeighIn, validWeight, weeklyRate, WEIGHTS_KEY, type WeighIn } from '../lib/weight';
+import { addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
+import { addPhoto, deletePhoto, listPhotos, photosSupported, type Photo } from '../lib/photos';
 import { F, useTheme } from '../theme';
 
 const iso = (s: string) => `⁦${s}⁩`;
@@ -52,8 +53,37 @@ export default function WeightScreen() {
   const first = list[0];
   const shown = list.slice().reverse().slice(0, all ? undefined : 10);
 
+  // Measurements
+  const measures = parseMeasures(storage.getMeta(MEASURES_KEY));
+  const [mForm, setMForm] = useState<Record<Part, string> | null>(null);
+  const openMeasure = () => {
+    const cur = measures.find((m) => m.date === today);
+    setMForm(Object.fromEntries(PARTS.map((p) => [p.k, cur?.[p.k] != null ? String(cur[p.k]) : ''])) as Record<Part, string>);
+  };
+  const saveMeasure = () => {
+    if (!mForm) return;
+    const m: Measure = { date: today };
+    for (const p of PARTS) {
+      const v = parseNum(mForm[p.k]);
+      if (v != null) m[p.k] = v;
+    }
+    storage.setMeta(MEASURES_KEY, JSON.stringify(addMeasure(measures, m)));
+    setMForm(null);
+    bump();
+  };
+  const note = waistNote(measures, body.goal);
+
+  // Photos (phone only)
+  const [photos, setPhotos] = useState<Photo[]>(() => (photosSupported ? listPhotos() : []));
+  const [view, setView] = useState<Photo | 'compare' | null>(null);
+  const take = async (from: 'camera' | 'library') => {
+    try {
+      if (await addPhoto(from)) setPhotos(listPhotos());
+    } catch {}
+  };
+
   return (
-    <Screen title="وزنك" sub="اتوزن الصبح بعد الحمام وقبل الأكل، نفس الميزان" onBack={() => router.back()}>
+    <Screen title="وزنك والقياسات" sub="اتوزن الصبح بعد الحمام وقبل الأكل، نفس الميزان" onBack={() => router.back()}>
       <Card style={{ padding: 14, gap: 10 }}>
         <T w="medium">{todays ? 'وزن النهارده (تقدر تعدّله)' : 'سجّل وزن النهارده'}</T>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
@@ -136,6 +166,96 @@ export default function WeightScreen() {
           </Card>
         </>
       ) : null}
+
+      <Label>القياسات (سم)</Label>
+      <Card>
+        {measures.length ? (
+          PARTS.map((p, i) => {
+            const c = measureChange(measures, p.k);
+            return (
+              <React.Fragment key={p.k}>
+                {i ? <Sep /> : null}
+                <View style={s.row}>
+                  <T style={{ flex: 1, fontSize: 13.5 }}>{p.label}</T>
+                  {c?.change != null ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{`${iso(signed(c.change))} من ${dayLabel(c.since)}`}</T> : null}
+                  <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{c ? iso(fmt(c.last)) : '–'}</T>
+                </View>
+              </React.Fragment>
+            );
+          })
+        ) : (
+          <T style={{ color: t.mute, fontSize: 13, padding: 14 }}>الوزن لوحده مش بيقول الزيادة عضل ولا دهون. قيس كل أسبوعين لـ 4 أسابيع، نفس الوقت ونفس المكان.</T>
+        )}
+        {note ? <T style={{ fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 6, color: note.includes('✓') ? t.okText : t.warn }}>{note}</T> : null}
+        <View style={{ padding: 10 }}>
+          <Btn label={measures.some((m) => m.date === today) ? 'عدّل قياسات النهارده' : 'سجّل قياسات النهارده'} onPress={openMeasure} />
+        </View>
+      </Card>
+
+      <Label>صور التقدم</Label>
+      <Card style={{ padding: 12, gap: 10 }}>
+        {!photosSupported ? (
+          <T style={{ color: t.mute, fontSize: 13 }}>الصور على الموبايل بس.</T>
+        ) : (
+          <>
+            <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>نفس الإضاءة والمكان والوقفة كل مرة. الصور بتفضل على الموبايل بس ومش بتدخل في النسخة الاحتياطية.</T>
+            {photos.length ? (
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 8 }}>
+                {photos.slice().reverse().map((p) => (
+                  <Pressable key={p.name} onPress={() => setView(p)} accessibilityRole="imagebutton" accessibilityLabel={`صورة ${dayLabel(p.date)}`} style={{ gap: 3, alignItems: 'center' }}>
+                    <Image source={{ uri: p.uri }} style={[s.thumb, { backgroundColor: t.soft }]} />
+                    <T style={{ fontSize: 11, color: t.mute }}>{dayLabel(p.date)}</T>
+                  </Pressable>
+                ))}
+              </ScrollView>
+            ) : null}
+            <View style={{ flexDirection: 'row', gap: 8 }}>
+              <Btn label="صوّر" kind="solid" style={{ flex: 1 }} onPress={() => take('camera')} />
+              <Btn label="من المعرض" style={{ flex: 1 }} onPress={() => take('library')} />
+            </View>
+            {photos.length >= 2 ? <Btn label="قارن أول صورة بآخر صورة" onPress={() => setView('compare')} /> : null}
+          </>
+        )}
+      </Card>
+
+      <Sheet visible={mForm != null} onClose={() => setMForm(null)} title="قياسات النهارده" sub="بالسنتيمتر. سيب اللي مش هتقيسه فاضي">
+        {mForm
+          ? PARTS.map((p) => (
+              <View key={p.k} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+                <View style={{ flex: 1 }}>
+                  <T w="medium">{p.label}</T>
+                  <T style={{ fontSize: 11.5, color: t.mute }}>{p.hint}</T>
+                </View>
+                <TextInput
+                  value={mForm[p.k]}
+                  onChangeText={(v) => setMForm({ ...mForm, [p.k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })}
+                  keyboardType="decimal-pad"
+                  placeholder="–"
+                  placeholderTextColor={t.mute}
+                  maxLength={5}
+                  accessibilityLabel={`${p.label} بالسنتيمتر`}
+                  style={[s.small, { color: t.fg, backgroundColor: t.soft }]}
+                />
+              </View>
+            ))
+          : null}
+        <Btn label="احفظ" kind="solid" onPress={saveMeasure} />
+      </Sheet>
+
+      <Sheet visible={view != null} onClose={() => setView(null)} title={view === 'compare' ? `${dayLabel(photos[0]?.date ?? today)} ← ${dayLabel(photos[photos.length - 1]?.date ?? today)}` : view ? dayLabel(view.date) : ''}>
+        {view === 'compare' ? (
+          <View style={{ flexDirection: 'row', gap: 6 }}>
+            {[photos[0], photos[photos.length - 1]].map((p) => (
+              <Image key={p.name} source={{ uri: p.uri }} style={{ flex: 1, aspectRatio: 3 / 4, borderRadius: 10 }} resizeMode="cover" />
+            ))}
+          </View>
+        ) : view ? (
+          <>
+            <Image source={{ uri: view.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 12 }} resizeMode="contain" />
+            <Btn label="امسح الصورة" onPress={() => { deletePhoto(view); setPhotos(listPhotos()); setView(null); }} />
+          </>
+        ) : null}
+      </Sheet>
     </Screen>
   );
 }
@@ -144,4 +264,6 @@ const s = StyleSheet.create({
   field: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 12 },
   input: { flex: 1, fontFamily: F.numBold, fontSize: 18, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46, paddingHorizontal: 14 },
+  small: { width: 80, height: 42, borderRadius: 10, fontFamily: F.numBold, fontSize: 15, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
+  thumb: { width: 84, height: 112, borderRadius: 10 },
 });

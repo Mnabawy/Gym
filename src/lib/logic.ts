@@ -2,7 +2,8 @@
 import type { Exercise } from '../data/program';
 import { FOODS } from '../data/nutrition';
 
-export type SetEntry = { kg: number | null; reps: number | null; done: boolean };
+/** `rir`: reps you had left in the tank (0 = failure), if you said. `at`: when it was ticked (ms), for session length. */
+export type SetEntry = { kg: number | null; reps: number | null; done: boolean; rir?: number | null; at?: number | null };
 
 /** Local calendar date as YYYY-MM-DD. */
 export function dateKey(d: Date = new Date()): string {
@@ -66,11 +67,24 @@ export function shopWeekKey(d: Date = new Date()): string {
   return dateKey(x);
 }
 
-/** Suggest adding weight when every set of the last session hit the top of the rep range. */
-export function shouldIncrease(ex: Exercise, last: SetEntry[] | undefined): boolean {
-  if (!last || last.length < ex.sets) return false;
-  return last.slice(0, ex.sets).every((s) => (s.reps ?? 0) >= ex.repHigh && (s.kg ?? 0) > 0);
+/** RIR at or above this on every set (while in the rep range) means the weight is too light. */
+export const EASY_RIR = 3;
+
+/**
+ * Why to add weight this time, from the last session: 'top' = every set hit the top of the rep range; 'easy' = every
+ * set was in the range with EASY_RIR+ reps left (RIR-based progression: Helms et al. 2016, Zourdos et al. 2016). Else null.
+ */
+export function increaseTip(ex: Exercise, last: SetEntry[] | undefined): 'top' | 'easy' | null {
+  if (!last || last.length < ex.sets) return null;
+  const sets = last.slice(0, ex.sets);
+  if (!sets.every((s) => (s.kg ?? 0) > 0)) return null;
+  if (sets.every((s) => (s.reps ?? 0) >= ex.repHigh)) return 'top';
+  if (sets.every((s) => s.rir != null && s.rir >= EASY_RIR && (s.reps ?? 0) >= ex.repLow)) return 'easy';
+  return null;
 }
+
+/** Suggest adding weight (see increaseTip). */
+export const shouldIncrease = (ex: Exercise, last: SetEntry[] | undefined): boolean => increaseTip(ex, last) != null;
 
 /** Epley estimated 1RM. */
 export function epley(kg: number, reps: number): number {

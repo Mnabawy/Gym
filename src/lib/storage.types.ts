@@ -1,7 +1,7 @@
 import type { SetEntry } from './logic';
 
 export type TrainedDay = { date: string; weekdays: number[]; sets: number };
-export type SetRow = { date: string; weekday: number; exId: string; idx: number; kg: number | null; reps: number | null; done: number };
+export type SetRow = { date: string; weekday: number; exId: string; idx: number; kg: number | null; reps: number | null; done: number; rir?: number | null; at?: number | null };
 export type MealCheck = { date: string; meal: string };
 export type ShopCheck = { week: string; item: string };
 /** Everything the app saved, for the backup file (src/lib/backup.ts). */
@@ -42,9 +42,9 @@ export interface Storage {
   restore(d: Dump): void;
 }
 
-export function rowsToSets(rows: { idx: number; kg: number | null; reps: number | null; done: number }[]): SetEntry[] {
+export function rowsToSets(rows: { idx: number; kg: number | null; reps: number | null; done: number; rir?: number | null; at?: number | null }[]): SetEntry[] {
   const out: SetEntry[] = [];
-  for (const r of rows) out[r.idx] = { kg: r.kg, reps: r.reps, done: !!r.done };
+  for (const r of rows) out[r.idx] = { kg: r.kg, reps: r.reps, done: !!r.done, rir: r.rir ?? null, at: r.at ?? null };
   for (let i = 0; i < out.length; i++) if (!out[i]) out[i] = { kg: null, reps: null, done: false };
   return out;
 }

@@ -1,21 +1,21 @@
 import React, { useCallback, useState } from 'react';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { dayFor, exerciseById } from '../../data/program';
+import { dayFor, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
 import { ExerciseRow } from '../../components/ExerciseRow';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
 import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
-import { Btn, Card, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, HeaderBtn, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
-import { dateKey } from '../../lib/logic';
+import { dateKey, formatClock, weekdayOf } from '../../lib/logic';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { useSettings } from '../../lib/settings';
 import { useDataVersion } from '../../lib/bus';
 import { BACKUP_STALE_DAYS, LAST_BACKUP_KEY } from '../../lib/backup';
-import { daysBetween } from '../../lib/gaps';
+import { addDays, daysBetween } from '../../lib/gaps';
 import { SWAPS_KEY, swappedSet } from '../../lib/journal';
 import { readStrings } from '../../lib/meta';
 import { sessionSummary } from '../../lib/summary';
@@ -39,9 +39,21 @@ export default function Workout() {
   );
 }
 
+/** How far back you can log a day you forgot. */
+const BACK_DAYS = 14;
+const dayName = (k: string, today: string) => {
+  const back = daysBetween(k, today);
+  return back === 0 ? 'النهارده' : back === 1 ? 'امبارح' : `${WEEKDAYS_AR[weekdayOf(k)]} ${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
+};
+
 function WorkoutScreen() {
   const t = useTheme();
-  const date = dateKey();
+  const today = dateKey();
+  // A past day you're logging (or fixing); null = today. Picked from the calendar button in the header.
+  const [view, setView] = useState<string | null>(null);
+  const [choosing, setChoosing] = useState(false);
+  const date = view && view < today ? view : today;
+  const live = date === today;
   const [picked, setPicked] = useState<{ date: string; id: number } | null>(null);
   const [confirm, setConfirm] = useState(false);
   const { cards, bump, bumpAll } = useDataVersion();
@@ -81,10 +93,39 @@ function WorkoutScreen() {
 
   return (
     <Screen
-      title="تمرين النهارده"
+      title={live ? 'تمرين النهارده' : `تمرين ${dayName(date, today)}`}
       dense
       footer={<TimerBar />}
-      action={<MenuButton />}>
+      action={
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          <HeaderBtn icon="calendar-outline" label="سجّل ليوم فات" onPress={() => setChoosing(true)} />
+          <MenuButton />
+        </View>
+      }>
+      <Sheet visible={choosing} onClose={() => setChoosing(false)} title="سجّل أو عدّل يوم فات" sub="لو نسيت تسجّل أو عايز تصلّح رقم. الترتيب بيمشي على حسب اللي اتسجل">
+        {Array.from({ length: BACK_DAYS + 1 }, (_, i) => addDays(today, -i)).map((k) => {
+          const logged = storage.trainedDays().find((d) => d.date === k);
+          const on = k === date;
+          return (
+            <Pressable
+              key={k}
+              onPress={() => { setChoosing(false); setView(k === today ? null : k); setPicked(null); setTapped(null); setConfirm(false); }}
+              accessibilityRole="button"
+              accessibilityState={{ selected: on }}
+              style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 12, paddingHorizontal: 12, backgroundColor: on ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 })}>
+              <T w="semi" style={{ flex: 1, fontSize: 14 }}>{dayName(k, today)}</T>
+              <T style={{ fontSize: 12, color: logged ? t.okText : t.mute }}>{logged ? `${logged.weekdays.map((w) => dayFor(w)?.titleAr).filter(Boolean).join(' + ')} · ${logged.sets} مجموعة` : 'مفيش تسجيل'}</T>
+            </Pressable>
+          );
+        })}
+      </Sheet>
+      {!live ? (
+        <Pressable onPress={() => setView(null)} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12, opacity: pressed ? 0.7 : 1 })}>
+          <Ionicons name="time-outline" size={15} color={t.warn} />
+          <T w="medium" style={{ color: t.warn, fontSize: 13, flex: 1 }}>{`بتسجّل ليوم ${dayName(date, today)} · عداد الراحة مقفول`}</T>
+          <T w="semi" style={{ color: t.warn, fontSize: 13 }}>ارجع للنهارده</T>
+        </Pressable>
+      ) : null}
       <WorkoutChips dense value={sel} current={cur.id} onChange={pick} />
 
       <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
@@ -96,7 +137,7 @@ function WorkoutScreen() {
           <T w="num" style={{ color: t.mute, fontSize: 12 }}>{`\u2066${done} / ${total}\u2069 مجموعة · \u2066${minutes}\u2069 د`}</T>
         </View>
       </Card>
-      {finished ? <DoneCard date={date} weekday={sel} next={dayFor(after(cur.id))?.titleAr ?? ''} /> : null}
+      {finished ? <DoneCard date={date} weekday={sel} next={live ? dayFor(after(cur.id))?.titleAr ?? '' : null} /> : null}
       {sel !== cur.id ? (
         <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
           <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
@@ -111,6 +152,7 @@ function WorkoutScreen() {
             date={date}
             weekday={sel}
             first={pos === 0}
+            live={live}
             open={e.id === openId}
             onOpen={() => openOne(e.id)}
             onChange={(fin) => {
@@ -124,9 +166,21 @@ function WorkoutScreen() {
           />
         ))}
       </Card>
+      {live && weekdayOf(today) === 5 ? (
+        <Pressable onPress={() => router.push('/week')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
+          <Card style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Ionicons name="document-text-outline" size={20} color={t.okText} />
+            <View style={{ flex: 1 }}>
+              <T w="semi" style={{ fontSize: 14 }}>تقرير الأسبوع جاهز</T>
+              <T style={{ fontSize: 12, color: t.mute }}>الحضور والعضلات والأرقام والوزن والأكل</T>
+            </View>
+            <Ionicons name="chevron-back" size={18} color={t.mute} />
+          </Card>
+        </Pressable>
+      ) : null}
       <View style={{ gap: 8, marginTop: 4 }}>
         {!confirm ? (
-          <Btn label="امسح تسجيل النهارده" onPress={() => setConfirm(true)} />
+          <Btn label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={() => setConfirm(true)} />
         ) : (
           <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
             <T style={{ color: t.mute }}>متأكد؟</T>
@@ -140,7 +194,7 @@ function WorkoutScreen() {
 }
 
 /** After the last set of the day: what you did, how it compares with last time, new records, and a backup nudge. */
-function DoneCard({ date, weekday, next }: { date: string; weekday: number; next: string }) {
+function DoneCard({ date, weekday, next }: { date: string; weekday: number; next: string | null }) {
   const t = useTheme();
   const sum = sessionSummary(storage.allSets(), date, weekday, swappedSet(readStrings(SWAPS_KEY)));
   const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
@@ -154,7 +208,7 @@ function DoneCard({ date, weekday, next }: { date: string; weekday: number; next
   ];
   return (
     <Card style={{ paddingVertical: 10, paddingHorizontal: 12, gap: 8, borderWidth: 1, borderColor: t.ok }}>
-      <T w="bold" style={{ color: t.okText, fontSize: 15 }}>{`خلصت تمرين النهارده ✓`}</T>
+      <T w="bold" style={{ color: t.okText, fontSize: 15 }}>{next != null ? 'خلصت تمرين النهارده ✓' : 'التمرين ده متسجل كامل ✓'}</T>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {tiles.map((x) => (
           <View key={x.l} style={{ flex: 1, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 8, backgroundColor: t.soft }}>
@@ -163,6 +217,9 @@ function DoneCard({ date, weekday, next }: { date: string; weekday: number; next
           </View>
         ))}
       </View>
+      {sum.minutes != null ? (
+        <T style={{ fontSize: 12.5, color: t.mute }}>{`المدة \u2066${sum.minutes}\u2069 دقيقة · متوسط الوقت بين المجموعات \u2066${formatClock((sum.gapSec ?? 0) * 1000)}\u2069`}</T>
+      ) : null}
       {pct != null ? (
         <T style={{ fontSize: 12.5, color: pct >= 0 ? t.okText : t.warn }}>
           {pct === 0 ? 'نفس حجم آخر مرة' : `الحجم ${pct > 0 ? 'زاد' : 'قلّ'} \u2066${Math.abs(pct)}%\u2069 عن آخر مرة (\u2066${sum.prev!.date.slice(5)}\u2069)`}
@@ -176,7 +233,7 @@ function DoneCard({ date, weekday, next }: { date: string; weekday: number; next
           <T w="num" style={{ fontSize: 12.5, flex: 1 }}>{`أرقام جديدة: ${sum.prs.map((id) => exerciseById(id)?.name ?? id).join('، ')}`}</T>
         </View>
       ) : null}
-      <T style={{ fontSize: 12.5, color: t.mute }}>{`الجاي: ${next}`}</T>
+      {next != null ? <T style={{ fontSize: 12.5, color: t.mute }}>{`الجاي: ${next}`}</T> : null}
       {nudge ? (
         <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.warnSoft, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
           <Ionicons name="cloud-upload-outline" size={15} color={t.warn} />

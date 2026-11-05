@@ -1,6 +1,7 @@
 // User settings: plan overrides (sets, rest) and app toggles. Saved as JSON in storage meta; applied to PROGRAM on load and change.
 import { create } from 'zustand';
-import { applyPlan, DEFAULT_REST, DEFAULT_SETS, PLAN_WEEKDAYS } from '../data/program';
+import { applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, PLAN_WEEKDAYS, type ProgramEdit } from '../data/program';
+import { isPdf, parseProgram, PROGRAM_KEY } from './programEdit';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { DEFAULT_BODY, parseBody, type Body } from './energy';
@@ -45,6 +46,12 @@ export type Settings = {
   reminderTime: number;
   /** Weekdays (0 = Sunday) to remind on. */
   reminderDays: number[];
+  /** Ask how many reps were left after ticking a set (RIR). */
+  askRir: boolean;
+  /** Weekly automatic backup file (src/lib/autoBackup.ts). */
+  autoBackup: boolean;
+  /** Folder you picked for the automatic backups (Android content URI); empty = inside the app only. */
+  backupDir: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -69,6 +76,9 @@ export const DEFAULT_SETTINGS: Settings = {
   reminder: false,
   reminderTime: 19 * 60,
   reminderDays: [...PLAN_WEEKDAYS],
+  askRir: true,
+  autoBackup: true,
+  backupDir: '',
 };
 
 const KEY = 'settings';
@@ -112,12 +122,16 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir'>>) => void;
+  /** Save your own program (null = back to the PDF's) and apply it everywhere. */
+  setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;
   /** Re-read saved settings (after restoring a backup). */
   reload: () => void;
 };
 
+// Your edited program first: the saved sets overrides are checked against its exercises.
+applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
 const initial = parseSettings(storage.getMeta(KEY));
 applyPlan(initial);
 
@@ -151,7 +165,17 @@ export const useSettings = create<Store>((set, get) => {
     setQuiet: (p) => save({ ...pick(get()), ...p }),
     // Body data and the saved location aren't "settings" to reset.
     reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays] }),
+    setProgram: (edit) => {
+      const keep = edit && !isPdf(edit) ? edit : null;
+      if (keep) storage.setMeta(PROGRAM_KEY, JSON.stringify(keep));
+      else storage.setMeta(PROGRAM_KEY, '');
+      applyProgram(keep);
+      // Overrides for exercises that are gone are dropped.
+      const sets = Object.fromEntries(Object.entries(get().sets).filter(([id]) => id in DEFAULT_SETS));
+      commit({ ...pick(get()), sets });
+    },
     reload: () => {
+      applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
       const next = parseSettings(storage.getMeta(KEY));
       set(next);
       applyPlan(next);

@@ -2,7 +2,7 @@
 import { PLAN_WEEKDAYS, PROGRAM, dayFor, dayMuscles } from '../src/data/program';
 import { MEALS, MEAL_ORDER, TARGETS, WEEK_MENU, FOODS } from '../src/data/nutrition';
 import { SHOPPING } from '../src/data/shopping';
-import { addMonths, bestE1rm, countAr, TIMES, SETS, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, weekdayOf } from '../src/lib/logic';
+import { addMonths, bestE1rm, countAr, TIMES, SETS, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, increaseTip, weekdayOf } from '../src/lib/logic';
 
 describe('program data matches the PDF', () => {
   test('training days are Mon, Tue, Wed, Fri, Sat', () => {
@@ -32,6 +32,15 @@ describe('progression', () => {
     const s = Array(4).fill({ kg: 80, reps: 8, done: true });
     s[3] = { kg: 80, reps: 6, done: true };
     expect(shouldIncrease(bench, s)).toBe(false);
+  });
+  test('RIR 3+ on every set means too light, even below the top', () => {
+    const easy = Array(4).fill({ kg: 80, reps: 6, done: true, rir: 3 });
+    expect(increaseTip(bench, easy)).toBe('easy');
+    expect(increaseTip(bench, Array(4).fill({ kg: 80, reps: 8, done: true, rir: 0 }))).toBe('top');
+    const one = [...easy];
+    one[2] = { kg: 80, reps: 6, done: true, rir: 1 };
+    expect(increaseTip(bench, one)).toBeNull();
+    expect(increaseTip(bench, Array(4).fill({ kg: 80, reps: 6, done: true }))).toBeNull(); // no RIR said
   });
   test('no increase without history or weight', () => {
     expect(shouldIncrease(bench, undefined)).toBe(false);
