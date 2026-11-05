@@ -1,6 +1,6 @@
 import { Tabs } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Text, type ColorValue } from 'react-native';
+import { Platform, Text, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettings } from '../../lib/settings';
 import { F, neon, useTheme } from '../../theme';
@@ -32,9 +32,10 @@ export default function TabsLayout() {
   const inset = useSafeAreaInsets();
   const prayer = useSettings((s) => s.prayer); // the prayer tab only shows when it's turned on in settings
   const neonOn = useSettings((s) => s.neonMode);
-  // Android draws edge to edge: the bar must clear the system navigation bar itself (min 8pt even if no inset is reported).
+  // Android draws edge to edge: the bar must clear the system navigation bar itself. Phones with the gesture bar hidden
+  // report no bottom inset at all, and their rounded screen corners then cut the outer labels, so Android keeps 14pt.
   // 64pt leaves the icon and an 18pt label line their full height; a shorter bar squeezes the label and clips the Arabic text.
-  const bottom = Math.max(inset.bottom, 8);
+  const bottom = Math.max(inset.bottom, Platform.OS === 'android' ? 14 : 8);
   const bar = { height: 64 + bottom, paddingTop: 4, paddingBottom: bottom };
   return (
     <Tabs

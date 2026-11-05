@@ -83,9 +83,13 @@ export function bestE1rm(sets: SetEntry[]): number {
   return sets.reduce((m, s) => Math.max(m, epley(s.kg ?? 0, s.reps ?? 0)), 0);
 }
 
-/** Parse a user-typed number ("82,5" → 82.5). Empty or invalid → null. */
+/** Parse a user-typed number ("82,5" → 82.5; Arabic keyboards: "٨٢٫٥" → 82.5). Empty or invalid → null. */
 export function parseNum(v: string): number | null {
-  const t = v.replace(',', '.').trim();
+  const t = v
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0))
+    .replace(/[,٫]/, '.')
+    .trim();
   if (t === '') return null;
   const n = Number(t);
   return Number.isFinite(n) && n >= 0 ? n : null;

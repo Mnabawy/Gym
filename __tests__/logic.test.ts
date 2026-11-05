@@ -50,6 +50,8 @@ describe('numbers and dates', () => {
     expect(parseNum('82,5')).toBe(82.5);
     expect(parseNum('')).toBeNull();
     expect(parseNum('abc')).toBeNull();
+    expect(parseNum('٨٢٫٥')).toBe(82.5); // Arabic keyboard digits
+    expect(parseNum('۱۰')).toBe(10);
   });
   test('dateKey is local calendar date', () => {
     expect(dateKey(new Date(2026, 10, 3, 23, 59))).toBe('2026-11-03');

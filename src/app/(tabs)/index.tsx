@@ -65,6 +65,8 @@ function WorkoutScreen() {
     done += doneBy[e.id];
   }
   const openId = tapped && day.exercises.some((e) => e.id === tapped) ? tapped : day.exercises.find((e) => doneBy[e.id] < e.sets)?.id;
+  // Finished exercises go to the bottom (as one-line summaries), each keeping its number.
+  const order = [...day.exercises.filter((e) => doneBy[e.id] < e.sets), ...day.exercises.filter((e) => doneBy[e.id] >= e.sets)];
 
   // Rough session length: each set's work (~45 s) plus its rest.
   const minutes = Math.round(day.exercises.reduce((a, e) => a + e.sets * (e.restSec + 45), 0) / 60);
@@ -104,17 +106,24 @@ function WorkoutScreen() {
         </View>
       ) : null}
       <Card style={{ overflow: 'hidden' }}>
-        {day.exercises.map((e, i) => (
+        {order.map((e, pos) => (
           <ExerciseRow
             key={`${e.id}-${date}-${cards}`}
             ex={e}
-            index={i}
+            index={day.exercises.indexOf(e)}
             date={date}
             weekday={sel}
-            first={i === 0}
+            first={pos === 0}
             open={e.id === openId}
             onOpen={() => openOne(e.id)}
-            onChange={bump}
+            onChange={(fin) => {
+              // Last set ticked on the line: it drops to the bottom as a summary and the next exercise opens.
+              if (fin) {
+                LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
+                setTapped(null);
+              }
+              bump();
+            }}
           />
         ))}
       </Card>
