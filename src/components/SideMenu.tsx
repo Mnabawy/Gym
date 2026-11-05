@@ -105,14 +105,14 @@ export function MenuButton() {
 }
 
 /** Your Google account at the top of the menu (name, photo, email), or a sign-in row. */
-function Account({ onPress }: { onPress: (to: '/settings' | '/welcome') => void }) {
+function Account({ onPress }: { onPress: (to: '/account') => void }) {
   const t = useTheme();
   const email = storage.getMeta(DRIVE_USER);
   const name = storage.getMeta(DRIVE_NAME);
   const photo = storage.getMeta(DRIVE_PHOTO);
   return (
     <Pressable
-      onPress={() => onPress(email ? '/settings' : '/welcome')}
+      onPress={() => onPress('/account')}
       accessibilityRole="button"
       accessibilityLabel={email ? `حسابك: ${email}` : 'ادخل بحساب Google'}
       style={({ pressed }) => [s.account, { backgroundColor: pressed ? t.soft : tint(t.ok, 0.07) }]}>

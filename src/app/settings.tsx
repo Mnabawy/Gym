@@ -21,9 +21,9 @@ import { allowReminders } from '../lib/reminder';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
 import { listPhotos, photosSupported } from '../lib/photos';
-import { applyBackup, WELCOME_KEY, wipeLocal } from '../lib/restore';
+import { applyBackup } from '../lib/restore';
 import { canLock, lockSupported, unlock } from '../lib/lock';
-import { DRIVE_AT, DRIVE_ERROR, DRIVE_USER, driveSupported, fetchDrive, linkDrive, syncDrive, unlinkDrive } from '../lib/drive';
+import { DRIVE_AT, DRIVE_USER, driveSupported } from '../lib/drive';
 import { useTheme } from '../theme';
 
 const phone = Platform.OS !== 'web';
@@ -56,24 +56,7 @@ export default function SettingsScreen() {
   const since = lastBackup ? daysBetween(lastBackup, today) : null;
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [denied, setDenied] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
-  /** Sign out of Google; `wipe` first saves everything to Drive, then clears this phone. Back to the welcome screen. */
-  const signOut = (wipe: boolean) =>
-    run(async () => {
-      if (wipe) {
-        try {
-          await syncDrive(true);
-        } catch {
-          return setMsg({ text: 'معرفتش أرفع آخر نسخة على Drive، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
-        }
-      }
-      await unlinkDrive();
-      if (wipe) wipeLocal();
-      storage.setMeta(WELCOME_KEY, '');
-      setLeaving(false);
-      router.replace('/welcome');
-    });
   const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
   const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
 
@@ -146,51 +129,11 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <Sep />
-        <View style={{ paddingHorizontal: 14, paddingVertical: 10, gap: 8 }}>
-          <T w="medium" style={{ alignSelf: 'flex-start' }}>حسابك (Google Drive)</T>
-          {!driveSupported ? (
-            <T style={{ color: t.mute, fontSize: 12.5 }}>على الموبايل بس</T>
-          ) : storage.getMeta(DRIVE_USER) ? (
-            <>
-              <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>
-                {`متربط بـ ${storage.getMeta(DRIVE_USER)}. ملف واحد «Gym backup.json» بيتحدّث لوحده مرة في اليوم لو في جديد، ومعاه الصور.${storage.getMeta(DRIVE_AT) ? ` آخر رفعة: ${dayAr(storage.getMeta(DRIVE_AT)!)}` : ''}`}
-              </T>
-              {storage.getMeta(DRIVE_ERROR) ? <T style={{ color: t.bad, fontSize: 12.5 }}>آخر رفعة ما نفعتش. اتأكد من النت، ولو فضلت كده افصل واربط تاني.</T> : null}
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                <Btn label="ارفع دلوقتي" kind="solid" style={{ flexGrow: 1 }} onPress={() => run(async () => { await syncDrive(true); setMsg({ text: 'اترفعت على Drive ✓' }); })} />
-                <Btn label="رجّع من Drive" style={{ flexGrow: 1 }} onPress={() => run(async () => { const x = await fetchDrive(); if (x == null) setMsg({ text: 'مفيش نسخة على Drive لسه', bad: true }); else load(x); })} />
-              </View>
-              {!leaving ? (
-                <Btn label="تسجيل الخروج" onPress={() => setLeaving(true)} />
-              ) : (
-                <View style={{ gap: 8, padding: 12, borderRadius: 12, backgroundColor: t.warnSoft }}>
-                  <T w="semi" style={{ color: t.warn }}>تسجيل الخروج</T>
-                  <T style={{ fontSize: 12.5, lineHeight: 19 }}>نسختك على Drive بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
-                  <Btn label="اخرج بس (البيانات تفضل على الموبايل)" onPress={() => signOut(false)} />
-                  <Btn label="اخرج وامسح بياناتي من الموبايل" kind="solid" onPress={() => signOut(true)} />
-                  <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيرفع آخر نسخة على Drive الأول، ومش بيمسح غير لو الرفع نجح.</T>
-                  <Btn label="لا" onPress={() => setLeaving(false)} />
-                </View>
-              )}
-            </>
-          ) : (
-            <>
-              <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>اربط حسابك مرة واحدة، والتطبيق يحفظ نسخة واحدة على Drive ويحدّثها لوحده. لو غيّرت الموبايل، اربط نفس الحساب ودوس «رجّع من Drive».</T>
-              <Btn
-                label="اربط Google Drive"
-                kind="solid"
-                onPress={() =>
-                  run(async () => {
-                    const email = await linkDrive();
-                    if (!email) return;
-                    await syncDrive(true).catch(() => {});
-                    setMsg({ text: `اتربط بـ ${email} ✓` });
-                  })
-                }
-              />
-            </>
-          )}
-        </View>
+        <Pressable onPress={() => router.push('/account')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+          <Row label="حسابك و Google Drive" sub={!driveSupported ? 'على الموبايل بس' : storage.getMeta(DRIVE_USER) ? `${storage.getMeta(DRIVE_USER)}${storage.getMeta(DRIVE_AT) ? ` · آخر رفعة ${dayAr(storage.getMeta(DRIVE_AT)!)}` : ''}` : 'ادخل عشان بياناتك تتحفظ على Drive'}>
+            <Ionicons name="chevron-back" size={20} color={t.mute} />
+          </Row>
+        </Pressable>
         <Sep />
         <SwitchRow
           label="نسخة تلقائية كل أسبوع"
