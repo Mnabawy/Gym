@@ -17,7 +17,7 @@ import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO
 import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { daysBetween } from '../lib/gaps';
 import { BAR_CHOICES } from '../lib/plates';
-import { allowReminders, testBrief } from '../lib/reminder';
+import { allowReminders } from '../lib/reminder';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
 import { importPhotos, listPhotos, photosSupported } from '../lib/photos';
@@ -262,14 +262,9 @@ export default function SettingsScreen() {
           }}
         />
         {st.brief ? (
-          <>
-            <Row label="ميعاد الملخص">
-              <Stepper value={st.briefTime} min={0} max={24 * 60 - 15} step={15} onChange={(v) => st.setQuiet({ briefTime: v })} label="ميعاد الملخص" format={timeAr} />
-            </Row>
-            <View style={{ paddingHorizontal: 14, paddingBottom: 12 }}>
-              <Btn label="جرّب الإشعار دلوقتي" onPress={async () => setDenied(!(await testBrief().catch(() => false)))} />
-            </View>
-          </>
+          <Row label="ميعاد الملخص">
+            <Stepper value={st.briefTime} min={0} max={24 * 60 - 15} step={15} onChange={(v) => st.setQuiet({ briefTime: v })} label="ميعاد الملخص" format={timeAr} />
+          </Row>
         ) : null}
         <Sep />
         <SwitchRow

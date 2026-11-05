@@ -49,15 +49,6 @@ function briefInput(today: string): BriefInput {
   };
 }
 
-/** Shows today's morning brief right now (the "try it" button in settings). False without notification permission. */
-export async function testBrief(): Promise<boolean> {
-  if (!(await allowReminders())) return false;
-  const today = dateKey();
-  const b = morningBrief(today, briefInput(today));
-  await Notifications.scheduleNotificationAsync({ content: { title: b.title, body: b.body, sound: true }, trigger: null });
-  return true;
-}
-
 let running: Promise<void> | null = null;
 
 /** Cancels our scheduled reminders and schedules the next ones from the current settings and log. */
