@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { Animated, Easing, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
+import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View, useWindowDimensions } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '../lib/motion';
 import { useSettings } from '../lib/settings';
+import { DRIVE_NAME, DRIVE_PHOTO, DRIVE_USER, driveSupported } from '../lib/drive';
+import { storage } from '../lib/storage';
 import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
@@ -76,6 +78,7 @@ export function MenuButton() {
               <Ionicons name="close" size={22} color={t.mute} />
             </Pressable>
           </View>
+          {driveSupported ? <Account onPress={(to) => close(() => router.push(to))} /> : null}
           {items.map((it, i) => {
             // Each item follows the panel in, a little later than the one before.
             const a = p.interpolate({ inputRange: [0.25 + i * 0.1, Math.min(1, 0.65 + i * 0.1)], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -101,7 +104,34 @@ export function MenuButton() {
   );
 }
 
+/** Your Google account at the top of the menu (name, photo, email), or a sign-in row. */
+function Account({ onPress }: { onPress: (to: '/settings' | '/welcome') => void }) {
+  const t = useTheme();
+  const email = storage.getMeta(DRIVE_USER);
+  const name = storage.getMeta(DRIVE_NAME);
+  const photo = storage.getMeta(DRIVE_PHOTO);
+  return (
+    <Pressable
+      onPress={() => onPress(email ? '/settings' : '/welcome')}
+      accessibilityRole="button"
+      accessibilityLabel={email ? `حسابك: ${email}` : 'ادخل بحساب Google'}
+      style={({ pressed }) => [s.account, { backgroundColor: pressed ? t.soft : tint(t.ok, 0.07) }]}>
+      {photo ? <Image source={{ uri: photo }} style={s.avatar} /> : (
+        <View style={[s.avatar, { backgroundColor: tint(t.ok, 0.15), alignItems: 'center', justifyContent: 'center' }]}>
+          <Ionicons name={email ? 'person' : 'log-in-outline'} size={20} color={t.okText} />
+        </View>
+      )}
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T w="semi" style={{ fontSize: 14.5 }} numberOfLines={1}>{email ? name || 'حسابك' : 'ادخل بحساب Google'}</T>
+        <T style={{ fontSize: 12, color: t.mute }} numberOfLines={1}>{email ?? 'بياناتك تتحفظ وترجع على أي موبايل'}</T>
+      </View>
+    </Pressable>
+  );
+}
+
 const s = StyleSheet.create({
+  account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 16, marginBottom: 8 },
+  avatar: { width: 40, height: 40, borderRadius: 20 },
   back: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },
   panel: { position: 'absolute', top: 0, bottom: 0, end: 0, borderTopStartRadius: 22, borderBottomStartRadius: 22, borderStartWidth: 1, paddingHorizontal: 10, gap: 2, boxShadow: '0px 0px 24px rgba(0, 0, 0, 0.25)' },
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 8, minHeight: 44 },

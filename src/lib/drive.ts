@@ -13,6 +13,9 @@ import { useDataVersion } from './bus';
 export const driveSupported = true;
 /** Meta keys: signed-in email, the file's id, last upload date, fingerprint of what was uploaded, last error. */
 export const DRIVE_USER = 'driveUser';
+/** Your Google name and photo (side menu). */
+export const DRIVE_NAME = 'driveName';
+export const DRIVE_PHOTO = 'drivePhoto';
 const DRIVE_ID = 'driveFileId';
 export const DRIVE_AT = 'driveAt';
 const DRIVE_SIG = 'driveSig';
@@ -42,6 +45,8 @@ export async function linkDrive(): Promise<string | null> {
     const r = await GoogleSignin.signIn();
     if (r.type !== 'success') return null;
     storage.setMeta(DRIVE_USER, r.data.user.email);
+    storage.setMeta(DRIVE_NAME, r.data.user.givenName ?? r.data.user.name ?? '');
+    storage.setMeta(DRIVE_PHOTO, r.data.user.photo ?? '');
     // A backup already in Drive (e.g. from your old phone) keeps being the one we update.
     const t = (await GoogleSignin.getTokens()).accessToken;
     const found = await findBackup(t, fetch);
@@ -58,7 +63,7 @@ export async function unlinkDrive() {
   try {
     await GoogleSignin.signOut();
   } catch {}
-  for (const k of [DRIVE_USER, DRIVE_ID, DRIVE_AT, DRIVE_SIG, DRIVE_ERROR]) storage.setMeta(k, '');
+  for (const k of [DRIVE_USER, DRIVE_NAME, DRIVE_PHOTO, DRIVE_ID, DRIVE_AT, DRIVE_SIG, DRIVE_ERROR]) storage.setMeta(k, '');
   useDataVersion.getState().bump();
 }
 
@@ -73,7 +78,7 @@ export async function syncDrive(force = false): Promise<'uploaded' | 'skipped' |
   const photos = await exportPhotos();
   const data = storage.dump();
   // The fingerprint leaves out our own bookkeeping, which changes on every upload.
-  for (const k of [DRIVE_AT, DRIVE_SIG, DRIVE_ERROR, LAST_BACKUP_KEY, 'autoBackupAt', 'autoBackupError']) delete data.meta[k];
+  for (const k of [DRIVE_AT, DRIVE_SIG, DRIVE_ERROR, LAST_BACKUP_KEY, 'autoBackupAt', 'autoBackupError', 'welcomeDone']) delete data.meta[k];
   const sig = fingerprint(JSON.stringify(data) + photos.map((p) => p.name).join());
   if (!force && sig === storage.getMeta(DRIVE_SIG)) return 'skipped';
   try {

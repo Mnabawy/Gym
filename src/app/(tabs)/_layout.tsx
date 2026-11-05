@@ -1,8 +1,11 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Text, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettings } from '../../lib/settings';
+import { DRIVE_USER, driveSupported } from '../../lib/drive';
+import { WELCOME_KEY } from '../../lib/restore';
+import { storage } from '../../lib/storage';
 import { F, neon, useTheme } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -36,6 +39,8 @@ export default function TabsLayout() {
   // 64pt leaves the icon and an 18pt label line their full height; a shorter bar squeezes the label and clips the Arabic text.
   const bottom = Math.max(inset.bottom, Platform.OS === 'android' ? 14 : 8);
   const bar = { height: 64 + bottom, paddingTop: 4, paddingBottom: bottom };
+  // First launch on the phone: the sign-in screen, until you sign in or skip it.
+  if (driveSupported && !storage.getMeta(WELCOME_KEY) && !storage.getMeta(DRIVE_USER)) return <Redirect href="/welcome" />;
   return (
     <Tabs
       screenOptions={{

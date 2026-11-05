@@ -20,7 +20,8 @@ import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
-import { importPhotos, listPhotos, photosSupported } from '../lib/photos';
+import { listPhotos, photosSupported } from '../lib/photos';
+import { applyBackup } from '../lib/restore';
 import { DRIVE_AT, DRIVE_ERROR, DRIVE_USER, driveSupported, fetchDrive, linkDrive, syncDrive, unlinkDrive } from '../lib/drive';
 import { useTheme } from '../theme';
 
@@ -80,12 +81,7 @@ export default function SettingsScreen() {
   };
   const restore = () => {
     if (!pending) return;
-    // Keep this phone's Google Drive link: it belongs to the phone, not to the backup.
-    const keep = ['driveUser', 'driveFileId', 'driveAt', 'driveSig', 'driveError'].map((k) => [k, storage.getMeta(k) ?? ''] as const);
-    storage.restore(pending.data);
-    for (const [k, v] of keep) storage.setMeta(k, v);
-    const added = photosSupported ? importPhotos(pending.photos) : 0;
-    st.reload();
+    const added = applyBackup(pending.data, pending.photos);
     setPending(null);
     setMsg({ text: added ? `رجّعت النسخة ✓ ومعاها ${countAr(added, PHOTOS)}` : 'رجّعت النسخة ✓' });
   };
