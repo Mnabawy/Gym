@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, TARGETS, WEEK_MENU } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
 import { router } from 'expo-router';
 import { Btn, Card, Check, DayChips, HeaderBtn, Ring, Screen, T } from '../../components/ui';
 import { dateKey, mealMacros } from '../../lib/logic';
+import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
 import { tint, useTheme, type Theme } from '../../theme';
@@ -21,6 +23,17 @@ export default function Food() {
   const { bump } = useDataVersion();
   const day = WEEK_MENU.find((d) => d.weekday === sel)!;
   const isToday = sel === today;
+  // Training or rest comes from the workout log, not fixed weekdays (src/lib/schedule.ts). Re-read when v changes.
+  const trained = new Set(storage.trainedDays().map((d) => d.date));
+  const restDay = storage.getMeta('restDay') || null;
+  const training = (wd: number) => isTrainingDay(dateInWeek(wd, date), date, trained, restDay);
+  const isTraining = training(sel);
+  // Today, before you log anything, you can switch it between training and rest.
+  const canSwitch = isToday && !trained.has(date);
+  const switchToday = () => {
+    storage.setMeta('restDay', isTraining ? date : '');
+    bump();
+  };
 
   const checks = new Set(storage.mealChecks(date)); // re-read when v changes
   const meals = MEAL_ORDER.map((m) => {
@@ -37,8 +50,8 @@ export default function Food() {
       key: wd,
       label: d.day,
       short: WEEKDAY_LETTERS_AR[wd],
-      colors: [d.training ? t.ok : t.line],
-      details: [d.training ? { color: t.ok, label: 'يوم تمرين' } : { label: 'راحة' }],
+      colors: [training(wd) ? t.ok : t.line],
+      details: [training(wd) ? { color: t.ok, label: 'يوم تمرين' } : { label: 'راحة' }],
     };
   });
 
@@ -72,7 +85,23 @@ export default function Food() {
         </Ring>
         <View style={{ flex: 1, gap: 1 }}>
           <T style={{ color: t.mute, fontSize: 12.5 }}>{`${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
-          <T w="bold" style={{ fontSize: 16 }}>{`${day.day} · ${day.training ? 'يوم تمرين' : 'يوم راحة'}`}</T>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <T w="bold" style={{ fontSize: 16 }}>{day.day}</T>
+            {canSwitch ? (
+              <Pressable
+                onPress={switchToday}
+                hitSlop={10}
+                accessibilityRole="switch"
+                accessibilityState={{ checked: isTraining }}
+                accessibilityLabel={isTraining ? 'النهارده يوم تمرين، دوس تخليه يوم راحة' : 'النهارده يوم راحة، دوس تخليه يوم تمرين'}
+                style={({ pressed }) => [s.pill, { backgroundColor: isTraining ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 }]}>
+                <T w="semi" style={{ fontSize: 12, color: isTraining ? t.okText : t.mute }}>{isTraining ? 'يوم تمرين' : 'يوم راحة'}</T>
+                <Ionicons name="swap-horizontal" size={12} color={isTraining ? t.okText : t.mute} />
+              </Pressable>
+            ) : (
+              <T w="semi" style={{ fontSize: 12, color: isTraining ? t.okText : t.mute }}>{isTraining ? 'يوم تمرين' : 'يوم راحة'}</T>
+            )}
+          </View>
           <T style={{ color: t.mute, fontSize: 12 }}>
             {isToday ? `كلت لحد دلوقتي: ${Math.round(eaten.kcal)} سعر · ${Math.round(eaten.p)} جم بروتين` : 'التعليم على الوجبات بيشتغل في يوم النهارده بس.'}
           </T>
@@ -86,7 +115,7 @@ export default function Food() {
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
                 <T w="bold" style={{ fontSize: 14, flexShrink: 1 }} numberOfLines={1}>{`${m.meal} · ${m.name}`}</T>
-                <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={1}>{day.training ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
+                <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={1}>{isTraining ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
               </View>
               {isToday ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(date, m.meal, !on); bump(); }} /> : null}
             </View>
@@ -156,4 +185,5 @@ export default function Food() {
 const s = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
   dot: { width: 7, height: 7, borderRadius: 4 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
 });

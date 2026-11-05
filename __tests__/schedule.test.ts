@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { PROGRAM } from '../src/data/program';
-import { after, currentWorkout, lastOf, projected, seqAt } from '../src/lib/schedule';
+import { after, currentWorkout, dateInWeek, isTrainingDay, lastOf, projected, seqAt } from '../src/lib/schedule';
 import type { TrainedDay } from '../src/lib/storage.types';
 
 // Program days by id (the weekday each was written for): 1 ظهر → 2 صدر وبايسبس → 3 خلفية → 5 كتف وترايسبس → 6 أمامية → 1 …
@@ -60,5 +60,27 @@ describe('projected', () => {
     const thu = '2026-11-05';
     const cur = currentWorkout([s(thu, SHOULDERS)], thu);
     expect(projected('2026-11-06', thu, cur)).toBe(QUADS);
+  });
+});
+
+describe('food tab training day', () => {
+  const trained = new Set(['2026-11-02', '2026-11-04']);
+  test('a day with a logged workout is a training day, a past day without one was rest', () => {
+    expect(isTrainingDay('2026-11-02', TODAY, trained, null)).toBe(true);
+    expect(isTrainingDay('2026-11-03', TODAY, trained, null)).toBe(false);
+  });
+  test('today counts as training until marked rest; logging overrides the mark', () => {
+    expect(isTrainingDay('2026-11-05', '2026-11-05', trained, null)).toBe(true);
+    expect(isTrainingDay('2026-11-05', '2026-11-05', trained, '2026-11-05')).toBe(false);
+    expect(isTrainingDay(TODAY, TODAY, trained, TODAY)).toBe(true); // already trained today
+    expect(isTrainingDay('2026-11-05', '2026-11-05', trained, '2026-11-04')).toBe(true); // yesterday's mark doesn't stick
+  });
+  test('later days count as training', () => {
+    expect(isTrainingDay('2026-11-06', TODAY, trained, TODAY)).toBe(true);
+  });
+  test('weekday chips map into the Saturday–Friday week', () => {
+    expect(dateInWeek(6, TODAY)).toBe('2026-10-31'); // Sat
+    expect(dateInWeek(3, TODAY)).toBe(TODAY); // Wed
+    expect(dateInWeek(5, TODAY)).toBe('2026-11-06'); // Fri
   });
 });

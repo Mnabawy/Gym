@@ -3,7 +3,7 @@
 // A program day's id is still the weekday it was written for (`Day.weekday`), so logged data keeps its meaning.
 // Pure — unit tested in __tests__/schedule.test.ts.
 import { PLAN_WEEKDAYS, PROGRAM } from '../data/program';
-import { addDays } from './gaps';
+import { addDays, weekStart } from './gaps';
 import { weekdayOf } from './logic';
 import type { TrainedDay } from './storage.types';
 
@@ -55,3 +55,16 @@ export function projected(date: string, today: string, cur: Current): number {
   for (let d = addDays(today, 1); d <= date; d = addDays(d, 1)) if (plan(d)) steps++;
   return seqAt(seqIndex(cur.id) + steps - (cur.started || plan(today) ? 0 : 1));
 }
+
+/**
+ * Food tab: is `date` a training day? Rest days aren't fixed weekdays. A day you logged a workout is a training day and
+ * a past day without one was rest; today (until you log) and later days count as training unless you marked today as rest.
+ */
+export function isTrainingDay(date: string, today: string, trained: ReadonlySet<string>, restDay: string | null): boolean {
+  if (trained.has(date)) return true;
+  if (date < today) return false;
+  return !(date === today && restDay === today);
+}
+
+/** Date of weekday `wd` in the Saturday–Friday week that holds `today` (the food tab's day chips). */
+export const dateInWeek = (wd: number, today: string) => addDays(weekStart(today), (wd + 1) % 7);
