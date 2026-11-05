@@ -57,10 +57,12 @@ function ReminderSync() {
   const on = useSettings((s) => s.reminder);
   const time = useSettings((s) => s.reminderTime);
   const days = useSettings((s) => s.reminderDays);
+  const brief = useSettings((s) => s.brief);
+  const briefTime = useSettings((s) => s.briefTime);
   const v = useDataVersion((s) => s.v);
   useEffect(() => {
     const id = setTimeout(() => syncReminders(), 2000);
     return () => clearTimeout(id);
-  }, [on, time, days, v]);
+  }, [on, time, days, brief, briefTime, v]);
   return null;
 }

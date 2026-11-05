@@ -44,8 +44,12 @@ export type Settings = {
   reminder: boolean;
   /** Minutes after midnight. */
   reminderTime: number;
-  /** Weekdays (0 = Sunday) to remind on. */
+  /** Your training weekdays (0 = Sunday): the workout reminder and the morning brief's training days. */
   reminderDays: number[];
+  /** Morning brief notification: the day's workout, meals, water and what to get ready (src/lib/brief.ts). */
+  brief: boolean;
+  /** Minutes after midnight. */
+  briefTime: number;
   /** Ask how many reps were left after ticking a set (RIR). */
   askRir: boolean;
   /** Weekly automatic backup file (src/lib/autoBackup.ts). */
@@ -77,6 +81,8 @@ export const DEFAULT_SETTINGS: Settings = {
   reminderTime: 19 * 60,
   reminderDays: [...PLAN_WEEKDAYS],
   askRir: true,
+  brief: false,
+  briefTime: 6 * 60,
   autoBackup: true,
   backupDir: '',
 };
@@ -111,6 +117,7 @@ export function parseSettings(raw: string | null): Settings {
   }
   if (Array.isArray(o.reminderDays)) out.reminderDays = [...new Set(o.reminderDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
   if (!(out.reminderTime >= 0 && out.reminderTime < 24 * 60)) out.reminderTime = DEFAULT_SETTINGS.reminderTime;
+  if (!(out.briefTime >= 0 && out.briefTime < 24 * 60)) out.briefTime = DEFAULT_SETTINGS.briefTime;
   if (typeof o.prayerMethod === 'string' && o.prayerMethod in METHODS) out.prayerMethod = o.prayerMethod as Method;
   return out;
 }
@@ -122,7 +129,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;

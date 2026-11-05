@@ -46,11 +46,11 @@ export function currentWorkout(trained: readonly TrainedDay[], date: string): Cu
 }
 
 /**
- * Workout projected for a future date, if you train every plan day from today on.
+ * Workout projected for a future date, if you train every plan day (or each of `days`) from today on.
  * Today takes the current workout when it's a plan day or you've already trained; each later plan day takes the next one.
  */
-export function projected(date: string, today: string, cur: Current): number {
-  const plan = (d: string) => PLAN_WEEKDAYS.includes(weekdayOf(d));
+export function projected(date: string, today: string, cur: Current, days: readonly number[] = PLAN_WEEKDAYS): number {
+  const plan = (d: string) => days.includes(weekdayOf(d));
   let steps = 0;
   for (let d = addDays(today, 1); d <= date; d = addDays(d, 1)) if (plan(d)) steps++;
   return seqAt(seqIndex(cur.id) + steps - (cur.started || plan(today) ? 0 : 1));

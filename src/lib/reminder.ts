@@ -1,5 +1,6 @@
-// Workout reminder notifications (settings → تذكير التمرين). The next week's reminders are scheduled ahead as one-off
-// notifications naming the workout that's due, and rescheduled whenever the app opens, the settings change or you log a set.
+// Workout reminder and morning brief notifications (settings → تذكير التمرين / ملخص الصبح). The next week's are
+// scheduled ahead as one-off notifications (the workout that's due; the day's plan from src/lib/brief.ts), and
+// rescheduled whenever the app opens, the settings change or you log something.
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { dayFor } from '../data/program';
@@ -7,9 +8,15 @@ import { dateKey } from './logic';
 import { after, currentWorkout, reminderTimes } from './schedule';
 import { useSettings } from './settings';
 import { storage } from './storage';
+import { morningBrief } from './brief';
+import { MEAL_PICKS_KEY } from './journal';
+import { readNumbers } from './meta';
+import { energyFor } from './energy';
+import { parseWeights, WEIGHTS_KEY } from './weight';
 
 const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
+const BRIEF = 'morning-brief';
 
 /** Asks for notification permission (when turning the reminder on). */
 export async function allowReminders(): Promise<boolean> {
@@ -34,12 +41,34 @@ export function syncReminders(): Promise<void> {
   const go = async () => {
     try {
       for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
-        if (n.content.data?.kind === KIND) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+        if (n.content.data?.kind === KIND || n.content.data?.kind === BRIEF) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
-      if (!st.reminder || !(await Notifications.getPermissionsAsync()).granted) return;
+      if ((!st.reminder && !st.brief) || !(await Notifications.getPermissionsAsync()).granted) return;
       const today = dateKey();
       const cur = currentWorkout(storage.trainedDays(), today);
+      if (st.brief) {
+        const input = {
+          today,
+          cur,
+          days: st.reminderDays,
+          workoutAt: st.reminder ? st.reminderTime : null,
+          picks: readNumbers(MEAL_PICKS_KEY),
+          waterL: energyFor(st.body)?.water ?? null,
+          weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
+          shopTrips: st.shopTrips,
+          shopMoves: st.shopMoves,
+        };
+        // Every day, training or not (all 7 weekdays).
+        for (const date of reminderTimes(new Date(), st.briefTime, [0, 1, 2, 3, 4, 5, 6], false)) {
+          const b = morningBrief(dateKey(date), input);
+          await Notifications.scheduleNotificationAsync({
+            content: { title: b.title, body: b.body, sound: true, data: { kind: BRIEF } },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
+          });
+        }
+      }
+      if (!st.reminder) return;
       // Trained today: the reminders are for the workout after today's.
       const title = dayFor(cur.started ? after(cur.id) : cur.id)?.titleAr ?? '';
       for (const date of reminderTimes(new Date(), st.reminderTime, st.reminderDays, cur.started)) {

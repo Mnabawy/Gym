@@ -47,13 +47,14 @@ Exercise names stay in English (gym vocabulary).
 - `src/lib/journal.ts` also has food outside the plan (meta `extras`) and supplements ticked (meta `supps`)
 - `src/lib/drive.ts` (sign-in with @react-native-google-signin/google-signin, scope drive.file, no config plugin needed on Android; web stub) + `src/lib/driveApi.ts` (pure REST calls, tested) — backup to Google Drive: one file "Gym backup.json" updated in place, at most daily when the data changed, from the root layout; settings → Google Drive. Setup steps for the owner: `docs/google-drive-setup.md`. Restore keeps the phone's own drive* meta keys
 - `src/lib/autoBackup.ts` — weekly automatic backup (last 4 inside the app, plus a folder you pick with `Directory.pickDirectoryAsync`, settings `autoBackup` / `backupDir`); runs from the root layout
-- `src/lib/reminder.ts` — workout reminder notifications (settings `reminder*`), next week scheduled ahead (`reminderTimes` in schedule.ts), re-synced from the root layout
+- `src/lib/reminder.ts` — workout reminder and morning brief notifications (settings `reminder*`, `brief`, `briefTime`; `reminderDays` = your training days for both), next week scheduled ahead (`reminderTimes` in schedule.ts), re-synced from the root layout
+- `src/lib/brief.ts` — the morning brief's text: workout or rest (projected over your training days), meals with times (with meal swaps), water, what to get ready, weigh-in after 7 days, shopping day
 - `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file
 - `src/lib/schedule.ts` — workout order: one continuous sequence through `PROGRAM`, not fixed weekdays. The workout tab opens on the one after your last session; missed and rest days don't move it. A program day's id is still `Day.weekday` (logged rows keep it), and plan weekdays only set the weekly attendance/volume target
 
 ## Commands
 - `npx expo start` — run
-- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, settings, data integrity incl. videos and alternatives)
+- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, brief, driveApi, settings, data integrity incl. videos and alternatives)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions
 
