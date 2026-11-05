@@ -55,6 +55,7 @@ export default function Shop() {
   return (
     <Screen
       title="المشتريات"
+      dense
       sub={split ? `أسبوع ${week} · بتشتري ${countAr(n, TIMES)} · بيتصفّر كل جمعة` : `أسبوع ${week} · بيتصفّر كل جمعة`}
       action={split ? <HeaderBtn icon={editing ? 'checkmark' : 'create-outline'} label={editing ? 'خلصت التعديل' : 'عدّل أصناف كل مرة'} onPress={() => setEditing(!editing)} /> : undefined}>
       {split ? (
@@ -69,7 +70,7 @@ export default function Shop() {
                 accessibilityState={{ selected: on }}
                 accessibilityLabel={`المرة ${tr.index + 1}، ${tr.label}، ${items} صنف`}
                 onPress={() => setPicked(tr.index)}
-                style={{ flex: 1, minWidth: 0, minHeight: 56, borderRadius: 14, paddingHorizontal: 6, paddingVertical: 8, alignItems: 'center', justifyContent: 'center', gap: 2, backgroundColor: on ? t.ink : t.soft }}>
+                style={{ flex: 1, minWidth: 0, minHeight: 44, borderRadius: 12, paddingHorizontal: 6, paddingVertical: 5, alignItems: 'center', justifyContent: 'center', gap: 1, backgroundColor: on ? t.ink : t.soft }}>
                 <T w="bold" style={{ fontSize: 14, color: on ? t.onInk : t.fg, opacity: items ? 1 : 0.5 }}>{`المرة ${tr.index + 1}`}</T>
                 <T style={{ fontSize: 11, color: on ? t.onInk : t.mute, opacity: on ? 0.85 : 1 }} numberOfLines={2} adjustsFontSizeToFit>{daysLabel(tr.weekdays, true)}</T>
                 <T w="num" style={{ fontSize: 11, color: on ? t.onInk : t.mute, opacity: on ? 0.85 : 1 }}>{`${items} صنف`}</T>
@@ -88,7 +89,7 @@ export default function Shop() {
             </T>
           </View>
           {SHOPPING.map((g) => (
-            <View key={g.title} style={{ gap: 8 }}>
+            <View key={g.title} style={{ gap: 4 }}>
               <Label color={color[g.color]}>{g.title}</Label>
               <Card>
                 {g.items.map((item, row) => {
@@ -97,8 +98,8 @@ export default function Shop() {
                   return (
                     <View key={item.id} style={[s.row, { borderTopWidth: row ? 1 : 0, borderTopColor: t.line }, here ? { backgroundColor: tint(t.ok, 0.1) } : null]}>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <T w={here ? 'bold' : 'semi'} style={{ fontSize: 14.5 }} numberOfLines={2}>{item.name}</T>
-                        <T style={{ color: t.mute, fontSize: 12 }} numberOfLines={1}>{item.buy}</T>
+                        <T w={here ? 'bold' : 'semi'} style={{ fontSize: 14 }} numberOfLines={2}>{item.name}</T>
+                        <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={1}>{item.buy}</T>
                       </View>
                       <View style={s.picker} accessibilityRole="radiogroup" accessibilityLabel={`${item.name} هيتشرى في أنهي مرة`}>
                         {trips.map((tr) => {
@@ -128,13 +129,13 @@ export default function Shop() {
       ) : (
         <>
           {all.length ? (
-            <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <Ring value={done / all.length} size={64} stroke={5}>
-                <T w="numBold" style={{ fontSize: 14, color: t.okText }}>{`${Math.round((done / all.length) * 100)}%`}</T>
+            <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+              <Ring value={done / all.length} size={46} stroke={4}>
+                <T w="numBold" style={{ fontSize: 12, color: t.okText }}>{`${Math.round((done / all.length) * 100)}%`}</T>
               </Ring>
-              <View style={{ flex: 1, gap: 2 }}>
-                <T style={{ color: t.mute, fontSize: 13 }}>{`${done} من ${all.length} صنف`}</T>
-                <T w="bold" style={{ fontSize: 18 }}>{split ? `اشتريت · المرة ${k + 1}` : 'اشتريت'}</T>
+              <View style={{ flex: 1, gap: 1 }}>
+                <T style={{ color: t.mute, fontSize: 12.5 }}>{`${done} من ${all.length} صنف`}</T>
+                <T w="bold" style={{ fontSize: 16 }}>{split ? `اشتريت · المرة ${k + 1}` : 'اشتريت'}</T>
                 {split ? <T style={{ color: t.mute, fontSize: 12.5 }}>{`تتشرى قبل أكل ${trip.label}`}</T> : null}
               </View>
             </Card>
@@ -146,7 +147,7 @@ export default function Shop() {
           )}
 
           {trip.groups.map((g) => (
-            <View key={g.title} style={{ gap: 8 }}>
+            <View key={g.title} style={{ gap: 4 }}>
               <Label color={color[g.color]}>{g.title}</Label>
               <Card>
                 {g.items.map((i, row) => {
@@ -159,14 +160,14 @@ export default function Shop() {
                       accessibilityState={{ checked: on }}
                       onPress={() => { storage.setShopCheck(week, i.key, !on); bump(); }}
                       style={[s.row, { borderTopWidth: row ? 1 : 0, borderTopColor: t.line, opacity: on ? 0.55 : 1 }]}>
-                      <View style={{ width: 24, height: 24, borderRadius: 12, borderWidth: 1.8, borderColor: color[g.color], backgroundColor: on ? color[g.color] : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
-                        {on ? <T w="bold" style={{ color: '#fff', fontSize: 14 }}>✓</T> : null}
+                      <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.6, borderColor: color[g.color], backgroundColor: on ? color[g.color] : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
+                        {on ? <T w="bold" style={{ color: '#fff', fontSize: 12 }}>✓</T> : null}
                       </View>
                       <View style={{ flex: 1, minWidth: 0 }}>
-                        <T w="semi" style={{ fontSize: 15, textDecorationLine: on ? 'line-through' : 'none' }}>{i.item.name}</T>
-                        {sub ? <T style={{ color: t.mute, fontSize: 12 }}>{sub}</T> : null}
+                        <T w="semi" style={{ fontSize: 14, textDecorationLine: on ? 'line-through' : 'none' }}>{i.item.name}</T>
+                        {sub ? <T style={{ color: t.mute, fontSize: 11.5 }}>{sub}</T> : null}
                       </View>
-                      <T w="bold" style={{ fontSize: 14 }}>{i.buy}</T>
+                      <T w="bold" style={{ fontSize: 13 }}>{i.buy}</T>
                     </Pressable>
                   );
                 })}
@@ -194,8 +195,9 @@ export default function Shop() {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 11, minHeight: 54 },
-  tip: { borderRadius: 14, padding: 12, gap: 4 },
+  // 44pt rows: the whole row is the checkbox, so that's its touch target.
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 12, paddingVertical: 5, minHeight: 44 },
+  tip: { borderRadius: 12, padding: 10, gap: 3 },
   picker: { flexDirection: 'row', gap: 4 },
-  opt: { width: 34, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  opt: { width: 32, height: 32, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
 });

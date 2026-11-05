@@ -8,9 +8,14 @@ import { usePop, useTween } from '../lib/motion';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
 
+/** App-wide text size: screens write sizes at full scale and every T draws them this much smaller (the user wants a small font everywhere). */
+export const TEXT_SCALE = 0.9;
+
 export function T({ style, w = 'body', ...p }: TextProps & { w?: keyof typeof F }) {
   const t = useTheme();
-  return <Text {...p} style={[{ color: t.fg, fontFamily: F[w], fontSize: 15 }, style]} />;
+  const flat = StyleSheet.flatten([{ color: t.fg, fontFamily: F[w], fontSize: 15 }, style]) ?? {};
+  const size = { fontSize: (flat.fontSize ?? 15) * TEXT_SCALE, ...(flat.lineHeight ? { lineHeight: flat.lineHeight * TEXT_SCALE } : null) };
+  return <Text {...p} style={[flat, size]} />;
 }
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -152,7 +157,6 @@ export function ColorChip({ label, color, size = 13 }: { label: string; color: s
     </View>
   );
 }
-export const FoodChip = ColorChip;
 
 /** `short` is the one-letter name shown when the chip isn't selected; `details` is the color legend shown when it is. */
 export type DayChip = { key: number; label: string; short: string; colors: string[]; details: { color?: string; label: string }[] };

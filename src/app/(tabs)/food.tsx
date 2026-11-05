@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, TARGETS, WEEK_MENU } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
 import { router } from 'expo-router';
-import { Btn, Card, Check, DayChips, FoodChip, HeaderBtn, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, Check, DayChips, HeaderBtn, Ring, Screen, T } from '../../components/ui';
 import { dateKey, mealMacros } from '../../lib/logic';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
@@ -53,25 +53,26 @@ export default function Food() {
     <Screen
       title="الأكل"
       sub="183 سم · 82 كجم · زيادة عضل"
+      dense
       action={<HeaderBtn icon="calculator-outline" label="احسب احتياجك من السعرات" onPress={() => router.push('/calories')} />}>
       <View style={{ flexDirection: 'row', gap: 6 }}>
         {tiles.map((x, i) => (
-          <View key={i} style={{ flex: 1, minWidth: 0, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 10, backgroundColor: x.solid ? t.ink : tint(x.c, 0.15) }}>
-            <T w="numBold" style={{ fontSize: 17, color: x.solid ? t.onInk : t.fg }} numberOfLines={1}>{String(x.v)}</T>
+          <View key={i} style={{ flex: 1, minWidth: 0, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 9, backgroundColor: x.solid ? t.ink : tint(x.c, 0.15) }}>
+            <T w="numBold" style={{ fontSize: 15, color: x.solid ? t.onInk : t.fg }} numberOfLines={1}>{String(x.v)}</T>
             <T style={{ fontSize: 11, color: x.solid ? t.onInk : t.mute }}>{`${x.u} · ${x.l}`}</T>
           </View>
         ))}
       </View>
 
-      <DayChips days={chips} value={sel} today={today} onChange={setSel} />
+      <DayChips dense days={chips} value={sel} today={today} onChange={setSel} />
 
-      <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <Ring value={isToday ? eaten.kcal / total.kcal : 0} size={64} stroke={5}>
-          <T w="numBold" style={{ fontSize: 14, color: isToday ? t.okText : t.mute }}>{isToday ? `${Math.round((eaten.kcal / total.kcal) * 100)}%` : '–'}</T>
+      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Ring value={isToday ? eaten.kcal / total.kcal : 0} size={46} stroke={4}>
+          <T w="numBold" style={{ fontSize: 12, color: isToday ? t.okText : t.mute }}>{isToday ? `${Math.round((eaten.kcal / total.kcal) * 100)}%` : '–'}</T>
         </Ring>
-        <View style={{ flex: 1, gap: 2 }}>
-          <T style={{ color: t.mute, fontSize: 13 }}>{`${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
-          <T w="bold" style={{ fontSize: 18 }}>{`${day.day} · ${day.training ? 'يوم تمرين' : 'يوم راحة'}`}</T>
+        <View style={{ flex: 1, gap: 1 }}>
+          <T style={{ color: t.mute, fontSize: 12.5 }}>{`${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
+          <T w="bold" style={{ fontSize: 16 }}>{`${day.day} · ${day.training ? 'يوم تمرين' : 'يوم راحة'}`}</T>
           <T style={{ color: t.mute, fontSize: 12 }}>
             {isToday ? `كلت لحد دلوقتي: ${Math.round(eaten.kcal)} سعر · ${Math.round(eaten.p)} جم بروتين` : 'التعليم على الوجبات بيشتغل في يوم النهارده بس.'}
           </T>
@@ -81,24 +82,29 @@ export default function Food() {
       {meals.map((m) => {
         const on = isToday && checks.has(m.meal);
         return (
-          <Card key={m.meal} style={{ padding: 14, gap: 10, opacity: on ? 0.7 : 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-              <View style={{ flex: 1 }}>
-                <T w="bold" style={{ fontSize: 16 }}>{`${m.meal} · ${m.name}`}</T>
-                <T style={{ color: t.mute, fontSize: 12.5 }}>{day.training ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
+          <Card key={m.meal} style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4, opacity: on ? 0.7 : 1 }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <View style={{ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                <T w="bold" style={{ fontSize: 14, flexShrink: 1 }} numberOfLines={1}>{`${m.meal} · ${m.name}`}</T>
+                <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={1}>{day.training ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
               </View>
-              {isToday ? <Check on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(date, m.meal, !on); bump(); }} /> : null}
+              {isToday ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(date, m.meal, !on); bump(); }} /> : null}
             </View>
-            <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 5 }}>
-              {m.items.map((it) => (
-                <FoodChip key={it} label={it} color={typeColor(t, FOODS[it]?.type ?? 'v')} />
+            {/* The meal's items as a list: colored dot (protein / carbs / fat / veg), item, its calories. */}
+            <View>
+              {m.items.map((it, i) => (
+                <View key={it} style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
+                  <View style={[s.dot, { backgroundColor: typeColor(t, FOODS[it]?.type ?? 'v') }]} />
+                  <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{it}</T>
+                  {FOODS[it] ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${Math.round(FOODS[it].kcal)} سعر`}</T> : null}
+                </View>
               ))}
             </View>
-            <View style={{ flexDirection: 'row', gap: 14 }}>
-              <T w="num" style={{ fontSize: 12.5 }}>{`${Math.round(m.mac.kcal)} سعر`}</T>
-              <T w="num" style={{ fontSize: 12.5, color: t.protein }}>{`${Math.round(m.mac.p)} بروتين`}</T>
-              <T w="num" style={{ fontSize: 12.5, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
-              <T w="num" style={{ fontSize: 12.5, color: t.fat }}>{`${Math.round(m.mac.f)} دهون`}</T>
+            <View style={{ flexDirection: 'row', gap: 12 }}>
+              <T w="num" style={{ fontSize: 12 }}>{`${Math.round(m.mac.kcal)} سعر`}</T>
+              <T w="num" style={{ fontSize: 12, color: t.protein }}>{`${Math.round(m.mac.p)} بروتين`}</T>
+              <T w="num" style={{ fontSize: 12, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
+              <T w="num" style={{ fontSize: 12, color: t.fat }}>{`${Math.round(m.mac.f)} دهون`}</T>
             </View>
           </Card>
         );
@@ -119,19 +125,19 @@ export default function Food() {
           {SWAPS.map((g, gi) => {
             const c = [t.protein, t.carbs, t.fat][gi];
             return (
-              <Card key={g.title} style={{ padding: 14, gap: 4 }}>
+              <Card key={g.title} style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 2 }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c }} />
                   <T w="bold">{`${g.title} · ${g.unit}`}</T>
                 </View>
                 <T style={{ color: t.mute, fontSize: 12 }}>أي صنف هنا ينفع مكان أي صنف تاني في نفس المجموعة</T>
                 {g.items.map((x) => (
-                  <T key={x} style={{ fontSize: 14 }}>{`• ${x}`}</T>
+                  <T key={x} style={{ fontSize: 13.5 }}>{`• ${x}`}</T>
                 ))}
               </Card>
             );
           })}
-          <Card style={{ padding: 14, gap: 8 }}>
+          <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}>
             <T w="bold">المكملات</T>
             {SUPPLEMENTS.map((s) => (
               <View key={s.name}>
@@ -146,3 +152,8 @@ export default function Food() {
     </Screen>
   );
 }
+
+const s = StyleSheet.create({
+  item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 4 },
+  dot: { width: 7, height: 7, borderRadius: 4 },
+});
