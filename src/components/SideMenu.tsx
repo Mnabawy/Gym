@@ -14,7 +14,7 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type Item = { icon: IconName; label: string; path: '/progress' | '/week' | '/weight' | '/attendance' | '/prayer' | '/calories' | '/settings' };
 
 /**
- * ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
+ * The sections button (أقسامك: الجيم، العادات، الأهداف) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
  * over a fading backdrop; its items slide in one after another. Tapping an item closes the menu, then opens the page.
  */
 export function MenuButton() {
@@ -55,7 +55,10 @@ export function MenuButton() {
 
   return (
     <>
-      <HeaderBtn icon="menu" label="القايمة" onPress={() => setOpen(true)} />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <HeaderBtn icon="apps-outline" label="الأقسام" onPress={() => router.push('/sections')} />
+        <HeaderBtn icon="menu" label="القايمة" onPress={() => setOpen(true)} />
+      </View>
       <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onShow={() => run(1)} onRequestClose={() => close()}>
         <Animated.View style={[StyleSheet.absoluteFill, s.back, { opacity: p }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} accessibilityRole="button" accessibilityLabel="اقفل القايمة" />

@@ -1,6 +1,7 @@
 /// <reference types="jest" />
 import { morningBrief, type BriefInput } from '../src/lib/brief';
 import { currentWorkout } from '../src/lib/schedule';
+import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 // Today Wed 4 Nov 2026; last session Mon 2 Nov was back (id 1), so chest (2) is due.
 const TODAY = '2026-11-04';
@@ -52,4 +53,10 @@ test('habits due that day', () => {
 test('shopping day on Friday', () => {
   expect(morningBrief('2026-11-06', base).body).toContain('🛒');
   expect(morningBrief(TODAY, base).body).not.toContain('🛒');
+});
+
+test("each goal's next step", () => {
+  const goal = fromTemplate(GOAL_TEMPLATES[0], TODAY, 1);
+  const b = morningBrief(TODAY, { ...base, goals: [goal] }).body;
+  expect(b).toContain(`🎯 ${goal.name}: ${goal.stages[0].tasks[0].title}`);
 });

@@ -10,6 +10,7 @@ import { projected, type Current } from './schedule';
 import { movesFor, splitShopping, tripDays } from './shop';
 import type { WeighIn } from './weight';
 import { isDue, type Habit } from './habits';
+import { nextTask, type Goal } from './goals';
 
 export type BriefInput = {
   /** Today (the day the app schedules from). */
@@ -28,6 +29,8 @@ export type BriefInput = {
   shopMoves: Record<string, number>;
   /** Your habits (the العادات tab): the ones due that day get a line. */
   habits?: readonly Habit[];
+  /** Your goals (الأهداف): each one's next step gets a line. */
+  goals?: readonly Goal[];
 };
 
 /** Food items that need taking out of the freezer the morning before. */
@@ -60,6 +63,10 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   lines.push(`💧 ${Math.round(waterGoalMl(x.waterL, training) / 100) / 10} لتر مية`);
   const habits = (x.habits ?? []).filter((h) => isDue(h, date));
   if (habits.length) lines.push(`✅ عاداتك: ${habits.map((h) => (h.cue ? `${h.name} (${h.cue})` : h.name)).join('، ')}`);
+  for (const g of x.goals ?? []) {
+    const n = nextTask(g);
+    if (n) lines.push(`🎯 ${g.name}: ${n.task.title}`);
+  }
 
   const prep: string[] = [];
   if (day) prep.push('شنطة الجيم والزمزمية');

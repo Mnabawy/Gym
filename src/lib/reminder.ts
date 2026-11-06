@@ -9,6 +9,7 @@ import { after, currentWorkout, reminderTimes } from './schedule';
 import { useSettings } from './settings';
 import { storage } from './storage';
 import { morningBrief, type BriefInput } from './brief';
+import { readGoals } from './goalStore';
 import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
@@ -51,6 +52,7 @@ function briefInput(today: string): BriefInput {
     shopTrips: st.shopTrips,
     shopMoves: st.shopMoves,
     habits: readHabits(),
+    goals: readGoals(),
   };
 }
 

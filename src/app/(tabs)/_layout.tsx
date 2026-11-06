@@ -6,6 +6,7 @@ import { useSettings } from '../../lib/settings';
 import { DRIVE_USER, driveSupported } from '../../lib/drive';
 import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
+import { lastSection, SECTION_PATH } from '../../lib/section';
 import { F, neon, useTheme } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -41,6 +42,8 @@ export default function TabsLayout() {
   const bar = { height: 64 + bottom, paddingTop: 4, paddingBottom: bottom };
   // First launch on the phone: the sign-in screen, until you sign in or skip it.
   if (driveSupported && !storage.getMeta(WELCOME_KEY) && !storage.getMeta(DRIVE_USER)) return <Redirect href="/welcome" />;
+  // The app opens on the section you were in last (الجيم, العادات or الأهداف); switching sections saves it first.
+  if (lastSection() !== 'gym') return <Redirect href={SECTION_PATH[lastSection()]} />;
   return (
     <Tabs
       screenOptions={{
@@ -62,7 +65,6 @@ export default function TabsLayout() {
             : {}),
         }}
       />
-      <Tabs.Screen name="habits" options={{ title: 'العادات', tabBarIcon: icon('checkmark-circle') }} />
       <Tabs.Screen name="food" options={{ title: 'الأكل', tabBarIcon: icon('restaurant') }} />
       <Tabs.Screen name="shop" options={{ title: 'المشتريات', tabBarIcon: icon('cart') }} />
     </Tabs>
