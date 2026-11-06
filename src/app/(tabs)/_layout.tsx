@@ -62,6 +62,7 @@ export default function TabsLayout() {
             : {}),
         }}
       />
+      <Tabs.Screen name="habits" options={{ title: 'العادات', tabBarIcon: icon('checkmark-circle') }} />
       <Tabs.Screen name="food" options={{ title: 'الأكل', tabBarIcon: icon('restaurant') }} />
       <Tabs.Screen name="shop" options={{ title: 'المشتريات', tabBarIcon: icon('cart') }} />
     </Tabs>

@@ -9,6 +9,7 @@ import { weekdayOf } from './logic';
 import { projected, type Current } from './schedule';
 import { movesFor, splitShopping, tripDays } from './shop';
 import type { WeighIn } from './weight';
+import { isDue, type Habit } from './habits';
 
 export type BriefInput = {
   /** Today (the day the app schedules from). */
@@ -25,6 +26,8 @@ export type BriefInput = {
   weights: readonly WeighIn[];
   shopTrips: number;
   shopMoves: Record<string, number>;
+  /** Your habits (the العادات tab): the ones due that day get a line. */
+  habits?: readonly Habit[];
 };
 
 /** Food items that need taking out of the freezer the morning before. */
@@ -55,6 +58,8 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   } else lines.push('😴 يوم راحة: العضل بيكبر النهارده');
   for (const m of meals) lines.push(`🍽 ${m.meal} (${m.time}): ${m.name}`);
   lines.push(`💧 ${Math.round(waterGoalMl(x.waterL, training) / 100) / 10} لتر مية`);
+  const habits = (x.habits ?? []).filter((h) => isDue(h, date));
+  if (habits.length) lines.push(`✅ عاداتك: ${habits.map((h) => h.name).join('، ')}`);
 
   const prep: string[] = [];
   if (day) prep.push('شنطة الجيم والزمزمية');

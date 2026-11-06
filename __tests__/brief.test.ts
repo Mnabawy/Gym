@@ -41,6 +41,13 @@ test('next training day gets the next workout in the sequence', () => {
   expect(morningBrief('2026-11-06', base).body).toContain('طلّع الفراخ من الفريزر');
 });
 
+test('habits due that day', () => {
+  const h = { id: 'h', name: 'ورد', icon: 'book', color: '#1BA6A8', remind: null, start: '2026-11-01' };
+  const x = { ...base, habits: [{ ...h, days: [3] }, { ...h, id: 'g', name: 'قراءة', days: [4] }] };
+  expect(morningBrief(TODAY, x).body).toContain('✅ عاداتك: ورد'); // Wednesday
+  expect(morningBrief(TODAY, x).body).not.toContain('قراءة');
+});
+
 test('shopping day on Friday', () => {
   expect(morningBrief('2026-11-06', base).body).toContain('🛒');
   expect(morningBrief(TODAY, base).body).not.toContain('🛒');

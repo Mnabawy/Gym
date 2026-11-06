@@ -13,10 +13,13 @@ import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
 import { parseWeights, WEIGHTS_KEY } from './weight';
+import { logKey } from './habits';
+import { readHabitLog, readHabits } from './habitStore';
 
 const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
 const BRIEF = 'morning-brief';
+const HABIT = 'habit-reminder';
 
 /** Asks for notification permission (when turning the reminder on). */
 export async function allowReminders(): Promise<boolean> {
@@ -46,6 +49,7 @@ function briefInput(today: string): BriefInput {
     weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
     shopTrips: st.shopTrips,
     shopMoves: st.shopMoves,
+    habits: readHabits(),
   };
 }
 
@@ -57,11 +61,25 @@ export function syncReminders(): Promise<void> {
   const go = async () => {
     try {
       for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
-        if (n.content.data?.kind === KIND || n.content.data?.kind === BRIEF) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+        const k = n.content.data?.kind;
+        if (k === KIND || k === BRIEF || k === HABIT) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
-      if ((!st.reminder && !st.brief) || !(await Notifications.getPermissionsAsync()).granted) return;
+      const habits = readHabits().filter((h) => h.remind != null);
+      if ((!st.reminder && !st.brief && !habits.length) || !(await Notifications.getPermissionsAsync()).granted) return;
       const today = dateKey();
+      // Each habit with a reminder: its next due days at its time; not today once it's ticked (done or excused).
+      const hlog = readHabitLog();
+      for (const h of habits) {
+        const marked = !!hlog[logKey(h.id, today)];
+        for (const date of reminderTimes(new Date(), h.remind!, h.days, marked, 5)) {
+          if (dateKey(date) < h.start) continue;
+          await Notifications.scheduleNotificationAsync({
+            content: { title: h.name, body: 'عادة النهارده: علّم عليها لما تعملها', sound: true, data: { kind: HABIT } },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
+          });
+        }
+      }
       const cur = currentWorkout(storage.trainedDays(), today);
       if (st.brief) {
         const input = briefInput(today);
