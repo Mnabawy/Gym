@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { dayState, habitStats, isDue, logKey, nextMark, parseHabits, parseLog, type Habit, type Log } from '../src/lib/habits';
+import { dayState, habitStats, isDue, logKey, nextMark, parseHabits, parseLog, phaseFill, phaseOf, type Habit, type Log } from '../src/lib/habits';
 
 // Sun 1 Nov 2026 … ; daily habit and a Sun/Tue/Thu one
 const daily: Habit = { id: 'h1', name: 'ورد', icon: 'book', color: '#1BA6A8', days: [0, 1, 2, 3, 4, 5, 6], remind: null, start: '2026-11-01' };
@@ -81,6 +81,17 @@ test('cue is kept, trimmed and capped', () => {
   const [h] = parseHabits(JSON.stringify([{ ...daily, cue: '  بعد الفجر في أوضتي  ' }]));
   expect(h.cue).toBe('بعد الفجر في أوضتي');
   expect(parseHabits(JSON.stringify([{ ...daily, cue: '  ' }]))[0].cue).toBeUndefined();
+});
+
+test('three stretches on the way to 66', () => {
+  expect(phaseOf(0)).toBe(0);
+  expect(phaseOf(22)).toBe(1); // first stretch full: on to the second
+  expect(phaseOf(21)).toBe(0);
+  expect(phaseOf(44)).toBe(2);
+  expect(phaseOf(66)).toBe(3);
+  expect(phaseFill(0)).toEqual([0, 0, 0]);
+  expect(phaseFill(33)).toEqual([1, 0.5, 0]);
+  expect(phaseFill(70)).toEqual([1, 1, 1]);
 });
 
 test('tap cycles done → skip → nothing', () => {

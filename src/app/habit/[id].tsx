@@ -7,7 +7,7 @@ import { Btn, Card, Label, Progress, Ring, Screen, T } from '../../components/ui
 import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
 import { addDays, weekStart } from '../../lib/gaps';
-import { ALL_DAYS, dayState, FORM_DAYS, habitStats, logKey, nextMark, type DayState, type Habit, type Log } from '../../lib/habits';
+import { ALL_DAYS, dayState, FORM_DAYS, habitStats, logKey, nextMark, PHASES, phaseFill, phaseOf, type DayState, type Habit, type Log } from '../../lib/habits';
 import { deleteHabit, readHabitLog, readHabits, setMark } from '../../lib/habitStore';
 import { addMonths, dateKey, monthCells } from '../../lib/logic';
 import { tap } from '../../lib/timer';
@@ -112,9 +112,9 @@ export default function HabitScreen() {
       <Card style={{ padding: 14, gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
           <T w="bold" style={{ flex: 1, fontSize: 15 }}>{st.formed >= FORM_DAYS ? 'عدّيت المتوسط ✓ كمّل' : 'في الطريق للمتوسط'}</T>
-          <T w="numBold" style={{ fontSize: 14, color: h.color }}>{`${st.formed} / ${FORM_DAYS}`}</T>
+          <T w="numBold" style={{ fontSize: 14, color: PHASES[Math.min(2, phaseOf(st.formed))].color }}>{`${st.formed} / ${FORM_DAYS}`}</T>
         </View>
-        <Progress value={st.formed / FORM_DAYS} color={h.color} height={10} />
+        <PhaseBar formed={st.formed} t={t} />
         <T style={{ color: t.mute, fontSize: 12, lineHeight: 18 }}>
           في المتوسط العادة بتبقى تلقائية بعد حوالي شهرين (59 لـ 66 يوم)، بس ده بيختلف من شخص لشخص: من أسبوع لحد أكتر من 10 شهور. العادات البسيطة أسرع من الأكل والرياضة. لو حاسس إنك بتعملها من غير تفكير، يبقى اتبنت.
         </T>
@@ -267,6 +267,28 @@ function Heatmap({ h, log, today, t }: { h: Habit; log: Log; today: string; t: T
           </View>
         ))}
       </View>
+    </View>
+  );
+}
+
+/** The way to 66 in three colored stretches; the one you're in stands out, with its range under it. */
+function PhaseBar({ formed, t }: { formed: number; t: Theme }) {
+  const now = phaseOf(formed);
+  const fill = phaseFill(formed);
+  return (
+    <View style={{ flexDirection: 'row', gap: 4 }}>
+      {PHASES.map((p, i) => {
+        const on = i === now;
+        return (
+          <View key={p.label} style={{ flex: 1, gap: 4 }} accessible accessibilityLabel={`${p.label}: من ${p.from} لـ ${p.to}${on ? '، إنت هنا' : ''}`}>
+            <View style={{ height: on ? 12 : 8, borderRadius: 6, backgroundColor: tint(p.color, 0.18), overflow: 'hidden', marginTop: on ? 0 : 2 }}>
+              <View style={{ width: `${fill[i] * 100}%`, height: '100%', borderRadius: 6, backgroundColor: p.color }} />
+            </View>
+            <T w={on ? 'bold' : 'body'} style={{ fontSize: 11.5, color: on ? p.color : t.mute, textAlign: 'center' }}>{p.label}</T>
+            <T w="num" style={{ fontSize: 10, color: t.mute, textAlign: 'center' }}>{`${p.from}–${p.to}`}</T>
+          </View>
+        );
+      })}
     </View>
   );
 }

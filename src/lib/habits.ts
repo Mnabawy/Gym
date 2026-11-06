@@ -19,6 +19,18 @@ export const HABITS_KEY = 'habits';
 export const HABIT_LOG_KEY = 'habitLog';
 export const FORM_DAYS = 66;
 export const STRENGTH_HALF_LIFE = 13;
+
+/** The way to FORM_DAYS in three equal stretches, each with its own color (Okabe–Ito: orange, blue, green). */
+export const PHASES = [
+  { label: 'البداية', from: 1, to: 22, color: '#E69F00' },
+  { label: 'التثبيت', from: 23, to: 44, color: '#0072B2' },
+  { label: 'قربت', from: 45, to: 66, color: '#009E73' },
+] as const;
+
+/** Which stretch you're in (0–2) for a number of done days; 3 once past FORM_DAYS. */
+export const phaseOf = (formed: number) => (formed >= FORM_DAYS ? 3 : Math.max(0, PHASES.findIndex((p) => formed < p.to)));
+/** How full each stretch is (0–1). */
+export const phaseFill = (formed: number) => PHASES.map((p) => Math.max(0, Math.min(1, (formed - (p.from - 1)) / (p.to - p.from + 1))));
 export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 export type Habit = {
