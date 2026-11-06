@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addMeasure, addWeighIn, measureChange, parseMeasures, parseWeights, rateBand, rateVerdict, removeWeighIn, waistNote, weeklyRate } from '../src/lib/weight';
+import { latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, parseMeasures, parseWeights, rateBand, rateVerdict, removeWeighIn, waistNote, weeklyRate } from '../src/lib/weight';
 
 test('parse keeps valid weigh-ins in date order, one per day', () => {
   const raw = JSON.stringify([{ date: '2026-11-03', kg: 82 }, { date: '2026-11-01', kg: 81.5 }, { date: 'x', kg: 80 }, { date: '2026-11-02', kg: 900 }, { date: '2026-11-03', kg: 82.4 }]);
@@ -56,4 +56,17 @@ describe('measurements', () => {
     expect(waistNote([fast[0]], 'bulk')).toBeNull();
     expect(waistNote([{ date: '2026-10-01', waist: 84 }, { date: '2026-10-05', waist: 90 }], 'bulk')).toBeNull(); // too close
   });
+});
+
+test('US Navy body fat', () => {
+  // man, 183 cm, waist 84, neck 38 → about 14.8%
+  expect(navyBodyFat('male', 183, { waist: 84, neck: 38 })).toBeCloseTo(14.8, 0);
+  // woman, 165 cm, waist 72, hips 98, neck 32 → about 26%
+  const f = navyBodyFat('female', 165, { waist: 72, hips: 98, neck: 32 })!;
+  expect(f).toBeGreaterThan(22);
+  expect(f).toBeLessThan(30);
+  expect(navyBodyFat('female', 165, { waist: 72, neck: 32 })).toBeNull(); // hips needed
+  expect(navyBodyFat('male', 183, { waist: 38, neck: 40 })).toBeNull();
+  expect(navyBodyFat('male', 183, { neck: 38 })).toBeNull();
+  expect(latestParts([{ date: '2026-10-01', waist: 85, neck: 38 }, { date: '2026-11-01', waist: 84 }])).toEqual({ waist: 84, neck: 38 });
 });

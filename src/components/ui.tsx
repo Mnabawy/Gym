@@ -352,11 +352,12 @@ export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; 
       hitSlop={{ top: 2, bottom: 2 }}
       style={({ pressed }) => [
         s.btn,
-        solid ? { backgroundColor: t.ok } : { borderWidth: 1.2, borderColor: t.ink },
+        // Neon: ink is near-black there, so outlined buttons use the glowing accent instead.
+        solid ? { backgroundColor: t.ok } : { borderWidth: 1.2, borderColor: t.neon ? tint(t.ok, 0.6) : t.ink },
         { opacity: pressed ? 0.8 : 1 },
         style,
       ]}>
-      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 14, color: solid ? '#FFFFFF' : t.ink }}>
+      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 14, color: solid ? (t.neon ? t.onOk : '#FFFFFF') : t.neon ? t.ok : t.ink }}>
         {label}
       </T>
     </Pressable>

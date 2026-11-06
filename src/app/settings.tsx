@@ -7,7 +7,7 @@ import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from 
 import { useVersePopup } from '../components/VersePopup';
 import { countAr, dateKey, DAYS, formatClock, SETS } from '../lib/logic';
 import { storage } from '../lib/storage';
-import { useSettings } from '../lib/settings';
+import { deloadOn, useSettings } from '../lib/settings';
 import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
@@ -209,6 +209,12 @@ export default function SettingsScreen() {
         <T style={{ color: t.mute, fontSize: 12 }}>البار الأولمبي العادي 20 كجم. بار الـ EZ محسوب 10 كجم.</T>
       </Card>
       <Card>
+        <Row
+          label="أسبوع خفيف (ديلود)"
+          sub={deloadOn(st) ? `شغال لحد ${dayAr(st.deloadUntil)}: نص المجموعات في كل تمرين` : '7 أيام بنص المجموعات عشان جسمك يرتاح. التطبيق بيقترحه لوحده لما يحين وقته'}>
+          <Btn label={deloadOn(st) ? 'وقّفه' : 'ابدأه'} kind={deloadOn(st) ? 'ghost' : 'solid'} onPress={deloadOn(st) ? st.stopDeload : st.startDeload} />
+        </Row>
+        <Sep />
         <SwitchRow
           label="اسألني كان فاضل كام تكرار"
           sub="بعد كل مجموعة (RIR). لو كان فاضلك 3 أو أكتر في كل المجموعات، التطبيق يقولك تزوّد الوزن حتى لو ما وصلتش لآخر التكرارات"

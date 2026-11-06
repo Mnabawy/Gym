@@ -135,7 +135,8 @@ export const DEFAULT_REST = { heavy: 150, normal: 90 } as const;
 export const SETS_MIN = 1;
 export const SETS_MAX = 8;
 
-export type PlanSettings = { sets: Readonly<Record<string, number>>; restHeavy: number; restNormal: number };
+/** `deload`: a light week — every exercise at half its sets (rounded up), the way the gaps page suggests. */
+export type PlanSettings = { sets: Readonly<Record<string, number>>; restHeavy: number; restNormal: number; deload?: boolean };
 
 /**
  * Applies the settings page's numbers to PROGRAM in place, so every screen (workout, calendar, gaps) reads the same plan.
@@ -143,8 +144,8 @@ export type PlanSettings = { sets: Readonly<Record<string, number>>; restHeavy: 
  */
 export function applyPlan(p: PlanSettings): void {
   for (const e of ALL_EXERCISES) {
-    const n = p.sets[e.id] ?? DEFAULT_SETS[e.id];
-    e.sets = Math.min(SETS_MAX, Math.max(SETS_MIN, Math.round(n)));
+    const n = Math.min(SETS_MAX, Math.max(SETS_MIN, Math.round(p.sets[e.id] ?? DEFAULT_SETS[e.id])));
+    e.sets = p.deload ? Math.max(SETS_MIN, Math.ceil(n / 2)) : n;
     e.restSec = e.tag === 'heavy' ? p.restHeavy : p.restNormal;
   }
 }

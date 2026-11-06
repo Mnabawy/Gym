@@ -7,8 +7,8 @@ import { Btn, Card, Label, Progress, Ring, Screen, T } from '../../components/ui
 import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
 import { addDays, weekStart } from '../../lib/gaps';
-import { ALL_DAYS, dayState, FORM_DAYS, habitStats, logKey, nextMark, PHASES, phaseFill, phaseOf, type DayState, type Habit, type Log } from '../../lib/habits';
-import { deleteHabit, readHabitLog, readHabits, setMark } from '../../lib/habitStore';
+import { ALL_DAYS, dayState, FORM_DAYS, habitStats, logKey, nextMark, pausedNow, PHASES, phaseFill, phaseOf, togglePause, type DayState, type Habit, type Log } from '../../lib/habits';
+import { deleteHabit, readHabitLog, readHabits, saveHabit, setMark } from '../../lib/habitStore';
 import { addMonths, dateKey, monthCells } from '../../lib/logic';
 import { tap } from '../../lib/timer';
 import { tint, useTheme, type Theme } from '../../theme';
@@ -108,6 +108,13 @@ export default function HabitScreen() {
         </View>
       </Card>
 
+      {pausedNow(h) ? (
+        <View style={[s.warn, { backgroundColor: t.soft }]}>
+          <Ionicons name="pause-circle" size={20} color={t.mute} />
+          <T style={{ flex: 1, fontSize: 13 }}>{`متوقفة مؤقتاً من ${+h.pauses!.find((p) => p.to === null)!.from.slice(8)} ${MONTHS_AR[+h.pauses!.find((p) => p.to === null)!.from.slice(5, 7) - 1]}. الأيام دي مش بتتحسب عليك`}</T>
+        </View>
+      ) : null}
+
       {/* The way to 66 days */}
       <Card style={{ padding: 14, gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
@@ -202,7 +209,8 @@ export default function HabitScreen() {
       ) : null}
 
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Btn label="عدّل العادة" style={{ flex: 1 }} onPress={() => setEditing(true)} />
+        <Btn label="عدّل" style={{ flex: 1 }} onPress={() => setEditing(true)} />
+        <Btn label={pausedNow(h) ? 'رجّعها' : 'وقّفها مؤقتاً'} kind={pausedNow(h) ? 'solid' : 'ghost'} style={{ flex: 1 }} onPress={() => saveHabit(togglePause(h, today))} />
         {!confirm ? <Btn label="امسحها" style={{ flex: 1 }} onPress={() => setConfirm(true)} /> : null}
       </View>
       {confirm ? (
@@ -218,7 +226,7 @@ export default function HabitScreen() {
   );
 }
 
-const STATE_AR: Record<DayState, string> = { done: 'عملتها', skip: 'معذور', missed: 'فوّتها', today: 'النهارده، لسه', off: 'مش عليك', before: 'قبل ما تبدأ', future: 'لسه مجاش' };
+const STATE_AR: Record<DayState, string> = { done: 'عملتها', skip: 'معذور', missed: 'فوّتها', today: 'النهارده، لسه', off: 'مش عليك', before: 'قبل ما تبدأ', future: 'لسه مجاش', paused: 'متوقفة' };
 
 function dayLook(s: DayState, color: string, t: Theme) {
   switch (s) {
@@ -230,11 +238,13 @@ function dayLook(s: DayState, color: string, t: Theme) {
       return { backgroundColor: tint(t.bad, 0.14) };
     case 'off':
       return { backgroundColor: t.soft };
+    case 'paused':
+      return { backgroundColor: t.soft, opacity: 0.45 };
     default:
       return null;
   }
 }
-const numColor = (s: DayState, t: Theme) => (s === 'done' ? '#FFFFFF' : s === 'missed' ? t.bad : s === 'future' || s === 'before' || s === 'off' ? t.mute : t.fg);
+const numColor = (s: DayState, t: Theme) => (s === 'done' ? '#FFFFFF' : s === 'missed' ? t.bad : s === 'future' || s === 'before' || s === 'off' || s === 'paused' ? t.mute : t.fg);
 
 /** GitHub-style grid: one column per week (Saturday on top), oldest at the start (right in RTL). */
 function Heatmap({ h, log, today, t }: { h: Habit; log: Log; today: string; t: Theme }) {

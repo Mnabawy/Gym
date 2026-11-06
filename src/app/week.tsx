@@ -15,6 +15,8 @@ import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
+import { readHabitLog, readHabits } from '../lib/habitStore';
+import { CARDIO_KEY, parseCardio, WHO_MIN } from '../lib/cardio';
 import { useTheme } from '../theme';
 
 /** Weekly target sets per muscle (same as the progress page). */
@@ -42,6 +44,10 @@ export default function WeekScreen() {
     water: readNumbers(WATER_KEY),
     waterGoal: waterGoalMl(energyFor(body)?.water ?? null, false),
     mealsPerDay: MEAL_ORDER.length,
+    habits: readHabits(),
+    habitLog: readHabitLog(),
+    cardio: parseCardio(storage.getMeta(CARDIO_KEY)),
+    weightKg: body.weight ?? 0,
   });
   const live = from === thisWeek;
   // Only for a finished week: a week in progress would always look like a drop.
@@ -97,6 +103,38 @@ export default function WeekScreen() {
           <T style={{ color: t.mute, fontSize: 13 }}>مفيش أرقام جديدة الأسبوع ده.</T>
         )}
       </Card>
+
+      <Label>الكارديو والمشي</Label>
+      <Card style={{ padding: 14, gap: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
+          <T w="medium" style={{ flex: 1 }}>{`نشاط متوسط · الهدف ${WHO_MIN} دقيقة`}</T>
+          <T w="numBold" style={{ fontSize: 15, color: r.cardio.who >= WHO_MIN ? t.okText : t.fg }}>{`${r.cardio.who}/${WHO_MIN}`}</T>
+        </View>
+        <Progress value={r.cardio.who / WHO_MIN} color={t.ok} height={8} />
+        <T style={{ color: t.mute, fontSize: 12.5 }}>
+          {r.cardio.sessions
+            ? [`${r.cardio.sessions} مرة`, `${r.cardio.minutes} دقيقة`, r.cardio.km ? `${r.cardio.km} كم` : null, r.cardio.steps ? `${r.cardio.steps.toLocaleString('en-US')} خطوة` : null, r.cardio.kcal ? `≈${r.cardio.kcal} سعر` : null].filter(Boolean).join(' · ')
+            : 'ما سجلتش كارديو الأسبوع ده. سجّله من تاب التمرين'}
+        </T>
+      </Card>
+
+      {r.habits.length ? (
+        <>
+          <Label>العادات</Label>
+          <Card style={{ padding: 14, gap: 10 }}>
+            {r.habits.map((h) => (
+              <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: h.color }} />
+                <T style={{ width: 110, fontSize: 13 }} numberOfLines={1}>{h.name}</T>
+                <View style={{ flex: 1 }}>
+                  <Progress value={h.due ? h.done / h.due : 1} color={h.color} height={8} />
+                </View>
+                <T w="num" style={{ width: 40, fontSize: 12.5, textAlign: 'center' }}>{`${h.done}/${h.due}`}</T>
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
 
       <Label>الجسم والأكل</Label>
       <Card style={{ padding: 14, gap: 8 }}>

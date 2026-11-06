@@ -6,6 +6,8 @@ import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { DEFAULT_BODY, parseBody, type Body } from './energy';
 import { METHODS, parsePlace, type Method, type Place } from './prayer';
+import { dateKey } from './logic';
+import { addDays } from './gaps';
 
 export type Settings = {
   /** Only exercises changed from the PDF; missing id = default. */
@@ -52,6 +54,8 @@ export type Settings = {
   briefTime: number;
   /** Fingerprint / face lock when the app opens (src/lib/lock.ts). */
   appLock: boolean;
+  /** Last day of a light week (deload): until then every exercise has half its sets. '' = none. */
+  deloadUntil: string;
   /** Ask how many reps were left after ticking a set (RIR). */
   askRir: boolean;
   /** Weekly automatic backup file (src/lib/autoBackup.ts). */
@@ -86,6 +90,7 @@ export const DEFAULT_SETTINGS: Settings = {
   brief: false,
   briefTime: 6 * 60,
   appLock: false,
+  deloadUntil: '',
   autoBackup: true,
   backupDir: '',
 };
@@ -138,12 +143,20 @@ type Store = Settings & {
   reset: () => void;
   /** Re-read saved settings (after restoring a backup). */
   reload: () => void;
+  /** A light week from today for 7 days (half the sets), or end it early. */
+  startDeload: () => void;
+  stopDeload: () => void;
 };
 
 // Your edited program first: the saved sets overrides are checked against its exercises.
 applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
+/** A light week is on today. */
+export const deloadOn = (s: Pick<Settings, 'deloadUntil'>, today: string = dateKey()) => !!s.deloadUntil && today <= s.deloadUntil;
+/** The plan with the light week applied when it's on. */
+const plan = (s: Settings) => ({ ...s, deload: deloadOn(s) });
+
 const initial = parseSettings(storage.getMeta(KEY));
-applyPlan(initial);
+applyPlan(plan(initial));
 
 const pick = (s: Store): Settings => {
   const out = {} as Record<string, unknown>;
@@ -155,7 +168,7 @@ export const useSettings = create<Store>((set, get) => {
   const commit = (next: Settings) => {
     set(next);
     storage.setMeta(KEY, JSON.stringify(next));
-    applyPlan(next);
+    applyPlan(plan(next));
     useDataVersion.getState().bumpAll(); // screens and exercise cards re-read the plan
   };
   const save = (next: Settings) => {
@@ -190,8 +203,10 @@ export const useSettings = create<Store>((set, get) => {
       applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
       const next = parseSettings(storage.getMeta(KEY));
       set(next);
-      applyPlan(next);
+      applyPlan(plan(next));
       useDataVersion.getState().bumpAll();
     },
+    startDeload: () => commit({ ...pick(get()), deloadUntil: addDays(dateKey(), 6) }),
+    stopDeload: () => commit({ ...pick(get()), deloadUntil: '' }),
   };
 });

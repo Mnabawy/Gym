@@ -10,7 +10,7 @@ import { WorkoutChips } from '../components/WorkoutChips';
 import { dateKey } from '../lib/logic';
 import { move, newId, REPS_MAX, REPS_MIN } from '../lib/programEdit';
 import { currentWorkout, seqIndex } from '../lib/schedule';
-import { useSettings } from '../lib/settings';
+import { deloadOn, useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { F, useTheme } from '../theme';
 
@@ -61,6 +61,9 @@ export default function ProgramScreen() {
 
   return (
     <Screen title="البرنامج" sub="التمارين والمجموعات والتكرارات لكل يوم" onBack={() => router.back()}>
+      {deloadOn(st) ? (
+        <T style={{ color: t.warn, fontSize: 12.5 }}>أسبوع خفيف شغال: التمرين بنص المجموعات. الأرقام هنا هي العادية، وبترجع بعد الأسبوع.</T>
+      ) : null}
       <WorkoutChips value={day} current={due} onChange={(d) => { setDay(d); setConfirm(null); setDel(null); }} />
       <Card>
         <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, gap: 1 }}>
@@ -80,11 +83,11 @@ export default function ProgramScreen() {
                     <T w="num" style={{ fontSize: 14.5 }} numberOfLines={2}>{e.name}</T>
                     <T style={{ color: t.mute, fontSize: 12 }}>
                       {`${MUSCLE_AR[e.muscle]} · ${iso(`${e.repLow}–${e.repHigh}`)} تكرار${e.tag ? ` · ${TAG_INFO[e.tag].label}` : ''}${e.perLeg ? ' · لكل رجل' : ''}`}
-                      {e.sets !== base ? <T style={{ color: t.okText, fontSize: 12 }}>{` · الأصلي ${base}`}</T> : null}
+                      {(st.sets[e.id] ?? base) !== base ? <T style={{ color: t.okText, fontSize: 12 }}>{` · الأصلي ${base}`}</T> : null}
                       {!pdf ? <T style={{ color: t.warn, fontSize: 12 }}>{' · جديد'}</T> : null}
                     </T>
                   </View>
-                  <Stepper compact value={e.sets} min={SETS_MIN} max={SETS_MAX} onChange={(v) => st.setSets(e.id, v)} label={`مجموعات ${e.name}`} />
+                  <Stepper compact value={st.sets[e.id] ?? base} min={SETS_MIN} max={SETS_MAX} onChange={(v) => st.setSets(e.id, v)} label={`مجموعات ${e.name}`} />
                 </View>
                 <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'flex-end' }}>
                   <Icon name="arrow-up" label={`طلّع ${e.name} لفوق`} disabled={i === 0} onPress={() => save(move(defs(), i, -1))} />

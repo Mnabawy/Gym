@@ -55,12 +55,16 @@ Exercise names stay in English (gym vocabulary).
 - `src/lib/reminder.ts` — workout reminder and morning brief notifications (settings `reminder*`, `brief`, `briefTime`; `reminderDays` = your training days for both), next week scheduled ahead (`reminderTimes` in schedule.ts), re-synced from the root layout
 - `src/lib/brief.ts` — the morning brief's text: workout or rest (projected over your training days), meals with times (with meal swaps), water, what to get ready, weigh-in after 7 days, shopping day
 - Habits: tab `src/app/(tabs)/habits.tsx` (العادات; tick = done, long-press = excused) and a page per habit `src/app/habit/[id].tsx` (streak, rates, way to 66 days, month calendar with joined runs that you tap to fix, 26-week heatmap, weekdays). Yes/no habits you write yourself, on chosen weekdays, optional reminder. `src/lib/habits.ts` (pure: states, streak that survives one miss but not two, rates, strength = moving average with a 13-due-day half-life like Loop Habit Tracker; optional `cue` = when and where (implementation intention), shown on the card, page, reminder and brief; 66 days shown as the typical milestone per Lally 2010 / Singh 2024 — sources at the top of the file) + `src/lib/habitStore.ts` (meta `habits`, `habitLog`: `id|date` → done/skip) + `src/components/HabitForm.tsx`. Reminders in reminder.ts; due habits in the morning brief
+- Habits can be paused (`pauses` on the habit: paused days count as neither done nor missed; no reminders) and reordered (رتّب on the tab); the weekly report has each habit's week
+- Light week (deload): settings `deloadUntil`; `applyPlan` halves every exercise's sets (rounded up) while it's on; started from settings or the workout tab card that shows when the gaps report says it's due; no "+kg" tip during it
+- Body fat from the tape: `navyBodyFat` in weight.ts (US Navy method; men waist+neck, women +hips; needs sex and height from the calculator), shown with the measurements, one tap to use it in the calculator
+- `src/lib/cardio.ts` (meta `cardio`: date → sessions; MET-based calories, WHO 150 min target with vigorous minutes counted double) + `src/components/CardioCard.tsx` on the workout tab (for the date being logged); the weekly report has the week's cardio
 - `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file
 - `src/lib/schedule.ts` — workout order: one continuous sequence through `PROGRAM`, not fixed weekdays. The workout tab opens on the one after your last session; missed and rest days don't move it. A program day's id is still `Day.weekday` (logged rows keep it), and plan weekdays only set the weekly attendance/volume target
 
 ## Commands
 - `npx expo start` — run
-- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, brief, driveApi, habits, settings, data integrity incl. videos and alternatives)
+- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, brief, driveApi, habits, cardio, settings, data integrity incl. videos and alternatives)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions
 

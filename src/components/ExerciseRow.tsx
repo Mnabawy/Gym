@@ -10,7 +10,7 @@ import { barFor, platesFor, warmups } from '../lib/plates';
 import { bestE1rm, countAr, increaseTip, parseNum, SETS, type SetEntry } from '../lib/logic';
 import { usePop } from '../lib/motion';
 import { storage } from '../lib/storage';
-import { useSettings } from '../lib/settings';
+import { deloadOn, useSettings } from '../lib/settings';
 import { nope, useTimer, tap } from '../lib/timer';
 import { F, glow, tint, useTheme } from '../theme';
 import { Btn, InfoPopup, Sheet, TagBadge, T } from './ui';
@@ -80,6 +80,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   const weightStep = useSettings((s) => s.weightStep);
   const barKg = useSettings((s) => s.barKg);
   const askRir = useSettings((s) => s.askRir);
+  const deloadUntil = useSettings((s) => s.deloadUntil);
   // Set just ticked: asks how many reps were left (RIR) until you answer or tick the next one.
   const [rirAt, setRirAt] = useState<number | null>(null);
   const [finPending, setFinPending] = useState(false);
@@ -185,7 +186,8 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   };
 
   const tip = increaseTip(ex, last);
-  const up = tip != null;
+  // No "add weight" tip in a light week.
+  const up = tip != null && !deloadOn({ deloadUntil });
   const closeRir = () => {
     setRirAt(null);
     setFinPending(false);

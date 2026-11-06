@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { dayState, habitStats, isDue, logKey, nextMark, parseHabits, parseLog, phaseFill, phaseOf, type Habit, type Log } from '../src/lib/habits';
+import { dayState, habitStats, isDue, logKey, nextMark, parseHabits, parseLog, pausedNow, phaseFill, phaseOf, togglePause, type Habit, type Log } from '../src/lib/habits';
 
 // Sun 1 Nov 2026 … ; daily habit and a Sun/Tue/Thu one
 const daily: Habit = { id: 'h1', name: 'ورد', icon: 'book', color: '#1BA6A8', days: [0, 1, 2, 3, 4, 5, 6], remind: null, start: '2026-11-01' };
@@ -92,6 +92,25 @@ test('three stretches on the way to 66', () => {
   expect(phaseFill(0)).toEqual([0, 0, 0]);
   expect(phaseFill(33)).toEqual([1, 0.5, 0]);
   expect(phaseFill(70)).toEqual([1, 1, 1]);
+});
+
+test('pausing: paused days are neither done nor missed, and resuming closes the stretch', () => {
+  let h: Habit = daily;
+  h = togglePause(h, '2026-11-03'); // pause from the 3rd
+  expect(pausedNow(h)).toBe(true);
+  expect(isDue(h, '2026-11-04')).toBe(false);
+  h = togglePause(h, '2026-11-07'); // resume on the 7th: paused 3–6
+  expect(h.pauses).toEqual([{ from: '2026-11-03', to: '2026-11-06' }]);
+  expect(pausedNow(h)).toBe(false);
+  expect(dayState(h, {}, '2026-11-05', '2026-11-08')).toBe('paused');
+  expect(dayState(h, {}, '2026-11-07', '2026-11-08')).toBe('missed');
+  // 1,2 done · 3–6 paused · 7 missed · 8 today: one miss, streak goes on
+  const s = habitStats(h, log('h1', { '2026-11-01': 'done', '2026-11-02': 'done' }), '2026-11-08');
+  expect(s.streak).toBe(2);
+  expect(s.rateAll).toBeCloseTo(2 / 3);
+  // pausing and resuming the same day leaves nothing behind
+  expect(togglePause(togglePause(daily, '2026-11-05'), '2026-11-05').pauses).toEqual([]);
+  expect(parseHabits(JSON.stringify([{ ...daily, pauses: [{ from: '2026-11-03', to: null }, { from: 'x', to: null }] }]))[0].pauses).toEqual([{ from: '2026-11-03', to: null }]);
 });
 
 test('tap cycles done → skip → nothing', () => {

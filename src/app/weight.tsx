@@ -10,7 +10,7 @@ import { dateKey, parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
-import { addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
+import { latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
 import { addPhoto, deletePhoto, listPhotos, photosSupported, type Photo } from '../lib/photos';
 import { F, useTheme } from '../theme';
 
@@ -72,6 +72,8 @@ export default function WeightScreen() {
     bump();
   };
   const note = waistNote(measures, body.goal);
+  // Body fat from the tape (US Navy method), once the calculator has your sex and height.
+  const bf = body.sex && body.height ? navyBodyFat(body.sex, body.height, latestParts(measures)) : null;
 
   // Photos (phone only)
   const [photos, setPhotos] = useState<Photo[]>(() => (photosSupported ? listPhotos() : []));
@@ -187,6 +189,24 @@ export default function WeightScreen() {
           <T style={{ color: t.mute, fontSize: 13, padding: 14 }}>الوزن لوحده مش بيقول الزيادة عضل ولا دهون. قيس كل أسبوعين لـ 4 أسابيع، نفس الوقت ونفس المكان.</T>
         )}
         {note ? <T style={{ fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 6, color: note.includes('✓') ? t.okText : t.warn }}>{note}</T> : null}
+        {measures.length ? (
+          <View style={[s.bf, { backgroundColor: t.soft }]}>
+            {bf != null ? (
+              <>
+                <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+                  <T w="medium" style={{ flex: 1 }}>نسبة الدهون التقريبية</T>
+                  <T w="numBold" style={{ fontSize: 18 }}>{iso(`${fmt(bf)}%`)}</T>
+                </View>
+                <T style={{ fontSize: 11.5, color: t.mute, lineHeight: 17 }}>من الوسط والرقبة{body.sex === 'female' ? ' والأرداف' : ''} وطولك (طريقة البحرية الأمريكية). ممكن تبعد 3–4% عن الحقيقة، فتابع اتجاهها مش الرقم بالظبط.</T>
+                {body.bodyFat !== bf ? <Btn label="استخدمها في حساب السعرات" onPress={() => setBody({ bodyFat: bf })} /> : <T style={{ fontSize: 12, color: t.okText }}>مستخدمة في حساب السعرات ✓</T>}
+              </>
+            ) : (
+              <T style={{ fontSize: 12.5, color: t.mute, lineHeight: 19 }}>
+                {!body.sex || !body.height ? 'عشان تتحسب نسبة الدهون، اكتب نوعك وطولك في حساب السعرات.' : `عشان تتحسب نسبة الدهون، قيس الوسط والرقبة${body.sex === 'female' ? ' والأرداف' : ''}.`}
+              </T>
+            )}
+          </View>
+        ) : null}
         <View style={{ padding: 10 }}>
           <Btn label={measures.some((m) => m.date === today) ? 'عدّل قياسات النهارده' : 'سجّل قياسات النهارده'} onPress={openMeasure} />
         </View>
@@ -264,6 +284,7 @@ const s = StyleSheet.create({
   field: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 12 },
   input: { flex: 1, fontFamily: F.numBold, fontSize: 18, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46, paddingHorizontal: 14 },
+  bf: { marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 12, gap: 6 },
   small: { width: 80, height: 42, borderRadius: 10, fontFamily: F.numBold, fontSize: 15, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
   thumb: { width: 84, height: 112, borderRadius: 10 },
 });

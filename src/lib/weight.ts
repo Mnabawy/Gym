@@ -76,14 +76,41 @@ export function rateVerdict(rate: number, goal: Goal, kg: number): Verdict {
 // Body measurements (cm), saved as JSON under meta key `measures`; one entry per date. Measure every 2–4 weeks,
 // same time of day, relaxed, tape snug but not pressing. Waist going up fast while bulking means much of the gain is fat.
 export const MEASURES_KEY = 'measures';
-export type Part = 'waist' | 'chest' | 'arm' | 'thigh' | 'neck';
+export type Part = 'waist' | 'chest' | 'arm' | 'thigh' | 'neck' | 'hips';
 export const PARTS: { k: Part; label: string; hint: string }[] = [
   { k: 'waist', label: 'الوسط', hint: 'عند السرة، بعد ما تطلّع النفس' },
   { k: 'chest', label: 'الصدر', hint: 'أعرض حتة، تحت الباط' },
   { k: 'arm', label: 'الدراع', hint: 'أعرض حتة، مشدود' },
   { k: 'thigh', label: 'الفخد', hint: 'نص المسافة بين الورك والركبة' },
   { k: 'neck', label: 'الرقبة', hint: 'تحت تفاحة آدم' },
+  { k: 'hips', label: 'الأرداف', hint: 'أعرض حتة. مطلوبة لنسبة الدهون للستات بس' },
 ];
+
+/**
+ * Body fat % from tape measurements: the US Navy circumference method (Hodgdon & Beckett 1984), metric form.
+ * Men: waist and neck; women: waist, hips and neck; both need height. About ±3–4% against lab methods, so it's a
+ * trend to watch, not an exact number. Null when something's missing or the numbers can't be right.
+ */
+export function navyBodyFat(sex: 'male' | 'female', heightCm: number, m: Partial<Record<Part, number>>): number | null {
+  const { waist, neck, hips } = m;
+  if (!waist || !neck || !(heightCm > 0)) return null;
+  let bf: number;
+  if (sex === 'male') {
+    if (waist <= neck) return null;
+    bf = 495 / (1.0324 - 0.19077 * Math.log10(waist - neck) + 0.15456 * Math.log10(heightCm)) - 450;
+  } else {
+    if (!hips || waist + hips <= neck) return null;
+    bf = 495 / (1.29579 - 0.35004 * Math.log10(waist + hips - neck) + 0.221 * Math.log10(heightCm)) - 450;
+  }
+  return bf >= LIMITS.bodyFat[0] && bf <= LIMITS.bodyFat[1] ? Math.round(bf * 10) / 10 : null;
+}
+
+/** The newest measurement of each part (they may come from different days). */
+export function latestParts(list: readonly Measure[]): Partial<Record<Part, number>> {
+  const out: Partial<Record<Part, number>> = {};
+  for (const m of list) for (const p of PARTS) if (m[p.k] != null) out[p.k] = m[p.k];
+  return out;
+}
 export type Measure = { date: string } & Partial<Record<Part, number>>;
 const validCm = (v: unknown): v is number => typeof v === 'number' && v >= 10 && v <= 250;
 

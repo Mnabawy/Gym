@@ -66,3 +66,10 @@ test('past exercises keep a name and muscle after they leave the program', () =>
   expect(exerciseInfo('deadlift', ALL_EXERCISES, {})).toEqual({ name: 'Deadlift', muscle: 'back' });
   expect(exerciseInfo('nope', ALL_EXERCISES, {})).toBeNull();
 });
+
+test('light week: half the sets, rounded up, never under one', () => {
+  applyPlan({ ...plan, sets: { deadlift: 3, 'lat-pulldown': 1 }, deload: true });
+  expect(exerciseById('deadlift')!.sets).toBe(2);
+  expect(exerciseById('lat-pulldown')!.sets).toBe(1);
+  expect(exerciseById('barbell-bench-press')!.sets).toBe(2); // 4 → 2
+});

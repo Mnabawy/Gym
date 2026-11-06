@@ -13,7 +13,7 @@ import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
 import { parseWeights, WEIGHTS_KEY } from './weight';
-import { logKey } from './habits';
+import { logKey, pausedNow } from './habits';
 import { readHabitLog, readHabits } from './habitStore';
 
 const native = Platform.OS !== 'web';
@@ -65,7 +65,7 @@ export function syncReminders(): Promise<void> {
         if (k === KIND || k === BRIEF || k === HABIT) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
-      const habits = readHabits().filter((h) => h.remind != null);
+      const habits = readHabits().filter((h) => h.remind != null && !pausedNow(h));
       if ((!st.reminder && !st.brief && !habits.length) || !(await Notifications.getPermissionsAsync()).granted) return;
       const today = dateKey();
       // Each habit with a reminder: its next due days at its time; not today once it's ticked (done or excused).

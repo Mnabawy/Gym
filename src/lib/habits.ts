@@ -44,12 +44,14 @@ export type Habit = {
   remind: number | null;
   /** When and where: "بعد الفجر في أوضتي" (optional). */
   cue?: string;
+  /** Paused stretches (Ramadan, travel…): those days count as neither done nor missed. `to` null = paused now. */
+  pauses?: { from: string; to: string | null }[];
   /** Date it was added: days before it don't count. */
   start: string;
 };
 export type Mark = 'done' | 'skip';
 export type Log = Record<string, Mark>;
-export type DayState = 'done' | 'skip' | 'missed' | 'today' | 'off' | 'before' | 'future';
+export type DayState = 'done' | 'skip' | 'missed' | 'today' | 'off' | 'before' | 'future' | 'paused';
 
 /** Icons and colors to pick from when adding a habit. Colors follow the app's colorblind-safe palette. */
 export const HABIT_ICONS = ['book', 'moon', 'walk', 'water', 'leaf', 'bed', 'heart', 'sunny', 'phone-portrait', 'cafe', 'pencil', 'star'] as const;
@@ -85,6 +87,13 @@ export function parseHabits(raw: string | null): Habit[] {
       remind: typeof o.remind === 'number' && o.remind >= 0 && o.remind < 1440 ? o.remind : null,
       start: o.start,
       ...(typeof o.cue === 'string' && o.cue.trim() ? { cue: o.cue.trim().slice(0, 60) } : null),
+      ...(Array.isArray(o.pauses)
+        ? {
+            pauses: o.pauses.filter(
+              (p): p is { from: string; to: string | null } => !!p && typeof p.from === 'string' && DATE.test(p.from) && (p.to === null || (typeof p.to === 'string' && DATE.test(p.to) && p.to >= p.from)),
+            ),
+          }
+        : null),
     });
   }
   return out;
@@ -104,7 +113,22 @@ export function parseLog(raw: string | null): Log {
 }
 
 export const logKey = (id: string, date: string) => `${id}|${date}`;
-export const isDue = (h: Habit, date: string) => date >= h.start && h.days.includes(weekdayOf(date));
+/** Paused on that date (inside a pause stretch, or an open one that started by then). */
+export const isPaused = (h: Habit, date: string) => (h.pauses ?? []).some((p) => date >= p.from && (p.to === null || date <= p.to));
+/** Paused right now (an open pause). */
+export const pausedNow = (h: Habit) => (h.pauses ?? []).some((p) => p.to === null);
+export const isDue = (h: Habit, date: string) => date >= h.start && h.days.includes(weekdayOf(date)) && !isPaused(h, date);
+
+/** Pause from `today` on, or resume (the pause ends yesterday; a pause that started today just goes away). */
+export function togglePause(h: Habit, today: string): Habit {
+  const pauses = [...(h.pauses ?? [])];
+  const open = pauses.findIndex((p) => p.to === null);
+  if (open < 0) return { ...h, pauses: [...pauses, { from: today, to: null }] };
+  const p = pauses[open];
+  if (p.from >= today) pauses.splice(open, 1);
+  else pauses[open] = { from: p.from, to: addDays(today, -1) };
+  return { ...h, pauses };
+}
 
 /** What a day looks like for a habit. */
 export function dayState(h: Habit, log: Log, date: string, today: string): DayState {
@@ -112,6 +136,7 @@ export function dayState(h: Habit, log: Log, date: string, today: string): DaySt
   if (date < h.start) return 'before';
   const m = log[logKey(h.id, date)];
   if (m) return m; // a done mark counts even on a day it wasn't due
+  if (isPaused(h, date)) return 'paused';
   if (!h.days.includes(weekdayOf(date))) return 'off';
   return date === today ? 'today' : 'missed';
 }

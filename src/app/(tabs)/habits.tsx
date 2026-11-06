@@ -7,8 +7,8 @@ import { MenuButton } from '../../components/SideMenu';
 import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
 import { addDays } from '../../lib/gaps';
-import { dayState, habitStats, isDue, logKey, type DayState, type Habit, type Log } from '../../lib/habits';
-import { readHabitLog, readHabits, setMark } from '../../lib/habitStore';
+import { dayState, habitStats, isDue, logKey, pausedNow, type DayState, type Habit, type Log } from '../../lib/habits';
+import { moveHabit, readHabitLog, readHabits, setMark } from '../../lib/habitStore';
 import { dateKey } from '../../lib/logic';
 import { tap } from '../../lib/timer';
 import { usePop } from '../../lib/motion';
@@ -24,9 +24,11 @@ export default function Habits() {
   const habits = readHabits();
   const log = readHabitLog();
   const [adding, setAdding] = useState(false);
+  const [ordering, setOrdering] = useState(false);
 
   const due = habits.filter((h) => isDue(h, today));
-  const rest = habits.filter((h) => !isDue(h, today));
+  const paused = habits.filter((h) => pausedNow(h));
+  const rest = habits.filter((h) => !isDue(h, today) && !pausedNow(h));
   const doneToday = due.filter((h) => log[logKey(h.id, today)] === 'done').length;
   const risky = due.filter((h) => habitStats(h, log, today).atRisk);
 
@@ -51,18 +53,47 @@ export default function Habits() {
             </View>
           ) : null}
 
-          {due.map((h) => (
-            <HabitRow key={h.id} h={h} log={log} today={today} t={t} />
-          ))}
-          {rest.length ? (
+          {ordering ? (
             <>
-              <T w="medium" style={{ color: t.mute, fontSize: 13, marginTop: 4 }}>مش عليك النهارده</T>
-              {rest.map((h) => (
-                <HabitRow key={h.id} h={h} log={log} today={today} t={t} dim />
+              <T style={{ color: t.mute, fontSize: 12.5 }}>رتّب العادات بالأسهم، والترتيب ده هو اللي هيظهر</T>
+              {habits.map((h, i) => (
+                <Card key={h.id} style={[s.row, { paddingVertical: 8 }]}>
+                  <View style={[s.icon, { backgroundColor: tint(h.color, 0.15) }]}>
+                    <Ionicons name={h.icon as IconName} size={20} color={h.color} />
+                  </View>
+                  <T w="semi" style={{ flex: 1, fontSize: 15 }} numberOfLines={1}>{h.name}</T>
+                  <Arrow t={t} name="arrow-up" label={`طلّع ${h.name}`} disabled={i === 0} onPress={() => moveHabit(h.id, -1)} />
+                  <Arrow t={t} name="arrow-down" label={`نزّل ${h.name}`} disabled={i === habits.length - 1} onPress={() => moveHabit(h.id, 1)} />
+                </Card>
               ))}
             </>
-          ) : null}
-          <Btn label="+ عادة جديدة" onPress={() => setAdding(true)} style={{ marginTop: 4 }} />
+          ) : (
+            <>
+              {due.map((h) => (
+                <HabitRow key={h.id} h={h} log={log} today={today} t={t} />
+              ))}
+              {rest.length ? (
+                <>
+                  <T w="medium" style={{ color: t.mute, fontSize: 13, marginTop: 4 }}>مش عليك النهارده</T>
+                  {rest.map((h) => (
+                    <HabitRow key={h.id} h={h} log={log} today={today} t={t} dim />
+                  ))}
+                </>
+              ) : null}
+              {paused.length ? (
+                <>
+                  <T w="medium" style={{ color: t.mute, fontSize: 13, marginTop: 4 }}>متوقفة مؤقتاً</T>
+                  {paused.map((h) => (
+                    <HabitRow key={h.id} h={h} log={log} today={today} t={t} dim paused />
+                  ))}
+                </>
+              ) : null}
+            </>
+          )}
+          <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+            {!ordering ? <Btn label="+ عادة جديدة" onPress={() => setAdding(true)} style={{ flex: 1 }} /> : null}
+            {habits.length > 1 ? <Btn label={ordering ? 'خلصت' : 'رتّب'} kind={ordering ? 'solid' : 'ghost'} onPress={() => setOrdering(!ordering)} style={ordering ? { flex: 1 } : undefined} /> : null}
+          </View>
         </>
       ) : (
         <View style={s.empty}>
@@ -89,9 +120,18 @@ const DOT: Record<DayState, (t: Theme, c: string) => object> = {
   off: (t) => ({ backgroundColor: t.soft }),
   before: (t) => ({ backgroundColor: t.soft, opacity: 0.4 }),
   future: (t) => ({ backgroundColor: t.soft }),
+  paused: (t) => ({ backgroundColor: t.soft, opacity: 0.5 }),
 };
 
-function HabitRow({ h, log, today, t, dim }: { h: Habit; log: Log; today: string; t: Theme; dim?: boolean }) {
+function Arrow({ t, name, label, disabled, onPress }: { t: Theme; name: IconName; label: string; disabled: boolean; onPress: () => void }) {
+  return (
+    <Pressable onPress={onPress} disabled={disabled} hitSlop={4} accessibilityRole="button" accessibilityLabel={label} accessibilityState={{ disabled }} style={({ pressed }) => [s.arrow, { backgroundColor: t.soft, opacity: disabled ? 0.3 : pressed ? 0.6 : 1 }]}>
+      <Ionicons name={name} size={18} color={t.fg} />
+    </Pressable>
+  );
+}
+
+function HabitRow({ h, log, today, t, dim, paused }: { h: Habit; log: Log; today: string; t: Theme; dim?: boolean; paused?: boolean }) {
   const st = habitStats(h, log, today);
   const mark = log[logKey(h.id, today)];
   const on = mark === 'done';
@@ -137,7 +177,11 @@ function HabitRow({ h, log, today, t, dim }: { h: Habit; log: Log; today: string
             ) : null}
           </View>
         </View>
-        {mark === 'skip' ? (
+        {paused ? (
+          <View style={[s.check, { backgroundColor: t.soft }]}>
+            <Ionicons name="pause" size={20} color={t.mute} />
+          </View>
+        ) : mark === 'skip' ? (
           <Pressable onPress={excuse} onLongPress={excuse} hitSlop={4} accessibilityRole="button" accessibilityLabel={`${h.name}: معذور النهارده، دوس ترجعها`} style={[s.check, { borderWidth: 1.5, borderStyle: 'dashed', borderColor: h.color }]}>
             <T w="semi" style={{ fontSize: 10.5, color: h.color }}>معذور</T>
           </Pressable>
@@ -157,6 +201,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12 },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 9, height: 9, borderRadius: 3 },
+  arrow: { width: 40, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   check: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   risk: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
   empty: { alignItems: 'center', gap: 12, paddingTop: 60, paddingHorizontal: 12 },

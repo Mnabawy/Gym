@@ -9,10 +9,12 @@ import { router, useFocusEffect } from 'expo-router';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { Btn, Card, HeaderBtn, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
+import { CardioCard } from '../../components/CardioCard';
 import { dateKey, formatClock, weekdayOf } from '../../lib/logic';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
-import { useSettings } from '../../lib/settings';
+import { deloadOn, useSettings } from '../../lib/settings';
+import { useReport } from '../../lib/useReport';
 import { useDataVersion } from '../../lib/bus';
 import { BACKUP_STALE_DAYS, LAST_BACKUP_KEY } from '../../lib/backup';
 import { addDays, daysBetween } from '../../lib/gaps';
@@ -138,6 +140,7 @@ function WorkoutScreen() {
         </View>
       </Card>
       {finished ? <DoneCard date={date} weekday={sel} next={live ? dayFor(after(cur.id))?.titleAr ?? '' : null} /> : null}
+      <LightWeek today={today} />
       {sel !== cur.id ? (
         <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
           <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
@@ -166,6 +169,7 @@ function WorkoutScreen() {
           />
         ))}
       </Card>
+      <CardioCard date={date} />
       {live && weekdayOf(today) === 5 ? (
         <Pressable onPress={() => router.push('/week')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
           <Card style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
@@ -241,5 +245,26 @@ function DoneCard({ date, weekday, next }: { date: string; weekday: number; next
         </Pressable>
       ) : null}
     </Card>
+  );
+}
+
+/** Light week (deload): on → how long and a way to end it; due (the gaps report says so) → a way to start it. */
+function LightWeek({ today }: { today: string }) {
+  const t = useTheme();
+  const st = useSettings();
+  const report = useReport();
+  const on = deloadOn(st, today);
+  const due = !on && report.gaps.some((g) => g.kind === 'deload');
+  if (!on && !due) return null;
+  const left = on ? daysBetween(today, st.deloadUntil) + 1 : 0;
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? t.okSoft : t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
+      <Ionicons name="battery-half" size={18} color={on ? t.okText : t.warn} />
+      <View style={{ flex: 1 }}>
+        <T w="semi" style={{ fontSize: 13, color: on ? t.okText : t.warn }}>{on ? `أسبوع خفيف · فاضل ${left === 1 ? 'يوم' : left === 2 ? 'يومين' : `${left} أيام`}` : 'جه وقت أسبوع خفيف'}</T>
+        <T style={{ fontSize: 11.5, color: t.mute }}>{on ? 'نص المجموعات، ونفس الأوزان أو أخف شوية. جسمك بيرتاح ويرجع أقوى' : 'بقالك أسابيع من غير راحة. أسبوع بنص المجموعات'}</T>
+      </View>
+      <Btn label={on ? 'وقّفه' : 'ابدأه'} kind={on ? 'ghost' : 'solid'} onPress={on ? st.stopDeload : st.startDeload} />
+    </View>
   );
 }

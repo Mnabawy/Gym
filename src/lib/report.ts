@@ -5,6 +5,8 @@ import { addDays, daysBetween, prSet, toSessions } from './gaps';
 import { adherence, foodHistory, type DayFood } from './journal';
 import type { MealCheck, SetRow } from './storage.types';
 import type { WeighIn } from './weight';
+import { dayState, type Habit, type Log } from './habits';
+import { cardioWeek, type Cardio, type CardioWeek } from './cardio';
 
 export type WeekReport = {
   from: string;
@@ -23,6 +25,9 @@ export type WeekReport = {
   waterDays: number;
   /** Average session length in minutes (from tick times). */
   minutes: number | null;
+  /** Each habit's week: days done, and days that counted (done + missed; excused, paused and off days don't). */
+  habits: { id: string; name: string; color: string; done: number; due: number }[];
+  cardio: CardioWeek;
 };
 
 export type ReportInput = {
@@ -34,6 +39,10 @@ export type ReportInput = {
   /** ml that counts as a full water day. */
   waterGoal: number;
   mealsPerDay: number;
+  habits?: readonly Habit[];
+  habitLog?: Log;
+  cardio?: Record<string, Cardio[]>;
+  weightKg?: number;
 };
 
 const vol = (rows: readonly SetRow[]) => Math.round(rows.reduce((a, r) => a + (r.kg ?? 0) * (r.reps ?? 0), 0));
@@ -68,7 +77,21 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
     if (ts.length >= 2) spans.push((Math.max(...ts) - Math.min(...ts)) / 60000 + 1);
   }
 
+  const habits = (x.habits ?? []).map((h) => {
+    let done = 0, due = 0;
+    for (let d = from; d <= end; d = addDays(d, 1)) {
+      const s = dayState(h, x.habitLog ?? {}, d, today);
+      if (s === 'done') {
+        done++;
+        due++;
+      } else if (s === 'missed') due++;
+    }
+    return { id: h.id, name: h.name, color: h.color, done, due };
+  }).filter((h) => h.due > 0 || h.done > 0);
+
   return {
+    habits,
+    cardio: cardioWeek(x.cardio ?? {}, from, x.weightKg ?? 0),
     from,
     to,
     days: daysBetween(from, end) + 1,

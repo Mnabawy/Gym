@@ -36,5 +36,17 @@ test('week report', () => {
   expect(w.weight).toEqual({ end: 80.4, change: 0.4 });
   expect(w.waterDays).toBe(1);
   expect(w.minutes).toBe(31);
-  expect(w.meals).toBeCloseTo(3 / 20); // 1 Nov (first log; 31 Oct is left out) … 4 Nov; today has no tick yet
+  expect(w.meals).toBeCloseTo(3 / 20);
+  expect(w.habits).toEqual([]); // 1 Nov (first log; 31 Oct is left out) … 4 Nov; today has no tick yet
+});
+
+test('habits in the week: done out of the days that counted', () => {
+  const h = { id: 'h1', name: 'ورد', icon: 'book', color: '#1BA6A8', days: [0, 1, 2, 3, 4, 5, 6], remind: null, start: '2026-10-01' };
+  const w = weekReport(FROM, TODAY, {
+    rows: [], swapped: new Set(), weights: [], checks: [], water: {}, waterGoal: 3000, mealsPerDay: 5,
+    habits: [h, { ...h, id: 'h2', name: 'جديدة', start: '2026-12-01' }],
+    habitLog: { 'h1|2026-10-31': 'done', 'h1|2026-11-01': 'done', 'h1|2026-11-02': 'skip', 'h1|2026-11-04': 'done' },
+  });
+  // 31 Oct–4 Nov counted (today 5 Nov isn't over): 3 done, 2 Nov excused, 3 Nov missed
+  expect(w.habits).toEqual([{ id: 'h1', name: 'ورد', color: '#1BA6A8', done: 3, due: 4 }]);
 });
