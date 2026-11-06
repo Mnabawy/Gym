@@ -11,14 +11,22 @@ import { addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS
 import { daysBetween } from '../../lib/gaps';
 import { dateKey, parseNum } from '../../lib/logic';
 import { tap } from '../../lib/timer';
-import { F, tint, useTheme, type Theme } from '../../theme';
+import { F, glow, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const dayLabel = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 const monthLabel = (k: string) => `${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
 
+export default function GoalScreen() {
+  return (
+    <ThemeProvider value={useWarm()}>
+      <GoalPage />
+    </ThemeProvider>
+  );
+}
+
 /** One goal: how far you are, the pace, the road in stages (tick the tasks), wins, the weekly review and your log. */
-export default function GoalPage() {
+function GoalPage() {
   const t = useTheme();
   useDataVersion((s) => s.v);
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -63,20 +71,18 @@ export default function GoalPage() {
         </Sheet>
       ) : null}
 
-      <Card style={{ padding: 16, gap: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
-          <Ring value={p} size={104} stroke={9} color={g.color} track={tint(g.color, 0.15)}>
-            <T w="numBold" style={{ fontSize: 24, color: g.color }}>{`${Math.floor(p * 100)}%`}</T>
+      <View style={{ alignItems: 'center', paddingVertical: 8 }}>
+        <View style={{ borderRadius: 110, boxShadow: `0px 0px 34px ${tint(g.color, 0.35)}` }}>
+          <Ring value={p} size={220} stroke={14} color={g.color} track={tint(g.color, 0.13)}>
+            <View style={[s.inner, { backgroundColor: t.card }]}>
+              <T style={{ fontSize: 12.5, color: t.mute }}>انت عند</T>
+              <T w="numBold" style={{ fontSize: 34, maxWidth: 170, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
+              <T w="semi" style={{ fontSize: 13, color: g.color }}>{there ? 'وصلت 🎉' : `${Math.floor(p * 100)}% · فاضل ${fmt(Math.abs(pc.remaining))}`}</T>
+              <T style={{ fontSize: 11.5, color: t.mute }}>{`الهدف ${fmt(g.target)}`}</T>
+            </View>
           </Ring>
-          <View style={{ flex: 1, gap: 2, minWidth: 0 }}>
-            <T style={{ fontSize: 12.5, color: t.mute }}>انت دلوقتي عند</T>
-            <T w="numBold" style={{ fontSize: 26 }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
-            <T style={{ fontSize: 13, color: t.mute }}>{`الهدف ${fmt(g.target)}`}</T>
-            <T w="semi" style={{ fontSize: 13, color: there ? t.okText : t.fg }}>{there ? 'وصلت 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}`}</T>
-          </View>
         </View>
-        <Btn label="+ سجّل تقدّم" kind="solid" onPress={() => setLogging(true)} />
-      </Card>
+      </View>
 
       {g.why ? (
         <View style={[s.why, { borderColor: g.color, backgroundColor: tint(g.color, 0.07) }]}>
@@ -101,6 +107,10 @@ export default function GoalPage() {
           <Stat t={t} label={pc.daysLeft != null && pc.daysLeft >= 0 ? `محتاج في الشهر · فاضل ${Math.ceil(pc.daysLeft / 30.44)} شهر` : 'الميعاد عدّى'} value={pc.needPerMonth != null ? fmt(pc.needPerMonth) : '—'} warn={pc.eta != null && g.due != null && pc.eta > g.due} />
         ) : null}
       </View>
+
+      <Pressable onPress={() => setLogging(true)} accessibilityRole="button" style={({ pressed }) => [s.logBtn, { backgroundColor: g.color, boxShadow: `0px 0px 20px ${tint(g.color, 0.45)}`, opacity: pressed ? 0.85 : 1 }]}>
+        <T w="bold" style={{ fontSize: 15.5, color: '#FFFFFF' }}>+ سجّل تقدّم</T>
+      </Pressable>
 
       {reviewDue(g, today) ? (
         <Card style={{ padding: 14, gap: 10 }}>
@@ -263,12 +273,20 @@ function StageRow({ g, st, i, last, state, open, edit, t, onToggle, onTask, onSa
   return (
     <View style={{ flexDirection: 'row', gap: 12 }}>
       <View style={{ alignItems: 'center', width: 32 }}>
-        <View style={[s.dot, state === 'done' ? { backgroundColor: c } : state === 'now' ? { backgroundColor: c } : { backgroundColor: t.soft, borderWidth: 1.5, borderColor: t.line }]}>
-          {state === 'done' ? <Ionicons name="checkmark" size={18} color="#FFFFFF" /> : <T w="numBold" style={{ fontSize: 13.5, color: state === 'now' ? '#FFFFFF' : t.mute }}>{String(i + 1)}</T>}
+        <View
+          style={[
+            s.dot,
+            state === 'done'
+              ? { backgroundColor: c, boxShadow: glow(t, c, 10) }
+              : state === 'now'
+                ? { backgroundColor: t.card, borderWidth: 2, borderColor: c, boxShadow: glow(t, c, 12) }
+                : { backgroundColor: t.soft, borderWidth: 1, borderColor: t.border },
+          ]}>
+          {state === 'done' ? <Ionicons name="checkmark" size={18} color="#FFFFFF" /> : <T w="numBold" style={{ fontSize: 13.5, color: state === 'now' ? c : t.mute }}>{String(i + 1)}</T>}
         </View>
-        {!last ? <View style={{ flex: 1, width: 2, minHeight: 18, marginVertical: 4, borderRadius: 1, backgroundColor: state === 'done' ? c : t.line }} /> : null}
+        {!last ? <View style={{ flex: 1, width: 2, minHeight: 18, marginVertical: 4, borderRadius: 1, backgroundColor: state === 'done' ? c : t.line, boxShadow: state === 'done' ? glow(t, c, 6) : undefined }} /> : null}
       </View>
-      <View style={[{ flex: 1, marginBottom: last ? 0 : 12, borderRadius: 14 }, state === 'now' && !edit ? { backgroundColor: tint(c, 0.1), padding: 10, marginTop: -6 } : { paddingTop: 4 }]}>
+      <View style={[{ flex: 1, marginBottom: last ? 0 : 12, borderRadius: 14 }, state === 'now' && !edit ? { backgroundColor: tint(c, 0.07), borderWidth: 1, borderColor: tint(c, 0.5), boxShadow: `0px 0px 16px ${tint(c, 0.2)}`, padding: 10, marginTop: -6 } : { paddingTop: 4 }]}>
         {edit ? (
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <TextInput value={st.title} onChangeText={(v) => setStage({ title: v })} accessibilityLabel="اسم المرحلة" maxLength={40} style={[s.input, { flex: 1, minWidth: 0, color: t.fg, backgroundColor: t.soft, fontFamily: F.semi }]} />
@@ -401,6 +419,8 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
 }
 
 const s = StyleSheet.create({
+  inner: { width: 180, height: 180, borderRadius: 90, alignItems: 'center', justifyContent: 'center', gap: 2 },
+  logBtn: { height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   why: { borderStartWidth: 4, borderRadius: 12, padding: 12, gap: 2 },
   nudge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
   link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },

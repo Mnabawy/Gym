@@ -23,6 +23,8 @@ const light = {
   /** Neon theme only: thin borders and glows instead of soft shadows. */
   neon: false,
   border: 'transparent',
+  /** One color per section (أقسامك): the hub, and the habits and goals pages. */
+  sec: { gym: '#0072B2', habits: '#CC79A7', goals: '#009E73' },
   tag: { heavy: '#3E5A76', fail: '#3E5A76', drop: '#3E5A76' },
   protein: '#0072B2',
   carbs: '#E69F00',
@@ -60,6 +62,7 @@ const dark: typeof light = {
   shadow: '0px 3px 14px rgba(0, 0, 0, 0.35)',
   neon: false,
   border: 'transparent',
+  sec: { gym: '#3FA3E0', habits: '#E08CC0', goals: '#2FC496' },
   tag: { heavy: '#557797', fail: '#557797', drop: '#557797' },
   protein: '#3FA3E0',
   carbs: '#F0B23A',
@@ -104,6 +107,7 @@ export const neon: Theme = {
   shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
   neon: true,
   border: '#1A2638',
+  sec: { gym: '#3FB6FF', habits: '#FF6AD5', goals: '#3BFFB0' },
   tag: { heavy: '#FF7A1A', fail: '#FF3DCB', drop: '#B18CFF' },
   muscle: {
     chest: '#3FB6FF',
@@ -116,6 +120,60 @@ export const neon: Theme = {
     calves: '#AAB4C3',
   },
 };
+
+/**
+ * Warm: the sections, habits and goals pages. The neon layout (thin borders,
+ * glowing rings and dots) in warm colors: cream and ink by day, warm black with a gold accent by night, and a soft
+ * blue, pink and green for the gym, habits and goals.
+ */
+export const warm: Theme = {
+  ...light,
+  bg: '#F6F3EE',
+  card: '#FFFDF9',
+  fg: '#1F1D1A',
+  mute: '#8C857A',
+  line: '#ECE6DC',
+  soft: '#F0EBE3',
+  ink: '#1F1D1A',
+  onInk: '#F6F3EE',
+  ok: '#1F1D1A',
+  onOk: '#F6F3EE',
+  okText: '#1F1D1A',
+  okSoft: '#EDE7DD',
+  warn: '#A8660F',
+  warnSoft: '#FBEFD5',
+  shadow: '0px 4px 18px rgba(80, 60, 30, 0.07)',
+  neon: true,
+  border: '#E9E2D6',
+  sec: { gym: '#5B7FE0', habits: '#E0609B', goals: '#3E9A68' },
+};
+
+export const warmDark: Theme = {
+  ...dark,
+  bg: '#14120F',
+  card: '#1D1A16',
+  fg: '#F3EEE6',
+  mute: '#9B9387',
+  line: '#2C2822',
+  soft: '#26221D',
+  ink: '#F3EEE6',
+  onInk: '#14120F',
+  ok: '#F2C14E',
+  onOk: '#14120F',
+  okText: '#F2C14E',
+  okSoft: '#3A3120',
+  warn: '#F2B04A',
+  warnSoft: '#3A2C12',
+  shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
+  neon: true,
+  border: '#2E2A23',
+  sec: { gym: '#8FA9FF', habits: '#FF8FC0', goals: '#7FD49C' },
+};
+
+/** The warm theme that follows the phone's light or dark setting. */
+export function useWarm(): Theme {
+  return useColorScheme() === 'dark' ? warmDark : warm;
+}
 
 /** Screens can force a theme for everything inside them (the workout tab uses `neon`). */
 const Forced = createContext<Theme | null>(null);

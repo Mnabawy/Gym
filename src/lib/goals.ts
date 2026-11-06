@@ -38,7 +38,7 @@ export type Goal = {
 };
 
 export const GOAL_ICONS = ['cash', 'trending-up', 'briefcase', 'school', 'book', 'code-slash', 'home', 'car', 'airplane', 'trophy', 'rocket', 'flag'] as const;
-export const GOAL_COLORS = ['#009E73', '#0072B2', '#E69F00', '#D55E00', '#CC79A7', '#7A5CFA', '#1BA6A8', '#C62828'] as const;
+export const GOAL_COLORS = ['#3E9A68', '#5B7FE0', '#D9902B', '#D55E00', '#E0609B', '#7A5CFA', '#1BA6A8', '#C62828'] as const;
 
 const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const str = (s: unknown) => (typeof s === 'string' ? s : '');

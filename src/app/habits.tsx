@@ -15,12 +15,20 @@ import { useSettings } from '../lib/settings';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
 import { usePop } from '../lib/motion';
-import { tint, useTheme, type Theme } from '../theme';
+import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 /** The habits tab: today's habits to tick (long-press = excused), each with its streak and last 7 days; tap one for its page. */
-export default function Habits() {
+export default function HabitsWarm() {
+  return (
+    <ThemeProvider value={useWarm()}>
+      <Habits />
+    </ThemeProvider>
+  );
+}
+
+function Habits() {
   const t = useTheme();
   useDataVersion((s) => s.v);
   const today = dateKey();

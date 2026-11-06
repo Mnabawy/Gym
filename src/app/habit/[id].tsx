@@ -13,7 +13,7 @@ import { partRates, partsDone, refAr } from '../../lib/habits';
 import { PRAYER_AR } from '../../lib/prayer';
 import { addMonths, dateKey, monthCells } from '../../lib/logic';
 import { tap } from '../../lib/timer';
-import { tint, useTheme, type Theme } from '../../theme';
+import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const HEAD = [6, 0, 1, 2, 3, 4, 5].map((wd) => WEEKDAY_LETTERS_AR[wd]);
@@ -25,7 +25,15 @@ const pct = (v: number | null) => (v == null ? '–' : `${Math.round(v * 100)}%`
 const HEAT_WEEKS = 26;
 
 /** One habit's results: streaks, rates, the way to 66 days, a month calendar you can tap to fix, 6 months at a glance, weekdays. */
-export default function HabitScreen() {
+export default function HabitScreenWarm() {
+  return (
+    <ThemeProvider value={useWarm()}>
+      <HabitScreen />
+    </ThemeProvider>
+  );
+}
+
+function HabitScreen() {
   const t = useTheme();
   useDataVersion((s) => s.v);
   const { id } = useLocalSearchParams<{ id: string }>();
