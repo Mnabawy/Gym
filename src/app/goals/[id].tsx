@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Card, HeaderBtn, Label, Ring, Screen, Sheet, T } from '../../components/ui';
+import { Btn, Card, HeaderBtn, Label, Screen, Sheet, T } from '../../components/ui';
 import { GoalForm } from '../../components/GoalForm';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
@@ -15,6 +15,11 @@ import { F, glow, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const dayLabel = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
+/** 25000 → "$25K", 300 → "300". */
+const short = (n: number, unit: string) => {
+  const v = Math.abs(n) >= 1000 ? `${Math.round(n / 100) / 10}K` : String(Math.round(n));
+  return /^[$€£]$/.test(unit) ? `${unit}${v}` : v;
+};
 const monthLabel = (k: string) => `${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
 
 export default function GoalScreen() {
@@ -59,9 +64,11 @@ function GoalPage() {
   const wins = allWins(g, fmt);
   const save = (x: Goal) => saveGoal(x);
   const there = pc.remaining === 0;
+  // The stage whose tasks show under the road: the one you tapped, else the one you're on.
+  const shown = g.stages.find((x) => x.id === open) ?? g.stages[cur >= 0 ? cur : g.stages.length - 1];
 
   return (
-    <Screen title={g.name} onBack={() => router.back()} action={<HeaderBtn icon="create-outline" label="عدّل الهدف" onPress={() => setEditing(true)} />}>
+    <Screen title="الأهداف" onBack={() => router.back()} action={<HeaderBtn icon="ellipsis-horizontal" label="عدّل الهدف" onPress={() => setEditing(true)} />}>
       {editing ? <GoalForm goal={g} onClose={() => setEditing(false)} /> : null}
       {logging ? <LogSheet g={g} onClose={() => setLogging(false)} /> : null}
       {winning ? <WinSheet g={g} onClose={() => setWinning(false)} /> : null}
@@ -71,21 +78,40 @@ function GoalPage() {
         </Sheet>
       ) : null}
 
-      <View style={{ alignItems: 'center', paddingVertical: 8 }}>
-        <View style={{ borderRadius: 110, boxShadow: `0px 0px 34px ${tint(g.color, 0.35)}` }}>
-          <Ring value={p} size={220} stroke={14} color={g.color} track={tint(g.color, 0.13)}>
-            <View style={[s.inner, { backgroundColor: t.card }]}>
-              <T style={{ fontSize: 12.5, color: t.mute }}>انت عند</T>
-              <T w="numBold" style={{ fontSize: 34, maxWidth: 170, textAlign: 'center' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
-              <T w="semi" style={{ fontSize: 13, color: g.color }}>{there ? 'وصلت 🎉' : `${Math.floor(p * 100)}% · فاضل ${fmt(Math.abs(pc.remaining))}`}</T>
-              <T style={{ fontSize: 11.5, color: t.mute }}>{`الهدف ${fmt(g.target)}`}</T>
+      <View style={{ gap: 2, marginTop: 4 }}>
+        <T style={{ fontSize: 14, color: t.mute }}>{g.name}</T>
+        <T w="numBold" style={{ fontSize: 62, lineHeight: 74, letterSpacing: -1.5, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
+        <T style={{ fontSize: 13.5, color: t.mute }}>{there ? 'وصلت للهدف 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}${pc.eta ? ` · هتوصل ${monthLabel(pc.eta)}` : ''}`}</T>
+      </View>
+
+      {/* The whole way as one bar: the part you've done in ink, the rest striped, with the quarter marks under it. */}
+      <View>
+        <View style={s.bar}>
+          {p > 0 ? <View style={{ flex: Math.max(p, 0.04), backgroundColor: t.fg, borderRadius: 12 }} /> : null}
+          {p < 1 ? (
+            <View style={{ flex: 1 - p, flexDirection: 'row', borderRadius: 12, overflow: 'hidden', backgroundColor: tint(t.fg, 0.07) }}>
+              {Array.from({ length: 24 }, (_, i) => <View key={i} style={{ flex: 1, backgroundColor: i % 2 ? 'transparent' : tint(t.fg, 0.05) }} />)}
             </View>
-          </Ring>
+          ) : null}
+        </View>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+          {[0, 0.25, 0.5, 0.75, 1].map((m) => (
+            <T key={m} w={p >= m ? 'numBold' : 'numRegular'} style={{ fontSize: 11.5, color: p >= m ? t.fg : t.mute }}>{short(g.start + (g.target - g.start) * m, g.unit)}</T>
+          ))}
         </View>
       </View>
 
+      <View style={{ flexDirection: 'row', gap: 10 }}>
+        <Pressable onPress={() => setLogging(true)} accessibilityRole="button" style={({ pressed }) => [s.big, { flex: 1, backgroundColor: t.fg, opacity: pressed ? 0.85 : 1 }]}>
+          <T w="bold" style={{ fontSize: 16.5, color: t.bg }}>+ سجّل تقدّم</T>
+        </Pressable>
+        <Pressable onPress={() => setWinning(true)} accessibilityRole="button" accessibilityLabel="إنجاز جديد" style={({ pressed }) => [s.big, { width: 58, backgroundColor: t.card, opacity: pressed ? 0.7 : 1 }]}>
+          <Ionicons name="trophy" size={24} color="#E0A030" />
+        </Pressable>
+      </View>
+
       {g.why ? (
-        <View style={[s.why, { borderColor: g.color, backgroundColor: tint(g.color, 0.07) }]}>
+        <View style={[s.why, { borderColor: t.fg, backgroundColor: t.card }]}>
           <T style={{ fontSize: 12, color: t.mute }}>ليه بدأت</T>
           <T w="semi" style={{ fontSize: 14.5, lineHeight: 23 }}>{g.why}</T>
         </View>
@@ -100,6 +126,78 @@ function GoalPage() {
         </View>
       ) : null}
 
+      <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 6 }}>
+        <T w="bold" style={{ fontSize: 19, flex: 1 }}>الطريق</T>
+        <T style={{ fontSize: 13, color: t.mute }}>{cur >= 0 ? `مرحلة ${cur + 1} من ${g.stages.length}` : `${g.stages.length} مراحل خلصت`}</T>
+        <Pressable onPress={() => setRoadEdit(!roadEdit)} hitSlop={8} accessibilityRole="button" accessibilityLabel={roadEdit ? 'خلصت تعديل الطريق' : 'عدّل الطريق'} style={[s.link, { marginStart: 8 }]}>
+          <Ionicons name={roadEdit ? 'checkmark' : 'create-outline'} size={20} color={t.fg} />
+        </Pressable>
+      </View>
+      {roadEdit ? (
+        <Card style={{ paddingVertical: 14, paddingHorizontal: 12 }}>
+          {g.stages.map((st, i) => (
+            <StageRow key={st.id} g={g} st={st} i={i} last={i === g.stages.length - 1} state={stageDone(st) ? 'done' : i === cur ? 'now' : 'later'} open edit t={t} onToggle={() => {}} onTask={() => {}} onSave={save} />
+          ))}
+          <Btn label="+ مرحلة" onPress={() => save({ ...g, stages: [...g.stages, { id: goalId(Date.now()), title: `مرحلة ${g.stages.length + 1}`, tasks: [] }] })} style={{ marginTop: 8 }} />
+        </Card>
+      ) : g.stages.length ? (
+        <>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10, paddingHorizontal: 2 }} style={{ marginHorizontal: -2 }}>
+            {g.stages.map((st, i) => {
+              const done = stageDone(st);
+              const now = i === cur;
+              const on = st.id === shown?.id;
+              const share = st.tasks.length ? st.tasks.filter((x) => x.done).length / st.tasks.length : 0;
+              return (
+                <Pressable
+                  key={st.id}
+                  onPress={() => setOpen(st.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: on }}
+                  accessibilityLabel={st.title}
+                  style={[
+                    s.stage,
+                    { width: now ? 168 : 136, backgroundColor: now ? t.fg : done ? tint(t.sec.goals, 0.16) : t.card, borderColor: on && !now ? t.fg : 'transparent', opacity: !now && !done && !on ? 0.7 : 1 },
+                  ]}>
+                  <T style={{ fontSize: 12, color: now ? tint(t.bg, 0.7) : t.mute }}>{done ? `${i + 1} ✓` : now ? `${i + 1} · دلوقتي` : String(i + 1)}</T>
+                  <T w="bold" style={{ fontSize: 15.5, color: now ? t.bg : t.fg }} numberOfLines={2}>{st.title}</T>
+                  {now ? (
+                    <View style={{ height: 4, borderRadius: 2, backgroundColor: tint(t.bg, 0.2), marginTop: 8, overflow: 'hidden' }}>
+                      <View style={{ width: `${share * 100}%`, height: '100%', backgroundColor: '#F2C14E' }} />
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+          {shown ? (
+            <Card style={{ paddingHorizontal: 14, paddingVertical: 4 }}>
+              {shown.note ? <T style={{ fontSize: 12.5, color: t.mute, paddingTop: 10 }}>{shown.note}</T> : null}
+              {shown.tasks.map((x, j) => (
+                <Pressable
+                  key={x.id}
+                  onPress={() => {
+                    tap();
+                    save(toggleTask(g, x.id, today));
+                  }}
+                  accessibilityRole="checkbox"
+                  accessibilityState={{ checked: !!x.done }}
+                  accessibilityLabel={x.title}
+                  style={({ pressed }) => [s.task, { borderBottomWidth: j < shown.tasks.length - 1 ? 1 : 0, borderColor: t.line, opacity: pressed ? 0.6 : 1 }]}>
+                  <View style={[s.box, x.done ? { backgroundColor: t.fg, borderColor: t.fg } : { borderColor: tint(t.fg, 0.2) }]}>
+                    {x.done ? <Ionicons name="checkmark" size={16} color={t.bg} /> : null}
+                  </View>
+                  <T style={{ flex: 1, fontSize: 15, color: x.done ? t.mute : t.fg, textDecorationLine: x.done ? 'line-through' : 'none' }}>{x.title}</T>
+                </Pressable>
+              ))}
+              {!shown.tasks.length ? <T style={{ fontSize: 13, color: t.mute, paddingVertical: 12 }}>مفيش خطوات في المرحلة دي. دوس ✎ وضيف</T> : null}
+            </Card>
+          ) : null}
+        </>
+      ) : (
+        <T style={{ color: t.mute, fontSize: 13 }}>مفيش مراحل لسه. دوس ✎ وضيف أول مرحلة</T>
+      )}
+
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Stat t={t} label="في الشهر" value={g.entries.length ? `${pc.perMonth >= 0 ? '+' : ''}${fmt(pc.perMonth)}` : '—'} />
         <Stat t={t} label="هتوصل" value={there ? 'وصلت ✓' : pc.eta ? monthLabel(pc.eta) : '—'} sub={!pc.eta && !there ? 'سجّل تقدّمك وأحسبهالك' : undefined} />
@@ -108,58 +206,16 @@ function GoalPage() {
         ) : null}
       </View>
 
-      <Pressable onPress={() => setLogging(true)} accessibilityRole="button" style={({ pressed }) => [s.logBtn, { backgroundColor: g.color, boxShadow: `0px 0px 20px ${tint(g.color, 0.45)}`, opacity: pressed ? 0.85 : 1 }]}>
-        <T w="bold" style={{ fontSize: 15.5, color: '#FFFFFF' }}>+ سجّل تقدّم</T>
-      </Pressable>
-
       {reviewDue(g, today) ? (
         <Card style={{ padding: 14, gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="chatbubbles-outline" size={20} color={g.color} />
+            <Ionicons name="chatbubbles-outline" size={20} color={t.fg} />
             <T w="bold" style={{ fontSize: 15.5, flex: 1 }}>مراجعة الأسبوع</T>
             <T style={{ fontSize: 11.5, color: t.mute }}>دقيقتين</T>
           </View>
           <ReviewForm g={g} t={t} />
         </Card>
       ) : null}
-
-      <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ flex: 1 }}>
-          <Label>{`الطريق · ${g.stages.filter(stageDone).length} من ${g.stages.length} مراحل`}</Label>
-        </View>
-        <Pressable onPress={() => setRoadEdit(!roadEdit)} hitSlop={8} accessibilityRole="button" style={s.link}>
-          <T w="semi" style={{ fontSize: 13, color: t.okText }}>{roadEdit ? 'خلصت' : 'عدّل الطريق'}</T>
-        </Pressable>
-      </View>
-      <Card style={{ paddingVertical: 14, paddingHorizontal: 12 }}>
-        {g.stages.map((st, i) => (
-          <StageRow
-            key={st.id}
-            g={g}
-            st={st}
-            i={i}
-            last={i === g.stages.length - 1}
-            state={stageDone(st) ? 'done' : i === cur ? 'now' : 'later'}
-            open={roadEdit || (open === null ? i === cur : open === st.id)}
-            edit={roadEdit}
-            t={t}
-            onToggle={() => setOpen(open === st.id || (open === null && i === cur) ? '' : st.id)}
-            onTask={(taskId) => {
-              tap();
-              save(toggleTask(g, taskId, today));
-            }}
-            onSave={save}
-          />
-        ))}
-        {roadEdit ? (
-          <Btn
-            label="+ مرحلة"
-            onPress={() => save({ ...g, stages: [...g.stages, { id: goalId(Date.now()), title: `مرحلة ${g.stages.length + 1}`, tasks: [] }] })}
-            style={{ marginTop: 8 }}
-          />
-        ) : null}
-        {!g.stages.length && !roadEdit ? <T style={{ color: t.mute, fontSize: 13 }}>مفيش مراحل لسه. دوس «عدّل الطريق» وضيف أول مرحلة</T> : null}
-      </Card>
 
       <View style={{ flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ flex: 1 }}>
@@ -419,8 +475,11 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
 }
 
 const s = StyleSheet.create({
-  inner: { width: 180, height: 180, borderRadius: 90, alignItems: 'center', justifyContent: 'center', gap: 2 },
-  logBtn: { height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  bar: { flexDirection: 'row', gap: 4, height: 50, marginTop: 6 },
+  big: { height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  stage: { borderRadius: 22, padding: 14, borderWidth: 2, minHeight: 92, gap: 2 },
+  task: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 54 },
+  box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   why: { borderStartWidth: 4, borderRadius: 12, padding: 12, gap: 2 },
   nudge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
   link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
