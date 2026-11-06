@@ -1,6 +1,8 @@
-import { createContext, useContext } from 'react';
+import { createContext, useContext, useMemo } from 'react';
 import { useColorScheme } from 'react-native';
 import type { Muscle } from '../data/program';
+import { accentTokens } from '../lib/color';
+import { useSettings } from '../lib/settings';
 
 // Style: teal accent (ok), slate-navy for selected/emphasis (ink), soft borderless cards with a light shadow.
 const light = {
@@ -182,7 +184,9 @@ export const ThemeProvider = Forced.Provider;
 export function useTheme(): Theme {
   const forced = useContext(Forced);
   const scheme = useColorScheme();
-  return forced ?? (scheme === 'dark' ? dark : light);
+  const accent = useSettings((s) => s.accent);
+  const base = forced ?? (scheme === 'dark' ? dark : light);
+  return useMemo(() => (accent ? { ...base, ...accentTokens(accent, base.bg) } : base), [base, accent]);
 }
 
 /** Glow around something in `color` — only in the neon theme. */

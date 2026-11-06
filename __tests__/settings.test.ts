@@ -60,3 +60,9 @@ describe('settings store', () => {
     expect(exerciseById('lat-pulldown')!.restSec).toBe(DEFAULT_REST.normal);
   });
 });
+
+test('the saved color is checked', () => {
+  expect(parseSettings(JSON.stringify({ accent: '#2563eb' })).accent).toBe('#2563EB');
+  expect(parseSettings(JSON.stringify({ accent: 'blue' })).accent).toBe('');
+  expect(parseSettings(null).accent).toBe('');
+});

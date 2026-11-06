@@ -7,6 +7,7 @@ import { DRIVE_USER, driveSupported } from '../../lib/drive';
 import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
 import { lastSection, SECTION_PATH } from '../../lib/section';
+import { accentTokens } from '../../lib/color';
 import { F, neon, useTheme } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -35,6 +36,8 @@ export default function TabsLayout() {
   const t = useTheme();
   const inset = useSafeAreaInsets();
   const neonOn = useSettings((s) => s.neonMode);
+  const accent = useSettings((s) => s.accent);
+  const neonOk = accent ? accentTokens(accent, neon.bg).ok : neon.ok;
   // Android draws edge to edge: the bar must clear the system navigation bar itself. Phones with the gesture bar hidden
   // report no bottom inset at all, and their rounded screen corners then cut the outer labels, so Android keeps 14pt.
   // 64pt leaves the icon and an 18pt label line their full height; a shorter bar squeezes the label and clips the Arabic text.
@@ -61,7 +64,7 @@ export default function TabsLayout() {
           title: 'التمرين',
           tabBarIcon: icon('barbell'),
           ...(neonOn
-            ? { tabBarStyle: { ...bar, backgroundColor: neon.card, borderTopColor: neon.border }, tabBarActiveTintColor: neon.ok, tabBarInactiveTintColor: neon.mute }
+            ? { tabBarStyle: { ...bar, backgroundColor: neon.card, borderTopColor: neon.border }, tabBarActiveTintColor: neonOk, tabBarInactiveTintColor: neon.mute }
             : {}),
         }}
       />

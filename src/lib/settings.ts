@@ -8,6 +8,7 @@ import { DEFAULT_BODY, parseBody, type Body } from './energy';
 import { METHODS, parsePlace, type Method, type Place } from './prayer';
 import { dateKey } from './logic';
 import { addDays } from './gaps';
+import { normHex } from './color';
 
 export type Settings = {
   /** Only exercises changed from the PDF; missing id = default. */
@@ -64,6 +65,8 @@ export type Settings = {
   autoBackup: boolean;
   /** Folder you picked for the automatic backups (Android content URI); empty = inside the app only. */
   backupDir: string;
+  /** Your app color (#RRGGBB) for buttons, ticks and rings everywhere; '' = each theme's own. */
+  accent: string;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -96,6 +99,7 @@ export const DEFAULT_SETTINGS: Settings = {
   stepsSync: false,
   autoBackup: true,
   backupDir: '',
+  accent: '',
 };
 
 const KEY = 'settings';
@@ -129,6 +133,7 @@ export function parseSettings(raw: string | null): Settings {
   if (Array.isArray(o.reminderDays)) out.reminderDays = [...new Set(o.reminderDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
   if (!(out.reminderTime >= 0 && out.reminderTime < 24 * 60)) out.reminderTime = DEFAULT_SETTINGS.reminderTime;
   if (!(out.briefTime >= 0 && out.briefTime < 24 * 60)) out.briefTime = DEFAULT_SETTINGS.briefTime;
+  out.accent = normHex(out.accent) ?? '';
   if (typeof o.prayerMethod === 'string' && o.prayerMethod in METHODS) out.prayerMethod = o.prayerMethod as Method;
   return out;
 }
@@ -140,7 +145,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock' | 'stepsSync'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock' | 'stepsSync' | 'accent'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;

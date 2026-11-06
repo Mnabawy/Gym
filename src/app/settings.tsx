@@ -26,6 +26,7 @@ import { applyBackup } from '../lib/restore';
 import { canLock, lockSupported, unlock } from '../lib/lock';
 import { connectSteps, stepsSupported, syncSteps } from '../lib/steps';
 import { DRIVE_AT, DRIVE_USER, driveSupported } from '../lib/drive';
+import { AccentPicker } from '../components/AccentPicker';
 import { useTheme } from '../theme';
 
 const phone = Platform.OS !== 'web';
@@ -340,6 +341,9 @@ export default function SettingsScreen() {
           </>
         ) : null}
       </Card>
+
+      <Label>لون التطبيق</Label>
+      <AccentPicker />
 
       <Label>عام</Label>
       <Card>
