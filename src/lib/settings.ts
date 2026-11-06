@@ -65,7 +65,7 @@ export type Settings = {
   autoBackup: boolean;
   /** Folder you picked for the automatic backups (Android content URI); empty = inside the app only. */
   backupDir: string;
-  /** Your app color (#RRGGBB) for buttons, ticks and rings everywhere; '' = each theme's own. */
+  /** Your app color (#RRGGBB) for buttons, ticks and rings everywhere (the owner's red by default); '' = each theme's own. */
   accent: string;
 };
 
@@ -99,7 +99,7 @@ export const DEFAULT_SETTINGS: Settings = {
   stepsSync: false,
   autoBackup: true,
   backupDir: '',
-  accent: '',
+  accent: '#B93435',
 };
 
 const KEY = 'settings';
@@ -133,7 +133,7 @@ export function parseSettings(raw: string | null): Settings {
   if (Array.isArray(o.reminderDays)) out.reminderDays = [...new Set(o.reminderDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
   if (!(out.reminderTime >= 0 && out.reminderTime < 24 * 60)) out.reminderTime = DEFAULT_SETTINGS.reminderTime;
   if (!(out.briefTime >= 0 && out.briefTime < 24 * 60)) out.briefTime = DEFAULT_SETTINGS.briefTime;
-  out.accent = normHex(out.accent) ?? '';
+  out.accent = out.accent === '' ? '' : normHex(out.accent) ?? DEFAULT_SETTINGS.accent;
   if (typeof o.prayerMethod === 'string' && o.prayerMethod in METHODS) out.prayerMethod = o.prayerMethod as Method;
   return out;
 }

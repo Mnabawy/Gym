@@ -16,7 +16,7 @@ Exercise names stay in English (gym vocabulary).
 - One fixed color per muscle (Okabe–Ito, colorblind-safe) in `src/theme/index.ts`.
 - Technique tags: تقيل (filled), فشل (outlined), دروب (dashed). Copy in `src/data/rules.ts`.
 - Food chip colors: protein blue, carbs orange, fat green, veg grey.
-- App color: settings `accent` (#RRGGBB typed or a preset, `src/components/AccentPicker.tsx`); `useTheme` swaps in `accentTokens` (`src/lib/color.ts`: text color pushed to 4.5:1 contrast, readable text on buttons) for every theme incl. neon and warm
+- App color: settings `accent` (default the owner's red `#B93435`; #RRGGBB typed or a preset, `src/components/AccentPicker.tsx`); `useTheme` swaps in `accentTokens` (`src/lib/color.ts`: text color pushed to 4.5:1 contrast, readable text on buttons) for every theme incl. neon and warm
 - Light + dark from one token file. Touch targets ≥ 44pt.
 - Small font app-wide: `T` (`src/components/ui.tsx`) draws every size × `TEXT_SCALE` (0.9). Write sizes at full scale; tight spacing (`Screen dense`) on the workout, food and shopping tabs.
 - One button size: `Btn` (40pt, one line of 14pt text that shrinks to fit) — use it for every text button. `T` caps the phone's font-size setting at ×1.15 (`maxFontSizeMultiplier`).

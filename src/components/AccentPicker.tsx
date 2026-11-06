@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, T } from './ui';
 import { ACCENT_PRESETS, normHex } from '../lib/color';
-import { useSettings } from '../lib/settings';
+import { DEFAULT_SETTINGS, useSettings } from '../lib/settings';
 import { F, useTheme } from '../theme';
 
 /** Settings → لون التطبيق: type any hex color (or tap a ready one) and it becomes the app's color everywhere. */
@@ -42,7 +42,7 @@ export function AccentPicker() {
           accessibilityLabel="كود اللون"
           style={[s.input, { color: t.fg, backgroundColor: t.soft, borderColor: bad ? t.bad : 'transparent', fontFamily: F.num }]}
         />
-        {accent ? <Btn label="الأصلي" onPress={() => apply('')} /> : null}
+        {accent !== DEFAULT_SETTINGS.accent ? <Btn label="الأصلي" onPress={() => apply(DEFAULT_SETTINGS.accent)} /> : null}
       </View>
       {bad ? <T style={{ fontSize: 12, color: t.bad }}>الكود لازم يبقى 3 أو 6 حروف/أرقام من 0-9 و A-F</T> : null}
       <View style={s.grid}>
