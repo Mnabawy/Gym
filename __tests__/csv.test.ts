@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { bodyCsv, cardioCsv, cell, habitsCsv, setsCsv, toCsv } from '../src/lib/csv';
+import { bodyCsv, cardioCsv, cell, habitsCsv, setsCsv, toCsv, goalsCsv } from '../src/lib/csv';
 
 const lines = (s: string) => s.replace(/^﻿/, '').trim().split('\r\n');
 
@@ -39,4 +39,18 @@ test('cardio and habits', () => {
   const h = { id: 'h', name: 'ورد', icon: 'book', color: '#1BA6A8', days: [0, 1, 2, 3, 4, 5, 6], remind: null, start: '2026-11-01' };
   const l = lines(habitsCsv([h], { 'h|2026-11-01': 'done' }, '2026-11-02'));
   expect(l.slice(1)).toEqual(['2026-11-01,ورد,عملتها', '2026-11-02,ورد,النهارده']);
+});
+
+test('goals: progress and finished tasks in date order with a running total', () => {
+  const g = {
+    id: 'g', name: 'فلوس', icon: 'cash', color: '#000000', unit: '$', start: 100, target: 1000, startDate: '2026-01-01', due: null, why: '',
+    stages: [{ id: 's', title: 'أ', tasks: [{ id: 't', title: 'خطوة, أولى', done: '2026-01-02' }, { id: 'u', title: 'لسه', done: null }] }],
+    entries: [{ id: 'e', date: '2026-01-03', amount: 50, note: 'شغل' }, { id: 'f', date: '2026-01-01', amount: 10 }],
+    wins: [], reviews: [],
+  };
+  const lines = goalsCsv([g]).replace('﻿', '').trim().split('\r\n');
+  expect(lines).toHaveLength(4);
+  expect(lines[1]).toBe('فلوس,2026-01-01,تقدّم,,10,110,1000,$');
+  expect(lines[2]).toBe('فلوس,2026-01-02,خطوة,"أ: خطوة, أولى",,110,1000,$');
+  expect(lines[3]).toBe('فلوس,2026-01-03,تقدّم,شغل,50,160,1000,$');
 });

@@ -10,7 +10,7 @@ import { projected, type Current } from './schedule';
 import { movesFor, splitShopping, tripDays } from './shop';
 import type { WeighIn } from './weight';
 import { isDue, type Habit } from './habits';
-import { nextTask, type Goal } from './goals';
+import { nextTask, reviewDue, type Goal } from './goals';
 
 export type BriefInput = {
   /** Today (the day the app schedules from). */
@@ -66,6 +66,7 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   for (const g of x.goals ?? []) {
     const n = nextTask(g);
     if (n) lines.push(`🎯 ${g.name}: ${n.task.title}`);
+    if (reviewDue(g, date)) lines.push(`📝 مراجعة الأسبوع لـ ${g.name}: دقيقتين`);
   }
 
   const prep: string[] = [];

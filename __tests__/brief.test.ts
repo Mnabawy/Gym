@@ -60,3 +60,9 @@ test("each goal's next step", () => {
   const b = morningBrief(TODAY, { ...base, goals: [goal] }).body;
   expect(b).toContain(`🎯 ${goal.name}: ${goal.stages[0].tasks[0].title}`);
 });
+
+test('a goal whose weekly review is due', () => {
+  const goal = { ...fromTemplate(GOAL_TEMPLATES[0], '2026-10-20', 1) };
+  expect(morningBrief(TODAY, { ...base, goals: [goal] }).body).toContain(`📝 مراجعة الأسبوع لـ ${goal.name}`);
+  expect(morningBrief(TODAY, { ...base, goals: [{ ...goal, startDate: TODAY }] }).body).not.toContain('📝');
+});

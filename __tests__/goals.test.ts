@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addReview, allWins, autoWins, current, currentStage, fmtAmount, idleDays, moveStage, nextTask, pace, parseGoals, progress, reviewDue, stageDone, toggleTask, type Goal } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, moveStage, nextTask, pace, parseGoals, progress, reviewDue, stageDone, toggleTask, type Goal } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -92,4 +92,22 @@ test('templates make valid goals with unique ids', () => {
 test('the first month counts as a whole month', () => {
   const g: Goal = { ...base, startDate: '2026-11-06', entries: [{ id: 'e', date: '2026-11-06', amount: 12000 }] };
   expect(pace(g, '2026-11-06').perMonth).toBe(12000);
+});
+
+test("a goal's week", () => {
+  const [w] = goalsWeek([base], '2026-02-01', '2026-02-07');
+  expect(w).toMatchObject({ gained: 12000, tasks: 0 });
+  expect(w.share).toBeCloseTo(0.12);
+  expect(goalsWeek([base], '2026-01-03', '2026-01-09')[0]).toMatchObject({ gained: 0, tasks: 2, share: 0 });
+  expect(goalsWeek([base], '2025-12-01', '2025-12-07')).toEqual([]); // not started yet
+});
+
+test('the review step goes first on the stage you are on, or a new stage', () => {
+  const g = addNextStep(base, 'جديد', 'x');
+  expect(g.stages[1].tasks.map((t) => t.id)).toEqual(['x', 't3', 't4']);
+  expect(nextTask(g)?.task.id).toBe('x');
+  const allDone: Goal = { ...base, stages: [base.stages[0]] };
+  const h = addNextStep(allDone, 'جديد', 'y');
+  expect(h.stages).toHaveLength(2);
+  expect(nextTask(h)?.task.id).toBe('y');
 });

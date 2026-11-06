@@ -2,13 +2,13 @@ import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Card, HeaderBtn, Label, Screen, Sheet, T } from '../../components/ui';
+import { Btn, Card, HeaderBtn, Label, Pill, Screen, Sheet, T } from '../../components/ui';
 import { GoalForm } from '../../components/GoalForm';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
-import { addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, moveStage, nextTask, pace, progress, reviewDue, stageDone, toggleTask, type Goal, type Review, type Stage } from '../../lib/goals';
-import { daysBetween } from '../../lib/gaps';
+import { addNextStep, addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, moveStage, nextTask, pace, progress, reviewDue, stageDone, toggleTask, type Goal, type Review, type Stage } from '../../lib/goals';
+import { addDays, daysBetween } from '../../lib/gaps';
 import { dateKey, parseNum } from '../../lib/logic';
 import { tap } from '../../lib/timer';
 import { F, glow, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
@@ -406,16 +406,20 @@ function LogSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
   const [minus, setMinus] = useState(false);
+  const [back, setBack] = useState(0);
   const n = parseNum(amount);
   const ok = n != null && n > 0;
   const add = () => {
     if (!ok) return;
     tap();
-    saveGoal({ ...g, entries: [...g.entries, { id: goalId(Date.now()), date: today, amount: minus ? -n! : n!, ...(note.trim() ? { note: note.trim() } : {}) }] });
+    saveGoal({ ...g, entries: [...g.entries, { id: goalId(Date.now()), date: addDays(today, -back) < g.startDate ? g.startDate : addDays(today, -back), amount: minus ? -n! : n!, ...(note.trim() ? { note: note.trim() } : {}) }] });
     onClose();
   };
   return (
-    <Sheet visible onClose={onClose} title="سجّل تقدّم" sub={`كل اللي اتضاف النهارده${g.unit ? ` (${g.unit})` : ''}`}>
+    <Sheet visible onClose={onClose} title="سجّل تقدّم" sub={`اللي اتضاف${g.unit ? ` (${g.unit})` : ''}`}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {['النهارده', 'امبارح', 'قبل امبارح'].map((l, i) => <Pill key={l} label={l} on={back === i} onPress={() => setBack(i)} />)}
+      </View>
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Btn label="+ زاد" kind={minus ? 'ghost' : 'solid'} onPress={() => setMinus(false)} style={{ flex: 1 }} />
         <Btn label="− نقص" kind={minus ? 'solid' : 'ghost'} onPress={() => setMinus(true)} style={{ flex: 1 }} />
@@ -452,9 +456,8 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
     if (!ok) return;
     const today = dateKey();
     let x = addReview(g, { date: today, did: r.did.trim(), blocked: r.blocked.trim(), next: r.next.trim() });
-    // The next step goes on the road, on the stage you're on, so it shows up as your next task.
-    const i = currentStage(x);
-    if (r.next.trim() && i >= 0) x = { ...x, stages: x.stages.map((st, j) => (j === i ? { ...st, tasks: [{ id: goalId(Date.now()), title: r.next.trim(), done: null }, ...st.tasks.filter((k) => k.done), ...st.tasks.filter((k) => !k.done)] } : st)) };
+    // The next step goes on the road (first on the stage you're on), so it shows up as your next task.
+    if (r.next.trim()) x = addNextStep(x, r.next.trim(), goalId(Date.now()));
     saveGoal(x);
     onDone?.();
   };

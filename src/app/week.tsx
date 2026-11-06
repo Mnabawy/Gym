@@ -13,6 +13,8 @@ import { readNumbers, readStrings } from '../lib/meta';
 import { weekReport } from '../lib/report';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
+import { readGoals } from '../lib/goalStore';
+import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
 import { readHabitLog, readHabits } from '../lib/habitStore';
@@ -49,6 +51,7 @@ export default function WeekScreen() {
     cardio: parseCardio(storage.getMeta(CARDIO_KEY)),
     weightKg: body.weight ?? 0,
     steps: parseSteps(storage.getMeta(STEPS_KEY)),
+    goals: readGoals(),
   });
   const live = from === thisWeek;
   // Only for a finished week: a week in progress would always look like a drop.
@@ -134,6 +137,25 @@ export default function WeekScreen() {
                   <Progress value={h.due ? h.done / h.due : 1} color={h.color} height={8} />
                 </View>
                 <T w="num" style={{ width: 40, fontSize: 12.5, textAlign: 'center' }}>{`${h.done}/${h.due}`}</T>
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
+
+      {r.goals.length ? (
+        <>
+          <Label>الأهداف</Label>
+          <Card style={{ padding: 14, gap: 10 }}>
+            {r.goals.map((g) => (
+              <View key={g.id} style={{ gap: 4 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: g.color }} />
+                  <T w="semi" style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{g.name}</T>
+                  <T w="num" style={{ fontSize: 12.5 }}>{`${Math.floor(g.share * 100)}%`}</T>
+                </View>
+                <Progress value={g.share} color={g.color} height={8} />
+                <T style={{ fontSize: 12, color: t.mute }}>{g.gained || g.tasks ? `الأسبوع ده: ${g.gained ? iso(`${g.gained > 0 ? '+' : ''}${fmtAmount(g.gained, g.unit)}`) : ''}${g.gained && g.tasks ? ' · ' : ''}${g.tasks ? `${g.tasks} خطوات خلصت` : ''}` : 'مفيش حركة الأسبوع ده'}</T>
               </View>
             ))}
           </Card>

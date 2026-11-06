@@ -8,6 +8,7 @@ import { CARDIO, INTENSITY, metOf } from './cardio';
 import type { Habit, Log } from './habits';
 import { dayState } from './habits';
 import { addDays } from './gaps';
+import type { Goal } from './goals';
 
 const BOM = '﻿';
 
@@ -67,4 +68,21 @@ export function habitsCsv(habits: readonly Habit[], log: Log, today: string): st
   }
   rows.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   return toCsv(['التاريخ', 'العادة', 'الحالة'], rows);
+}
+
+/** Goals: every logged bit of progress and every finished task, oldest first, with the total after each. */
+export function goalsCsv(goals: readonly Goal[]): string {
+  const rows: (string | number)[][] = [];
+  for (const g of goals) {
+    const events = [
+      ...g.entries.map((e) => ({ date: e.date, kind: 'تقدّم', what: e.note ?? '', amount: e.amount })),
+      ...g.stages.flatMap((s) => s.tasks.filter((t) => t.done).map((t) => ({ date: t.done as string, kind: 'خطوة', what: `${s.title}: ${t.title}`, amount: 0 }))),
+    ].sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+    let total = g.start;
+    for (const e of events) {
+      total += e.amount;
+      rows.push([g.name, e.date, e.kind, e.what, e.amount || '', total, g.target, g.unit]);
+    }
+  }
+  return toCsv(['الهدف', 'التاريخ', 'النوع', 'التفاصيل', 'الكمية', 'الإجمالي', 'الهدف', 'الوحدة'], rows);
 }

@@ -3,7 +3,8 @@ import { View } from 'react-native';
 import { ALL_EXERCISES, dayFor } from '../data/program';
 import { shareText } from '../lib/backupIO';
 import { CARDIO_KEY, parseCardio } from '../lib/cardio';
-import { bodyCsv, cardioCsv, habitsCsv, setsCsv } from '../lib/csv';
+import { bodyCsv, cardioCsv, goalsCsv, habitsCsv, setsCsv } from '../lib/csv';
+import { readGoals } from '../lib/goalStore';
 import { readHabitLog, readHabits } from '../lib/habitStore';
 import { dateKey } from '../lib/logic';
 import { exerciseInfo, PAST_KEY, parsePast } from '../lib/programEdit';
@@ -38,6 +39,7 @@ export function ExportSheet({ visible, onClose }: { visible: boolean; onClose: (
         <Btn label="الوزن والقياسات" onPress={() => go('body', () => bodyCsv(parseWeights(storage.getMeta(WEIGHTS_KEY)), parseMeasures(storage.getMeta(MEASURES_KEY))))} />
         <Btn label="الكارديو والمشي" onPress={() => go('cardio', () => cardioCsv(parseCardio(storage.getMeta(CARDIO_KEY)), weight))} />
         <Btn label="العادات" onPress={() => go('habits', () => habitsCsv(readHabits(), readHabitLog(), today))} />
+        <Btn label="الأهداف" onPress={() => go('goals', () => goalsCsv(readGoals()))} />
       </View>
       {msg ? <T style={{ color: t.mute, fontSize: 12.5, textAlign: 'center' }}>{msg}</T> : null}
     </Sheet>

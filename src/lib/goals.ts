@@ -213,3 +213,29 @@ export function fmtAmount(n: number, unit: string): string {
   if (!unit) return s;
   return /^[$€£]$/.test(unit) ? `${r < 0 ? '-' : ''}${unit}${s.replace('-', '')}` : `${s} ${unit}`;
 }
+
+export type GoalWeek = { id: string; name: string; color: string; unit: string; gained: number; tasks: number; share: number };
+
+/** Each goal's week (from–to): what you added, how many tasks you finished, and how far it is now. */
+export function goalsWeek(goals: readonly Goal[], from: string, to: string): GoalWeek[] {
+  const inWeek = (d: string | null) => !!d && d >= from && d <= to;
+  return goals
+    .filter((g) => g.startDate <= to)
+    .map((g) => ({
+      id: g.id,
+      name: g.name,
+      color: g.color,
+      unit: g.unit,
+      gained: g.entries.filter((e) => inWeek(e.date)).reduce((a, e) => a + e.amount, 0),
+      tasks: g.stages.reduce((a, s) => a + s.tasks.filter((t) => inWeek(t.done)).length, 0),
+      share: progress(g, g.start + g.entries.filter((e) => e.date <= to).reduce((a, e) => a + e.amount, 0)),
+    }));
+}
+
+/** Puts a step (from the weekly review) first among the open tasks of the stage you're on, or in a new stage once all are done. */
+export function addNextStep(g: Goal, title: string, id: string): Goal {
+  const task = { id, title, done: null };
+  const i = currentStage(g);
+  if (i < 0) return { ...g, stages: [...g.stages, { id: `${id}s`, title: 'الجاي', tasks: [task] }] };
+  return { ...g, stages: g.stages.map((s, j) => (j === i ? { ...s, tasks: [...s.tasks.filter((t) => t.done), task, ...s.tasks.filter((t) => !t.done)] } : s)) };
+}

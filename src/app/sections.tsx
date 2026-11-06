@@ -77,7 +77,7 @@ function Hub() {
             <T style={{ color: t.mute, fontSize: 13.5 }}>{`${WEEKDAYS_AR[weekdayOf(today)]} · ${+today.slice(8)} ${MONTHS_AR[+today.slice(5, 7) - 1]}`}</T>
             <T w="bold" style={{ fontSize: 32, lineHeight: 46 }}>أقسامك</T>
           </View>
-          {router.canGoBack() ? <HeaderBtn icon="close" label="اقفل" onPress={() => router.back()} /> : null}
+          <HeaderBtn icon="close" label="اقفل" onPress={() => (router.canGoBack() ? router.back() : openSection(here))} />
         </View>
 
         <View style={s.grid}>
