@@ -13,8 +13,9 @@ import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
 import { parseWeights, WEIGHTS_KEY } from './weight';
-import { logKey, pausedNow } from './habits';
-import { readHabitLog, readHabits } from './habitStore';
+import { isDue, logKey, partsDone, pausedNow, prayerTime, type Habit } from './habits';
+import { readHabitLog, readHabitParts, readHabits } from './habitStore';
+import { addDays } from './gaps';
 
 const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
@@ -65,19 +66,44 @@ export function syncReminders(): Promise<void> {
         if (k === KIND || k === BRIEF || k === HABIT) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
-      const habits = readHabits().filter((h) => h.remind != null && !pausedNow(h));
+      const habits = readHabits().filter((h) => !pausedNow(h) && (h.remind != null || h.at || h.parts?.some((p) => p.at)));
       if ((!st.reminder && !st.brief && !habits.length) || !(await Notifications.getPermissionsAsync()).granted) return;
       const today = dateKey();
       // Each habit with a reminder: its next due days at its time; not today once it's ticked (done or excused).
       const hlog = readHabitLog();
+      const hparts = readHabitParts();
+      const body = (h: Habit) => (h.cue ? `${h.cue} · علّم عليها لما تعملها` : 'عادة النهارده: علّم عليها لما تعملها');
+      const at = async (title: string, text: string, date: Date) =>
+        Notifications.scheduleNotificationAsync({
+          content: { title, body: text, sound: true, data: { kind: HABIT } },
+          trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
+        });
+      // Prayer-linked times need the location from the prayer times settings.
+      const place = st.place;
+      const now = new Date();
       for (const h of habits) {
         const marked = !!hlog[logKey(h.id, today)];
-        for (const date of reminderTimes(new Date(), h.remind!, h.days, marked, 5)) {
-          if (dateKey(date) < h.start) continue;
-          await Notifications.scheduleNotificationAsync({
-            content: { title: h.name, body: h.cue ? `${h.cue} · علّم عليها لما تعملها` : 'عادة النهارده: علّم عليها لما تعملها', sound: true, data: { kind: HABIT } },
-            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
-          });
+        if (h.remind != null) {
+          for (const date of reminderTimes(now, h.remind, h.days, marked, 5)) if (dateKey(date) >= h.start) await at(h.name, body(h), date);
+        }
+        if (!place) continue;
+        // The next 5 days it's due, at the prayer time + offset; today only if not done yet and still ahead.
+        const days: string[] = [];
+        for (let i = 0; i < 14 && days.length < 5; i++) {
+          const d = addDays(today, i);
+          if (isDue(h, d)) days.push(d);
+        }
+        for (const d of days) {
+          if (h.at && !(d === today && marked)) {
+            const t = prayerTime(h.at, d, place, st.prayerMethod);
+            if (t && t > now) await at(h.name, body(h), t);
+          }
+          const doneParts = d === today ? partsDone(h, hlog, hparts, today) : [];
+          for (const [i, p] of (h.parts ?? []).entries()) {
+            if (!p.at || doneParts.includes(i) || (d === today && marked)) continue;
+            const t = prayerTime(p.at, d, place, st.prayerMethod);
+            if (t && t > now) await at(`${h.name}: ${p.name}`, 'علّم عليها لما تعملها', t);
+          }
         }
       }
       const cur = currentWorkout(storage.trainedDays(), today);

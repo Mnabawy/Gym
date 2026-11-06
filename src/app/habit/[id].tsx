@@ -8,7 +8,9 @@ import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
 import { addDays, weekStart } from '../../lib/gaps';
 import { ALL_DAYS, dayState, FORM_DAYS, habitStats, logKey, nextMark, pausedNow, PHASES, phaseFill, phaseOf, togglePause, type DayState, type Habit, type Log } from '../../lib/habits';
-import { deleteHabit, readHabitLog, readHabits, saveHabit, setMark } from '../../lib/habitStore';
+import { deleteHabit, readHabitLog, readHabitParts, readHabits, saveHabit, setMark } from '../../lib/habitStore';
+import { partRates, partsDone, refAr } from '../../lib/habits';
+import { PRAYER_AR } from '../../lib/prayer';
 import { addMonths, dateKey, monthCells } from '../../lib/logic';
 import { tap } from '../../lib/timer';
 import { tint, useTheme, type Theme } from '../../theme';
@@ -29,6 +31,7 @@ export default function HabitScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const h = readHabits().find((x) => x.id === id);
   const log = readHabitLog();
+  const partsLog = readHabitParts();
   const today = dateKey();
   const now = new Date();
   const [view, setView] = useState({ y: now.getFullYear(), m: now.getMonth() });
@@ -69,7 +72,10 @@ export default function HabitScreen() {
   const weakest = weekdays.length > 1 ? weekdays.reduce((a, b) => (b.v < a.v ? b : a)) : null;
 
   return (
-    <Screen title={h.name} sub={`${daysAr(h.days)}${h.remind != null ? ` · تذكير ${timeAr(h.remind)}` : ''}`} onBack={() => router.back()}>
+    <Screen
+      title={h.name}
+      sub={`${h.group ? `${h.group} · ` : ''}${daysAr(h.days)}${h.at ? ` · تذكير ${refAr(h.at, PRAYER_AR)}` : h.remind != null ? ` · تذكير ${timeAr(h.remind)}` : ''}`}
+      onBack={() => router.back()}>
       {/* Hero: icon, streak and best */}
       <Card style={[s.hero, { backgroundColor: tint(h.color, 0.1), borderWidth: 1, borderColor: tint(h.color, 0.3) }]}>
         <View style={[s.bigIcon, { backgroundColor: h.color, boxShadow: `0px 8px 24px ${tint(h.color, 0.45)}` }]}>
@@ -161,7 +167,14 @@ export default function HabitScreen() {
                         <View style={[s.half, nextDone ? { backgroundColor: tint(h.color, 0.35) } : null]} />
                       </View>
                     ) : null}
-                    <View style={[s.day, dayLook(st2, h.color, t), k === today ? { borderWidth: 2, borderColor: done ? t.fg : h.color } : null]}>
+                    <View
+                      style={[
+                        s.day,
+                        dayLook(st2, h.color, t),
+                        // Some parts done (not all): half-tinted in the habit's color.
+                        !done && h.parts?.length && partsDone(h, log, partsLog, k).length ? { backgroundColor: tint(h.color, 0.35) } : null,
+                        k === today ? { borderWidth: 2, borderColor: done ? t.fg : h.color } : null,
+                      ]}>
                       {st2 === 'skip' ? (
                         <Ionicons name="remove" size={14} color={h.color} />
                       ) : (
@@ -188,6 +201,31 @@ export default function HabitScreen() {
       <Card style={{ padding: 12 }}>
         <Heatmap h={h} log={log} today={today} t={t} />
       </Card>
+
+      {/* Parts: which one you miss most */}
+      {h.parts?.length ? (() => {
+        const rates = partRates(h, log, partsLog, today);
+        const known = rates.map((v, i) => ({ v, i })).filter((x): x is { v: number; i: number } => x.v != null);
+        const weak = known.length > 1 ? known.reduce((a, b) => (b.v < a.v ? b : a)) : null;
+        return (
+          <>
+            <Label>كل جزء · آخر 30 يوم</Label>
+            <Card style={{ padding: 14, gap: 8 }}>
+              {h.parts.map((p, i) => (
+                <View key={i} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <T style={{ width: 92, fontSize: 13 }} numberOfLines={1}>{p.name}</T>
+                  <View style={{ flex: 1 }}>
+                    <Progress value={rates[i] ?? 0} color={weak?.i === i && weak.v < 0.9 ? t.warn : h.color} height={8} />
+                  </View>
+                  <T w="num" style={{ width: 40, fontSize: 12.5, textAlign: 'center' }}>{pct(rates[i])}</T>
+                </View>
+              ))}
+              {weak && weak.v < 0.9 ? <T style={{ color: t.warn, fontSize: 12.5 }}>{`أكتر حاجة بتفوّتها: ${h.parts[weak.i].name}`}</T> : null}
+              {!known.length ? <T style={{ color: t.mute, fontSize: 12.5 }}>هتظهر هنا بعد أول يوم يعدّي</T> : null}
+            </Card>
+          </>
+        );
+      })() : null}
 
       {/* Weekdays */}
       {weekdays.length > 1 ? (

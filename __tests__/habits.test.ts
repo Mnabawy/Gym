@@ -1,5 +1,6 @@
 /// <reference types="jest" />
-import { dayState, habitStats, isDue, logKey, nextMark, parseHabits, parseLog, pausedNow, phaseFill, phaseOf, togglePause, type Habit, type Log } from '../src/lib/habits';
+import { dayState, groupHabits, habitStats, isDue, logKey, nextMark, parseHabits, parseLog, parsePartsLog, partRates, partsDone, pausedNow, phaseFill, phaseOf, prayerTime, refAr, togglePart, togglePause, type Habit, type Log, type PartsLog } from '../src/lib/habits';
+import { MY_HABITS } from '../src/data/habitTemplates';
 
 // Sun 1 Nov 2026 … ; daily habit and a Sun/Tue/Thu one
 const daily: Habit = { id: 'h1', name: 'ورد', icon: 'book', color: '#1BA6A8', days: [0, 1, 2, 3, 4, 5, 6], remind: null, start: '2026-11-01' };
@@ -117,4 +118,62 @@ test('tap cycles done → skip → nothing', () => {
   expect(nextMark(undefined)).toBe('done');
   expect(nextMark('done')).toBe('skip');
   expect(nextMark('skip')).toBeUndefined();
+});
+
+describe('parts, groups and prayer-linked reminders', () => {
+  const salah: Habit = { ...daily, id: 's', name: 'الصلوات الخمس', group: 'الصلاة', parts: [{ name: 'الفجر' }, { name: 'الضهر' }, { name: 'العصر' }, { name: 'المغرب' }, { name: 'العشا' }] };
+
+  test('parse keeps group, parts and the prayer reminder', () => {
+    const [h] = parseHabits(JSON.stringify([{ ...salah, at: { prayer: 'sunrise', offset: 20 }, parts: [{ name: 'الفجر', at: { prayer: 'fajr', offset: 10 } }, { name: '' }, { name: 'x', at: { prayer: 'noon', offset: 1 } }] }]));
+    expect(h.group).toBe('الصلاة');
+    expect(h.at).toEqual({ prayer: 'sunrise', offset: 20 });
+    expect(h.parts).toEqual([{ name: 'الفجر', at: { prayer: 'fajr', offset: 10 } }, { name: 'x' }]);
+    expect(parsePartsLog(JSON.stringify({ 's|2026-11-01': [0, 2, 2, 99], 's|bad': [1] }))).toEqual({ 's|2026-11-01': [0, 2] });
+  });
+
+  test('the day is done when every part is, and undone when one is taken back', () => {
+    let log: Log = {};
+    let parts: PartsLog = {};
+    const D = '2026-11-02';
+    for (let i = 0; i < 4; i++) {
+      const r = togglePart(salah, log, parts, D, i);
+      expect(r.mark).toBeUndefined();
+      parts = { ...parts, [logKey('s', D)]: r.done };
+    }
+    const last = togglePart(salah, log, parts, D, 4);
+    expect(last.mark).toBe('done');
+    log = { [logKey('s', D)]: 'done' };
+    // a done day counts as all parts; taking one back undoes the day
+    expect(partsDone(salah, log, {}, D)).toEqual([0, 1, 2, 3, 4]);
+    const back = togglePart(salah, log, {}, D, 0);
+    expect(back).toEqual({ mark: undefined, done: [1, 2, 3, 4] });
+  });
+
+  test('which part you miss most', () => {
+    const log: Log = { [logKey('s', '2026-11-01')]: 'done' };
+    const parts: PartsLog = { [logKey('s', '2026-11-02')]: [1, 2, 3, 4], [logKey('s', '2026-11-03')]: [1, 2, 3] };
+    // 1–3 Nov counted (today the 4th isn't): Fajr only on the 1st
+    const r = partRates(salah, log, parts, '2026-11-04', 30);
+    expect(r[0]).toBeCloseTo(1 / 3);
+    expect(r[1]).toBe(1);
+    expect(r[4]).toBeCloseTo(2 / 3);
+  });
+
+  test('groups keep list order, ungrouped last', () => {
+    const g = groupHabits([{ group: 'العلم' }, { group: undefined }, { group: 'الصلاة' }, { group: 'العلم' }]);
+    expect(g.map((x) => [x.group, x.items.length])).toEqual([['العلم', 2], ['الصلاة', 1], [null, 1]]);
+  });
+
+  test('prayer time with an offset, and its label', () => {
+    const cairo = { lat: 30.04, lng: 31.24 };
+    const t = prayerTime({ prayer: 'sunrise', offset: 20 }, '2026-11-05', cairo, 'egyptian')!;
+    expect(t.getDate()).toBe(5);
+    expect(refAr({ prayer: 'isha', offset: 90 }, { fajr: 'الفجر', sunrise: 'الشروق', dhuhr: 'الضهر', asr: 'العصر', maghrib: 'المغرب', isha: 'العشا' })).toBe('بعد العشا بـ 90 دقيقة');
+  });
+});
+
+test('ready-made habits are all valid', () => {
+  const list = MY_HABITS.map((t, i) => ({ ...t, id: `t${i}`, start: '2026-11-01' }));
+  expect(parseHabits(JSON.stringify(list))).toHaveLength(MY_HABITS.length);
+  expect(MY_HABITS.find((h) => h.name.startsWith('السنن'))!.parts).toHaveLength(5); // 2+4+2+2+2 = 12 rak'ahs
 });

@@ -7,8 +7,11 @@ import { MenuButton } from '../../components/SideMenu';
 import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
 import { addDays } from '../../lib/gaps';
-import { dayState, habitStats, isDue, logKey, pausedNow, type DayState, type Habit, type Log } from '../../lib/habits';
-import { moveHabit, readHabitLog, readHabits, setMark } from '../../lib/habitStore';
+import { dayState, groupHabits, habitStats, isDue, logKey, partsDone, pausedNow, type DayState, type Habit, type Log, type PartsLog } from '../../lib/habits';
+import { addHabits, moveHabit, readHabitLog, readHabitParts, readHabits, setMark, setPart } from '../../lib/habitStore';
+import { MY_HABITS } from '../../data/habitTemplates';
+import { allowReminders } from '../../lib/reminder';
+import { useSettings } from '../../lib/settings';
 import { dateKey } from '../../lib/logic';
 import { tap } from '../../lib/timer';
 import { usePop } from '../../lib/motion';
@@ -23,12 +26,22 @@ export default function Habits() {
   const today = dateKey();
   const habits = readHabits();
   const log = readHabitLog();
+  const parts = readHabitParts();
+  const hasPlace = !!useSettings((s) => s.place);
   const [adding, setAdding] = useState(false);
+  const [added, setAdded] = useState<number | null>(null);
+  // The ready-made worship and knowledge habits, offered until any of them is in the list.
+  const offerMine = !habits.some((h) => MY_HABITS.some((m) => m.name === h.name));
+  const addMine = async () => {
+    setAdded(addHabits(MY_HABITS, today));
+    await allowReminders().catch(() => false);
+  };
+  const sections = groupHabits(habits);
+  const grouped = sections.some((x) => x.group !== null);
+  const rank = (h: Habit) => (pausedNow(h) ? 2 : isDue(h, today) ? 0 : 1);
   const [ordering, setOrdering] = useState(false);
 
   const due = habits.filter((h) => isDue(h, today));
-  const paused = habits.filter((h) => pausedNow(h));
-  const rest = habits.filter((h) => !isDue(h, today) && !pausedNow(h));
   const doneToday = due.filter((h) => log[logKey(h.id, today)] === 'done').length;
   const risky = due.filter((h) => habitStats(h, log, today).atRisk);
 
@@ -69,25 +82,31 @@ export default function Habits() {
             </>
           ) : (
             <>
-              {due.map((h) => (
-                <HabitRow key={h.id} h={h} log={log} today={today} t={t} />
-              ))}
-              {rest.length ? (
-                <>
-                  <T w="medium" style={{ color: t.mute, fontSize: 13, marginTop: 4 }}>مش عليك النهارده</T>
-                  {rest.map((h) => (
-                    <HabitRow key={h.id} h={h} log={log} today={today} t={t} dim />
-                  ))}
-                </>
+              {/* Sections by group (الصلاة، القرآن…); inside each: today's first, then the rest, paused last. */}
+              {sections.map((sec) => {
+                const items = [...sec.items].sort((a, b) => rank(a) - rank(b));
+                const doneHere = items.filter((h) => isDue(h, today) && log[logKey(h.id, today)] === 'done').length;
+                const dueHere = items.filter((h) => isDue(h, today)).length;
+                return (
+                  <View key={sec.group ?? '-'} style={{ gap: 8 }}>
+                    {grouped ? (
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6 }}>
+                        <T w="bold" style={{ fontSize: 14, flex: 1 }}>{sec.group ?? 'عادات تانية'}</T>
+                        {dueHere ? <T w="num" style={{ fontSize: 12, color: doneHere === dueHere ? t.okText : t.mute }}>{`${doneHere}/${dueHere}`}</T> : null}
+                      </View>
+                    ) : null}
+                    {items.map((h) => (
+                      <HabitRow key={h.id} h={h} log={log} parts={parts} today={today} t={t} dim={!isDue(h, today)} paused={pausedNow(h)} />
+                    ))}
+                  </View>
+                );
+              })}
+              {added != null ? (
+                <T style={{ color: t.okText, fontSize: 12.5, textAlign: 'center' }}>
+                  {`اتضاف ${added} عادة ✓${hasPlace ? '' : ' · عشان تذكيرات الضحى والوتر والأذكار تمشي مع مواقيت الصلاة، فعّل مواقيت الصلاة من الإعدادات'}`}
+                </T>
               ) : null}
-              {paused.length ? (
-                <>
-                  <T w="medium" style={{ color: t.mute, fontSize: 13, marginTop: 4 }}>متوقفة مؤقتاً</T>
-                  {paused.map((h) => (
-                    <HabitRow key={h.id} h={h} log={log} today={today} t={t} dim paused />
-                  ))}
-                </>
-              ) : null}
+              {offerMine ? <Btn label="ضيف عاداتي (الصلاة، القرآن، الأذكار، العلم)" onPress={addMine} /> : null}
             </>
           )}
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
@@ -104,7 +123,8 @@ export default function Habits() {
           <T style={{ color: t.mute, fontSize: 13.5, textAlign: 'center', lineHeight: 22 }}>
             اكتب أي حاجة عايز تواظب عليها، وعلّم عليها كل يوم. العادة بتتبني في حوالي 66 يوم، وفوات يوم واحد مش بيبوّظها.
           </T>
-          <Btn label="+ عادة جديدة" kind="solid" onPress={() => setAdding(true)} style={{ alignSelf: 'stretch' }} />
+          <Btn label="ضيف عاداتي (الصلاة، القرآن، الأذكار، العلم)" kind="solid" onPress={addMine} style={{ alignSelf: 'stretch' }} />
+          <Btn label="+ عادة جديدة" onPress={() => setAdding(true)} style={{ alignSelf: 'stretch' }} />
         </View>
       )}
       {adding ? <HabitForm visible habit={null} onClose={() => setAdding(false)} /> : null}
@@ -131,7 +151,8 @@ function Arrow({ t, name, label, disabled, onPress }: { t: Theme; name: IconName
   );
 }
 
-function HabitRow({ h, log, today, t, dim, paused }: { h: Habit; log: Log; today: string; t: Theme; dim?: boolean; paused?: boolean }) {
+function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log; parts: PartsLog; today: string; t: Theme; dim?: boolean; paused?: boolean }) {
+  const done = h.parts?.length ? partsDone(h, log, parts, today) : [];
   const st = habitStats(h, log, today);
   const mark = log[logKey(h.id, today)];
   const on = mark === 'done';
@@ -169,6 +190,7 @@ function HabitRow({ h, log, today, t, dim, paused }: { h: Habit; log: Log; today
                 <View key={d} style={[s.dot, DOT[dayState(h, log, d, today)](t, h.color)]} />
               ))}
             </View>
+            {h.parts?.length && !on ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${done.length}/${h.parts.length}`}</T> : null}
             {st.done ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }} accessibilityLabel={`قوة العادة ${Math.round(st.strength * 100)}%`}>
                 <Ionicons name="pulse" size={12} color={h.color} />
@@ -176,6 +198,28 @@ function HabitRow({ h, log, today, t, dim, paused }: { h: Habit; log: Log; today
               </View>
             ) : null}
           </View>
+          {h.parts?.length && !paused && !dim ? (
+            <View style={s.parts}>
+              {h.parts.map((p, i) => {
+                const pOn = done.includes(i);
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => {
+                      tap();
+                      setPart(h, today, i);
+                    }}
+                    hitSlop={{ top: 6, bottom: 6 }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: pOn }}
+                    accessibilityLabel={`${h.name}: ${p.name}`}
+                    style={[s.part, pOn ? { backgroundColor: h.color, borderColor: h.color } : { borderColor: tint(h.color, 0.4) }]}>
+                    <T w="semi" style={{ fontSize: 11.5, color: pOn ? '#FFFFFF' : t.fg }} numberOfLines={1}>{p.name}</T>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : null}
         </View>
         {paused ? (
           <View style={[s.check, { backgroundColor: t.soft }]}>
@@ -203,6 +247,8 @@ const s = StyleSheet.create({
   dot: { width: 9, height: 9, borderRadius: 3 },
   arrow: { width: 40, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   check: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  parts: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 2 },
+  part: { borderWidth: 1.2, borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: 'center' },
   risk: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
   empty: { alignItems: 'center', gap: 12, paddingTop: 60, paddingHorizontal: 12 },
   emptyIcon: { width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
