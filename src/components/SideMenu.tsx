@@ -7,6 +7,7 @@ import { useReducedMotion } from '../lib/motion';
 import { useSettings } from '../lib/settings';
 import { DRIVE_NAME, DRIVE_PHOTO, DRIVE_USER, driveSupported } from '../lib/drive';
 import { storage } from '../lib/storage';
+import { lastSection } from '../lib/section';
 import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
@@ -14,7 +15,7 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type Item = { icon: IconName; label: string; path: '/progress' | '/week' | '/weight' | '/attendance' | '/prayer' | '/calories' | '/settings' };
 
 /**
- * The sections button (أقسامك: الجيم، العادات، الأهداف) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
+ * The section button (the section you're in, tap to switch: الجيم، العادات، الأهداف، بطّل) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
  * over a fading backdrop; its items slide in one after another. Tapping an item closes the menu, then opens the page.
  */
 export function MenuButton() {
@@ -56,7 +57,7 @@ export function MenuButton() {
   return (
     <>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <HeaderBtn icon="apps-outline" label="الأقسام" onPress={() => router.push('/sections')} />
+        <SectionPill />
         <HeaderBtn icon="menu" label="القايمة" onPress={() => setOpen(true)} />
       </View>
       <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onShow={() => run(1)} onRequestClose={() => close()}>
@@ -107,6 +108,26 @@ export function MenuButton() {
   );
 }
 
+const SECTION_NAME = { gym: 'الجيم', habits: 'العادات', goals: 'الأهداف', quit: 'بطّل' } as const;
+
+/** The section you're in, as a labeled button: tap it to switch sections (أقسامك). */
+function SectionPill() {
+  const t = useTheme();
+  const here = lastSection();
+  const color = t.sec[here];
+  return (
+    <Pressable
+      onPress={() => router.push('/sections')}
+      accessibilityRole="button"
+      accessibilityLabel={`انت في ${SECTION_NAME[here]}. دوس عشان تغيّر القسم`}
+      style={({ pressed }) => [s.pill, { backgroundColor: tint(color, 0.14), borderColor: tint(color, 0.45), opacity: pressed ? 0.7 : 1 }]}>
+      <Ionicons name="apps" size={16} color={color} />
+      <T w="semi" style={{ fontSize: 13.5, color: t.fg }} numberOfLines={1}>{SECTION_NAME[here]}</T>
+      <Ionicons name="chevron-down" size={14} color={t.mute} />
+    </Pressable>
+  );
+}
+
 /** Your Google account at the top of the menu (name, photo, email), or a sign-in row. */
 function Account({ onPress }: { onPress: (to: '/account') => void }) {
   const t = useTheme();
@@ -133,6 +154,7 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
 }
 
 const s = StyleSheet.create({
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12 },
   account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 16, marginBottom: 8 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   back: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },

@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { HeaderBtn, Ring, T } from '../components/ui';
+import { HeaderBtn, T } from '../components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { dayFor, MONTHS_AR, PLAN_WEEKDAYS, WEEKDAYS_AR } from '../data/program';
 import { MEAL_ORDER, MEAL_TIME } from '../data/nutrition';
@@ -19,10 +19,9 @@ import { storage } from '../lib/storage';
 import { addDays, daysBetween, weekStart } from '../lib/gaps';
 import { tap } from '../lib/timer';
 import { readQuits } from '../lib/quitStore';
-import { clean, milestone, runLabel } from '../lib/quit';
+import { clean, runLabel } from '../lib/quit';
 import { useNow } from '../lib/useNow';
-import { NightCard } from '../components/QuitHero';
-import { F, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
+import { F, ThemeProvider, tint, useTheme, useWarm } from '../theme';
 
 export default function Sections() {
   return (
@@ -37,9 +36,11 @@ const SHORT = VERSES.filter((v) => v.text.join(' ').length <= 60);
 const glueMarks = (line: string) => line.replace(/ ([ۖ-ۜ])/g, '$1');
 
 /**
- * أقسامك as tiles of different sizes: the gym (tall: next workout, this week, next meal), habits (done today, streak),
- * goals (dark: how far), your next goal step with a tick, and a verse of the day. Tap a tile to open its section.
+ * أقسامك: four equal tiles (الجيم، العادات، الأهداف، بطّل), each with its icon, name, one number and one line; tap to
+ * open. Under them your next goal step with a tick, and a verse of the day.
  */
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
+
 function Hub() {
   const t = useTheme();
   useDataVersion((s) => s.v);
@@ -74,10 +75,16 @@ function Hub() {
   const quits = readQuits();
   const quit = [...quits].sort((a, b) => clean(b, now).ms - clean(a, now).ms)[0];
 
-  const verse = SHORT[Math.abs(daysBetween('2026-01-01', today)) % SHORT.length];
-  const blue = t.sec.gym;
-  const pink = t.sec.habits;
+  const quitMs = quit ? clean(quit, now).ms : 0;
+  const tiles: { key: Section; title: string; icon: IconName; color: string; stat: string; line: string; night?: boolean }[] = [
+    { key: 'gym', title: 'الجيم', icon: 'barbell', color: t.sec.gym, stat: trained.has(today) ? 'اتمرنت ✓' : day?.titleAr ?? '—', line: `${weekDone} من ${target} تمارين الأسبوع ده${meal ? ` · ${meal} ${MEAL_TIME[meal][training ? 'training' : 'rest']}` : ''}` },
+    { key: 'habits', title: 'العادات', icon: 'checkmark-done', color: t.sec.habits, stat: due.length ? `${done} / ${due.length}` : '—', line: !habits.length ? 'ابدأ أول عادة' : streak > 1 ? `النهارده · 🔥 ${streak} يوم` : 'عادات النهارده' },
+    { key: 'goals', title: 'الأهداف', icon: 'flag', color: t.sec.goals, stat: goal ? `${Math.floor(progress(goal) * 100)}%` : '—', line: goal ? goal.name : 'حدّد هدفك الكبير' },
+    { key: 'quit', title: 'بطّل', icon: 'hand-left', color: t.sec.quit, stat: quit ? runLabel(quitMs) : '—', line: quit ? (quits.length > 1 ? `نضيف · ${quits.length} عادات` : 'نضيف، كمّل') : 'عادة عايز تبطّلها؟', night: true },
+  ];
 
+  const verse = SHORT[Math.abs(daysBetween('2026-01-01', today)) % SHORT.length];
+  
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
       <ScrollView contentContainerStyle={s.scroll}>
@@ -90,75 +97,48 @@ function Hub() {
         </View>
 
         <View style={s.grid}>
-          {/* The gym: tall, on the start side. */}
-          <Tile t={t} bg={tint(blue, 0.18)} here={here === 'gym'} onPress={() => go('gym')} style={{ flex: 1 }} label="الجيم">
-            <Ionicons name="barbell" size={44} color={blue} style={{ alignSelf: 'center', marginVertical: 12 }} />
-            <T w="bold" style={{ fontSize: 22 }} numberOfLines={1} adjustsFontSizeToFit>{trained.has(today) ? 'اتمرنت ✓' : day?.titleAr ?? 'التمرين'}</T>
-            <T style={{ fontSize: 12.5, color: t.mute }}>{trained.has(today) ? 'شغل حلو النهارده' : `التمرين الجاي · ${day?.exercises.length ?? 0} تمارين`}</T>
-            <View style={s.ticks}>
-              {Array.from({ length: target }, (_, i) => (
-                <View key={i} style={[s.tick, { backgroundColor: i < weekDone ? t.fg : tint(blue, 0.25) }]} />
-              ))}
-            </View>
-            <T style={{ fontSize: 12.5, color: t.mute }}>{`${weekDone} من ${target} الأسبوع ده`}</T>
-            <View style={[s.rule, { backgroundColor: tint(t.fg, 0.08) }]} />
-            <T style={{ fontSize: 12.5 }}>{meal ? `🍽 ${meal} ${MEAL_TIME[meal][training ? 'training' : 'rest']}` : '🍽 كمّلت وجبات النهارده ✓'}</T>
-            <T style={{ fontSize: 12.5, color: t.mute }}>{`${eaten.length} من ${MEAL_ORDER.length} وجبات`}</T>
-          </Tile>
-
-          <View style={{ flex: 1, gap: 12 }}>
-            <Tile t={t} bg={tint(pink, 0.16)} here={here === 'habits'} onPress={() => go('habits')} label="العادات">
-              {habits.length ? (
-                <>
-                  <View style={{ flexDirection: 'row', direction: 'ltr', alignSelf: 'flex-start', alignItems: 'baseline', marginTop: 8 }}>
-                    <T w="numBold" style={{ fontSize: 40, lineHeight: 48 }}>{String(done)}</T>
-                    <T w="numBold" style={{ fontSize: 20, color: t.mute }}>{`/${due.length}`}</T>
+          {tiles.map((c) => (
+            <Pressable
+              key={c.key}
+              onPress={() => go(c.key)}
+              accessibilityRole="button"
+              accessibilityLabel={`${c.title}: ${c.stat} ${c.line}`}
+              style={({ pressed }) => [
+                s.tile,
+                {
+                  backgroundColor: c.night ? '#17122A' : tint(c.color, 0.16),
+                  borderColor: c.key === here ? c.color : 'transparent',
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                },
+              ]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' }}>
+                <View style={[s.icon, { backgroundColor: c.color }]}>
+                  <Ionicons name={c.icon} size={24} color="#FFFFFF" />
+                </View>
+                {c.key === here ? (
+                  <View style={[s.here, { backgroundColor: c.color }]}>
+                    <T w="semi" style={{ fontSize: 11, color: '#FFFFFF' }}>انت هنا</T>
                   </View>
-                  <T style={{ fontSize: 12.5, color: t.mute }}>{streak > 1 ? `🔥 ${streak} يوم ورا بعض` : due.length && done === due.length ? 'كمّلت النهارده ✓' : 'النهارده'}</T>
-                </>
-              ) : (
-                <T w="semi" style={{ fontSize: 15, marginTop: 10 }}>ابدأ أول عادة</T>
-              )}
-            </Tile>
-            <Tile t={t} bg={t.fg} here={here === 'goals'} onPress={() => go('goals')} label="الأهداف" dark>
-              {goal ? (
-                <>
-                  <T w="numBold" style={{ fontSize: 40, lineHeight: 50, color: t.bg, marginTop: 8 }}>{`${Math.floor(progress(goal) * 100)}%`}</T>
-                  <T style={{ fontSize: 12.5, color: tint(t.bg, 0.7) }} numberOfLines={2}>{goal.name}</T>
-                </>
-              ) : (
-                <T w="semi" style={{ fontSize: 15, marginTop: 10, color: t.bg }}>حدّد هدفك الكبير</T>
-              )}
-            </Tile>
-          </View>
+                ) : (
+                  <Ionicons name="chevron-back" size={18} color={c.night ? 'rgba(255,255,255,0.5)' : t.mute} />
+                )}
+              </View>
+              <T w="bold" style={{ fontSize: 19, marginTop: 10, color: c.night ? '#FFFFFF' : t.fg }}>{c.title}</T>
+              <T w="bold" style={{ fontSize: 24, lineHeight: 34, color: c.night ? '#FFFFFF' : t.fg }} numberOfLines={1} adjustsFontSizeToFit>{c.stat}</T>
+              <T style={{ fontSize: 12.5, lineHeight: 18, color: c.night ? 'rgba(255,255,255,0.65)' : t.mute }} numberOfLines={2}>{c.line}</T>
+            </Pressable>
+          ))}
         </View>
 
-        <Pressable onPress={() => go('quit')} accessibilityRole="button" accessibilityLabel="بطّل" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
-          <NightCard color={t.sec.quit} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderWidth: 2, borderColor: here === 'quit' ? t.sec.quit : 'transparent' }}>
-            <View style={{ flex: 1, gap: 2 }}>
-              <T style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.65)' }}>بطّل</T>
-              <T w="bold" style={{ fontSize: 22, color: '#FFFFFF' }}>{quit ? `${runLabel(clean(quit, now).ms)} نضيف` : 'عادة عايز تبطّلها؟'}</T>
-              <T style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>{quit ? (quits.length > 1 ? `${quits.length} عادات بتبطّلها` : 'كمّل، انت ماشي صح') : 'عداد نضيف وزرار للإلحاح'}</T>
-            </View>
-            {quit ? (
-              <View style={{ borderRadius: 30, boxShadow: `0px 0px 14px ${t.sec.quit}88` }}>
-                <Ring value={milestone(clean(quit, now).ms).share} size={60} stroke={6} color={t.sec.quit} track="rgba(255,255,255,0.12)">
-                  <Ionicons name="hand-left" size={20} color="#FFFFFF" />
-                </Ring>
-              </View>
-            ) : (
-              <Ionicons name="hand-left" size={34} color={t.sec.quit} />
-            )}
-          </NightCard>
-        </Pressable>
-
         {goal && next ? (
-          <Pressable onPress={() => router.push(`/goals/${goal.id}`)} accessibilityRole="button" style={({ pressed }) => [s.card, { backgroundColor: t.card, opacity: pressed ? 0.85 : 1 }]}>
-            <Ionicons name="flag" size={26} color={t.ok} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <T style={{ fontSize: 12.5, color: t.mute }}>خطوتك الجاية</T>
-              <T w="bold" style={{ fontSize: 16, lineHeight: 25 }}>{next.task.title}</T>
-            </View>
+          <View style={[s.card, { backgroundColor: t.card }]}>
+            <Pressable onPress={() => router.push(`/goals/${goal.id}`)} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 12, opacity: pressed ? 0.7 : 1 })}>
+              <Ionicons name="flag" size={26} color={t.sec.goals} />
+              <View style={{ flex: 1, minWidth: 0 }}>
+                <T style={{ fontSize: 12.5, color: t.mute }}>خطوتك الجاية</T>
+                <T w="bold" style={{ fontSize: 16, lineHeight: 25 }}>{next.task.title}</T>
+              </View>
+            </Pressable>
             <Pressable
               onPress={() => {
                 tap();
@@ -171,7 +151,7 @@ function Hub() {
               style={({ pressed }) => [s.done, { borderColor: t.fg, backgroundColor: pressed ? tint(t.fg, 0.08) : 'transparent' }]}>
               <Ionicons name="checkmark" size={22} color={t.fg} />
             </Pressable>
-          </Pressable>
+          </View>
         ) : null}
 
         {verse ? (
@@ -185,27 +165,13 @@ function Hub() {
   );
 }
 
-function Tile({ t, bg, here, onPress, label, dark, style, children }: { t: Theme; bg: string; here: boolean; onPress: () => void; label: string; dark?: boolean; style?: object; children: React.ReactNode }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-      style={({ pressed }) => [s.tile, { backgroundColor: bg, borderColor: here ? (dark ? t.ok : t.fg) : 'transparent', transform: [{ scale: pressed ? 0.97 : 1 }] }, style]}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-        <T style={{ fontSize: 13.5, color: dark ? tint(t.bg, 0.7) : t.mute, flex: 1 }}>{label}</T>
-        {here ? <View style={[s.dot, { backgroundColor: dark ? t.ok : t.fg }]} /> : null}
-      </View>
-      {children}
-    </Pressable>
-  );
-}
-
 const s = StyleSheet.create({
   scroll: { padding: 16, paddingBottom: 40, gap: 12 },
   head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
-  grid: { flexDirection: 'row', gap: 12 },
-  tile: { borderRadius: 26, padding: 16, borderWidth: 2, flexGrow: 1 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 12 },
+  tile: { width: '47.5%', flexGrow: 1, minHeight: 168, borderRadius: 26, padding: 16, borderWidth: 2 },
+  icon: { width: 44, height: 44, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  here: { borderRadius: 9, paddingHorizontal: 8, paddingVertical: 2 },
   ticks: { flexDirection: 'row', gap: 5, marginTop: 12, marginBottom: 6 },
   tick: { flex: 1, height: 26, borderRadius: 7 },
   rule: { height: 1, marginVertical: 10 },
