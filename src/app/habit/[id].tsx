@@ -278,9 +278,23 @@ function Heatmap({ h, log, today, t }: { h: Habit; log: Log; today: string; t: T
 function PhaseBar({ formed, t }: { formed: number; t: Theme }) {
   const now = phaseOf(formed);
   const fill = phaseFill(formed);
+  const pinAt = Math.min(0.95, Math.max(0.05, formed / FORM_DAYS));
+  const pinColor = PHASES[Math.min(2, now)].color;
   return (
     <View style={{ gap: 6 }} accessible accessibilityLabel={`${formed} من ${FORM_DAYS}، ${now < 3 ? `مرحلة ${PHASES[now].label}` : 'عدّيت المتوسط'}`}>
-      <View style={[s.bar, { backgroundColor: t.soft }]}>
+      {/* Pin over where you are: a spacer before it (the bar's start side, so it follows RTL), then a zero-width anchor
+          the bubble hangs from, centered. Kept a little in from the ends so it never sticks out of the card. */}
+      <View style={{ flexDirection: 'row', height: 30 }}>
+        <View style={{ flex: pinAt }} />
+        <View style={{ width: 0, alignItems: 'center', overflow: 'visible' }}>
+          <View style={[s.pin, { backgroundColor: pinColor, boxShadow: `0px 3px 8px ${tint(pinColor, 0.45)}` }]}>
+            <T w="numBold" style={{ fontSize: 12.5, color: '#FFFFFF' }}>{String(formed)}</T>
+          </View>
+          <View style={[s.pinTip, { backgroundColor: pinColor }]} />
+        </View>
+        <View style={{ flex: 1 - pinAt }} />
+      </View>
+      <View style={[s.bar, { backgroundColor: t.soft, marginTop: -4 }]}>
         {PHASES.map((p, i) => (
           <React.Fragment key={p.label}>
             {i ? <View style={{ width: 2, backgroundColor: t.card }} /> : null}
@@ -336,6 +350,8 @@ const s = StyleSheet.create({
   bigIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   cue: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   bar: { height: 12, borderRadius: 6, overflow: 'hidden', flexDirection: 'row' },
+  pin: { minWidth: 30, height: 22, paddingHorizontal: 6, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },
+  pinTip: { width: 8, height: 8, transform: [{ rotate: '45deg' }], marginTop: -5 },
   tiles: { flexDirection: 'row', gap: 6, alignSelf: 'stretch', marginTop: 6 },
   tile: { flex: 1, borderRadius: 12, paddingVertical: 8, alignItems: 'center', gap: 1 },
   nav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
