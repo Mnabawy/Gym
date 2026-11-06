@@ -62,6 +62,27 @@ test('per weekday share and formation progress', () => {
   expect(s.rate30).toBeCloseTo(3 / 4);
 });
 
+test('strength rises with repetitions, a miss lowers it a little', () => {
+  const T = '2026-11-28';
+  const all: Record<string, 'done'> = {};
+  for (let d = 1; d <= 27; d++) all[`2026-11-${String(d).padStart(2, '0')}`] = 'done';
+  const full = habitStats(daily, log('h1', all), T).strength;
+  expect(full).toBeGreaterThan(0.7); // 27 days with a 13-day half-life ≈ 0.76
+  expect(full).toBeLessThan(0.8);
+  const oneMiss = { ...all };
+  delete oneMiss['2026-11-26'];
+  const s = habitStats(daily, log('h1', oneMiss), T).strength;
+  expect(s).toBeLessThan(full);
+  expect(s).toBeGreaterThan(full * 0.9); // dips, not wiped out
+  expect(habitStats(daily, {}, '2026-11-01').strength).toBe(0); // today not done yet doesn't count against it
+});
+
+test('cue is kept, trimmed and capped', () => {
+  const [h] = parseHabits(JSON.stringify([{ ...daily, cue: '  بعد الفجر في أوضتي  ' }]));
+  expect(h.cue).toBe('بعد الفجر في أوضتي');
+  expect(parseHabits(JSON.stringify([{ ...daily, cue: '  ' }]))[0].cue).toBeUndefined();
+});
+
 test('tap cycles done → skip → nothing', () => {
   expect(nextMark(undefined)).toBe('done');
   expect(nextMark('done')).toBe('skip');

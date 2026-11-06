@@ -75,7 +75,7 @@ export function syncReminders(): Promise<void> {
         for (const date of reminderTimes(new Date(), h.remind!, h.days, marked, 5)) {
           if (dateKey(date) < h.start) continue;
           await Notifications.scheduleNotificationAsync({
-            content: { title: h.name, body: 'عادة النهارده: علّم عليها لما تعملها', sound: true, data: { kind: HABIT } },
+            content: { title: h.name, body: h.cue ? `${h.cue} · علّم عليها لما تعملها` : 'عادة النهارده: علّم عليها لما تعملها', sound: true, data: { kind: HABIT } },
             trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
           });
         }

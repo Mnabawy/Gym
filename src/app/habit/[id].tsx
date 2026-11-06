@@ -3,7 +3,7 @@ import { LayoutAnimation, Pressable, StyleSheet, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR, WEEKDAY_LETTERS_AR, WEEKDAYS_AR } from '../../data/program';
-import { Btn, Card, Label, Progress, Screen, T } from '../../components/ui';
+import { Btn, Card, Label, Progress, Ring, Screen, T } from '../../components/ui';
 import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
 import { addDays, weekStart } from '../../lib/gaps';
@@ -75,12 +75,30 @@ export default function HabitScreen() {
         <View style={[s.bigIcon, { backgroundColor: h.color, boxShadow: `0px 8px 24px ${tint(h.color, 0.45)}` }]}>
           <Ionicons name={h.icon as IconName} size={30} color="#FFFFFF" />
         </View>
-        <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 6 }}>
-          <Ionicons name="flame" size={26} color="#E8590C" style={{ marginBottom: 6 }} />
-          <T w="numBold" style={{ fontSize: 44, lineHeight: 52 }}>{st.streak}</T>
-          <T style={{ fontSize: 14, color: t.mute, marginBottom: 10 }}>السلسلة</T>
+        {h.cue ? (
+          <View style={[s.cue, { backgroundColor: t.card }]}>
+            <Ionicons name="location-outline" size={14} color={h.color} />
+            <T style={{ fontSize: 13 }}>{h.cue}</T>
+          </View>
+        ) : null}
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22, marginTop: 4 }}>
+          <View style={{ alignItems: 'center' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
+              <Ionicons name="flame" size={24} color="#E8590C" style={{ marginBottom: 6 }} />
+              <T w="numBold" style={{ fontSize: 40, lineHeight: 48 }}>{st.streak}</T>
+            </View>
+            <T style={{ fontSize: 12.5, color: t.mute }}>السلسلة</T>
+          </View>
+          <View style={{ alignItems: 'center', gap: 4 }}>
+            <Ring value={st.strength} size={62} stroke={6} color={h.color}>
+              <T w="numBold" style={{ fontSize: 15 }}>{`${Math.round(st.strength * 100)}%`}</T>
+            </Ring>
+            <T style={{ fontSize: 12.5, color: t.mute }}>قوة العادة</T>
+          </View>
         </View>
-        <T style={{ color: t.mute, fontSize: 12 }}>المرات اللي عملتها من غير ما تفوّت يومين ورا بعض</T>
+        <T style={{ color: t.mute, fontSize: 12, textAlign: 'center', lineHeight: 18 }}>
+          السلسلة ما بتتقطعش غير لو فوّت يومين ورا بعض. والقوة بتزيد كل مرة تعملها، وبتقل شوية لما تفوّت من غير ما ترجع صفر.
+        </T>
         {st.atRisk ? <T style={{ color: t.warn, fontSize: 13 }}>امبارح فوّتها. متفوّتهاش مرتين: اعملها النهارده</T> : null}
         <View style={s.tiles}>
           <Tile t={t} v={String(st.best)} l="أحسن سلسلة" />
@@ -93,11 +111,13 @@ export default function HabitScreen() {
       {/* The way to 66 days */}
       <Card style={{ padding: 14, gap: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-          <T w="bold" style={{ flex: 1, fontSize: 15 }}>{st.formed >= FORM_DAYS ? 'العادة اتبنت ✓' : 'العادة بتتبني'}</T>
+          <T w="bold" style={{ flex: 1, fontSize: 15 }}>{st.formed >= FORM_DAYS ? 'عدّيت المتوسط ✓ كمّل' : 'في الطريق للمتوسط'}</T>
           <T w="numBold" style={{ fontSize: 14, color: h.color }}>{`${st.formed} / ${FORM_DAYS}`}</T>
         </View>
         <Progress value={st.formed / FORM_DAYS} color={h.color} height={10} />
-        <T style={{ color: t.mute, fontSize: 12, lineHeight: 18 }}>في المتوسط العادة بتبقى تلقائية بعد حوالي 66 مرة. فوات يوم مش بيبوّظها، المهم ما تفوّتهاش يومين ورا بعض.</T>
+        <T style={{ color: t.mute, fontSize: 12, lineHeight: 18 }}>
+          في المتوسط العادة بتبقى تلقائية بعد حوالي شهرين (59 لـ 66 يوم)، بس ده بيختلف من شخص لشخص: من أسبوع لحد أكتر من 10 شهور. العادات البسيطة أسرع من الأكل والرياضة. لو حاسس إنك بتعملها من غير تفكير، يبقى اتبنت.
+        </T>
       </Card>
 
       {/* Month calendar: done days in the habit's color, joined into runs; tap a day to fix it */}
@@ -280,6 +300,7 @@ function NavBtn({ t, icon, label, disabled, onPress }: { t: Theme; icon: 'chevro
 const s = StyleSheet.create({
   hero: { padding: 16, alignItems: 'center', gap: 6 },
   bigIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  cue: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   tiles: { flexDirection: 'row', gap: 6, alignSelf: 'stretch', marginTop: 6 },
   tile: { flex: 1, borderRadius: 12, paddingVertical: 8, alignItems: 'center', gap: 1 },
   nav: { flexDirection: 'row', alignItems: 'center', gap: 8 },

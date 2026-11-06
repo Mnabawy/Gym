@@ -46,6 +46,7 @@ test('habits due that day', () => {
   const x = { ...base, habits: [{ ...h, days: [3] }, { ...h, id: 'g', name: 'قراءة', days: [4] }] };
   expect(morningBrief(TODAY, x).body).toContain('✅ عاداتك: ورد'); // Wednesday
   expect(morningBrief(TODAY, x).body).not.toContain('قراءة');
+  expect(morningBrief(TODAY, { ...base, habits: [{ ...h, days: [3], cue: 'بعد الفجر' }] }).body).toContain('ورد (بعد الفجر)');
 });
 
 test('shopping day on Friday', () => {

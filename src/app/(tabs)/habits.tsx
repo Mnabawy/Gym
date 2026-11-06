@@ -113,6 +113,9 @@ function HabitRow({ h, log, today, t, dim }: { h: Habit; log: Log; today: string
         </View>
         <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
           <T w="semi" style={{ fontSize: 15 }} numberOfLines={1}>{h.name}</T>
+          {h.cue ? (
+            <T style={{ fontSize: 11.5, color: t.mute, marginTop: -3 }} numberOfLines={1}>{h.cue}</T>
+          ) : null}
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             {st.streak ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
@@ -126,7 +129,12 @@ function HabitRow({ h, log, today, t, dim }: { h: Habit; log: Log; today: string
                 <View key={d} style={[s.dot, DOT[dayState(h, log, d, today)](t, h.color)]} />
               ))}
             </View>
-            {st.rate30 != null ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${Math.round(st.rate30 * 100)}%`}</T> : null}
+            {st.done ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }} accessibilityLabel={`قوة العادة ${Math.round(st.strength * 100)}%`}>
+                <Ionicons name="pulse" size={12} color={h.color} />
+                <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${Math.round(st.strength * 100)}%`}</T>
+              </View>
+            ) : null}
           </View>
         </View>
         {mark === 'skip' ? (

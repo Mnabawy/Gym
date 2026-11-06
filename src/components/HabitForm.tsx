@@ -16,15 +16,16 @@ const timeAr = (m: number) => `${Math.floor(m / 60) % 12 || 12}:${String(m % 60)
 /** Add a habit (`habit` null) or edit one: name, icon, color, weekdays and an optional reminder. Mount it only while open. */
 export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit: Habit | null; onClose: () => void }) {
   const t = useTheme();
-  const blank = { name: '', icon: HABIT_ICONS[0] as string, color: HABIT_COLORS[0] as string, days: [...ALL_DAYS], remind: null as number | null };
+  const blank = { name: '', cue: '', icon: HABIT_ICONS[0] as string, color: HABIT_COLORS[0] as string, days: [...ALL_DAYS], remind: null as number | null };
   // The parent mounts this only while open (keyed by habit), so the fields start fresh each time.
-  const [f, setF] = useState(() => (habit ? { ...habit } : blank));
+  const [f, setF] = useState(() => (habit ? { ...habit, cue: habit.cue ?? '' } : blank));
   const [denied, setDenied] = useState(false);
 
   const every = f.days.length === 7;
   const save = () => {
     if (!f.name.trim() || !f.days.length) return;
-    saveHabit({ id: habit?.id ?? habitId(), start: habit?.start ?? dateKey(), name: f.name.trim(), icon: f.icon, color: f.color, days: [...f.days].sort(), remind: f.remind });
+    const cue = (f.cue ?? '').trim();
+    saveHabit({ id: habit?.id ?? habitId(), start: habit?.start ?? dateKey(), name: f.name.trim(), icon: f.icon, color: f.color, days: [...f.days].sort(), remind: f.remind, ...(cue ? { cue } : null) });
     onClose();
   };
 
@@ -44,6 +45,20 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           accessibilityLabel="اسم العادة"
           style={[s.input, { color: t.fg, fontFamily: F.semi }]}
         />
+      </View>
+
+      <View style={{ gap: 4 }}>
+        <T w="medium">امتى وفين؟</T>
+        <TextInput
+          value={f.cue ?? ''}
+          onChangeText={(v) => setF({ ...f, cue: v })}
+          placeholder="مثلًا: بعد صلاة الفجر، في أوضتي"
+          placeholderTextColor={t.mute}
+          maxLength={60}
+          accessibilityLabel="امتى وفين هتعمل العادة"
+          style={[s.cue, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+        />
+        <T style={{ fontSize: 11.5, color: t.mute, lineHeight: 17 }}>اختياري، بس بيفرق: لما تحدد امتى وفين، الموقف نفسه بيفكّرك بالعادة. واربطها بحاجة بتعملها كل يوم.</T>
       </View>
 
       <T w="medium">الأيقونة</T>
@@ -116,6 +131,7 @@ const s = StyleSheet.create({
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   input: { flex: 1, fontSize: 16, minHeight: 42, textAlign: 'right', outlineWidth: 0, padding: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  cue: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 14.5, textAlign: 'right', outlineWidth: 0 },
   choice: { width: 44, height: 44, borderRadius: 12, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center' },
   swatch: { width: 36, height: 36, borderRadius: 18, borderWidth: 2.5, alignItems: 'center', justifyContent: 'center' },
 });

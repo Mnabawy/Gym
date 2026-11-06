@@ -2,16 +2,23 @@
 // and calendar. Saved as JSON in storage meta: `habits` (the list) and `habitLog` (`habitId|date` → 'done' | 'skip').
 // Pure — unit tested in __tests__/habits.test.ts.
 //
-// Two findings shape the numbers (Lally et al. 2010, "How are habits formed", Eur J Soc Psychol):
-// - A habit took 66 days on average to become automatic (range 18–254): each habit shows its way to 66 done days.
-// - Missing a single day didn't hurt habit formation, so one miss doesn't end a streak; two scheduled days in a row do
-//   ("never miss twice"), and after one miss the app says today matters. A "skip" (excused: ill, travelling) counts as neither.
+// What the numbers rest on:
+// - Time to automaticity: Lally et al. 2010 (Eur J Soc Psychol) found 66 days on average (18–254); Singh et al. 2024
+//   (Healthcare, systematic review) found medians of 59–66 days, means of 106–154 and a range of 4–335, simple habits
+//   faster than diet or exercise. So 66 is shown as the typical milestone, not a finish line.
+// - Missing a single day didn't hurt habit formation (Lally 2010), so one miss doesn't end a streak; two scheduled days
+//   in a row do ("never miss twice"), and after one miss the app says today matters. "skip" (excused) counts as neither.
+// - Strength: a moving average over due days (half-life STRENGTH_HALF_LIFE due days), the idea Loop Habit Tracker uses:
+//   every repetition raises it, a miss lowers it a little instead of wiping it out.
+// - Cue ("امتى وفين؟"): an if-then plan of when and where (implementation intention; Gollwitzer & Sheeran 2006
+//   meta-analysis) makes the situation itself the reminder.
 import { addDays, daysBetween } from './gaps';
 import { weekdayOf } from './logic';
 
 export const HABITS_KEY = 'habits';
 export const HABIT_LOG_KEY = 'habitLog';
 export const FORM_DAYS = 66;
+export const STRENGTH_HALF_LIFE = 13;
 export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 export type Habit = {
@@ -23,6 +30,8 @@ export type Habit = {
   days: number[];
   /** Reminder time (minutes after midnight), or null. */
   remind: number | null;
+  /** When and where: "بعد الفجر في أوضتي" (optional). */
+  cue?: string;
   /** Date it was added: days before it don't count. */
   start: string;
 };
@@ -63,6 +72,7 @@ export function parseHabits(raw: string | null): Habit[] {
       days,
       remind: typeof o.remind === 'number' && o.remind >= 0 && o.remind < 1440 ? o.remind : null,
       start: o.start,
+      ...(typeof o.cue === 'string' && o.cue.trim() ? { cue: o.cue.trim().slice(0, 60) } : null),
     });
   }
   return out;
@@ -108,6 +118,8 @@ export type HabitStats = {
   atRisk: boolean;
   /** Share done per weekday (0 = Sunday), null for weekdays it's never due. */
   byWeekday: (number | null)[];
+  /** Habit strength 0–1: rises with each repetition, a miss lowers it a little (see STRENGTH_HALF_LIFE). */
+  strength: number;
 };
 
 export function habitStats(h: Habit, log: Log, today: string): HabitStats {
@@ -148,8 +160,17 @@ export function habitStats(h: Habit, log: Log, today: string): HabitStats {
     return on.length ? on.filter((x) => x.s === 'done').length / on.length : null;
   });
 
+  // Strength: each due day (done or missed) pulls it toward 1 or 0; a done day off-schedule counts as a repetition too.
+  const keep = 0.5 ** (1 / STRENGTH_HALF_LIFE);
+  let strength = 0;
+  for (const { s } of states) {
+    if (s === 'done') strength = strength * keep + (1 - keep);
+    else if (s === 'missed') strength *= keep;
+  }
+
   return {
     streak: run,
+    strength,
     best,
     rate30: rate(addDays(today, -29)),
     rateAll: rate(h.start),
