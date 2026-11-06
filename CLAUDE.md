@@ -7,7 +7,7 @@ Exercise names stay in English (gym vocabulary).
 - Expo SDK 58, TypeScript strict, expo-router (routes in `src/app/`, tabs in `src/app/(tabs)/`)
 - State: zustand (`src/lib/timer.ts`, `src/lib/bus.ts`)
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
-- expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-local-authentication (app lock), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
+- react-native-health-connect (steps, Android), expo-build-properties (minSdk 26), expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-local-authentication (app lock), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
 - Fonts: Readex Pro (Arabic) + Inter (numbers/Latin) via @expo-google-fonts
 - No backend. Offline-first.
 
@@ -59,12 +59,15 @@ Exercise names stay in English (gym vocabulary).
 - Light week (deload): settings `deloadUntil`; `applyPlan` halves every exercise's sets (rounded up) while it's on; started from settings or the workout tab card that shows when the gaps report says it's due; no "+kg" tip during it
 - Body fat from the tape: `navyBodyFat` in weight.ts (US Navy method; men waist+neck, women +hips; needs sex and height from the calculator), shown with the measurements, one tap to use it in the calculator
 - `src/lib/cardio.ts` (meta `cardio`: date → sessions; MET-based calories, WHO 150 min target with vigorous minutes counted double) + `src/components/CardioCard.tsx` on the workout tab (for the date being logged); the weekly report has the week's cardio
+- Steps from the phone: `src/lib/steps.ts` (react-native-health-connect, Android only; its config plugin + expo-build-properties minSdk 26 + READ_STEPS permission in app.json; web stub) reads the last 14 days into meta `steps` on open when settings `stepsSync` is on; goal 8,000 (`STEPS_GOAL`, `stepsWeek` in cardio.ts); shown in the cardio card and the weekly report
+- Spreadsheet export: `src/lib/csv.ts` (pure CSV builders with a BOM for Excel: sets, body, cardio, habits) + `src/components/ExportSheet.tsx` (settings → صدّر لـ Excel), shared with `shareText` in backupIO
+- Progress photos show the body around their date (`bodyOn` / `nearestBefore` in weight.ts: weight, waist, body fat), and the compare view shows the difference
 - `src/lib/gaps.ts` — gaps dashboard (`/gaps`) and calendar (`/attendance`) logic; thresholds and their sources are at the top of the file
 - `src/lib/schedule.ts` — workout order: one continuous sequence through `PROGRAM`, not fixed weekdays. The workout tab opens on the one after your last session; missed and rest days don't move it. A program day's id is still `Day.weekday` (logged rows keep it), and plan weekdays only set the weekly attendance/volume target
 
 ## Commands
 - `npx expo start` — run
-- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, brief, driveApi, habits, cardio, settings, data integrity incl. videos and alternatives)
+- `npm test` — unit tests for pure logic (`src/lib/logic.ts`, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, brief, driveApi, habits, cardio, csv, settings, data integrity incl. videos and alternatives)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions
 

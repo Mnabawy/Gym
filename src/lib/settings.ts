@@ -56,6 +56,8 @@ export type Settings = {
   appLock: boolean;
   /** Last day of a light week (deload): until then every exercise has half its sets. '' = none. */
   deloadUntil: string;
+  /** Read daily steps from Android Health Connect (src/lib/steps.ts). */
+  stepsSync: boolean;
   /** Ask how many reps were left after ticking a set (RIR). */
   askRir: boolean;
   /** Weekly automatic backup file (src/lib/autoBackup.ts). */
@@ -91,6 +93,7 @@ export const DEFAULT_SETTINGS: Settings = {
   briefTime: 6 * 60,
   appLock: false,
   deloadUntil: '',
+  stepsSync: false,
   autoBackup: true,
   backupDir: '',
 };
@@ -137,7 +140,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock' | 'stepsSync'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;

@@ -36,3 +36,17 @@ export async function pickBackup(): Promise<string | null> {
 }
 
 export const pasteBackup = (): Promise<string> => Clipboard.getStringAsync();
+
+/** Saves a text file (a CSV export) and opens the share sheet; falls back to the clipboard. */
+export async function shareText(name: string, text: string, mimeType: string): Promise<'shared' | 'copied'> {
+  if (!(await Sharing.isAvailableAsync())) {
+    await Clipboard.setStringAsync(text);
+    return 'copied';
+  }
+  const file = new File(Paths.cache, name);
+  if (file.exists) file.delete();
+  file.create();
+  file.writeSync(text);
+  await Sharing.shareAsync(file.uri, { mimeType, dialogTitle: name });
+  return 'shared';
+}

@@ -16,7 +16,7 @@ import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
 import { readHabitLog, readHabits } from '../lib/habitStore';
-import { CARDIO_KEY, parseCardio, WHO_MIN } from '../lib/cardio';
+import { CARDIO_KEY, parseCardio, parseSteps, STEPS_GOAL, STEPS_KEY, WHO_MIN } from '../lib/cardio';
 import { useTheme } from '../theme';
 
 /** Weekly target sets per muscle (same as the progress page). */
@@ -48,6 +48,7 @@ export default function WeekScreen() {
     habitLog: readHabitLog(),
     cardio: parseCardio(storage.getMeta(CARDIO_KEY)),
     weightKg: body.weight ?? 0,
+    steps: parseSteps(storage.getMeta(STEPS_KEY)),
   });
   const live = from === thisWeek;
   // Only for a finished week: a week in progress would always look like a drop.
@@ -116,6 +117,9 @@ export default function WeekScreen() {
             ? [`${r.cardio.sessions} مرة`, `${r.cardio.minutes} دقيقة`, r.cardio.km ? `${r.cardio.km} كم` : null, r.cardio.steps ? `${r.cardio.steps.toLocaleString('en-US')} خطوة` : null, r.cardio.kcal ? `≈${r.cardio.kcal} سعر` : null].filter(Boolean).join(' · ')
             : 'ما سجلتش كارديو الأسبوع ده. سجّله من تاب التمرين'}
         </T>
+        {r.steps.any ? (
+          <T style={{ fontSize: 12.5 }}>{`👣 متوسط الخطوات ${r.steps.avg.toLocaleString('en-US')} في اليوم · وصلت ${STEPS_GOAL.toLocaleString('en-US')} في ${r.steps.atGoal} من ${r.steps.days} أيام`}</T>
+        ) : null}
       </Card>
 
       {r.habits.length ? (

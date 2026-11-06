@@ -6,7 +6,7 @@ import { adherence, foodHistory, type DayFood } from './journal';
 import type { MealCheck, SetRow } from './storage.types';
 import type { WeighIn } from './weight';
 import { dayState, type Habit, type Log } from './habits';
-import { cardioWeek, type Cardio, type CardioWeek } from './cardio';
+import { cardioWeek, stepsWeek, type Cardio, type CardioWeek } from './cardio';
 
 export type WeekReport = {
   from: string;
@@ -28,6 +28,7 @@ export type WeekReport = {
   /** Each habit's week: days done, and days that counted (done + missed; excused, paused and off days don't). */
   habits: { id: string; name: string; color: string; done: number; due: number }[];
   cardio: CardioWeek;
+  steps: ReturnType<typeof stepsWeek>;
 };
 
 export type ReportInput = {
@@ -43,6 +44,7 @@ export type ReportInput = {
   habitLog?: Log;
   cardio?: Record<string, Cardio[]>;
   weightKg?: number;
+  steps?: Record<string, number>;
 };
 
 const vol = (rows: readonly SetRow[]) => Math.round(rows.reduce((a, r) => a + (r.kg ?? 0) * (r.reps ?? 0), 0));
@@ -92,6 +94,7 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
   return {
     habits,
     cardio: cardioWeek(x.cardio ?? {}, from, x.weightKg ?? 0),
+    steps: stepsWeek(x.steps ?? {}, from, today),
     from,
     to,
     days: daysBetween(from, end) + 1,

@@ -18,11 +18,13 @@ import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, autoSupported, listAutoBackups, p
 import { daysBetween } from '../lib/gaps';
 import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
+import { ExportSheet } from '../components/ExportSheet';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { applyBackup } from '../lib/restore';
 import { canLock, lockSupported, unlock } from '../lib/lock';
+import { connectSteps, stepsSupported, syncSteps } from '../lib/steps';
 import { DRIVE_AT, DRIVE_USER, driveSupported } from '../lib/drive';
 import { useTheme } from '../theme';
 
@@ -56,7 +58,9 @@ export default function SettingsScreen() {
   const since = lastBackup ? daysBetween(lastBackup, today) : null;
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [denied, setDenied] = useState(false);
+  const [exporting, setExporting] = useState(false);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
+  const [stepsMsg, setStepsMsg] = useState<string | null>(null);
   const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
   const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
 
@@ -112,6 +116,10 @@ export default function SettingsScreen() {
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
           <Btn label="احفظ نسخة" kind="solid" style={{ flexGrow: 1 }} onPress={() => run(async () => done((await saveBackup()) === 'copied' ? 'اتنسخت في الحافظة، الصقها في رسالة لنفسك' : 'اتحفظت ✓'))} />
           <Btn label="انسخها" style={{ flexGrow: 1 }} onPress={() => run(async () => { await copyBackup(); done('اتنسخت من غير الصور، الصقها في رسالة لنفسك أو في ملاحظة'); })} />
+        </View>
+        <Sep />
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
+          <Btn label="صدّر لـ Excel (CSV)" style={{ flexGrow: 1 }} onPress={() => setExporting(true)} />
         </View>
         <Sep />
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
@@ -349,6 +357,23 @@ export default function SettingsScreen() {
         />
         {lockMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{lockMsg}</T> : null}
         <Sep />
+        <SwitchRow
+          label="الخطوات من الموبايل"
+          sub={stepsSupported ? 'بيقرأ خطواتك من Health Connect ويحطها في تاب التمرين وتقرير الأسبوع' : 'على أندرويد بس'}
+          value={st.stepsSync}
+          disabled={!stepsSupported}
+          onChange={async (v) => {
+            setStepsMsg(null);
+            if (!v) return st.setQuiet({ stepsSync: false });
+            const r = await connectSteps().catch(() => 'unavailable' as const);
+            if (r === 'ok') {
+              st.setQuiet({ stepsSync: true });
+              syncSteps();
+            } else setStepsMsg(r === 'update' ? 'حدّث تطبيق Health Connect من Google Play الأول' : r === 'denied' ? 'لازم تسمح بقراية الخطوات' : 'Health Connect مش موجود على الموبايل ده. نزّله من Google Play');
+          }}
+        />
+        {stepsMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{stepsMsg}</T> : null}
+        <Sep />
         <SwitchRow label="وضع النيون في صفحة التمرين" sub="خلفية غامقة وألوان بتنور" value={st.neonMode} onChange={(v) => st.setQuiet({ neonMode: v })} />
         <Sep />
         <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />
@@ -366,6 +391,7 @@ export default function SettingsScreen() {
         )}
       </View>
       <T style={{ color: t.mute, fontSize: 12, textAlign: 'center' }}>تغيير الإعدادات مبيمسحش أي حاجة اتسجلت قبل كده</T>
+      {exporting ? <ExportSheet visible onClose={() => setExporting(false)} /> : null}
     </Screen>
   );
 }

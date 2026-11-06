@@ -10,9 +10,9 @@ import { dateKey, parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
-import { latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
+import { bodyOn, latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
 import { addPhoto, deletePhoto, listPhotos, photosSupported, type Photo } from '../lib/photos';
-import { F, useTheme } from '../theme';
+import { F, useTheme, type Theme } from '../theme';
 
 const iso = (s: string) => `⁦${s}⁩`;
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
@@ -78,6 +78,8 @@ export default function WeightScreen() {
   // Photos (phone only)
   const [photos, setPhotos] = useState<Photo[]>(() => (photosSupported ? listPhotos() : []));
   const [view, setView] = useState<Photo | 'compare' | null>(null);
+  /** Weight, waist and body fat around a photo's date. */
+  const at = (date: string) => bodyOn(date, list, measures, body.sex, body.height);
   const take = async (from: 'camera' | 'library') => {
     try {
       if (await addPhoto(from)) setPhotos(listPhotos());
@@ -225,6 +227,7 @@ export default function WeightScreen() {
                   <Pressable key={p.name} onPress={() => setView(p)} accessibilityRole="imagebutton" accessibilityLabel={`صورة ${dayLabel(p.date)}`} style={{ gap: 3, alignItems: 'center' }}>
                     <Image source={{ uri: p.uri }} style={[s.thumb, { backgroundColor: t.soft }]} />
                     <T style={{ fontSize: 11, color: t.mute }}>{dayLabel(p.date)}</T>
+                    {at(p.date).kg != null ? <T w="num" style={{ fontSize: 11 }}>{`${iso(fmt(at(p.date).kg!))} كجم`}</T> : null}
                   </Pressable>
                 ))}
               </ScrollView>
@@ -264,20 +267,44 @@ export default function WeightScreen() {
 
       <Sheet visible={view != null} onClose={() => setView(null)} title={view === 'compare' ? `${dayLabel(photos[0]?.date ?? today)} ← ${dayLabel(photos[photos.length - 1]?.date ?? today)}` : view ? dayLabel(view.date) : ''}>
         {view === 'compare' ? (
-          <View style={{ flexDirection: 'row', gap: 6 }}>
-            {[photos[0], photos[photos.length - 1]].map((p) => (
-              <Image key={p.name} source={{ uri: p.uri }} style={{ flex: 1, aspectRatio: 3 / 4, borderRadius: 10 }} resizeMode="cover" />
-            ))}
-          </View>
+          (() => {
+            const a = photos[0], b = photos[photos.length - 1];
+            const A = at(a.date), B = at(b.date);
+            const diff = [
+              A.kg != null && B.kg != null ? `الوزن ${iso(signed(Math.round((B.kg - A.kg) * 10) / 10))} كجم` : null,
+              A.waist != null && B.waist != null ? `الوسط ${iso(signed(Math.round((B.waist - A.waist) * 10) / 10))} سم` : null,
+              A.bf != null && B.bf != null ? `الدهون ${iso(`${signed(Math.round((B.bf - A.bf) * 10) / 10)}%`)}` : null,
+            ].filter(Boolean);
+            return (
+              <>
+                <View style={{ flexDirection: 'row', gap: 6 }}>
+                  {[a, b].map((p) => (
+                    <View key={p.name} style={{ flex: 1, gap: 4 }}>
+                      <Image source={{ uri: p.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 10 }} resizeMode="cover" />
+                      <BodyLine t={t} b={at(p.date)} />
+                    </View>
+                  ))}
+                </View>
+                {diff.length ? <T w="semi" style={{ fontSize: 13, textAlign: 'center' }}>{`الفرق: ${diff.join(' · ')}`}</T> : null}
+              </>
+            );
+          })()
         ) : view ? (
           <>
             <Image source={{ uri: view.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 12 }} resizeMode="contain" />
+            <BodyLine t={t} b={at(view.date)} />
             <Btn label="امسح الصورة" onPress={() => { deletePhoto(view); setPhotos(listPhotos()); setView(null); }} />
           </>
         ) : null}
       </Sheet>
     </Screen>
   );
+}
+
+/** "80.6 كجم · وسط 84 · دهون 14.8%" under a photo; whatever is known around its date. */
+function BodyLine({ t, b }: { t: Theme; b: { kg: number | null; waist: number | null; bf: number | null } }) {
+  const parts = [b.kg != null ? `${fmt(b.kg)} كجم` : null, b.waist != null ? `وسط ${fmt(b.waist)}` : null, b.bf != null ? `دهون ${fmt(b.bf)}%` : null].filter(Boolean);
+  return <T w="num" style={{ fontSize: 12, color: parts.length ? t.fg : t.mute, textAlign: 'center' }}>{parts.length ? iso(parts.join(' · ')) : 'مفيش وزن متسجل قريب من اليوم ده'}</T>;
 }
 
 const s = StyleSheet.create({

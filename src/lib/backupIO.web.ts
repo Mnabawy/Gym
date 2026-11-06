@@ -34,3 +34,13 @@ export function pickBackup(): Promise<string | null> {
 }
 
 export const pasteBackup = (): Promise<string> => Clipboard.getStringAsync();
+
+export async function shareText(name: string, text: string, mimeType: string): Promise<'shared' | 'copied'> {
+  const url = URL.createObjectURL(new Blob([text], { type: mimeType }));
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = name;
+  a.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  return 'shared';
+}

@@ -163,3 +163,18 @@ export function waistNote(list: readonly Measure[], goal: Goal): string | null {
   if (goal === 'cut') return perMonth < -0.3 ? 'الوسط بينزل: التنشيف ماشي ✓' : 'الوسط مش بينزل: راجع السعرات';
   return Math.abs(perMonth) <= 1 ? 'الوسط ثابت ✓' : perMonth > 0 ? 'الوسط بيزيد' : 'الوسط بينزل';
 }
+
+/** The entry on `date` or the last one before it, within `maxDays` (e.g. the weight on the day a photo was taken). */
+export function nearestBefore<T extends { date: string }>(list: readonly T[], date: string, maxDays = 14): T | undefined {
+  let best: T | undefined;
+  for (const x of list) if (x.date <= date && (!best || x.date > best.date)) best = x;
+  return best && daysBetween(best.date, date) <= maxDays ? best : undefined;
+}
+
+/** Body on a date (for a progress photo): weight, waist and body fat from the nearest entries before it. */
+export function bodyOn(date: string, weights: readonly WeighIn[], measures: readonly Measure[], sex: 'male' | 'female' | null, heightCm: number | null) {
+  const kg = nearestBefore(weights, date)?.kg ?? null;
+  const parts = latestParts(measures.filter((m) => m.date <= date && daysBetween(m.date, date) <= 30));
+  const bf = sex && heightCm ? navyBodyFat(sex, heightCm, parts) : null;
+  return { kg, waist: parts.waist ?? null, bf };
+}

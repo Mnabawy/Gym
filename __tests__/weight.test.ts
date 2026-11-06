@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, parseMeasures, parseWeights, rateBand, rateVerdict, removeWeighIn, waistNote, weeklyRate } from '../src/lib/weight';
+import { bodyOn, nearestBefore, latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, parseMeasures, parseWeights, rateBand, rateVerdict, removeWeighIn, waistNote, weeklyRate } from '../src/lib/weight';
 
 test('parse keeps valid weigh-ins in date order, one per day', () => {
   const raw = JSON.stringify([{ date: '2026-11-03', kg: 82 }, { date: '2026-11-01', kg: 81.5 }, { date: 'x', kg: 80 }, { date: '2026-11-02', kg: 900 }, { date: '2026-11-03', kg: 82.4 }]);
@@ -69,4 +69,15 @@ test('US Navy body fat', () => {
   expect(navyBodyFat('male', 183, { waist: 38, neck: 40 })).toBeNull();
   expect(navyBodyFat('male', 183, { neck: 38 })).toBeNull();
   expect(latestParts([{ date: '2026-10-01', waist: 85, neck: 38 }, { date: '2026-11-01', waist: 84 }])).toEqual({ waist: 84, neck: 38 });
+});
+
+test('body on a photo date: nearest weigh-in and measurements before it', () => {
+  const ws = [{ date: '2026-10-01', kg: 80 }, { date: '2026-10-20', kg: 81 }, { date: '2026-11-05', kg: 82 }];
+  expect(nearestBefore(ws, '2026-10-25')).toEqual({ date: '2026-10-20', kg: 81 });
+  expect(nearestBefore(ws, '2026-09-30')).toBeUndefined();
+  expect(nearestBefore(ws, '2026-11-30')).toBeUndefined(); // 25 days after the last: too far
+  const b = bodyOn('2026-10-25', ws, [{ date: '2026-10-10', waist: 84, neck: 38 }], 'male', 183);
+  expect(b.kg).toBe(81);
+  expect(b.waist).toBe(84);
+  expect(b.bf).toBeCloseTo(14.8, 0);
 });

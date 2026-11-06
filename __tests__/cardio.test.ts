@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { cardioKcal, cardioWeek, metOf, parseCardio, whoMinutes, type Cardio } from '../src/lib/cardio';
+import { cardioKcal, cardioWeek, metOf, parseCardio, parseSteps, stepsWeek, whoMinutes, type Cardio } from '../src/lib/cardio';
 
 const walk: Cardio = { id: 'a', type: 'walk', minutes: 30, intensity: 'moderate' };
 const run: Cardio = { id: 'b', type: 'run', minutes: 20, intensity: 'moderate', km: 3.2 };
@@ -21,4 +21,10 @@ test('METs, calories and WHO minutes', () => {
 test('a week of cardio', () => {
   const w = cardioWeek({ '2026-10-31': [walk], '2026-11-03': [run, { ...walk, id: 'c', steps: 4000 }], '2026-11-07': [walk] }, '2026-10-31', 80);
   expect(w).toEqual({ minutes: 80, who: 100, kcal: 140 + Math.round(9.8 * 80 / 3) + 140, sessions: 3, km: 3.2, steps: 4000 });
+});
+
+test('steps from the phone: parse and the week', () => {
+  const m = parseSteps(JSON.stringify({ '2026-10-31': 9000, '2026-11-01': 4000.4, bad: 5, '2026-11-02': -3 }));
+  expect(m).toEqual({ '2026-10-31': 9000, '2026-11-01': 4000 });
+  expect(stepsWeek(m, '2026-10-31', '2026-11-02')).toEqual({ total: 13000, avg: 4333, days: 3, atGoal: 1, any: true });
 });

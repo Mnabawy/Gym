@@ -94,3 +94,35 @@ export function cardioWeek(all: Record<string, Cardio[]>, from: string, weightKg
 }
 
 export const cardioId = (now: number = Date.now()) => `c${now.toString(36)}`;
+
+// Steps per day from the phone (src/lib/steps.ts), meta `steps`: date → count.
+// Goal: 8,000 a day — in the pooled data of Paluch et al. 2022 (Lancet Public Health) the drop in risk of death levelled
+// off around 6,000–8,000 steps for adults 60+ and 8,000–10,000 for younger adults.
+export const STEPS_KEY = 'steps';
+export const STEPS_GOAL = 8000;
+
+export function parseSteps(raw: string | null): Record<string, number> {
+  const out: Record<string, number> = {};
+  let v: unknown;
+  try {
+    v = raw ? JSON.parse(raw) : null;
+  } catch {
+    return out;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [d, n] of Object.entries(v as Record<string, unknown>)) if (DATE.test(d) && num(n, 1, 200000)) out[d] = Math.round(n);
+  return out;
+}
+
+/** Steps over the 7 days from `from` up to `today`: total, average per day (over days that have passed) and days at the goal. */
+export function stepsWeek(map: Record<string, number>, from: string, today: string) {
+  let total = 0, days = 0, atGoal = 0;
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(from, i);
+    if (d > today) break;
+    days++;
+    total += map[d] ?? 0;
+    if ((map[d] ?? 0) >= STEPS_GOAL) atGoal++;
+  }
+  return { total, avg: days ? Math.round(total / days) : 0, days, atGoal, any: total > 0 };
+}

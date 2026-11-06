@@ -13,6 +13,7 @@ import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
 import { syncDrive } from '../lib/drive';
+import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
@@ -38,6 +39,7 @@ export default function RootLayout() {
     const id = setTimeout(async () => {
       await runAutoBackup().catch(() => {});
       await syncDrive().catch(() => {}); // Google Drive: once a day when something changed
+      if (useSettings.getState().stepsSync) await syncSteps(); // the last two weeks' steps from the phone
     }, 5000);
     return () => clearTimeout(id);
   }, []);

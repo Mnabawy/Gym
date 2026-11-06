@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { CARDIO, CARDIO_KEY, cardioId, cardioKcal, cardioWeek, INTENSITY, parseCardio, WHO_MIN, type Cardio, type CardioType, type Intensity } from '../lib/cardio';
+import { parseSteps, STEPS_GOAL, STEPS_KEY, CARDIO, CARDIO_KEY, cardioId, cardioKcal, cardioWeek, INTENSITY, parseCardio, WHO_MIN, type Cardio, type CardioType, type Intensity } from '../lib/cardio';
 import { useDataVersion } from '../lib/bus';
 import { weekStart } from '../lib/gaps';
 import { parseNum } from '../lib/logic';
@@ -21,6 +21,8 @@ export function CardioCard({ date }: { date: string }) {
   const all = parseCardio(storage.getMeta(CARDIO_KEY));
   const list = all[date] ?? [];
   const week = cardioWeek(all, weekStart(date), weight ?? 0);
+  const stepsOn = useSettings((s) => s.stepsSync);
+  const steps = stepsOn ? parseSteps(storage.getMeta(STEPS_KEY))[date] ?? 0 : null;
   const [form, setForm] = useState<{ type: CardioType; minutes: number; intensity: Intensity; km: string; steps: string } | null>(null);
 
   const save = (next: Cardio[]) => {
@@ -45,6 +47,16 @@ export function CardioCard({ date }: { date: string }) {
         <T w="num" style={{ fontSize: 12, color: t.mute }}>{`الأسبوع ${iso(`${week.who}/${WHO_MIN}`)} د`}</T>
       </View>
       <Progress value={week.who / WHO_MIN} color={t.ok} height={5} />
+      {steps != null ? (
+        <View style={{ gap: 4 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+            <Ionicons name="footsteps" size={15} color={t.mute} />
+            <T style={{ flex: 1, fontSize: 13 }}>خطواتك من الموبايل</T>
+            <T w="num" style={{ fontSize: 12.5, color: steps >= STEPS_GOAL ? t.okText : t.fg }}>{iso(`${steps.toLocaleString('en-US')} / ${STEPS_GOAL.toLocaleString('en-US')}`)}</T>
+          </View>
+          <Progress value={steps / STEPS_GOAL} color={t.protein} height={4} />
+        </View>
+      ) : null}
       {list.map((c) => (
         <View key={c.id} style={s.item}>
           <Ionicons name={CARDIO[c.type].icon as IconName} size={16} color={t.mute} />
