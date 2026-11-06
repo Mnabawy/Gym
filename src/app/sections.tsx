@@ -9,7 +9,7 @@ import { MEAL_ORDER, MEAL_TIME } from '../data/nutrition';
 import { VERSES } from '../data/verses';
 import { useDataVersion } from '../lib/bus';
 import { readGoals, saveGoal } from '../lib/goalStore';
-import { fmtAmount, nextTask, progress, toggleTask } from '../lib/goals';
+import { nextTask, progress, toggleTask } from '../lib/goals';
 import { habitStats, isDue, logKey } from '../lib/habits';
 import { readHabitLog, readHabits } from '../lib/habitStore';
 import { dateKey, weekdayOf } from '../lib/logic';
