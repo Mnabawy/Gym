@@ -1,23 +1,24 @@
 import React from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Ring, Screen, T } from '../components/ui';
+import { HeaderBtn, T } from '../components/ui';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { dayFor, MONTHS_AR, PLAN_WEEKDAYS, WEEKDAYS_AR } from '../data/program';
+import { MEAL_ORDER, MEAL_TIME } from '../data/nutrition';
+import { VERSES } from '../data/verses';
 import { useDataVersion } from '../lib/bus';
-import { readGoals } from '../lib/goalStore';
-import { current, fmtAmount, nextTask, progress } from '../lib/goals';
+import { readGoals, saveGoal } from '../lib/goalStore';
+import { fmtAmount, nextTask, progress, toggleTask } from '../lib/goals';
 import { habitStats, isDue, logKey } from '../lib/habits';
 import { readHabitLog, readHabits } from '../lib/habitStore';
 import { dateKey, weekdayOf } from '../lib/logic';
-import { currentWorkout } from '../lib/schedule';
+import { currentWorkout, isTrainingDay } from '../lib/schedule';
 import { lastSection, openSection, type Section } from '../lib/section';
 import { storage } from '../lib/storage';
-import { DRIVE_NAME } from '../lib/drive';
-import { addDays, weekStart } from '../lib/gaps';
-import { glow, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
-
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
+import { addDays, daysBetween, weekStart } from '../lib/gaps';
+import { tap } from '../lib/timer';
+import { F, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
 
 export default function Sections() {
   return (
@@ -27,120 +28,160 @@ export default function Sections() {
   );
 }
 
-/** أقسامك: the gym, habits and goals as glowing tiles, each with where you are today; tap one to open it. */
+/** Short verses only, so the card stays one or two lines; a new one each day. */
+const SHORT = VERSES.filter((v) => v.text.join(' ').length <= 60);
+const glueMarks = (line: string) => line.replace(/ ([ۖ-ۜ])/g, '$1');
+
+/**
+ * أقسامك as tiles of different sizes: the gym (tall: next workout, this week, next meal), habits (done today, streak),
+ * goals (dark: how far), your next goal step with a tick, and a verse of the day. Tap a tile to open its section.
+ */
 function Hub() {
   const t = useTheme();
   useDataVersion((s) => s.v);
   const today = dateKey();
   const here = lastSection();
-  const name = storage.getMeta(DRIVE_NAME)?.split(' ')[0];
+  const go = (s: Section) => (s === here && router.canGoBack() ? router.back() : openSection(s));
 
-  const trained = storage.trainedDays();
-  const day = dayFor(currentWorkout(trained, today).id);
+  // Gym
+  const trainedDays = storage.trainedDays();
+  const trained = new Set(trainedDays.map((d) => d.date));
+  const day = dayFor(currentWorkout(trainedDays, today).id);
   const from = weekStart(today);
-  const weekDone = trained.filter((d) => d.date >= from && d.date <= addDays(from, 6)).length;
+  const weekDone = trainedDays.filter((d) => d.date >= from && d.date <= addDays(from, 6)).length;
+  const target = PLAN_WEEKDAYS.length;
+  const training = isTrainingDay(today, today, trained, storage.getMeta('restDay') || null);
+  const eaten = storage.mealChecks(today);
+  const meal = MEAL_ORDER.find((m) => !eaten.includes(m));
+
+  // Habits
   const habits = readHabits();
   const log = readHabitLog();
   const due = habits.filter((h) => isDue(h, today));
   const done = due.filter((h) => log[logKey(h.id, today)] === 'done').length;
   const streak = Math.max(0, ...habits.map((h) => habitStats(h, log, today).streak));
-  const goals = readGoals();
-  const g = goals[0];
-  const next = g ? nextTask(g) : null;
-  const trainedToday = trained.some((d) => d.date === today);
 
-  const tiles: { key: Section; title: string; icon: IconName; color: string; line: string; share: number; ring: string }[] = [
-    {
-      key: 'gym',
-      title: 'الجيم',
-      icon: 'barbell',
-      color: t.sec.gym,
-      line: trainedToday ? 'اتمرنت النهارده ✓' : day ? `التمرين الجاي: ${day.titleAr} · ${day.exercises.length} تمارين` : 'التمرين والأكل والمشتريات',
-      share: weekDone / PLAN_WEEKDAYS.length,
-      ring: `${weekDone}/${PLAN_WEEKDAYS.length}`,
-    },
-    {
-      key: 'habits',
-      title: 'العادات',
-      icon: 'checkmark-done',
-      color: t.sec.habits,
-      line: !habits.length ? 'ابدأ أول عادة' : !due.length ? 'مفيش عادات عليك النهارده' : done === due.length ? `كمّلت النهارده ✓${streak > 1 ? ` · 🔥 ${streak} يوم` : ''}` : `فاضل ${due.length - done} النهارده${streak > 1 ? ` · 🔥 ${streak} يوم` : ''}`,
-      share: due.length ? done / due.length : 0,
-      ring: due.length ? `${done}/${due.length}` : '—',
-    },
-    {
-      key: 'goals',
-      title: 'الأهداف',
-      icon: 'flag',
-      color: t.sec.goals,
-      line: g ? `${g.name} · ${fmtAmount(current(g), g.unit)}` : 'حدّد هدفك الكبير وامشي ليه خطوة خطوة',
-      share: g ? progress(g) : 0,
-      ring: g ? `${Math.floor(progress(g) * 100)}%` : '—',
-    },
-  ];
+  // Goals
+  const goal = readGoals()[0];
+  const next = goal ? nextTask(goal) : null;
 
-  const wd = weekdayOf(today);
-  const bits = [
-    trainedToday ? null : day ? `تمرين ${day.titleAr}` : null,
-    due.length - done > 0 ? `${due.length - done} عادات` : null,
-    next ? `«${next.task.title}»` : null,
-  ].filter(Boolean);
+  const verse = SHORT[Math.abs(daysBetween('2026-01-01', today)) % SHORT.length];
+  const blue = t.sec.gym;
+  const pink = t.sec.habits;
 
   return (
-    <Screen title="أقسامك" onBack={router.canGoBack() ? () => router.back() : undefined}>
-      <View style={{ gap: 2, marginBottom: 2 }}>
-        <T style={{ color: t.mute, fontSize: 13 }}>{`${WEEKDAYS_AR[wd]} ${+today.slice(8)} ${MONTHS_AR[+today.slice(5, 7) - 1]}`}</T>
-        <T w="bold" style={{ fontSize: 26, lineHeight: 38 }}>{name ? `أهلًا يا ${name} 👋` : 'أهلًا بيك 👋'}</T>
-      </View>
-      {tiles.map((c) => (
-        <Tile {...c} key={c.key} t={t} here={c.key === here} onPress={() => (c.key === here && router.canGoBack() ? router.back() : openSection(c.key))} />
-      ))}
-      {bits.length ? (
-        <View style={[s.today, { borderColor: t.border, backgroundColor: tint(t.ok, 0.04) }]}>
-          <Ionicons name="flash" size={16} color={t.neon ? t.okText : t.ok} />
-          <T style={{ flex: 1, fontSize: 13, color: t.mute, lineHeight: 20 }}>{`النهارده: ${bits.join(' · ')}`}</T>
+    <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
+      <ScrollView contentContainerStyle={s.scroll}>
+        <View style={s.head}>
+          <View style={{ flex: 1 }}>
+            <T style={{ color: t.mute, fontSize: 13.5 }}>{`${WEEKDAYS_AR[weekdayOf(today)]} · ${+today.slice(8)} ${MONTHS_AR[+today.slice(5, 7) - 1]}`}</T>
+            <T w="bold" style={{ fontSize: 32, lineHeight: 46 }}>أقسامك</T>
+          </View>
+          {router.canGoBack() ? <HeaderBtn icon="close" label="اقفل" onPress={() => router.back()} /> : null}
         </View>
-      ) : null}
-    </Screen>
+
+        <View style={s.grid}>
+          {/* The gym: tall, on the start side. */}
+          <Tile t={t} bg={tint(blue, 0.18)} here={here === 'gym'} onPress={() => go('gym')} style={{ flex: 1 }} label="الجيم">
+            <Ionicons name="barbell" size={44} color={blue} style={{ alignSelf: 'center', marginVertical: 12 }} />
+            <T w="bold" style={{ fontSize: 22 }} numberOfLines={1} adjustsFontSizeToFit>{trained.has(today) ? 'اتمرنت ✓' : day?.titleAr ?? 'التمرين'}</T>
+            <T style={{ fontSize: 12.5, color: t.mute }}>{trained.has(today) ? 'شغل حلو النهارده' : `التمرين الجاي · ${day?.exercises.length ?? 0} تمارين`}</T>
+            <View style={s.ticks}>
+              {Array.from({ length: target }, (_, i) => (
+                <View key={i} style={[s.tick, { backgroundColor: i < weekDone ? t.fg : tint(blue, 0.25) }]} />
+              ))}
+            </View>
+            <T style={{ fontSize: 12.5, color: t.mute }}>{`${weekDone} من ${target} الأسبوع ده`}</T>
+            <View style={[s.rule, { backgroundColor: tint(t.fg, 0.08) }]} />
+            <T style={{ fontSize: 12.5 }}>{meal ? `🍽 ${meal} ${MEAL_TIME[meal][training ? 'training' : 'rest']}` : '🍽 كمّلت وجبات النهارده ✓'}</T>
+            <T style={{ fontSize: 12.5, color: t.mute }}>{`${eaten.length} من ${MEAL_ORDER.length} وجبات`}</T>
+          </Tile>
+
+          <View style={{ flex: 1, gap: 12 }}>
+            <Tile t={t} bg={tint(pink, 0.16)} here={here === 'habits'} onPress={() => go('habits')} label="العادات">
+              {habits.length ? (
+                <>
+                  <View style={{ flexDirection: 'row', direction: 'ltr', alignSelf: 'flex-start', alignItems: 'baseline', marginTop: 8 }}>
+                    <T w="numBold" style={{ fontSize: 40, lineHeight: 48 }}>{String(done)}</T>
+                    <T w="numBold" style={{ fontSize: 20, color: t.mute }}>{`/${due.length}`}</T>
+                  </View>
+                  <T style={{ fontSize: 12.5, color: t.mute }}>{streak > 1 ? `🔥 ${streak} يوم ورا بعض` : due.length && done === due.length ? 'كمّلت النهارده ✓' : 'النهارده'}</T>
+                </>
+              ) : (
+                <T w="semi" style={{ fontSize: 15, marginTop: 10 }}>ابدأ أول عادة</T>
+              )}
+            </Tile>
+            <Tile t={t} bg={t.fg} here={here === 'goals'} onPress={() => go('goals')} label="الأهداف" dark>
+              {goal ? (
+                <>
+                  <T w="numBold" style={{ fontSize: 40, lineHeight: 50, color: t.bg, marginTop: 8 }}>{`${Math.floor(progress(goal) * 100)}%`}</T>
+                  <T style={{ fontSize: 12.5, color: tint(t.bg, 0.7) }} numberOfLines={2}>{goal.name}</T>
+                </>
+              ) : (
+                <T w="semi" style={{ fontSize: 15, marginTop: 10, color: t.bg }}>حدّد هدفك الكبير</T>
+              )}
+            </Tile>
+          </View>
+        </View>
+
+        {goal && next ? (
+          <Pressable onPress={() => router.push(`/goals/${goal.id}`)} accessibilityRole="button" style={({ pressed }) => [s.card, { backgroundColor: t.card, opacity: pressed ? 0.85 : 1 }]}>
+            <Ionicons name="flag" size={26} color={t.ok} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T style={{ fontSize: 12.5, color: t.mute }}>خطوتك الجاية</T>
+              <T w="bold" style={{ fontSize: 16, lineHeight: 25 }}>{next.task.title}</T>
+            </View>
+            <Pressable
+              onPress={() => {
+                tap();
+                saveGoal(toggleTask(goal, next.task.id, today));
+              }}
+              hitSlop={8}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: false }}
+              accessibilityLabel={`خلّصت: ${next.task.title}`}
+              style={({ pressed }) => [s.done, { borderColor: t.fg, backgroundColor: pressed ? tint(t.fg, 0.08) : 'transparent' }]}>
+              <Ionicons name="checkmark" size={22} color={t.fg} />
+            </Pressable>
+          </Pressable>
+        ) : null}
+
+        {verse ? (
+          <View style={[s.card, { backgroundColor: tint(t.sec.goals, 0.13), flexDirection: 'column', alignItems: 'stretch', gap: 4 }]}>
+            <T style={{ fontSize: 12.5, color: t.mute }}>{`آية اليوم · ${verse.surah}`}</T>
+            <T style={{ fontFamily: F.quran, fontSize: 21, lineHeight: 42, color: t.fg, writingDirection: 'rtl' }}>{`﴿ ${verse.text.map(glueMarks).join(' ۝ ')} ﴾`}</T>
+          </View>
+        ) : null}
+      </ScrollView>
+    </SafeAreaView>
   );
 }
 
-function Tile({ t, title, icon, color, line, share, ring, here, onPress }: { t: Theme; title: string; icon: IconName; color: string; line: string; share: number; ring: string; here: boolean; onPress: () => void }) {
+function Tile({ t, bg, here, onPress, label, dark, style, children }: { t: Theme; bg: string; here: boolean; onPress: () => void; label: string; dark?: boolean; style?: object; children: React.ReactNode }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
-      accessibilityLabel={`${title}: ${line}`}
-      style={({ pressed }) => [
-        s.tile,
-        { backgroundColor: t.card, borderColor: tint(color, here ? 0.9 : 0.55), boxShadow: `0px 0px ${here ? 22 : 14}px ${tint(color, here ? 0.4 : 0.22)}`, transform: [{ scale: pressed ? 0.98 : 1 }] },
-      ]}>
-      <View style={[s.icon, { backgroundColor: tint(color, 0.14), borderColor: tint(color, 0.6), boxShadow: glow(t, color, 12) }]}>
-        <Ionicons name={icon} size={28} color={color} />
+      accessibilityLabel={label}
+      style={({ pressed }) => [s.tile, { backgroundColor: bg, borderColor: here ? (dark ? t.ok : t.fg) : 'transparent', transform: [{ scale: pressed ? 0.97 : 1 }] }, style]}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+        <T style={{ fontSize: 13.5, color: dark ? tint(t.bg, 0.7) : t.mute, flex: 1 }}>{label}</T>
+        {here ? <View style={[s.dot, { backgroundColor: dark ? t.ok : t.fg }]} /> : null}
       </View>
-      <View style={{ flex: 1, gap: 3, minWidth: 0 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <T w="bold" style={{ fontSize: 20, lineHeight: 30 }}>{title}</T>
-          {here ? (
-            <View style={[s.here, { backgroundColor: color }]}>
-              <T w="semi" style={{ fontSize: 11, color: '#FFFFFF' }}>انت هنا</T>
-            </View>
-          ) : null}
-        </View>
-        <T style={{ fontSize: 13, color: t.mute, lineHeight: 20 }} numberOfLines={2}>{line}</T>
-      </View>
-      <View style={{ borderRadius: 31, boxShadow: `0px 0px 12px ${tint(color, 0.35)}` }}>
-        <Ring value={share} size={62} stroke={6} color={color} track={tint(color, 0.15)}>
-          <T w="numBold" style={{ fontSize: 14, color }}>{ring}</T>
-        </Ring>
-      </View>
+      {children}
     </Pressable>
   );
 }
 
 const s = StyleSheet.create({
-  tile: { flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderRadius: 24, borderWidth: 1.5, minHeight: 104 },
-  icon: { width: 56, height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  here: { borderRadius: 9, paddingHorizontal: 8, paddingVertical: 1 },
-  today: { flexDirection: 'row', alignItems: 'center', gap: 8, borderWidth: 1, borderStyle: 'dashed', borderRadius: 18, padding: 14, marginTop: 4 },
+  scroll: { padding: 16, paddingBottom: 40, gap: 12 },
+  head: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginBottom: 4 },
+  grid: { flexDirection: 'row', gap: 12 },
+  tile: { borderRadius: 26, padding: 16, borderWidth: 2, flexGrow: 1 },
+  ticks: { flexDirection: 'row', gap: 5, marginTop: 12, marginBottom: 6 },
+  tick: { flex: 1, height: 26, borderRadius: 7 },
+  rule: { height: 1, marginVertical: 10 },
+  card: { flexDirection: 'row', alignItems: 'center', gap: 12, borderRadius: 24, padding: 16 },
+  done: { width: 46, height: 46, borderRadius: 23, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  dot: { width: 8, height: 8, borderRadius: 4 },
 });
