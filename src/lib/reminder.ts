@@ -10,6 +10,8 @@ import { useSettings } from './settings';
 import { storage } from './storage';
 import { morningBrief, type BriefInput } from './brief';
 import { readGoals } from './goalStore';
+import { readQuits } from './quitStore';
+import { clean, DAY_MS, milestone } from './quit';
 import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
@@ -22,6 +24,7 @@ const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
 const BRIEF = 'morning-brief';
 const HABIT = 'habit-reminder';
+const QUIT = 'quit-milestone';
 
 /** Asks for notification permission (when turning the reminder on). */
 export async function allowReminders(): Promise<boolean> {
@@ -53,6 +56,7 @@ function briefInput(today: string): BriefInput {
     shopMoves: st.shopMoves,
     habits: readHabits(),
     goals: readGoals(),
+    quits: readQuits(),
   };
 }
 
@@ -65,9 +69,22 @@ export function syncReminders(): Promise<void> {
     try {
       for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
         const k = n.content.data?.kind;
-        if (k === KIND || k === BRIEF || k === HABIT) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+        if (k === KIND || k === BRIEF || k === HABIT || k === QUIT) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
+      // Each quit's next milestone, as a quiet "well done" without the habit's name.
+      if ((await Notifications.getPermissionsAsync()).granted) {
+        const nowMs = Date.now();
+        for (const q of readQuits()) {
+          const c = clean(q, nowMs);
+          const m = milestone(c.ms);
+          const date = new Date(nowMs + m.next * DAY_MS - c.ms);
+          await Notifications.scheduleNotificationAsync({
+            content: { title: `${m.next === 1 ? 'أول يوم' : `${m.next} يوم`} نضيف 🏅`, body: 'وصلت محطة جديدة. كمّل، انت أقوى من الرغبة', sound: true, data: { kind: QUIT } },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
+          });
+        }
+      }
       const habits = readHabits().filter((h) => !pausedNow(h) && (h.remind != null || h.at || h.parts?.some((p) => p.at)));
       if ((!st.reminder && !st.brief && !habits.length) || !(await Notifications.getPermissionsAsync()).granted) return;
       const today = dateKey();

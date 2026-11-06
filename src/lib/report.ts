@@ -7,6 +7,7 @@ import type { MealCheck, SetRow } from './storage.types';
 import type { WeighIn } from './weight';
 import { dayState, type Habit, type Log } from './habits';
 import { goalsWeek, type Goal, type GoalWeek } from './goals';
+import { quitsWeek, type Quit, type QuitWeek } from './quit';
 import { cardioWeek, stepsWeek, type Cardio, type CardioWeek } from './cardio';
 
 export type WeekReport = {
@@ -31,6 +32,7 @@ export type WeekReport = {
   cardio: CardioWeek;
   steps: ReturnType<typeof stepsWeek>;
   goals: GoalWeek[];
+  quits: (QuitWeek & { name: string; color: string })[];
 };
 
 export type ReportInput = {
@@ -48,6 +50,7 @@ export type ReportInput = {
   weightKg?: number;
   steps?: Record<string, number>;
   goals?: readonly Goal[];
+  quits?: readonly Quit[];
 };
 
 const vol = (rows: readonly SetRow[]) => Math.round(rows.reduce((a, r) => a + (r.kg ?? 0) * (r.reps ?? 0), 0));
@@ -97,6 +100,10 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
   return {
     habits,
     goals: goalsWeek(x.goals ?? [], from, end),
+    quits: quitsWeek(x.quits ?? [], from, to, today).map((w) => {
+      const q = x.quits!.find((y) => y.id === w.id)!;
+      return { ...w, name: q.name, color: q.color };
+    }),
     cardio: cardioWeek(x.cardio ?? {}, from, x.weightKg ?? 0),
     steps: stepsWeek(x.steps ?? {}, from, today),
     from,

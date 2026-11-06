@@ -14,6 +14,7 @@ import { weekReport } from '../lib/report';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { readGoals } from '../lib/goalStore';
+import { readQuits } from '../lib/quitStore';
 import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
@@ -52,6 +53,7 @@ export default function WeekScreen() {
     weightKg: body.weight ?? 0,
     steps: parseSteps(storage.getMeta(STEPS_KEY)),
     goals: readGoals(),
+    quits: readQuits(),
   });
   const live = from === thisWeek;
   // Only for a finished week: a week in progress would always look like a drop.
@@ -156,6 +158,21 @@ export default function WeekScreen() {
                 </View>
                 <Progress value={g.share} color={g.color} height={8} />
                 <T style={{ fontSize: 12, color: t.mute }}>{g.gained || g.tasks ? `الأسبوع ده: ${g.gained ? iso(`${g.gained > 0 ? '+' : ''}${fmtAmount(g.gained, g.unit)}`) : ''}${g.gained && g.tasks ? ' · ' : ''}${g.tasks ? `${g.tasks} خطوات خلصت` : ''}` : 'مفيش حركة الأسبوع ده'}</T>
+              </View>
+            ))}
+          </Card>
+        </>
+      ) : null}
+
+      {r.quits.length ? (
+        <>
+          <Label>بطّل</Label>
+          <Card style={{ padding: 14, gap: 10 }}>
+            {r.quits.map((q) => (
+              <View key={q.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: q.color }} />
+                <T w="semi" style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{q.name}</T>
+                <T style={{ fontSize: 12.5, color: t.mute }}>{`${q.cleanDays} أيام نضيفة${q.slips ? ` · ${q.slips} وقعة` : ''}${q.urges ? ` · قاومت ${q.resisted} من ${q.urges}` : ''}`}</T>
               </View>
             ))}
           </Card>

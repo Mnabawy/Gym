@@ -11,6 +11,7 @@ import { movesFor, splitShopping, tripDays } from './shop';
 import type { WeighIn } from './weight';
 import { isDue, type Habit } from './habits';
 import { nextTask, reviewDue, type Goal } from './goals';
+import { clean, runLabel, type Quit } from './quit';
 
 export type BriefInput = {
   /** Today (the day the app schedules from). */
@@ -31,6 +32,8 @@ export type BriefInput = {
   habits?: readonly Habit[];
   /** Your goals (الأهداف): each one's next step gets a line. */
   goals?: readonly Goal[];
+  /** Bad habits you're quitting: one line each, never with the habit's name (the notification shows on the lock screen). */
+  quits?: readonly Quit[];
 };
 
 /** Food items that need taking out of the freezer the morning before. */
@@ -68,6 +71,10 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
     if (n) lines.push(`🎯 ${g.name}: ${n.task.title}`);
     if (reviewDue(g, date)) lines.push(`📝 مراجعة الأسبوع لـ ${g.name}: دقيقتين`);
   }
+  // As of 6 in the morning of that day; the brief is built ahead.
+  const morning = new Date(`${date}T06:00:00`).getTime();
+  const quits = (x.quits ?? []).filter((q) => q.start <= morning);
+  if (quits.length) lines.push(`💪 ${quits.map((q) => `${runLabel(clean(q, morning).ms)} نضيف`).join(' · ')}: كمّل`);
 
   const prep: string[] = [];
   if (day) prep.push('شنطة الجيم والزمزمية');

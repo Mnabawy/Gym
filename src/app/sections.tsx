@@ -2,7 +2,7 @@ import React from 'react';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { HeaderBtn, T } from '../components/ui';
+import { HeaderBtn, Ring, T } from '../components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { dayFor, MONTHS_AR, PLAN_WEEKDAYS, WEEKDAYS_AR } from '../data/program';
 import { MEAL_ORDER, MEAL_TIME } from '../data/nutrition';
@@ -18,6 +18,10 @@ import { lastSection, openSection, type Section } from '../lib/section';
 import { storage } from '../lib/storage';
 import { addDays, daysBetween, weekStart } from '../lib/gaps';
 import { tap } from '../lib/timer';
+import { readQuits } from '../lib/quitStore';
+import { clean, milestone, runLabel } from '../lib/quit';
+import { useNow } from '../lib/useNow';
+import { NightCard } from '../components/QuitHero';
 import { F, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
 
 export default function Sections() {
@@ -64,6 +68,11 @@ function Hub() {
   // Goals
   const goal = readGoals()[0];
   const next = goal ? nextTask(goal) : null;
+
+  // Quitting: the habit with the longest clean run right now.
+  const now = useNow(60000);
+  const quits = readQuits();
+  const quit = [...quits].sort((a, b) => clean(b, now).ms - clean(a, now).ms)[0];
 
   const verse = SHORT[Math.abs(daysBetween('2026-01-01', today)) % SHORT.length];
   const blue = t.sec.gym;
@@ -123,6 +132,25 @@ function Hub() {
             </Tile>
           </View>
         </View>
+
+        <Pressable onPress={() => go('quit')} accessibilityRole="button" accessibilityLabel="بطّل" style={({ pressed }) => ({ transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+          <NightCard color={t.sec.quit} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, padding: 16, borderWidth: 2, borderColor: here === 'quit' ? t.sec.quit : 'transparent' }}>
+            <View style={{ flex: 1, gap: 2 }}>
+              <T style={{ fontSize: 13.5, color: 'rgba(255,255,255,0.65)' }}>بطّل</T>
+              <T w="bold" style={{ fontSize: 22, color: '#FFFFFF' }}>{quit ? `${runLabel(clean(quit, now).ms)} نضيف` : 'عادة عايز تبطّلها؟'}</T>
+              <T style={{ fontSize: 12.5, color: 'rgba(255,255,255,0.6)' }}>{quit ? (quits.length > 1 ? `${quits.length} عادات بتبطّلها` : 'كمّل، انت ماشي صح') : 'عداد نضيف وزرار للإلحاح'}</T>
+            </View>
+            {quit ? (
+              <View style={{ borderRadius: 30, boxShadow: `0px 0px 14px ${t.sec.quit}88` }}>
+                <Ring value={milestone(clean(quit, now).ms).share} size={60} stroke={6} color={t.sec.quit} track="rgba(255,255,255,0.12)">
+                  <Ionicons name="hand-left" size={20} color="#FFFFFF" />
+                </Ring>
+              </View>
+            ) : (
+              <Ionicons name="hand-left" size={34} color={t.sec.quit} />
+            )}
+          </NightCard>
+        </Pressable>
 
         {goal && next ? (
           <Pressable onPress={() => router.push(`/goals/${goal.id}`)} accessibilityRole="button" style={({ pressed }) => [s.card, { backgroundColor: t.card, opacity: pressed ? 0.85 : 1 }]}>
