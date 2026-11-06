@@ -271,24 +271,36 @@ function Heatmap({ h, log, today, t }: { h: Habit; log: Log; today: string; t: T
   );
 }
 
-/** The way to 66 in three colored stretches; the one you're in stands out, with its range under it. */
+/**
+ * The way to 66 as one continuous bar in three colored stretches (equal widths), filled up to where you are, with a thin
+ * mark between stretches. The stretch you're in has its name in bold under it.
+ */
 function PhaseBar({ formed, t }: { formed: number; t: Theme }) {
   const now = phaseOf(formed);
   const fill = phaseFill(formed);
   return (
-    <View style={{ flexDirection: 'row', gap: 4 }}>
-      {PHASES.map((p, i) => {
-        const on = i === now;
-        return (
-          <View key={p.label} style={{ flex: 1, gap: 4 }} accessible accessibilityLabel={`${p.label}: من ${p.from} لـ ${p.to}${on ? '، إنت هنا' : ''}`}>
-            <View style={{ height: on ? 12 : 8, borderRadius: 6, backgroundColor: tint(p.color, 0.18), overflow: 'hidden', marginTop: on ? 0 : 2 }}>
-              <View style={{ width: `${fill[i] * 100}%`, height: '100%', borderRadius: 6, backgroundColor: p.color }} />
+    <View style={{ gap: 6 }} accessible accessibilityLabel={`${formed} من ${FORM_DAYS}، ${now < 3 ? `مرحلة ${PHASES[now].label}` : 'عدّيت المتوسط'}`}>
+      <View style={[s.bar, { backgroundColor: t.soft }]}>
+        {PHASES.map((p, i) => (
+          <React.Fragment key={p.label}>
+            {i ? <View style={{ width: 2, backgroundColor: t.card }} /> : null}
+            <View style={{ flex: 1, backgroundColor: tint(p.color, 0.2) }}>
+              <View style={{ width: `${fill[i] * 100}%`, height: '100%', backgroundColor: p.color }} />
             </View>
-            <T w={on ? 'bold' : 'body'} style={{ fontSize: 11.5, color: on ? p.color : t.mute, textAlign: 'center' }}>{p.label}</T>
-            <T w="num" style={{ fontSize: 10, color: t.mute, textAlign: 'center' }}>{`${p.from}–${p.to}`}</T>
-          </View>
-        );
-      })}
+          </React.Fragment>
+        ))}
+      </View>
+      <View style={{ flexDirection: 'row' }}>
+        {PHASES.map((p, i) => {
+          const on = i === now;
+          return (
+            <View key={p.label} style={{ flex: 1, alignItems: 'center' }}>
+              <T w={on ? 'bold' : 'body'} style={{ fontSize: 11.5, color: on ? p.color : t.mute }}>{p.label}</T>
+              <T w="num" style={{ fontSize: 10, color: t.mute }}>{`${p.from}–${p.to}`}</T>
+            </View>
+          );
+        })}
+      </View>
     </View>
   );
 }
@@ -323,6 +335,7 @@ const s = StyleSheet.create({
   hero: { padding: 16, alignItems: 'center', gap: 6 },
   bigIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   cue: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
+  bar: { height: 12, borderRadius: 6, overflow: 'hidden', flexDirection: 'row' },
   tiles: { flexDirection: 'row', gap: 6, alignSelf: 'stretch', marginTop: 6 },
   tile: { flex: 1, borderRadius: 12, paddingVertical: 8, alignItems: 'center', gap: 1 },
   nav: { flexDirection: 'row', alignItems: 'center', gap: 8 },
