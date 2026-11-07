@@ -30,7 +30,8 @@ export const DRIVE_ERROR = 'driveError';
 let configured = false;
 function setup() {
   if (configured) return;
-  GoogleSignin.configure({ scopes: [DRIVE_SCOPE] });
+  // The web client id gives an id token, which signs in to Supabase sync (cloud.ts, docs/supabase-setup.md).
+  GoogleSignin.configure({ scopes: [DRIVE_SCOPE], webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID || undefined });
   configured = true;
 }
 
@@ -41,6 +42,14 @@ async function token(): Promise<string | null> {
   const r = await GoogleSignin.signInSilently();
   if (r.type !== 'success') return null;
   return (await GoogleSignin.getTokens()).accessToken;
+}
+
+/** Google id token for the saved account (Supabase sign-in), or null when not linked or no web client id is set. */
+export async function googleIdToken(): Promise<string | null> {
+  setup();
+  if (!storage.getMeta(DRIVE_USER)) return null;
+  const r = await GoogleSignin.signInSilently();
+  return r.type === 'success' ? r.data.idToken : null;
 }
 
 /** Signs in with Google (asks for Drive access) and uploads right away. Returns the email, or null if cancelled. */

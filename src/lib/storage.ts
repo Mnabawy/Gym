@@ -1,5 +1,6 @@
 // Native storage: expo-sqlite (iOS / Android)
 import * as SQLite from 'expo-sqlite';
+import { track } from './track';
 import { rowsToSets, type Dump, type SetRow, type Storage } from './storage.types';
 
 const db = SQLite.openDatabaseSync('gym.db');
@@ -22,7 +23,7 @@ if (!cols.includes('at')) db.execSync('ALTER TABLE set_logs ADD COLUMN at INTEGE
 
 type Row = { idx: number; kg: number | null; reps: number | null; done: number; rir: number | null; at: number | null };
 
-export const storage: Storage = {
+const base: Storage = {
   setsFor(date, exId) {
     return rowsToSets(db.getAllSync<Row>('SELECT idx, kg, reps, done, rir, at FROM set_logs WHERE date = ? AND ex_id = ? ORDER BY idx', date, exId));
   },
@@ -42,6 +43,12 @@ export const storage: Storage = {
   },
   clearDay(date, exIds) {
     for (const id of exIds) db.runSync('DELETE FROM set_logs WHERE date = ? AND ex_id = ?', date, id);
+  },
+  deleteSet(date, exId, idx) {
+    db.runSync('DELETE FROM set_logs WHERE date = ? AND ex_id = ? AND idx = ?', date, exId, idx);
+  },
+  transaction(f) {
+    db.withTransactionSync(f);
   },
   history(exId) {
     const dates = db.getAllSync<{ date: string }>('SELECT DISTINCT date FROM set_logs WHERE ex_id = ? ORDER BY date', exId);
@@ -120,3 +127,6 @@ export const storage: Storage = {
     });
   },
 };
+
+/** Every write is noted for Supabase sync (src/lib/track.ts). */
+export const storage: Storage = track(base);

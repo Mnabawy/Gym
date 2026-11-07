@@ -9,3 +9,4 @@ export const linkDrive = async (): Promise<string | null> => null;
 export const unlinkDrive = async () => {};
 export const syncDrive = async (_force = false, _soon = false): Promise<'uploaded' | 'skipped' | 'unlinked' | 'kept'> => 'unlinked';
 export const fetchDrive = async (): Promise<string | null> => null;
+export const googleIdToken = async (): Promise<string | null> => null;

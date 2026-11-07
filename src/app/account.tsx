@@ -3,9 +3,11 @@ import { Image, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
+import { dateKey } from '../lib/logic';
 import { Btn, Card, Label, Row, Screen, Sep, T } from '../components/ui';
 import { backupInfo, infoText, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { useDataVersion } from '../lib/bus';
+import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, SYNC_AT, SYNC_ERROR, unlinkCloud } from '../lib/cloud';
 import { DRIVE_AT, DRIVE_ERROR, DRIVE_NAME, DRIVE_PHOTO, DRIVE_USER, driveSupported, fetchDrive, linkDrive, syncDrive, unlinkDrive } from '../lib/drive';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { applyBackup, WELCOME_KEY, wipeLocal } from '../lib/restore';
@@ -14,6 +16,13 @@ import type { Dump } from '../lib/storage.types';
 import { tint, useTheme } from '../theme';
 
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
+/** "النهارده 14:05" or the date and time of the last good sync. */
+function whenAr(ms: number) {
+  const d = new Date(ms);
+  const hm = `${d.getHours()}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const k = dateKey(d);
+  return `${k === dateKey() ? 'النهارده' : dayAr(k)} ${hm}`;
+}
 
 /** Your account (side menu → your name): who you're signed in as, the Drive backup, restore from it, and sign-out. */
 export default function Account() {
@@ -24,6 +33,10 @@ export default function Account() {
   const photo = storage.getMeta(DRIVE_PHOTO);
   const at = storage.getMeta(DRIVE_AT);
   const failed = !!storage.getMeta(DRIVE_ERROR);
+  const linked = cloudLinked();
+  const syncAt = Number(storage.getMeta(SYNC_AT) || 0);
+  const syncFailed = !!storage.getMeta(SYNC_ERROR);
+  const waiting = linked ? pendingChanges() : 0;
   const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
@@ -45,6 +58,11 @@ export default function Account() {
 
   const signOut = (wipe: boolean) =>
     run(async () => {
+      if (wipe && cloudLinked()) {
+        // Everything has to be on the server before the phone is wiped.
+        const ok = await syncCloud().then(() => pendingChanges() === 0, () => false);
+        if (!ok) return setMsg({ text: 'معرفتش أزامن آخر تغييراتك، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
+      }
       if (wipe) {
         try {
           await syncDrive(true);
@@ -52,6 +70,7 @@ export default function Account() {
           return setMsg({ text: 'معرفتش أرفع آخر نسخة على Drive، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
         }
       }
+      unlinkCloud();
       await unlinkDrive();
       if (wipe) wipeLocal();
       storage.setMeta(WELCOME_KEY, '');
@@ -98,6 +117,10 @@ export default function Account() {
             run(async () => {
               const e = await linkDrive();
               if (!e) return;
+              if (cloudConfigured) {
+                await linkCloud();
+                if (backupInfo(storage.dump(), 0).total > 0) return setMsg({ text: `دخلت بـ ${e} وبياناتك اتزامنت ✓` });
+              }
               // Drive already has your data: bring it back to an empty phone, or ask when both have some.
               const x = await fetchDrive().catch(() => null);
               const p = x ? parseBackup(x) : null;
@@ -116,6 +139,39 @@ export default function Account() {
         />
       ) : (
         <>
+          {cloudConfigured ? (
+            <>
+              <Label>المزامنة</Label>
+              <Card>
+                <Row
+                  label={!linked ? 'المزامنة مش شغالة' : syncFailed ? 'آخر مزامنة ما نفعتش' : syncAt ? `آخر مزامنة: ${whenAr(syncAt)}` : 'لسه ما اتزامنش'}
+                  sub={
+                    !linked
+                      ? 'شغّلها عشان كل حاجة تتحفظ أول بأول وترجع لو مسحت التطبيق أو غيّرت الموبايل'
+                      : waiting
+                        ? `${waiting} تغيير مستني النت`
+                        : 'كل تغيير بيتحفظ بعد ثواني، ونفس الحساب على أي موبايل بيجيب نفس البيانات (من غير الصور)'
+                  }>
+                  <Ionicons name={!linked || syncFailed ? 'alert-circle' : 'sync-circle'} size={24} color={!linked || syncFailed ? t.bad : t.okText} />
+                </Row>
+                <Sep />
+                <View style={{ padding: 12 }}>
+                  <Btn
+                    label={linked ? 'زامن دلوقتي' : 'شغّل المزامنة'}
+                    kind="solid"
+                    onPress={() =>
+                      run(async () => {
+                        if (linked) await syncCloud();
+                        else await linkCloud();
+                        setMsg(pendingChanges() ? { text: 'لسه في تغييرات ما اتبعتتش، جرّب تاني', bad: true } : { text: 'اتزامنت ✓' });
+                      })
+                    }
+                  />
+                </View>
+              </Card>
+            </>
+          ) : null}
+
           <Label>النسخة على Google Drive</Label>
           <Card>
             <Row
@@ -159,10 +215,10 @@ export default function Account() {
           ) : (
             <View style={[s.box, { backgroundColor: t.warnSoft, marginHorizontal: 0 }]}>
               <T w="semi" style={{ color: t.warn }}>تسجيل الخروج</T>
-              <T style={{ fontSize: 12.5, lineHeight: 19 }}>نسختك على Drive بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
+              <T style={{ fontSize: 12.5, lineHeight: 19 }}>بياناتك على السيرفر وعلى Drive بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
               <Btn label="اخرج بس (البيانات تفضل على الموبايل)" onPress={() => signOut(false)} />
               <Btn label="اخرج وامسح بياناتي من الموبايل" kind="solid" onPress={() => signOut(true)} />
-              <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيرفع آخر نسخة على Drive الأول، ومش بيمسح غير لو الرفع نجح.</T>
+              <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيزامن ويرفع آخر نسخة على Drive الأول، ومش بيمسح غير لو ده نجح.</T>
               <Btn label="لا" onPress={() => setLeaving(false)} />
             </View>
           )}

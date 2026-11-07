@@ -1,4 +1,5 @@
 // Web storage: localStorage (used for the web preview; the phone app uses SQLite)
+import { track } from './track';
 import { rowsToSets, type SetRow, type Storage } from './storage.types';
 
 type State = { sets: SetRow[]; meals: { date: string; meal: string }[]; shop: { week: string; item: string }[]; meta: Record<string, string> };
@@ -12,13 +13,15 @@ function load(): State {
   return { sets: [], meals: [], shop: [], meta: {} };
 }
 let S = load();
+let batching = false;
 function persist() {
+  if (batching) return;
   try {
     globalThis.localStorage?.setItem(KEY, JSON.stringify(S));
   } catch {}
 }
 
-export const storage: Storage = {
+const base: Storage = {
   setsFor(date, exId) {
     return rowsToSets(S.sets.filter((r) => r.date === date && r.exId === exId));
   },
@@ -36,6 +39,19 @@ export const storage: Storage = {
   clearDay(date, exIds) {
     S.sets = S.sets.filter((r) => !(r.date === date && exIds.includes(r.exId)));
     persist();
+  },
+  deleteSet(date, exId, idx) {
+    S.sets = S.sets.filter((r) => !(r.date === date && r.exId === exId && r.idx === idx));
+    persist();
+  },
+  transaction(f) {
+    batching = true;
+    try {
+      f();
+    } finally {
+      batching = false;
+      persist();
+    }
   },
   history(exId) {
     const dates = [...new Set(S.sets.filter((r) => r.exId === exId).map((r) => r.date))].sort();
@@ -101,3 +117,6 @@ export const storage: Storage = {
     persist();
   },
 };
+
+/** Every write is noted for Supabase sync (src/lib/track.ts). */
+export const storage: Storage = track(base);

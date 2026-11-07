@@ -15,6 +15,9 @@ import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
 import { syncDrive } from '../lib/drive';
+import { cloudConfigured, cloudLinked, linkCloud, syncCloud } from '../lib/cloud';
+import { storage } from '../lib/storage';
+import { onDirty } from '../lib/track';
 import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
 
@@ -54,6 +57,7 @@ export default function RootLayout() {
       <VersePopup />
       <ReminderSync />
       <DriveSync />
+      <CloudSync />
       <UndoBar />
       <ConfirmHost />
       <AppLock />
@@ -92,6 +96,36 @@ function DriveSync() {
       if (st === 'background') syncDrive(false, true).catch(() => {});
     });
     return () => sub.remove();
+  }, []);
+  return null;
+}
+
+/**
+ * Supabase sync (src/lib/cloud.ts): a few seconds after each change, on opening, on coming back to the app and on
+ * leaving it. A phone already signed in to Google from before sync existed turns it on by itself (its data goes up).
+ */
+function CloudSync() {
+  useEffect(() => {
+    if (!cloudConfigured) return;
+    const go = () => syncCloud().catch(() => {});
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const first = setTimeout(() => {
+      if (!cloudLinked() && storage.getMeta('driveUser')) linkCloud().catch(() => {});
+      else go();
+    }, 1500);
+    const off = onDirty(() => {
+      clearTimeout(timer);
+      timer = setTimeout(go, 4000);
+    });
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active' || st === 'background') go();
+    });
+    return () => {
+      clearTimeout(first);
+      clearTimeout(timer);
+      off();
+      sub.remove();
+    };
   }, []);
   return null;
 }

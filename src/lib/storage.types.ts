@@ -13,6 +13,10 @@ export interface Storage {
   /** Most recent session for this exercise strictly before `date`. */
   lastSession(exId: string, date: string): SetEntry[] | undefined;
   clearDay(date: string, exIds: string[]): void;
+  /** One set row gone (a delete that came from another phone). */
+  deleteSet(date: string, exId: string, idx: number): void;
+  /** Many writes at once (one SQLite transaction). */
+  transaction(f: () => void): void;
   /** All sessions for an exercise, oldest first. */
   history(exId: string): { date: string; sets: SetEntry[] }[];
   /** Done sets per exercise between two dates (inclusive). */

@@ -10,6 +10,7 @@ import { Btn, T } from '../components/ui';
 import { backupInfo, infoText, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { pickBackup } from '../lib/backupIO';
+import { cloudConfigured, linkCloud } from '../lib/cloud';
 import { fetchDrive, linkDrive, syncDrive } from '../lib/drive';
 import { native, useReducedMotion } from '../lib/motion';
 import { applyBackup, WELCOME_KEY } from '../lib/restore';
@@ -88,9 +89,16 @@ function WelcomeScreen() {
     try {
       const email = await linkDrive();
       if (!email) return; // cancelled
+      // Supabase sync: brings back everything on the server and merges it with what's here, no question needed.
+      const synced = cloudConfigured && (await linkCloud().then(() => true, () => false));
+      const local = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
+      if (synced && local.total > 0) {
+        syncDrive(true).catch(() => {});
+        return finish();
+      }
+      // Nothing on the server (or no sync): the Drive backup file, as before.
       const text = await fetchDrive().catch(() => null);
       const p = text ? parseBackup(text) : null;
-      const local = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
       // Anything you logged counts (habits, goals, weights… not only workouts and meals).
       if (p?.ok && p.info.total > 0) {
         // Nothing here yet: bring it all back. Data on both: ask.

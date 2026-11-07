@@ -5,6 +5,7 @@ import type { PhotoData } from './backup';
 import { deleteAllPhotos, importPhotos, photosSupported } from './photos';
 import { useSettings } from './settings';
 import { storage } from './storage';
+import { untracked } from './track';
 
 /** Meta key: the welcome screen was answered (signed in or skipped), so it doesn't show again. */
 export const WELCOME_KEY = 'welcomeDone';
@@ -23,7 +24,8 @@ export function applyBackup(data: Dump, photos: readonly PhotoData[]): number {
 
 /** Signing out with "wipe this phone": everything saved here goes (data, settings, photos). The account keys go too. */
 export function wipeLocal() {
-  storage.restore({ sets: [], meals: [], shop: [], meta: {} });
+  // Not noted for sync: the server keeps everything.
+  untracked(() => storage.restore({ sets: [], meals: [], shop: [], meta: {} }));
   if (photosSupported) deleteAllPhotos();
   useSettings.getState().reload();
 }
