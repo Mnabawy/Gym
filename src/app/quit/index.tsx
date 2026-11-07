@@ -5,15 +5,14 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Screen, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { QuitForm } from '../../components/QuitForm';
-import { CleanRing, nextLine, NightCard } from '../../components/QuitHero';
+import { NightCard, QuitCard } from '../../components/QuitHero';
 import { UrgeScreen, SlipSheet } from '../../components/QuitSheets';
 import { useDataVersion } from '../../lib/bus';
 import { readQuits } from '../../lib/quitStore';
-import { cleanDays, type Quit } from '../../lib/quit';
+import { type Quit } from '../../lib/quit';
+import { PasswordModal } from '../../components/QuitSheets';
 import { useNow } from '../../lib/useNow';
 import { ThemeProvider, useTheme, useWarm } from '../../theme';
-
-type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export default function QuitSection() {
   return (
@@ -33,11 +32,33 @@ function QuitList() {
   const [urge, setUrge] = useState<Quit | null>(null);
   const [slip, setSlip] = useState<Quit | null>(null);
 
+  const [passwordFor, setPasswordFor] = useState<string | null>(null);
+  const [passwordInput, setPasswordInput] = useState('');
+
+  const openQuit = (q: Quit) => {
+    if (q.password) {
+      setPasswordFor(q.id);
+      setPasswordInput('');
+    } else {
+      router.push(`/quit/${q.id}`);
+    }
+  };
+
+  const checkPassword = () => {
+    const q = quits.find((x) => x.id === passwordFor);
+    if (q && q.password === passwordInput) {
+      const quitId = passwordFor;
+      setPasswordFor(null);
+      router.push(`/quit/${quitId}`);
+    }
+  };
+
   return (
     <Screen title="بطّل" action={<MenuButton />}>
       {adding ? <QuitForm onClose={() => setAdding(false)} onSaved={(q) => router.push(`/quit/${q.id}`)} /> : null}
       {urge ? <UrgeScreen q={urge} onClose={() => setUrge(null)} onSlip={() => { setSlip(urge); setUrge(null); }} /> : null}
       {slip ? <SlipSheet q={slip} onClose={() => setSlip(null)} /> : null}
+      {passwordFor ? <PasswordModal quitId={passwordFor} password={passwordInput} onPasswordChange={setPasswordInput} onConfirm={checkPassword} onClose={() => setPasswordFor(null)} /> : null}
 
       {!quits.length ? (
         <NightCard color={t.sec.quit} style={{ alignItems: 'center', gap: 12, paddingVertical: 28 }}>
@@ -54,28 +75,9 @@ function QuitList() {
         </NightCard>
       ) : (
         <>
-          {quits.map((q) => {
-            const d = cleanDays(q, now);
-            return (
-              <NightCard key={q.id} color={q.color} style={{ gap: 14 }}>
-                  <Pressable onPress={() => router.push(`/quit/${q.id}`)} accessibilityRole="button" accessibilityLabel={q.name} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 16, opacity: pressed ? 0.8 : 1 })}>
-                    <CleanRing q={q} now={now} size={96} />
-                    <View style={{ flex: 1, gap: 4 }}>
-                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                        <Ionicons name={q.icon as IconName} size={16} color={q.color} />
-                        <T w="bold" style={{ color: '#FFFFFF', fontSize: 17, flex: 1 }} numberOfLines={1}>{q.name}</T>
-                      </View>
-                      <T style={{ color: 'rgba(255,255,255,0.75)', fontSize: 13 }}>{nextLine(q, now)}</T>
-                      <T style={{ color: 'rgba(255,255,255,0.5)', fontSize: 12 }}>{`${Math.round(d.rate * 100)}% أيام نضيفة`}</T>
-                    </View>
-                  </Pressable>
-                  <Pressable onPress={() => setUrge(q)} accessibilityRole="button" accessibilityLabel={`جالي إلحاح: ${q.name}`} style={({ pressed }) => [s.urge, { backgroundColor: q.color, boxShadow: `0px 0px 18px ${q.color}88`, opacity: pressed ? 0.85 : 1 }]}>
-                    <Ionicons name="pulse" size={18} color="#FFFFFF" />
-                    <T w="bold" style={{ color: '#FFFFFF', fontSize: 15 }}>جالي إلحاح</T>
-                  </Pressable>
-              </NightCard>
-            );
-          })}
+          {quits.map((q) => (
+            <QuitCard key={q.id} q={q} now={now} onOpen={() => openQuit(q)} onUrge={() => setUrge(q)} />
+          ))}
           <Btn label="+ عادة تانية" onPress={() => setAdding(true)} />
         </>
       )}
@@ -86,5 +88,4 @@ function QuitList() {
 const s = StyleSheet.create({
   big: { width: 76, height: 76, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   cta: { alignSelf: 'stretch', height: 52, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
-  urge: { flexDirection: 'row', gap: 8, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });

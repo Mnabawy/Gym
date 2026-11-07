@@ -8,6 +8,7 @@ import { TAG_INFO } from '../data/rules';
 import { Btn, Card, Pill, Screen, Sep, Sheet, Stepper, SwitchRow, T } from '../components/ui';
 import { WorkoutChips } from '../components/WorkoutChips';
 import { dateKey } from '../lib/logic';
+import { confirm } from '../lib/confirm';
 import { move, newId, REPS_MAX, REPS_MIN } from '../lib/programEdit';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { deloadOn, useSettings } from '../lib/settings';
@@ -31,8 +32,6 @@ export default function ProgramScreen() {
   const [due] = useState(() => currentWorkout(storage.trainedDays(), dateKey()).id);
   const [day, setDay] = useState(due);
   const [form, setForm] = useState<Form | null>(null);
-  const [del, setDel] = useState<string | null>(null);
-  const [confirm, setConfirm] = useState<'day' | 'all' | null>(null);
   const plan = PROGRAM.find((d) => d.weekday === day)!;
   const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
   const edited = !!storage.getMeta('program');
@@ -64,7 +63,7 @@ export default function ProgramScreen() {
       {deloadOn(st) ? (
         <T style={{ color: t.warn, fontSize: 12.5 }}>أسبوع خفيف شغال: التمرين بنص المجموعات. الأرقام هنا هي العادية، وبترجع بعد الأسبوع.</T>
       ) : null}
-      <WorkoutChips value={day} current={due} onChange={(d) => { setDay(d); setConfirm(null); setDel(null); }} />
+      <WorkoutChips value={day} current={due} onChange={(d) => setDay(d)} />
       <Card>
         <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, gap: 1 }}>
           <T style={{ color: t.mute, fontSize: 12.5 }}>{`تمرين ${seqIndex(day) + 1} من ${PROGRAM.length} · ${plan.exercises.length} تمارين · ${total} مجموعة`}</T>
@@ -93,15 +92,8 @@ export default function ProgramScreen() {
                   <Icon name="arrow-up" label={`طلّع ${e.name} لفوق`} disabled={i === 0} onPress={() => save(move(defs(), i, -1))} />
                   <Icon name="arrow-down" label={`نزّل ${e.name} لتحت`} disabled={i === plan.exercises.length - 1} onPress={() => save(move(defs(), i, 1))} />
                   <Icon name="create-outline" label={`عدّل ${e.name}`} onPress={() => setForm({ at: i, name: e.name, muscle: e.muscle, sets: e.sets, repLow: e.repLow, repHigh: e.repHigh, tag: e.tag, perLeg: !!e.perLeg })} />
-                  <Icon name="trash-outline" label={`امسح ${e.name}`} disabled={plan.exercises.length === 1} onPress={() => setDel(e.id)} />
+                  <Icon name="trash-outline" label={`امسح ${e.name}`} disabled={plan.exercises.length === 1} onPress={async () => { if (await confirm({ title: `تمسح ${e.name}؟`, body: 'هيتشال من البرنامج. اللي سجلته قبل كده مش هيتمسح.', confirmLabel: 'امسح', danger: true })) save(defs().filter((x) => x.id !== e.id)); }} />
                 </View>
-                {del === e.id ? (
-                  <View style={[s.warn, { backgroundColor: t.warnSoft }]}>
-                    <T style={{ fontSize: 12.5, flex: 1 }}>تمسحه من البرنامج؟ اللي سجلته قبل كده مش هيتمسح.</T>
-                    <Btn label="امسح" kind="solid" onPress={() => { setDel(null); save(defs().filter((x) => x.id !== e.id)); }} />
-                    <Btn label="لا" onPress={() => setDel(null)} />
-                  </View>
-                ) : null}
               </View>
             </React.Fragment>
           );
@@ -116,26 +108,10 @@ export default function ProgramScreen() {
         تعديل اسم تمرين بيحتفظ بسجله القديم (لو بتصلّح الاسم). لو هتغيّره بتمرين تاني خالص، استخدم «بدّله» جوه التعديل عشان يبدأ سجل جديد.
       </T>
 
-      {confirm ? (
-        <View style={[s.warn, { backgroundColor: t.warnSoft }]}>
-          <T style={{ fontSize: 12.5, flex: 1 }}>{confirm === 'day' ? `ترجّع ${plan.titleAr} زي البرنامج الأصلي؟` : 'ترجّع البرنامج كله للأصلي؟'}</T>
-          <Btn
-            label="أيوه"
-            kind="solid"
-            onPress={() => {
-              setConfirm(null);
-              if (confirm === 'all') st.setProgram(null);
-              else st.setProgram({ ...currentEdit(), [day]: PDF_PROGRAM[day].map((d) => ({ ...d })) });
-            }}
-          />
-          <Btn label="لا" onPress={() => setConfirm(null)} />
-        </View>
-      ) : (
-        <View style={{ flexDirection: 'row', gap: 8 }}>
-          {dayEdited ? <Btn label="رجّع اليوم ده للأصلي" style={{ flex: 1 }} onPress={() => setConfirm('day')} /> : null}
-          {edited ? <Btn label="رجّع البرنامج كله" style={{ flex: 1 }} onPress={() => setConfirm('all')} /> : null}
-        </View>
-      )}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {dayEdited ? <Btn label="رجّع اليوم ده للأصلي" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: `ترجّع ${plan.titleAr} زي الأصلي؟`, confirmLabel: 'رجّع' })) st.setProgram({ ...currentEdit(), [day]: PDF_PROGRAM[day].map((d) => ({ ...d })) }); }} /> : null}
+        {edited ? <Btn label="رجّع البرنامج كله" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: 'ترجّع البرنامج كله للأصلي؟', confirmLabel: 'رجّع' })) st.setProgram(null); }} /> : null}
+      </View>
 
       <Sheet visible={form != null} onClose={() => setForm(null)} title={form?.at == null ? `تمرين جديد · ${plan.titleAr}` : 'عدّل التمرين'}>
         {form ? (

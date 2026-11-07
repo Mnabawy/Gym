@@ -8,6 +8,7 @@ import { countAr, shopWeekKey, TIMES } from '../../lib/logic';
 import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } from '../../lib/shop';
 import { useSettings } from '../../lib/settings';
 import { storage } from '../../lib/storage';
+import { confirm } from '../../lib/confirm';
 import { useDataVersion } from '../../lib/bus';
 import { tint, useTheme } from '../../theme';
 
@@ -18,7 +19,6 @@ export default function Shop() {
   const week = shopWeekKey();
   const { bump } = useDataVersion();
   const [copied, setCopied] = useState(false);
-  const [confirm, setConfirm] = useState(false);
   const [editing, setEditing] = useState(false);
 
   // Trips per week and the trip you chose for any item come from the settings store; src/lib/shop.ts does the split.
@@ -182,17 +182,8 @@ export default function Shop() {
           ))}
 
           <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-            {!confirm ? (
-              <>
-                <Btn label="ابدأ أسبوع جديد" onPress={() => setConfirm(true)} style={{ flex: 1 }} />
-                <Btn label={copied ? 'اتنسخت ✓' : 'انسخ القايمة'} kind="solid" onPress={copy} style={{ flex: 1 }} />
-              </>
-            ) : (
-              <>
-                <Btn label="لا" onPress={() => setConfirm(false)} style={{ flex: 1 }} />
-                <Btn label="أيوه امسح العلامات" kind="solid" onPress={() => { storage.clearShop(week); setConfirm(false); bump(); }} style={{ flex: 1 }} />
-              </>
-            )}
+            <Btn label="ابدأ أسبوع جديد" onPress={async () => { if (await confirm({ title: 'تبدأ أسبوع جديد؟', body: 'هتتشال كل علامات المشتريات للأسبوع ده.', confirmLabel: 'امسح العلامات', danger: true })) { storage.clearShop(week); bump(); } }} style={{ flex: 1 }} />
+            <Btn label={copied ? 'اتنسخت ✓' : 'انسخ القايمة'} kind="solid" onPress={copy} style={{ flex: 1 }} />
           </View>
         </>
       )}

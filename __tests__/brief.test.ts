@@ -68,7 +68,7 @@ test('a goal whose weekly review is due', () => {
 });
 
 test('quits: clean time without the habit name', () => {
-  const q = { id: 'q', name: 'سر', icon: 'ban', color: '#7A5CFA', start: new Date('2026-10-25T06:00:00').getTime(), why: '', replace: '', costPerDay: 0, currency: 'ج.م', minutesPerDay: 0, slips: [], urges: [] };
+  const q = { id: 'q', name: 'سر', icon: 'ban', color: '#7A5CFA', start: new Date('2026-10-25T06:00:00').getTime(), why: '', replace: '', costPerDay: 0, currency: 'ج.م', minutesPerDay: 0, type: 'habit' as const, targetDays: 66, slips: [], urges: [] };
   const b = morningBrief(TODAY, { ...base, quits: [q] }).body;
   expect(b).toContain('💪 10 يوم نضيف');
   expect(b).not.toContain('سر');

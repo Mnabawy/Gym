@@ -34,6 +34,23 @@ export const TRIGGERS = {
 } as const;
 export type Trigger = keyof typeof TRIGGERS;
 
+// Habit types based on scientific literature: DSM-5 substance use disorder, behavioral addictions,
+// and habit formation research (Lally 2010 ~66 days, Gardner 2011 ~254 days for neuroplasticity)
+export const HABIT_TYPES = {
+  smoking: { name: 'تدخين · ادمان مواد', targetDays: 100, ref: 'علاج التبغ—برنامج 100 يوم' },
+  alcohol: { name: 'كحول · ادمان مواد', targetDays: 90, ref: 'إعادة تأهيل الكحول—الاعتماد الجسدي 90 يوم' },
+  drugs: { name: 'مخدرات · ادمان مواد', targetDays: 180, ref: 'إعادة تأهيل المخدرات—برنامج 180 يوم' },
+  caffeine: { name: 'كافيين · ادمان مواد', targetDays: 30, ref: 'انسحاب الكافيين—3-14 يوم، استقرار 30 يوم' },
+  gambling: { name: 'القمار · ادمان سلوكي', targetDays: 90, ref: 'اضطراب المقامرة—DSM-5، برنامج 90 يوم' },
+  gaming: { name: 'الألعاب · ادمان سلوكي', targetDays: 60, ref: 'اضطراب ألعاب الفيديو—الملخص التشخيصي، 60 يوم' },
+  social_media: { name: 'السوشيال · ادمان سلوكي', targetDays: 30, ref: 'إعادة تأهيل وسائل التواصل—Lembke 2021، 30 يوم' },
+  porn: { name: 'محتوى 18+ · ادمان سلوكي', targetDays: 90, ref: 'إعادة تأهيل الإباحية—Park 2016، 90 يوم' },
+  shopping: { name: 'التسوق · ادمان سلوكي', targetDays: 60, ref: 'اضطراب التسوق القهري، 60 يوم' },
+  eating: { name: 'الأكل القهري · ادمان سلوكي', targetDays: 60, ref: 'الأكل القهري—DSM-5، 60 يوم' },
+  habit: { name: 'عادة سيئة · سلوك يومي', targetDays: 66, ref: 'تشكيل العادات—Lally 2010، 66 يوم' },
+} as const;
+export type HabitType = keyof typeof HABIT_TYPES;
+
 export type Slip = { at: number; trigger?: Trigger; note?: string };
 export type Urge = { at: number; resisted: boolean; trigger?: Trigger };
 export type Quit = {
@@ -54,6 +71,12 @@ export type Quit = {
   minutesPerDay: number;
   slips: Slip[];
   urges: Urge[];
+  /** Optional password to access details and edit. */
+  password?: string;
+  /** Type of habit: addiction, behavioral, or daily habit. Auto-sets target days. */
+  type: HabitType;
+  /** Target recovery days (auto-set from type, but can be customized). */
+  targetDays: number;
 };
 
 export const QUIT_ICONS = ['ban', 'flame', 'phone-portrait', 'logo-no-smoking', 'cafe', 'fast-food', 'game-controller', 'tv', 'bed', 'wine', 'cash', 'chatbubbles'] as const;
@@ -62,6 +85,7 @@ export const QUIT_COLORS = ['#7A5CFA', '#E0609B', '#D55E00', '#1BA6A8', '#2563EB
 const num = (n: unknown, d = 0) => (typeof n === 'number' && Number.isFinite(n) && n >= 0 ? n : d);
 const str = (s: unknown) => (typeof s === 'string' ? s : '');
 const trig = (t: unknown): Trigger | undefined => (typeof t === 'string' && t in TRIGGERS ? (t as Trigger) : undefined);
+const typ = (t: unknown): HabitType => (typeof t === 'string' && t in HABIT_TYPES ? (t as HabitType) : 'habit');
 
 export function parseQuits(raw: string | null): Quit[] {
   let data: unknown;
@@ -79,6 +103,7 @@ export function parseQuits(raw: string | null): Quit[] {
     if (typeof o.id !== 'string' || seen.has(o.id) || !str(o.name).trim() || !(num(o.start) > 0)) continue;
     seen.add(o.id);
     const list = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && num(x.at) > 0) : []);
+    const type = typ(o.type);
     out.push({
       id: o.id,
       name: str(o.name).trim(),
@@ -92,6 +117,9 @@ export function parseQuits(raw: string | null): Quit[] {
       minutesPerDay: num(o.minutesPerDay),
       slips: list(o.slips).map((s) => ({ at: s.at as number, ...(trig(s.trigger) ? { trigger: trig(s.trigger) } : {}), ...(str(s.note) ? { note: str(s.note) } : {}) })).sort((a, b) => a.at - b.at),
       urges: list(o.urges).map((u) => ({ at: u.at as number, resisted: u.resisted === true, ...(trig(u.trigger) ? { trigger: trig(u.trigger) } : {}) })).sort((a, b) => a.at - b.at),
+      password: str(o.password) || undefined,
+      type,
+      targetDays: num(o.targetDays, HABIT_TYPES[type].targetDays),
     });
   }
   return out;
@@ -121,6 +149,13 @@ export function milestone(ms: number): { next: number; prev: number; share: numb
     next = prev + 365;
   }
   return { next, prev, share: (d - prev) / (next - prev) };
+}
+
+/** How the current run stands against your target: days done, days left, progress (0–1), and whether you hit it. */
+export function target(q: Quit, now: number): { days: number; left: number; share: number; done: boolean } {
+  const ms = Math.max(0, now - runStart(q));
+  const days = Math.floor(ms / DAY_MS);
+  return { days, left: Math.max(0, q.targetDays - days), share: Math.min(1, ms / (q.targetDays * DAY_MS)), done: ms >= q.targetDays * DAY_MS };
 }
 
 /** Your longest clean run in ms (the current one counts). */

@@ -8,6 +8,7 @@ import { MenuButton } from '../../components/SideMenu';
 import { energyFor, targetsFor } from '../../lib/energy';
 import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
 import { readNumbers, writeEntry } from '../../lib/meta';
+import { showUndo } from '../../lib/undo';
 import { useSettings } from '../../lib/settings';
 import { dateKey, mealMacros, parseNum } from '../../lib/logic';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
@@ -229,7 +230,7 @@ export default function Food() {
             <View key={i} style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
               <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
               <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
-              <Pressable onPress={() => saveExtras(extras.filter((_, j) => j !== i))} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
+              <Pressable onPress={() => { saveExtras(extras.filter((_, j) => j !== i)); showUndo('اتمسح أكل', () => saveExtras(extras)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
                 <Ionicons name="close" size={16} color={t.mute} />
               </Pressable>
             </View>

@@ -1,9 +1,10 @@
 /// <reference types="jest" />
-import { clean, cleanDays, DAY_MS, longest, milestone, parseQuits, quitsWeek, reached, riskyTime, runLabel, runStart, saved, triggerCounts, urgeScore, type Quit } from '../src/lib/quit';
+import { clean, cleanDays, DAY_MS, longest, milestone, parseQuits, quitsWeek, reached, riskyTime, runLabel, runStart, saved, target, triggerCounts, urgeScore, type Quit } from '../src/lib/quit';
 
 const at = (s: string) => new Date(s).getTime();
 const q: Quit = {
   id: 'q1', name: 'سجاير', icon: 'ban', color: '#7A5CFA', start: at('2026-11-01T10:00:00'), why: 'صحتي', replace: 'مية', costPerDay: 50, currency: 'ج.م', minutesPerDay: 30,
+  type: 'smoking', targetDays: 100,
   slips: [{ at: at('2026-11-04T23:00:00'), trigger: 'stress' }],
   urges: [{ at: at('2026-11-03T22:30:00'), resisted: true, trigger: 'stress' }, { at: at('2026-11-05T15:00:00'), resisted: false, trigger: 'bored' }],
 };
@@ -38,6 +39,16 @@ test('a slip keeps the record: longest run, clean days, saved', () => {
   const s = saved(q, NOW);
   expect(s.money).toBe(Math.round(50 * ((NOW - q.start) / DAY_MS - 1)));
   expect(s.minutes).toBe(Math.round(30 * ((NOW - q.start) / DAY_MS - 1)));
+});
+
+test('target: days done, days left, done at the target', () => {
+  expect(target(q, NOW)).toEqual({ days: 1, left: 99, share: (NOW - runStart(q)) / (100 * DAY_MS), done: false });
+  const hit = { ...q, targetDays: 1 };
+  expect(target(hit, NOW)).toMatchObject({ share: 1, done: true });
+});
+
+test('parse fills type and target, defaulting a bad type to habit', () => {
+  expect(parseQuits(JSON.stringify([{ ...q, type: 'nope', targetDays: undefined }]))[0]).toMatchObject({ type: 'habit', targetDays: 66 });
 });
 
 test('triggers, risky time, urges', () => {

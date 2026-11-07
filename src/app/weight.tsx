@@ -7,6 +7,8 @@ import { Btn, Card, Label, Screen, Sep, Sheet, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { GOAL } from '../lib/energy';
 import { dateKey, parseNum } from '../lib/logic';
+import { confirm } from '../lib/confirm';
+import { showUndo } from '../lib/undo';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
@@ -152,7 +154,7 @@ export default function WeightScreen() {
                     <T style={{ flex: 1, fontSize: 13.5 }}>{w.date === today ? 'النهارده' : dayLabel(w.date)}</T>
                     {prev ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{iso(signed(w.kg - prev.kg))}</T> : null}
                     <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{iso(fmt(w.kg))}</T>
-                    <Pressable onPress={() => save(removeWeighIn(list, w.date))} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح وزن ${dayLabel(w.date)}`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}>
+                    <Pressable onPress={() => { save(removeWeighIn(list, w.date)); showUndo('اتمسح وزن', () => save(list)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح وزن ${dayLabel(w.date)}`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}>
                       <Ionicons name="trash-outline" size={16} color={t.mute} />
                     </Pressable>
                   </View>
@@ -293,7 +295,7 @@ export default function WeightScreen() {
           <>
             <Image source={{ uri: view.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 12 }} resizeMode="contain" />
             <BodyLine t={t} b={at(view.date)} />
-            <Btn label="امسح الصورة" onPress={() => { deletePhoto(view); setPhotos(listPhotos()); setView(null); }} />
+            <Btn label="امسح الصورة" onPress={async () => { if (await confirm({ title: 'تمسح الصورة؟', confirmLabel: 'امسح', danger: true })) { deletePhoto(view); setPhotos(listPhotos()); setView(null); } }} />
           </>
         ) : null}
       </Sheet>

@@ -13,6 +13,7 @@ import { CardioCard } from '../../components/CardioCard';
 import { dateKey, formatClock, weekdayOf } from '../../lib/logic';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
+import { confirm } from '../../lib/confirm';
 import { deloadOn, useSettings } from '../../lib/settings';
 import { useReport } from '../../lib/useReport';
 import { useDataVersion } from '../../lib/bus';
@@ -57,7 +58,6 @@ function WorkoutScreen() {
   const date = view && view < today ? view : today;
   const live = date === today;
   const [picked, setPicked] = useState<{ date: string; id: number } | null>(null);
-  const [confirm, setConfirm] = useState(false);
   const { cards, bump, bumpAll } = useDataVersion();
 
   // Workouts run in one sequence, not by weekday: open on the one after your last session (src/lib/schedule.ts).
@@ -70,7 +70,6 @@ function WorkoutScreen() {
   const pick = (id: number) => {
     setPicked({ date, id });
     setTapped(null);
-    setConfirm(false);
   };
   const openOne = (id: string) => {
     LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
@@ -111,7 +110,7 @@ function WorkoutScreen() {
           return (
             <Pressable
               key={k}
-              onPress={() => { setChoosing(false); setView(k === today ? null : k); setPicked(null); setTapped(null); setConfirm(false); }}
+              onPress={() => { setChoosing(false); setView(k === today ? null : k); setPicked(null); setTapped(null); }}
               accessibilityRole="button"
               accessibilityState={{ selected: on }}
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 12, paddingHorizontal: 12, backgroundColor: on ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 })}>
@@ -183,15 +182,7 @@ function WorkoutScreen() {
         </Pressable>
       ) : null}
       <View style={{ gap: 8, marginTop: 4 }}>
-        {!confirm ? (
-          <Btn label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={() => setConfirm(true)} />
-        ) : (
-          <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
-            <T style={{ color: t.mute }}>متأكد؟</T>
-            <Btn label="أيوه امسح" kind="solid" onPress={() => { storage.clearDay(date, day.exercises.map((e) => e.id)); setConfirm(false); bumpAll(); }} />
-            <Btn label="لا" onPress={() => setConfirm(false)} />
-          </View>
-        )}
+        <Btn label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) { storage.clearDay(date, day.exercises.map((e) => e.id)); bumpAll(); } }} />
       </View>
     </Screen>
   );

@@ -1,8 +1,12 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useState } from 'react';
+import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import Ionicons from '@expo/vector-icons/Ionicons';
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { Ring, T } from './ui';
-import { clean, milestone, runLabel, type Quit } from '../lib/quit';
+import { useTween } from '../lib/motion';
+import { clean, cleanDays, longest, milestone, runLabel, target, type Quit } from '../lib/quit';
+
+type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 export const NIGHT = '#17122A';
 
@@ -68,7 +72,81 @@ export function nextLine(q: Quit, now: number): string {
   return `فاضل ${runLabel(left)} على ${name}`;
 }
 
+function Stat({ icon, label }: { icon: IconName; label: string }) {
+  return (
+    <View style={s.stat}>
+      <Ionicons name={icon} size={13} color="rgba(255,255,255,0.75)" />
+      <T w="semi" style={{ color: 'rgba(255,255,255,0.85)', fontSize: 12 }} numberOfLines={1}>{label}</T>
+    </View>
+  );
+}
+
+/** One bad habit on the بطّل list: a modern night card — glassy icon, clean-time ring, a target bar, and the urge button. */
+export function QuitCard({ q, now, onOpen, onUrge }: { q: Quit; now: number; onOpen: () => void; onUrge: () => void }) {
+  const tg = target(q, now);
+  const d = cleanDays(q, now);
+  const best = longest(q, now);
+  const [scale] = useState(() => new Animated.Value(1));
+  const spring = (to: number) => Animated.spring(scale, { toValue: to, useNativeDriver: true, speed: 50, bounciness: 3 }).start();
+  const bar = useTween(Math.max(0.015, tg.share), 500);
+  const gold = tg.done;
+
+  return (
+    <NightCard color={q.color} style={{ gap: 15 }}>
+      <Animated.View style={{ transform: [{ scale }] }}>
+        <Pressable
+          onPress={onOpen}
+          onPressIn={() => spring(0.97)}
+          onPressOut={() => spring(1)}
+          accessibilityRole="button"
+          accessibilityLabel={q.password ? 'عادة محمية' : q.name}
+          style={{ gap: 15 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
+            <View style={[s.badge, { backgroundColor: `${q.color}26`, borderColor: `${q.color}66` }]}>
+              <Ionicons name={q.icon as IconName} size={21} color="#FFFFFF" />
+            </View>
+            <View style={{ flex: 1, gap: 1 }}>
+              {!q.password ? <T w="bold" style={{ color: '#FFFFFF', fontSize: 16 }} numberOfLines={1}>{q.name}</T> : null}
+              <T style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12.5 }} numberOfLines={1}>{nextLine(q, now)}</T>
+            </View>
+            {q.password ? <Ionicons name="lock-closed" size={14} color="rgba(255,255,255,0.4)" /> : null}
+            <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.4)" />
+          </View>
+
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <CleanRing q={q} now={now} size={98} />
+            <View style={{ flex: 1, gap: 11 }}>
+              <View style={{ gap: 6 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                  <T style={{ color: 'rgba(255,255,255,0.7)', fontSize: 12 }}>{gold ? 'وصلت هدفك' : `هدفك ${q.targetDays} يوم`}</T>
+                  <T w="numBold" style={{ color: gold ? '#FFD700' : '#FFFFFF', fontSize: 12.5 }}>{gold ? '🎉' : `فاضل ${tg.left}`}</T>
+                </View>
+                <View style={s.track}>
+                  <Animated.View style={{ height: '100%', borderRadius: 4, backgroundColor: gold ? '#FFD700' : q.color, width: bar.interpolate({ inputRange: [0, 1], outputRange: ['0%', '100%'] }), boxShadow: `0px 0px 10px ${gold ? '#FFD700' : q.color}` }} />
+                </View>
+              </View>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Stat icon="trophy" label={runLabel(best)} />
+                <Stat icon="calendar" label={`${Math.round(d.rate * 100)}% نضيف`} />
+              </View>
+            </View>
+          </View>
+        </Pressable>
+      </Animated.View>
+
+      <Pressable onPress={onUrge} accessibilityRole="button" accessibilityLabel="جالي إلحاح" style={({ pressed }) => [s.urge, { backgroundColor: q.color, boxShadow: `0px 2px 20px ${q.color}99`, opacity: pressed ? 0.85 : 1 }]}>
+        <Ionicons name="pulse" size={18} color="#FFFFFF" />
+        <T w="bold" style={{ color: '#FFFFFF', fontSize: 15 }}>جالي إلحاح</T>
+      </Pressable>
+    </NightCard>
+  );
+}
+
 const s = StyleSheet.create({
   card: { borderRadius: 28, overflow: 'hidden', padding: 18, backgroundColor: NIGHT },
   box: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)' },
+  badge: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
+  stat: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingVertical: 5, paddingHorizontal: 9 },
+  urge: { flexDirection: 'row', gap: 8, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
 });

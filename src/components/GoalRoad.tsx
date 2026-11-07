@@ -3,6 +3,7 @@ import { LayoutAnimation, Platform, Pressable, StyleSheet, TextInput, View } fro
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Sheet, T } from './ui';
 import { saveGoal } from '../lib/goalStore';
+import { showUndo } from '../lib/undo';
 import { currentStage, goalId, moveStage, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { tap } from '../lib/timer';
 import { F, tint, type Theme } from '../theme';
@@ -203,6 +204,7 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
   };
   const remove = () => {
     saveGoal({ ...g, stages: task ? g.stages.map((x) => (x.id === st.id ? { ...x, tasks: x.tasks.filter((y) => y.id !== task.id) } : x)) : g.stages.filter((x) => x.id !== st.id) });
+    showUndo(task ? 'اتمسحت خطوة' : 'اتمسحت مرحلة', () => saveGoal(g));
     onClose();
   };
   return (

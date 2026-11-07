@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Btn, Pill, Sheet, T } from './ui';
 import { longest, runLabel, TRIGGERS, URGE_MINUTES, type Quit, type Trigger } from '../lib/quit';
 import { addSlip, addUrge } from '../lib/quitStore';
+import { confirm } from '../lib/confirm';
 import { useNow } from '../lib/useNow';
 import { useReducedMotion } from '../lib/motion';
 import { tap } from '../lib/timer';
@@ -136,7 +137,8 @@ export function SlipSheet({ q, onClose }: { q: Quit; onClose: () => void }) {
   const [note, setNote] = useState('');
   const [h, setH] = useState(0);
   const now = useNow(60000);
-  const save = () => {
+  const save = async () => {
+    if (!(await confirm({ title: 'تسجّل إنك وقعت؟', body: 'العداد هيبدأ من جديد. أطول مدة ليك هتفضل محفوظة.', confirmLabel: 'سجّل', danger: true }))) return;
     tap();
     const at = Math.max(q.start + 1, stamp() - h * 3600000);
     addSlip(q, { at, ...(trigger ? { trigger } : {}), ...(note.trim() ? { note: note.trim() } : {}) });
@@ -148,8 +150,29 @@ export function SlipSheet({ q, onClose }: { q: Quit; onClose: () => void }) {
       <View style={s.grid}>{WHEN.map((w) => <Pill key={w.h} label={w.label} on={h === w.h} onPress={() => setH(w.h)} />)}</View>
       <T w="medium" style={{ fontSize: 13.5 }}>إيه اللي جابها؟</T>
       <TriggerPicks value={trigger} onChange={setTrigger} />
-      <TextInput value={note} onChangeText={setNote} placeholder="حاجة تتعلم منها المرة الجاية (اختياري)" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="ملاحظة" style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+      <TextInput value={note} onChangeText={setNote} placeholder="حاجة تتعلم منها المرة الجاية (اختياري)" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="ملاحظة" textAlign="right" style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
       <Btn label="سجّل وابدأ من جديد" kind="solid" onPress={save} />
+    </Sheet>
+  );
+}
+
+/** Password verification modal to access quit details when protected. */
+export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, onClose }: { quitId: string; password: string; onPasswordChange: (v: string) => void; onConfirm: () => void; onClose: () => void }) {
+  const t = useTheme();
+  return (
+    <Sheet visible onClose={onClose} title="محمية بكلمة سر" sub="ادخل كلمة السر للدخول">
+      <TextInput
+        value={password}
+        onChangeText={onPasswordChange}
+        placeholder="كلمة السر"
+        placeholderTextColor={t.mute}
+        secureTextEntry
+        maxLength={40}
+        accessibilityLabel="كلمة السر"
+        textAlign="right"
+        style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+      />
+      <Btn label="ادخل" kind="solid" onPress={onConfirm} />
     </Sheet>
   );
 }

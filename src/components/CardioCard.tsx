@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { parseSteps, STEPS_GOAL, STEPS_KEY, CARDIO, CARDIO_KEY, cardioId, cardioKcal, cardioWeek, INTENSITY, parseCardio, WHO_MIN, type Cardio, type CardioType, type Intensity } from '../lib/cardio';
 import { useDataVersion } from '../lib/bus';
+import { showUndo } from '../lib/undo';
 import { weekStart } from '../lib/gaps';
 import { parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
@@ -66,7 +67,7 @@ export function CardioCard({ date }: { date: string }) {
             {c.steps ? ` · ${iso(c.steps.toLocaleString('en-US'))} خطوة` : ''}
           </T>
           {weight ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`≈${cardioKcal(c, weight)} سعر`}</T> : null}
-          <Pressable onPress={() => save(list.filter((x) => x.id !== c.id))} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${CARDIO[c.type].label}`}>
+          <Pressable onPress={() => { save(list.filter((x) => x.id !== c.id)); showUndo('اتمسح كارديو', () => save(list)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${CARDIO[c.type].label}`}>
             <Ionicons name="close" size={16} color={t.mute} />
           </Pressable>
         </View>

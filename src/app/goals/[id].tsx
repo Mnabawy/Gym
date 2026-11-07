@@ -11,6 +11,8 @@ import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
 import { addNextStep, addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
 import { addDays, daysBetween } from '../../lib/gaps';
 import { dateKey, parseNum } from '../../lib/logic';
+import { confirm } from '../../lib/confirm';
+import { showUndo } from '../../lib/undo';
 import { tap } from '../../lib/timer';
 import { F, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
 
@@ -41,7 +43,6 @@ function GoalPage() {
   const [logging, setLogging] = useState(false);
   const [winning, setWinning] = useState(false);
   const [reviewing, setReviewing] = useState(false);
-  const [confirm, setConfirm] = useState(false);
   const [allLog, setAllLog] = useState(false);
 
   if (!g) {
@@ -166,7 +167,7 @@ function GoalPage() {
               <T w="semi" style={{ flex: 1, fontSize: 14 }}>{w.title}</T>
               <T style={{ fontSize: 11.5, color: t.mute }}>{dayLabel(w.date)}</T>
               {!w.auto ? (
-                <Pressable onPress={() => save({ ...g, wins: g.wins.filter((x) => x.id !== w.id) })} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${w.title}`}>
+                <Pressable onPress={() => { save({ ...g, wins: g.wins.filter((x) => x.id !== w.id) }); showUndo('اتمسح إنجاز', () => save(g)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${w.title}`}>
                   <Ionicons name="close" size={16} color={t.mute} />
                 </Pressable>
               ) : null}
@@ -185,7 +186,7 @@ function GoalPage() {
               <T w="num" style={{ fontSize: 14.5, color: e.amount >= 0 ? t.okText : t.warn, minWidth: 84 }}>{`${e.amount >= 0 ? '+' : ''}${fmt(e.amount)}`}</T>
               <T style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{e.note ?? ''}</T>
               <T style={{ fontSize: 11.5, color: t.mute }}>{dayLabel(e.date)}</T>
-              <Pressable onPress={() => save({ ...g, entries: g.entries.filter((x) => x.id !== e.id) })} hitSlop={10} accessibilityRole="button" accessibilityLabel="امسح">
+              <Pressable onPress={() => { save({ ...g, entries: g.entries.filter((x) => x.id !== e.id) }); showUndo('اتمسح تسجيل', () => save(g)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="امسح">
                 <Ionicons name="close" size={16} color={t.mute} />
               </Pressable>
             </View>
@@ -218,15 +219,7 @@ function GoalPage() {
       )}
 
       <T style={{ fontSize: 12, color: t.mute, textAlign: 'center' }}>{`بدأت ${dayLabel(g.startDate)} · من ${daysBetween(g.startDate, today) + 1} يوم${g.due ? ` · الميعاد ${monthLabel(g.due)}` : ''}`}</T>
-      {!confirm ? <Btn label="امسح الهدف" onPress={() => setConfirm(true)} /> : (
-        <Card style={{ padding: 12, gap: 8 }}>
-          <T w="semi">تمسح الهدف ده وكل اللي اتسجل فيه؟</T>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Btn label="لا" onPress={() => setConfirm(false)} style={{ flex: 1 }} />
-            <Btn label="امسح" kind="solid" onPress={() => { deleteGoal(g.id); router.back(); }} style={{ flex: 1 }} />
-          </View>
-        </Card>
-      )}
+      <Btn label="امسح الهدف" onPress={async () => { if (await confirm({ title: 'تمسح الهدف ده؟', body: 'هيتشال هو وكل اللي اتسجل فيه.', confirmLabel: 'امسح', danger: true })) { deleteGoal(g.id); router.back(); } }} />
     </Screen>
   );
 }

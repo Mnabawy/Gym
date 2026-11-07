@@ -9,6 +9,8 @@ import { AmiriQuran_400Regular } from '@expo-google-fonts/amiri-quran';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VersePopup } from '../components/VersePopup';
 import { AppLock } from '../components/AppLock';
+import { UndoBar } from '../components/UndoBar';
+import { ConfirmHost } from '../components/ConfirmHost';
 import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
@@ -52,6 +54,8 @@ export default function RootLayout() {
       <VersePopup />
       <ReminderSync />
       <DriveSync />
+      <UndoBar />
+      <ConfirmHost />
       <AppLock />
     </SafeAreaProvider>
   );

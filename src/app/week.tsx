@@ -171,7 +171,6 @@ export default function WeekScreen() {
             {r.quits.map((q) => (
               <View key={q.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: q.color }} />
-                <T w="semi" style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{q.name}</T>
                 <T style={{ fontSize: 12.5, color: t.mute }}>{`${q.cleanDays} أيام نضيفة${q.slips ? ` · ${q.slips} وقعة` : ''}${q.urges ? ` · قاومت ${q.resisted} من ${q.urges}` : ''}`}</T>
               </View>
             ))}
