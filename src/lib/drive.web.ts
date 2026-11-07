@@ -7,5 +7,5 @@ export const DRIVE_AT = 'driveAt';
 export const DRIVE_ERROR = 'driveError';
 export const linkDrive = async (): Promise<string | null> => null;
 export const unlinkDrive = async () => {};
-export const syncDrive = async (_force = false): Promise<'uploaded' | 'skipped' | 'unlinked'> => 'unlinked';
+export const syncDrive = async (_force = false, _soon = false): Promise<'uploaded' | 'skipped' | 'unlinked' | 'kept'> => 'unlinked';
 export const fetchDrive = async (): Promise<string | null> => null;

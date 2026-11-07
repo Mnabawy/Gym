@@ -5,14 +5,14 @@ import { router } from 'expo-router';
 import { MONTHS_AR, PROGRAM, WEEKDAYS_AR } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { useVersePopup } from '../components/VersePopup';
-import { countAr, dateKey, DAYS, formatClock, SETS } from '../lib/logic';
+import { countAr, dateKey, DAYS, formatClock } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { deloadOn, useSettings } from '../lib/settings';
 import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
-import { BACKUP_STALE_DAYS, backupInfo, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
+import { BACKUP_STALE_DAYS, backupInfo, infoText, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
 import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { daysBetween } from '../lib/gaps';
@@ -42,10 +42,7 @@ const timeAr = (m: number) => {
 const WEEK = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
 const PHOTOS: [string, string, string, string] = ['صورة', 'صورتين', 'صور', 'صورة'];
-const infoAr = (i: BackupInfo) =>
-  !i.sets && !i.meals && !i.photos
-    ? 'مفيش تسجيل لسه'
-    : `${countAr(i.sets, SETS)} في ${countAr(i.days, DAYS)}${i.from && i.to ? ` (من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''} · ${countAr(i.meals, ['وجبة', 'وجبتين', 'وجبات', 'وجبة'])}${i.photos ? ` · ${countAr(i.photos, PHOTOS)}` : ''}`;
+const infoAr = (i: BackupInfo) => (i.total ? `${infoText(i)}${i.from && i.to ? ` (تمارين من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''}` : 'مفيش تسجيل لسه');
 
 export default function SettingsScreen() {
   const t = useTheme();

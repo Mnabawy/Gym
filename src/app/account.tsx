@@ -4,10 +4,9 @@ import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
 import { Btn, Card, Label, Row, Screen, Sep, T } from '../components/ui';
-import { backupInfo, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
+import { backupInfo, infoText, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { useDataVersion } from '../lib/bus';
 import { DRIVE_AT, DRIVE_ERROR, DRIVE_NAME, DRIVE_PHOTO, DRIVE_USER, driveSupported, fetchDrive, linkDrive, syncDrive, unlinkDrive } from '../lib/drive';
-import { countAr, DAYS, SETS } from '../lib/logic';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { applyBackup, WELCOME_KEY, wipeLocal } from '../lib/restore';
 import { storage } from '../lib/storage';
@@ -15,7 +14,6 @@ import type { Dump } from '../lib/storage.types';
 import { tint, useTheme } from '../theme';
 
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
-const PHOTOS: [string, string, string, string] = ['صورة', 'صورتين', 'صور', 'صورة'];
 
 /** Your account (side menu → your name): who you're signed in as, the Drive backup, restore from it, and sign-out. */
 export default function Account() {
@@ -93,19 +91,41 @@ export default function Account() {
       {!driveSupported ? (
         <T style={{ color: t.mute, fontSize: 13, textAlign: 'center' }}>الحساب على الموبايل بس</T>
       ) : !email ? (
-        <Btn label="ادخل بحساب Google" kind="solid" onPress={() => run(async () => { const e = await linkDrive(); if (e) { await syncDrive(true).catch(() => {}); setMsg({ text: `دخلت بـ ${e} ✓` }); } })} />
+        <Btn
+          label="ادخل بحساب Google"
+          kind="solid"
+          onPress={() =>
+            run(async () => {
+              const e = await linkDrive();
+              if (!e) return;
+              // Drive already has your data: bring it back to an empty phone, or ask when both have some.
+              const x = await fetchDrive().catch(() => null);
+              const p = x ? parseBackup(x) : null;
+              if (p?.ok && p.info.total > 0) {
+                if (mine.total === 0) {
+                  applyBackup(p.data, p.photos);
+                  return setMsg({ text: `دخلت بـ ${e} ورجّعت بياناتك من Drive ✓` });
+                }
+                setPending({ data: p.data, photos: p.photos, info: p.info, exportedAt: p.exportedAt });
+                return setMsg({ text: `دخلت بـ ${e}. على Drive نسخة فيها بيانات: ترجّعها ولا تخلّي اللي على الموبايل؟` });
+              }
+              await syncDrive(true).catch(() => {});
+              setMsg({ text: `دخلت بـ ${e} ✓` });
+            })
+          }
+        />
       ) : (
         <>
           <Label>النسخة على Google Drive</Label>
           <Card>
             <Row
               label={failed ? 'آخر رفعة ما نفعتش' : at ? `آخر رفعة: ${dayAr(at)}` : 'لسه ما اترفعش'}
-              sub={failed ? 'اتأكد من النت، ولو فضلت كده اخرج وادخل تاني' : 'ملف واحد «Gym backup.json» بيتحدّث لوحده مرة في اليوم لو في جديد، ومعاه الصور'}>
+              sub={failed ? 'اتأكد من النت، ولو فضلت كده اخرج وادخل تاني' : 'ملف واحد «Gym backup.json» بيتحدّث لوحده بعد كل تغيير بدقايق، ومعاه الصور'}>
               <Ionicons name={failed ? 'alert-circle' : 'cloud-done'} size={24} color={failed ? t.bad : t.okText} />
             </Row>
             <Sep />
             <View style={{ flexDirection: 'row', gap: 8, padding: 12 }}>
-              <Btn label="ارفع دلوقتي" kind="solid" style={{ flex: 1 }} onPress={() => run(async () => { await syncDrive(true); setMsg({ text: 'اترفعت على Drive ✓' }); })} />
+              <Btn label="ارفع دلوقتي" kind="solid" style={{ flex: 1 }} onPress={() => run(async () => { const r = await syncDrive(true); setMsg(r === 'kept' ? { text: 'الموبايل مفيهوش حاجة متسجلة وDrive عليه بياناتك، فما رفعتش عشان متضيعش. دوس «رجّع من Drive»', bad: true } : { text: 'اترفعت على Drive ✓' }); })} />
               <Btn
                 label="رجّع من Drive"
                 style={{ flex: 1 }}
@@ -123,7 +143,7 @@ export default function Account() {
             {pending ? (
               <View style={[s.box, { backgroundColor: t.warnSoft }]}>
                 <T w="semi" style={{ color: t.warn }}>
-                  {`النسخة اللي على Drive${pending.exportedAt ? ` (${dayAr(pending.exportedAt.slice(0, 10))})` : ''}: ${countAr(pending.info.sets, SETS)} في ${countAr(pending.info.days, DAYS)}${pending.info.photos ? ` · ${countAr(pending.info.photos, PHOTOS)}` : ''}`}
+                  {`النسخة اللي على Drive${pending.exportedAt ? ` (${dayAr(pending.exportedAt.slice(0, 10))})` : ''}: ${infoText(pending.info)}`}
                 </T>
                 <T style={{ fontSize: 12.5, lineHeight: 19 }}>هتحط النسخة دي مكان اللي على الموبايل دلوقتي. الصور اللي على الموبايل بتفضل. متأكد؟</T>
                 <View style={{ flexDirection: 'row', gap: 8 }}>

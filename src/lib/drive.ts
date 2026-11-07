@@ -1,10 +1,12 @@
 // Backup to your Google Drive (settings → Google Drive): sign in once, then one file ("Gym backup.json") is updated in
-// place, at most once a day when something changed (a few seconds after the app opens), or when you tap "ارفع دلوقتي".
+// place a little after each change (at most every few minutes), when the app goes to the background, a few seconds
+// after it opens, or when you tap "ارفع دلوقتي". An empty phone (e.g. right after reinstalling) never overwrites a
+// backup that has your data, and restoring reads every copy in Drive and takes the one with the most in it.
 // Setup on Google Cloud (Android OAuth client for the app's package + signing SHA-1): docs/google-drive-setup.md.
 // Web: drive.web.ts.
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
-import { LAST_BACKUP_KEY, toBackup } from './backup';
-import { DRIVE_SCOPE, DriveError, downloadBackup, findBackup, fingerprint, uploadBackup } from './driveApi';
+import { hasData, LAST_BACKUP_KEY, parseBackup, toBackup } from './backup';
+import { DRIVE_SCOPE, DriveError, downloadBackup, fingerprint, listBackups, pickBest, uploadBackup } from './driveApi';
 import { dateKey } from './logic';
 import { exportPhotos } from './photos';
 import { storage } from './storage';
@@ -19,6 +21,10 @@ export const DRIVE_PHOTO = 'drivePhoto';
 const DRIVE_ID = 'driveFileId';
 export const DRIVE_AT = 'driveAt';
 const DRIVE_SIG = 'driveSig';
+/** Time (ms) of the last upload, to space them out. */
+const DRIVE_AT_MS = 'driveAtMs';
+/** Uploads after a change wait at least this long after the last one. */
+const MIN_GAP_MS = 3 * 60 * 1000;
 export const DRIVE_ERROR = 'driveError';
 
 let configured = false;
@@ -47,10 +53,10 @@ export async function linkDrive(): Promise<string | null> {
     storage.setMeta(DRIVE_USER, r.data.user.email);
     storage.setMeta(DRIVE_NAME, r.data.user.givenName ?? r.data.user.name ?? '');
     storage.setMeta(DRIVE_PHOTO, r.data.user.photo ?? '');
-    // A backup already in Drive (e.g. from your old phone) keeps being the one we update.
+    // A backup already in Drive (from your old phone, or before reinstalling) keeps being the one we update.
     const t = (await GoogleSignin.getTokens()).accessToken;
-    const found = await findBackup(t, fetch);
-    storage.setMeta(DRIVE_ID, found?.id ?? '');
+    const best = await bestRemote(t);
+    storage.setMeta(DRIVE_ID, best?.id ?? '');
     return r.data.user.email;
   } catch (e) {
     if ((e as { code?: string }).code === statusCodes.SIGN_IN_CANCELLED) return null;
@@ -63,46 +69,75 @@ export async function unlinkDrive() {
   try {
     await GoogleSignin.signOut();
   } catch {}
-  for (const k of [DRIVE_USER, DRIVE_NAME, DRIVE_PHOTO, DRIVE_ID, DRIVE_AT, DRIVE_SIG, DRIVE_ERROR]) storage.setMeta(k, '');
+  for (const k of [DRIVE_USER, DRIVE_NAME, DRIVE_PHOTO, DRIVE_ID, DRIVE_AT, DRIVE_AT_MS, DRIVE_SIG, DRIVE_ERROR]) storage.setMeta(k, '');
   useDataVersion.getState().bump();
 }
 
+type Remote = { id: string; text: string; score: number };
+
+/** The copy in Drive with the most in it (every copy is read: an empty one from a fresh install must never win). */
+async function bestRemote(t: string): Promise<Remote | null> {
+  const files = await listBackups(t, fetch);
+  const read = await Promise.all(
+    files.map(async (x) => {
+      const text = await downloadBackup(t, x.id, fetch).catch(() => '');
+      const p = text ? parseBackup(text) : null;
+      return { ...x, text, score: p?.ok ? p.info.total : 0 };
+    }),
+  );
+  const b = pickBest(read);
+  return b ? { id: b.id, text: b.text, score: b.score } : null;
+}
+
 /**
- * Uploads the backup (with photos) to the one Drive file. Without `force`, only once a day and only when something
- * changed since the last upload.
+ * Uploads the backup (with photos) to the one Drive file when something changed since the last upload, at most every
+ * few minutes (`soon` skips the wait: going to the background). `force` uploads even when nothing changed.
+ * 'kept': the phone has nothing logged and Drive has your data, so nothing was written.
  */
-export async function syncDrive(force = false): Promise<'uploaded' | 'skipped' | 'unlinked'> {
+export async function syncDrive(force = false, soon = false): Promise<'uploaded' | 'skipped' | 'unlinked' | 'kept'> {
   if (!storage.getMeta(DRIVE_USER)) return 'unlinked';
   const today = dateKey();
-  if (!force && storage.getMeta(DRIVE_AT) === today) return 'skipped';
+  const now = Date.now();
+  if (!force && !soon && now - Number(storage.getMeta(DRIVE_AT_MS) || 0) < MIN_GAP_MS) return 'skipped';
   const photos = await exportPhotos();
   const data = storage.dump();
   // The fingerprint leaves out our own bookkeeping, which changes on every upload.
-  for (const k of [DRIVE_AT, DRIVE_SIG, DRIVE_ERROR, LAST_BACKUP_KEY, 'autoBackupAt', 'autoBackupError', 'welcomeDone']) delete data.meta[k];
+  for (const k of [DRIVE_AT, DRIVE_AT_MS, DRIVE_SIG, DRIVE_ERROR, LAST_BACKUP_KEY, 'autoBackupAt', 'autoBackupError', 'welcomeDone', 'verse.last', 'section']) delete data.meta[k];
   const sig = fingerprint(JSON.stringify(data) + photos.map((p) => p.name).join());
   if (!force && sig === storage.getMeta(DRIVE_SIG)) return 'skipped';
   try {
     const t = await token();
     if (!t) throw new DriveError(401, 'not signed in');
+    // Never write an empty phone over a backup that has your data (right after reinstalling, say).
+    if (!hasData(data, photos.length)) {
+      const best = await bestRemote(t);
+      if (best && best.score > 0) {
+        storage.setMeta(DRIVE_ID, best.id);
+        return 'kept';
+      }
+    }
     const id = await uploadBackup(t, toBackup(storage.dump(), new Date(), photos), storage.getMeta(DRIVE_ID) || null, fetch);
     storage.setMeta(DRIVE_ID, id);
     storage.setMeta(DRIVE_AT, today);
+    storage.setMeta(DRIVE_AT_MS, String(now));
     storage.setMeta(DRIVE_SIG, sig);
     storage.setMeta(LAST_BACKUP_KEY, today);
     storage.setMeta(DRIVE_ERROR, '');
+    useDataVersion.getState().bump();
     return 'uploaded';
   } catch (e) {
     storage.setMeta(DRIVE_ERROR, today);
-    throw e;
-  } finally {
     useDataVersion.getState().bump();
+    throw e;
   }
 }
 
-/** The backup text from Drive, or null when there's none. */
+/** The backup text from Drive (the copy with the most in it, which then becomes the one we update), or null. */
 export async function fetchDrive(): Promise<string | null> {
   const t = await token();
   if (!t) throw new DriveError(401, 'not signed in');
-  const id = storage.getMeta(DRIVE_ID) || (await findBackup(t, fetch))?.id;
-  return id ? downloadBackup(t, id, fetch) : null;
+  const best = await bestRemote(t);
+  if (!best) return null;
+  storage.setMeta(DRIVE_ID, best.id);
+  return best.text;
 }

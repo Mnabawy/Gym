@@ -7,9 +7,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 import { MONTHS_AR } from '../data/program';
 import { Btn, T } from '../components/ui';
-import { backupInfo, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
+import { backupInfo, infoText, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
+import { listPhotos, photosSupported } from '../lib/photos';
+import { pickBackup } from '../lib/backupIO';
 import { fetchDrive, linkDrive, syncDrive } from '../lib/drive';
-import { countAr, DAYS, SETS } from '../lib/logic';
 import { native, useReducedMotion } from '../lib/motion';
 import { applyBackup, WELCOME_KEY } from '../lib/restore';
 import { storage } from '../lib/storage';
@@ -17,7 +18,7 @@ import type { Dump } from '../lib/storage.types';
 import { neon, ThemeProvider, tint, useTheme } from '../theme';
 
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
-const infoAr = (i: BackupInfo) => (i.sets ? `${countAr(i.sets, SETS)} في ${countAr(i.days, DAYS)}${i.to ? `، آخرها ${dayAr(i.to)}` : ''}` : 'من غير تمارين');
+const infoAr = (i: BackupInfo) => `${infoText(i)}${i.to ? ` (آخر تمرين ${dayAr(i.to)})` : ''}`;
 
 type Choice = { data: Dump; photos: PhotoData[]; remote: BackupInfo; local: BackupInfo };
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -66,6 +67,21 @@ function WelcomeScreen() {
     router.replace('/');
   };
 
+  // A backup file from anywhere the phone can open (Google Drive included, through the file picker).
+  const fromFile = async () => {
+    setErr(null);
+    try {
+      const text = await pickBackup();
+      if (!text) return;
+      const p = parseBackup(text);
+      if (!p.ok) return setErr(p.error);
+      applyBackup(p.data, p.photos);
+      finish();
+    } catch {
+      setErr('معرفتش أفتح الملف، جرّب تاني');
+    }
+  };
+
   const signIn = async () => {
     setErr(null);
     setBusy(true);
@@ -74,10 +90,11 @@ function WelcomeScreen() {
       if (!email) return; // cancelled
       const text = await fetchDrive().catch(() => null);
       const p = text ? parseBackup(text) : null;
-      const local = backupInfo(storage.dump());
-      if (p?.ok && p.info.sets + p.info.meals > 0) {
+      const local = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
+      // Anything you logged counts (habits, goals, weights… not only workouts and meals).
+      if (p?.ok && p.info.total > 0) {
         // Nothing here yet: bring it all back. Data on both: ask.
-        if (local.sets + local.meals === 0) {
+        if (local.total === 0) {
           applyBackup(p.data, p.photos);
           return finish();
         }
@@ -117,7 +134,7 @@ function WelcomeScreen() {
                 <Ionicons name="git-compare-outline" size={20} color={t.ok} />
                 <T w="bold" style={{ fontSize: 16 }}>عندك بيانات في مكانين</T>
               </View>
-              <Source icon="cloud-outline" label="على Drive" text={`${infoAr(choice.remote)}${choice.remote.photos ? ` · ${choice.remote.photos} صورة` : ''}`} />
+              <Source icon="cloud-outline" label="على Drive" text={infoAr(choice.remote)} />
               <Source icon="phone-portrait-outline" label="على الموبايل" text={infoAr(choice.local)} />
               <Btn label="استخدم اللي على Drive" kind="solid" onPress={() => { applyBackup(choice.data, choice.photos); finish(); }} />
               <Btn label="خلّي اللي على الموبايل" onPress={() => { syncDrive(true).catch(() => {}); finish(); }} />
@@ -157,9 +174,14 @@ function WelcomeScreen() {
                   )}
                 </Pressable>
                 {err ? <T style={{ color: t.bad, fontSize: 13, textAlign: 'center' }}>{err}</T> : null}
-                <Pressable onPress={finish} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ alignSelf: 'center', minHeight: 40, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
-                  <T w="medium" style={{ fontSize: 14, color: t.mute }}>كمّل من غير حساب</T>
-                </Pressable>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18 }}>
+                  <Pressable onPress={fromFile} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ minHeight: 40, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+                    <T w="medium" style={{ fontSize: 14, color: t.ok }}>عندي ملف نسخة</T>
+                  </Pressable>
+                  <Pressable onPress={finish} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ minHeight: 40, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+                    <T w="medium" style={{ fontSize: 14, color: t.mute }}>كمّل من غير حساب</T>
+                  </Pressable>
+                </View>
               </Animated.View>
             </>
           )}

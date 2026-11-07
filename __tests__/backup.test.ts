@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { BACKUP_APP, backupFileName, backupInfo, parseBackup, toBackup } from '../src/lib/backup';
+import { BACKUP_APP, backupFileName, backupInfo, parseBackup, toBackup, hasData, infoText } from '../src/lib/backup';
 import type { Dump } from '../src/lib/storage.types';
 
 const dump: Dump = {
@@ -19,7 +19,7 @@ test('round trip keeps everything', () => {
   if (!p.ok) return;
   expect(p.data).toEqual(dump);
   expect(p.exportedAt).toBe('2026-11-05T10:00:00.000Z');
-  expect(p.info).toEqual({ sets: 2, days: 2, meals: 1, photos: 0, from: '2026-11-01', to: '2026-11-03' });
+  expect(p.info).toMatchObject({ sets: 2, days: 2, meals: 1, photos: 0, from: '2026-11-01', to: '2026-11-03' });
   expect(p.photos).toEqual([]);
 });
 
@@ -49,7 +49,7 @@ test('drops broken rows, keeps the good ones', () => {
 });
 
 test('info and file name', () => {
-  expect(backupInfo({ sets: [], meals: [], shop: [], meta: {} })).toEqual({ sets: 0, days: 0, meals: 0, photos: 0, from: null, to: null });
+  expect(backupInfo({ sets: [], meals: [], shop: [], meta: {} })).toMatchObject({ sets: 0, days: 0, meals: 0, photos: 0, from: null, to: null, total: 0 });
   expect(backupFileName('2026-11-05')).toBe('gym-backup-2026-11-05.json');
 });
 
@@ -64,4 +64,16 @@ test('photos ride along in the file, broken ones are dropped', () => {
   expect(q.ok && q.photos).toEqual(photos);
   // without photos the file has no photos field at all
   expect(JSON.parse(toBackup(dump)).photos).toBeUndefined();
+});
+
+test('what counts as data: logged things, not settings or bookkeeping', () => {
+  const empty = { sets: [], meals: [], shop: [], meta: { settings: '{"verse":true}', driveUser: 'a@b.c', 'verse.last': '3', welcomeDone: '1', habits: '[]', water: '{}' } };
+  expect(hasData(empty)).toBe(false);
+  expect(infoText(backupInfo(empty))).toBe('فاضية');
+  const habitsOnly = { ...empty, meta: { ...empty.meta, habits: '[{"id":"h"},{"id":"g"}]', habitLog: '{"h|2026-11-07":"done"}' } };
+  expect(hasData(habitsOnly)).toBe(true);
+  expect(backupInfo(habitsOnly)).toMatchObject({ habits: 2, total: 3 });
+  expect(infoText(backupInfo(habitsOnly))).toBe('2 عادات');
+  expect(hasData({ ...empty, meta: { ...empty.meta, water: '{"2026-11-05":3500}' } })).toBe(true);
+  expect(hasData({ ...empty, meta: { ...empty.meta, goals: 'broken' } })).toBe(false);
 });

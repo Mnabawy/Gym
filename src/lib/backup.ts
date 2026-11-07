@@ -24,11 +24,70 @@ export function toBackup(d: Dump, now: Date = new Date(), photos: readonly Photo
 
 export const backupFileName = (date: string) => `gym-backup-${date}.json`;
 
-export type BackupInfo = { sets: number; days: number; meals: number; photos: number; from: string | null; to: string | null };
+export type BackupInfo = {
+  sets: number;
+  days: number;
+  meals: number;
+  photos: number;
+  from: string | null;
+  to: string | null;
+  habits: number;
+  goals: number;
+  quits: number;
+  weights: number;
+  /** Everything you logged, all kinds together (0 = nothing worth keeping; settings alone don't count). */
+  total: number;
+};
+
+/** Meta keys that hold things you logged — not settings, and not the app's own bookkeeping. */
+export const DATA_KEYS = ['habits', 'habitLog', 'habitParts', 'goals', 'quits', 'weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps'] as const;
+
+/** Entries in one meta value: array length or object key count (0 for empty or broken). */
+function count(raw: string | undefined): number {
+  if (!raw) return 0;
+  try {
+    const v: unknown = JSON.parse(raw);
+    if (Array.isArray(v)) return v.length;
+    if (v && typeof v === 'object') return Object.keys(v).length;
+  } catch {}
+  return 0;
+}
 
 export function backupInfo(d: Dump, photos = 0): BackupInfo {
-  const dates = [...new Set(d.sets.filter((r) => r.done).map((r) => r.date))].sort();
-  return { sets: d.sets.filter((r) => r.done).length, days: dates.length, meals: d.meals.length, photos, from: dates[0] ?? null, to: dates[dates.length - 1] ?? null };
+  const done = d.sets.filter((r) => r.done);
+  const dates = [...new Set(done.map((r) => r.date))].sort();
+  const meta = DATA_KEYS.reduce((a, k) => a + count(d.meta[k]), 0);
+  return {
+    sets: done.length,
+    days: dates.length,
+    meals: d.meals.length,
+    photos,
+    from: dates[0] ?? null,
+    to: dates[dates.length - 1] ?? null,
+    habits: count(d.meta.habits),
+    goals: count(d.meta.goals),
+    quits: count(d.meta.quits),
+    weights: count(d.meta.weights),
+    total: done.length + d.meals.length + d.shop.length + meta + photos,
+  };
+}
+
+/** Whether a backup (or the phone) has anything you logged. Settings alone don't count. */
+export const hasData = (d: Dump, photos = 0) => backupInfo(d, photos).total > 0;
+
+/** "12 مجموعة في 4 أيام · 6 وجبات · 3 عادات · هدف" — what's inside, in a line. */
+export function infoText(i: BackupInfo): string {
+  const parts: string[] = [];
+  if (i.sets) parts.push(`${i.sets} مجموعة في ${i.days} ${i.days === 1 ? 'يوم' : 'أيام'}`);
+  if (i.meals) parts.push(`${i.meals} وجبة`);
+  if (i.habits) parts.push(`${i.habits} ${i.habits === 1 ? 'عادة' : 'عادات'}`);
+  if (i.goals) parts.push(`${i.goals} ${i.goals === 1 ? 'هدف' : 'أهداف'}`);
+  if (i.quits) parts.push(`${i.quits} بطّل`);
+  if (i.weights) parts.push(`${i.weights} وزن`);
+  if (i.photos) parts.push(`${i.photos} صورة`);
+  const rest = i.total - i.sets - i.meals - i.habits - i.goals - i.quits - i.weights - i.photos;
+  if (!parts.length) return rest > 0 ? 'بيانات تانية (مية، ملاحظات…)' : 'فاضية';
+  return parts.join(' · ');
 }
 
 export type Parsed = { ok: true; data: Dump; photos: PhotoData[]; exportedAt: string | null; info: BackupInfo } | { ok: false; error: string };

@@ -23,13 +23,29 @@ async function check<T extends { ok: boolean; status: number; text(): Promise<st
   return res;
 }
 
+/** Every backup file of ours in Drive, newest first (there can be several if one was made on each install). */
+export async function listBackups(token: string, f: Fetch, max = 20): Promise<DriveFile[]> {
+  const q = encodeURIComponent(`name = '${DRIVE_FILE_NAME}' and trashed = false`);
+  const res = await check(await f(`${API}?q=${q}&spaces=drive&orderBy=modifiedTime desc&pageSize=${max}&fields=files(id,modifiedTime,size)`, { headers: auth(token) }));
+  const body = (await res.json()) as { files?: { id: string; modifiedTime?: string; size?: string }[] };
+  return (body.files ?? []).map((x) => ({ id: x.id, modifiedTime: x.modifiedTime ?? null, size: x.size != null ? Number(x.size) : null }));
+}
+
 /** Our backup file in Drive (the newest, if there are several), or null. */
 export async function findBackup(token: string, f: Fetch): Promise<DriveFile | null> {
-  const q = encodeURIComponent(`name = '${DRIVE_FILE_NAME}' and trashed = false`);
-  const res = await check(await f(`${API}?q=${q}&spaces=drive&orderBy=modifiedTime desc&pageSize=1&fields=files(id,modifiedTime,size)`, { headers: auth(token) }));
-  const body = (await res.json()) as { files?: { id: string; modifiedTime?: string; size?: string }[] };
-  const x = body.files?.[0];
-  return x ? { id: x.id, modifiedTime: x.modifiedTime ?? null, size: x.size != null ? Number(x.size) : null } : null;
+  return (await listBackups(token, f, 1))[0] ?? null;
+}
+
+/**
+ * Of several backups, the one to restore: the one with the most in it (an empty file made by a fresh install must
+ * never win over the one with your data), the newest of equals. `score` reads a downloaded file (0 for unreadable).
+ */
+export function pickBest<T extends { modifiedTime: string | null }>(files: readonly (T & { score: number })[]): (T & { score: number }) | null {
+  let best: (T & { score: number }) | null = null;
+  for (const x of files) {
+    if (!best || x.score > best.score || (x.score === best.score && (x.modifiedTime ?? '') > (best.modifiedTime ?? ''))) best = x;
+  }
+  return best;
 }
 
 /** Multipart body for creating a file with its name and content in one request. */

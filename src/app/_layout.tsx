@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import { I18nManager, Platform } from 'react-native';
+import { AppState, I18nManager, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -38,7 +38,7 @@ export default function RootLayout() {
   useEffect(() => {
     const id = setTimeout(async () => {
       await runAutoBackup().catch(() => {});
-      await syncDrive().catch(() => {}); // Google Drive: once a day when something changed
+      await syncDrive(false, true).catch(() => {}); // Google Drive: whatever changed since last time
       if (useSettings.getState().stepsSync) await syncSteps(); // the last two weeks' steps from the phone
     }, 5000);
     return () => clearTimeout(id);
@@ -51,6 +51,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }} />
       <VersePopup />
       <ReminderSync />
+      <DriveSync />
       <AppLock />
     </SafeAreaProvider>
   );
@@ -68,5 +69,25 @@ function ReminderSync() {
     const id = setTimeout(() => syncReminders(), 2000);
     return () => clearTimeout(id);
   }, [on, time, days, brief, briefTime, v]);
+  return null;
+}
+
+/**
+ * Keeps the Google Drive copy current: once you've stopped changing things for 2 minutes (a whole workout of ticks
+ * makes one upload, not dozens), and right away when the app goes to the background — so deleting the app or losing
+ * the phone loses next to nothing.
+ */
+function DriveSync() {
+  const v = useDataVersion((s) => s.v);
+  useEffect(() => {
+    const id = setTimeout(() => syncDrive(false, true).catch(() => {}), 120000);
+    return () => clearTimeout(id);
+  }, [v]);
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'background') syncDrive(false, true).catch(() => {});
+    });
+    return () => sub.remove();
+  }, []);
   return null;
 }
