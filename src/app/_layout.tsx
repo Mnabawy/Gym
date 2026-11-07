@@ -14,7 +14,7 @@ import { ConfirmHost } from '../components/ConfirmHost';
 import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
-import { syncDrive } from '../lib/drive';
+import { GOOGLE_USER } from '../lib/google';
 import { cloudConfigured, cloudLinked, linkCloud, syncCloud } from '../lib/cloud';
 import { storage } from '../lib/storage';
 import { onDirty } from '../lib/track';
@@ -43,7 +43,6 @@ export default function RootLayout() {
   useEffect(() => {
     const id = setTimeout(async () => {
       await runAutoBackup().catch(() => {});
-      await syncDrive(false, true).catch(() => {}); // Google Drive: whatever changed since last time
       if (useSettings.getState().stepsSync) await syncSteps(); // the last two weeks' steps from the phone
     }, 5000);
     return () => clearTimeout(id);
@@ -56,7 +55,6 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false }} />
       <VersePopup />
       <ReminderSync />
-      <DriveSync />
       <CloudSync />
       <UndoBar />
       <ConfirmHost />
@@ -81,26 +79,6 @@ function ReminderSync() {
 }
 
 /**
- * Keeps the Google Drive copy current: once you've stopped changing things for 2 minutes (a whole workout of ticks
- * makes one upload, not dozens), and right away when the app goes to the background — so deleting the app or losing
- * the phone loses next to nothing.
- */
-function DriveSync() {
-  const v = useDataVersion((s) => s.v);
-  useEffect(() => {
-    const id = setTimeout(() => syncDrive(false, true).catch(() => {}), 120000);
-    return () => clearTimeout(id);
-  }, [v]);
-  useEffect(() => {
-    const sub = AppState.addEventListener('change', (st) => {
-      if (st === 'background') syncDrive(false, true).catch(() => {});
-    });
-    return () => sub.remove();
-  }, []);
-  return null;
-}
-
-/**
  * Supabase sync (src/lib/cloud.ts): a few seconds after each change, on opening, on coming back to the app and on
  * leaving it. A phone already signed in to Google from before sync existed turns it on by itself (its data goes up).
  */
@@ -110,7 +88,7 @@ function CloudSync() {
     const go = () => syncCloud().catch(() => {});
     let timer: ReturnType<typeof setTimeout> | undefined;
     const first = setTimeout(() => {
-      if (!cloudLinked() && storage.getMeta('driveUser')) linkCloud().catch(() => {});
+      if (!cloudLinked() && storage.getMeta(GOOGLE_USER)) linkCloud().catch(() => {});
       else go();
     }, 1500);
     const off = onDirty(() => {

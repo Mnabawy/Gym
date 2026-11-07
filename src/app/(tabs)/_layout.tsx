@@ -3,7 +3,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Text, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useSettings } from '../../lib/settings';
-import { DRIVE_USER, driveSupported } from '../../lib/drive';
+import { GOOGLE_USER, googleSupported } from '../../lib/google';
 import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
 import { lastSection, SECTION_PATH } from '../../lib/section';
@@ -44,7 +44,7 @@ export default function TabsLayout() {
   const bottom = Math.max(inset.bottom, Platform.OS === 'android' ? 14 : 8);
   const bar = { height: 64 + bottom, paddingTop: 4, paddingBottom: bottom };
   // First launch on the phone: the sign-in screen, until you sign in or skip it.
-  if (driveSupported && !storage.getMeta(WELCOME_KEY) && !storage.getMeta(DRIVE_USER)) return <Redirect href="/welcome" />;
+  if (googleSupported && !storage.getMeta(WELCOME_KEY) && !storage.getMeta(GOOGLE_USER)) return <Redirect href="/welcome" />;
   // The app opens on the section you were in last (الجيم, العادات or الأهداف); switching sections saves it first.
   if (lastSection() !== 'gym') return <Redirect href={SECTION_PATH[lastSection()]} />;
   return (

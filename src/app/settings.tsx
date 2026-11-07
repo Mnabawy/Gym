@@ -25,7 +25,8 @@ import { listPhotos, photosSupported } from '../lib/photos';
 import { applyBackup } from '../lib/restore';
 import { canLock, lockSupported, unlock } from '../lib/lock';
 import { connectSteps, stepsSupported, syncSteps } from '../lib/steps';
-import { DRIVE_AT, DRIVE_USER, driveSupported } from '../lib/drive';
+import { GOOGLE_USER, googleSupported } from '../lib/google';
+import { cloudLinked, SYNC_AT } from '../lib/cloud';
 import { AccentPicker } from '../components/AccentPicker';
 import { useTheme } from '../theme';
 
@@ -108,7 +109,7 @@ export default function SettingsScreen() {
             {since == null ? 'لسه ما عملتش نسخة احتياطية' : since === 0 ? 'آخر نسخة النهارده ✓' : `آخر نسخة من ${countAr(since, DAYS)}`}
           </T>
           <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>
-            {`كل حاجة متسجلة على الموبايل بس. احفظ ملف على Drive أو ابعته لنفسك، عشان لو مسحت التطبيق أو غيّرت الموبايل ترجّعه. عندك دلوقتي: ${infoAr(mine)}`}
+            {`المزامنة بتحفظ كل حاجة غير الصور. احفظ ملف أو ابعته لنفسك عشان يبقى معاك نسخة فيها الصور كمان. عندك دلوقتي: ${infoAr(mine)}`}
           </T>
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
@@ -136,7 +137,7 @@ export default function SettingsScreen() {
         ) : null}
         <Sep />
         <Pressable onPress={() => router.push('/account')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-          <Row label="حسابك و Google Drive" sub={!driveSupported ? 'على الموبايل بس' : storage.getMeta(DRIVE_USER) ? `${storage.getMeta(DRIVE_USER)}${storage.getMeta(DRIVE_AT) ? ` · آخر رفعة ${dayAr(storage.getMeta(DRIVE_AT)!)}` : ''}` : 'ادخل عشان بياناتك تتحفظ على Drive'}>
+          <Row label="حسابك والمزامنة" sub={!googleSupported ? 'على الموبايل بس' : storage.getMeta(GOOGLE_USER) ? `${storage.getMeta(GOOGLE_USER)} · ${cloudLinked() ? (storage.getMeta(SYNC_AT) ? 'المزامنة شغالة' : 'لسه ما اتزامنش') : 'المزامنة مش شغالة'}` : 'ادخل عشان بياناتك تتزامن وترجع على أي موبايل'}>
             <Ionicons name="chevron-back" size={20} color={t.mute} />
           </Row>
         </Pressable>

@@ -5,34 +5,28 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
-import { MONTHS_AR } from '../data/program';
-import { Btn, T } from '../components/ui';
-import { backupInfo, infoText, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
-import { listPhotos, photosSupported } from '../lib/photos';
+import { T } from '../components/ui';
+import { parseBackup } from '../lib/backup';
 import { pickBackup } from '../lib/backupIO';
 import { cloudConfigured, linkCloud } from '../lib/cloud';
-import { fetchDrive, linkDrive, syncDrive } from '../lib/drive';
+import { linkGoogle } from '../lib/google';
 import { native, useReducedMotion } from '../lib/motion';
 import { applyBackup, WELCOME_KEY } from '../lib/restore';
 import { storage } from '../lib/storage';
-import type { Dump } from '../lib/storage.types';
 import { neon, ThemeProvider, tint, useTheme } from '../theme';
 
-const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
-const infoAr = (i: BackupInfo) => `${infoText(i)}${i.to ? ` (آخر تمرين ${dayAr(i.to)})` : ''}`;
-
-type Choice = { data: Dump; photos: PhotoData[]; remote: BackupInfo; local: BackupInfo };
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 const FEATURES: { icon: IconName; title: string; sub: string; color: string }[] = [
   { icon: 'finger-print', title: 'دوسة واحدة', sub: 'بحساب Google، من غير باسورد', color: '#22F3E4' },
-  { icon: 'cloud-done-outline', title: 'بياناتك معاك', sub: 'بتتحفظ في Drive بتاعك وترجع على أي موبايل', color: '#3FB6FF' },
+  { icon: 'cloud-done-outline', title: 'بياناتك معاك', sub: 'بتتحفظ أول بأول وترجع على أي موبايل', color: '#3FB6FF' },
   { icon: 'lock-closed-outline', title: 'ليك لوحدك', sub: 'محدش غيرك يقدر يشوفها، ولا حتى إحنا', color: '#B18CFF' },
 ];
 
 /**
  * First launch (phone), always in the dark neon look: one-tap Google sign-in — no password — and your data follows you.
- * A new phone gets its data back from your Drive by itself; a phone that already has data asks which to keep. Or skip.
+ * Signing in turns on Supabase sync, which brings back everything on the server and merges it with what's here.
+ * Or a backup file, or skip.
  */
 export default function Welcome() {
   return (
@@ -47,7 +41,6 @@ function WelcomeScreen() {
   const reduce = useReducedMotion();
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [choice, setChoice] = useState<Choice | null>(null);
   // Entrance: logo, title, the three features and the buttons rise in one after another.
   const [steps] = useState(() => Array.from({ length: 6 }, () => new Animated.Value(0)));
   useEffect(() => {
@@ -68,7 +61,7 @@ function WelcomeScreen() {
     router.replace('/');
   };
 
-  // A backup file from anywhere the phone can open (Google Drive included, through the file picker).
+  // A backup file from anywhere the phone can open (through the file picker).
   const fromFile = async () => {
     setErr(null);
     try {
@@ -87,28 +80,11 @@ function WelcomeScreen() {
     setErr(null);
     setBusy(true);
     try {
-      const email = await linkDrive();
+      const email = await linkGoogle();
       if (!email) return; // cancelled
       // Supabase sync: brings back everything on the server and merges it with what's here, no question needed.
-      const synced = cloudConfigured && (await linkCloud().then(() => true, () => false));
-      const local = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
-      if (synced && local.total > 0) {
-        syncDrive(true).catch(() => {});
-        return finish();
-      }
-      // Nothing on the server (or no sync): the Drive backup file, as before.
-      const text = await fetchDrive().catch(() => null);
-      const p = text ? parseBackup(text) : null;
-      // Anything you logged counts (habits, goals, weights… not only workouts and meals).
-      if (p?.ok && p.info.total > 0) {
-        // Nothing here yet: bring it all back. Data on both: ask.
-        if (local.total === 0) {
-          applyBackup(p.data, p.photos);
-          return finish();
-        }
-        return setChoice({ data: p.data, photos: p.photos, remote: p.info, local });
-      }
-      await syncDrive(true).catch(() => {});
+      // If it fails now it tries again on its own (the account page shows it).
+      if (cloudConfigured) await linkCloud().catch(() => {});
       finish();
     } catch (e) {
       const why = String((e as { code?: string; message?: string })?.code ?? (e as Error)?.message ?? '').slice(0, 80);
@@ -136,20 +112,7 @@ function WelcomeScreen() {
             </Animated.View>
           </View>
 
-          {choice ? (
-            <View style={[s.glass, { gap: 12 }]}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <Ionicons name="git-compare-outline" size={20} color={t.ok} />
-                <T w="bold" style={{ fontSize: 16 }}>عندك بيانات في مكانين</T>
-              </View>
-              <Source icon="cloud-outline" label="على Drive" text={infoAr(choice.remote)} />
-              <Source icon="phone-portrait-outline" label="على الموبايل" text={infoAr(choice.local)} />
-              <Btn label="استخدم اللي على Drive" kind="solid" onPress={() => { applyBackup(choice.data, choice.photos); finish(); }} />
-              <Btn label="خلّي اللي على الموبايل" onPress={() => { syncDrive(true).catch(() => {}); finish(); }} />
-              <T style={{ color: t.mute, fontSize: 12, lineHeight: 18 }}>اللي هتختاره بيتحفظ على Drive بعد كده، وDrive بيحتفظ بالنسخة القديمة شوية لو احتجتها.</T>
-            </View>
-          ) : (
-            <>
+          <>
               <View style={{ gap: 10 }}>
                 {FEATURES.map((f, i) => (
                   <Animated.View key={f.title} style={[s.glass, s.feature, rise(2 + i)]}>
@@ -192,22 +155,8 @@ function WelcomeScreen() {
                 </View>
               </Animated.View>
             </>
-          )}
         </View>
       </SafeAreaView>
-    </View>
-  );
-}
-
-function Source({ icon, label, text }: { icon: IconName; label: string; text: string }) {
-  const t = useTheme();
-  return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-      <Ionicons name={icon} size={18} color={t.mute} />
-      <T style={{ fontSize: 13.5, flex: 1 }}>
-        <T w="semi" style={{ fontSize: 13.5 }}>{`${label}: `}</T>
-        {text}
-      </T>
     </View>
   );
 }

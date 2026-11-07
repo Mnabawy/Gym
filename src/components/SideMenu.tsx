@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '../lib/motion';
 import { useSettings } from '../lib/settings';
-import { DRIVE_NAME, DRIVE_PHOTO, DRIVE_USER, driveSupported } from '../lib/drive';
+import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported } from '../lib/google';
 import { storage } from '../lib/storage';
 import { lastSection } from '../lib/section';
 import { tint, useTheme } from '../theme';
@@ -82,7 +82,7 @@ export function MenuButton() {
               <Ionicons name="close" size={22} color={t.mute} />
             </Pressable>
           </View>
-          {driveSupported ? <Account onPress={(to) => close(() => router.push(to))} /> : null}
+          {googleSupported ? <Account onPress={(to) => close(() => router.push(to))} /> : null}
           {items.map((it, i) => {
             // Each item follows the panel in, a little later than the one before.
             const a = p.interpolate({ inputRange: [0.25 + i * 0.1, Math.min(1, 0.65 + i * 0.1)], outputRange: [0, 1], extrapolate: 'clamp' });
@@ -131,9 +131,9 @@ function SectionPill() {
 /** Your Google account at the top of the menu (name, photo, email), or a sign-in row. */
 function Account({ onPress }: { onPress: (to: '/account') => void }) {
   const t = useTheme();
-  const email = storage.getMeta(DRIVE_USER);
-  const name = storage.getMeta(DRIVE_NAME);
-  const photo = storage.getMeta(DRIVE_PHOTO);
+  const email = storage.getMeta(GOOGLE_USER);
+  const name = storage.getMeta(GOOGLE_NAME);
+  const photo = storage.getMeta(GOOGLE_PHOTO);
   return (
     <Pressable
       onPress={() => onPress('/account')}

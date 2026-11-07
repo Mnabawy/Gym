@@ -5,14 +5,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
 import { dateKey } from '../lib/logic';
 import { Btn, Card, Label, Row, Screen, Sep, T } from '../components/ui';
-import { backupInfo, infoText, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
+import { backupInfo } from '../lib/backup';
 import { useDataVersion } from '../lib/bus';
 import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, SYNC_AT, SYNC_ERROR, unlinkCloud } from '../lib/cloud';
-import { DRIVE_AT, DRIVE_ERROR, DRIVE_NAME, DRIVE_PHOTO, DRIVE_USER, driveSupported, fetchDrive, linkDrive, syncDrive, unlinkDrive } from '../lib/drive';
+import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported, linkGoogle, unlinkGoogle } from '../lib/google';
 import { listPhotos, photosSupported } from '../lib/photos';
-import { applyBackup, WELCOME_KEY, wipeLocal } from '../lib/restore';
+import { WELCOME_KEY, wipeLocal } from '../lib/restore';
 import { storage } from '../lib/storage';
-import type { Dump } from '../lib/storage.types';
 import { tint, useTheme } from '../theme';
 
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
@@ -24,22 +23,19 @@ function whenAr(ms: number) {
   return `${k === dateKey() ? 'النهارده' : dayAr(k)} ${hm}`;
 }
 
-/** Your account (side menu → your name): who you're signed in as, the Drive backup, restore from it, and sign-out. */
+/** Your account (side menu → your name): who you're signed in as, Supabase sync, and sign-out. */
 export default function Account() {
   const t = useTheme();
   useDataVersion((s) => s.v);
-  const email = storage.getMeta(DRIVE_USER);
-  const name = storage.getMeta(DRIVE_NAME);
-  const photo = storage.getMeta(DRIVE_PHOTO);
-  const at = storage.getMeta(DRIVE_AT);
-  const failed = !!storage.getMeta(DRIVE_ERROR);
+  const email = storage.getMeta(GOOGLE_USER);
+  const name = storage.getMeta(GOOGLE_NAME);
+  const photo = storage.getMeta(GOOGLE_PHOTO);
   const linked = cloudLinked();
   const syncAt = Number(storage.getMeta(SYNC_AT) || 0);
   const syncFailed = !!storage.getMeta(SYNC_ERROR);
   const waiting = linked ? pendingChanges() : 0;
   const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
-  const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);
 
@@ -58,20 +54,14 @@ export default function Account() {
 
   const signOut = (wipe: boolean) =>
     run(async () => {
-      if (wipe && cloudLinked()) {
+      if (wipe) {
         // Everything has to be on the server before the phone is wiped.
+        if (!cloudLinked()) return setMsg({ text: 'المزامنة مش شغالة، فبياناتك مش على السيرفر وما مسحتهاش. احفظ نسخة من الإعدادات الأول.', bad: true });
         const ok = await syncCloud().then(() => pendingChanges() === 0, () => false);
         if (!ok) return setMsg({ text: 'معرفتش أزامن آخر تغييراتك، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
       }
-      if (wipe) {
-        try {
-          await syncDrive(true);
-        } catch {
-          return setMsg({ text: 'معرفتش أرفع آخر نسخة على Drive، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
-        }
-      }
       unlinkCloud();
-      await unlinkDrive();
+      await unlinkGoogle();
       if (wipe) wipeLocal();
       storage.setMeta(WELCOME_KEY, '');
       router.replace('/welcome');
@@ -107,7 +97,7 @@ export default function Account() {
         </View>
       </Card>
 
-      {!driveSupported ? (
+      {!googleSupported ? (
         <T style={{ color: t.mute, fontSize: 13, textAlign: 'center' }}>الحساب على الموبايل بس</T>
       ) : !email ? (
         <Btn
@@ -115,24 +105,12 @@ export default function Account() {
           kind="solid"
           onPress={() =>
             run(async () => {
-              const e = await linkDrive();
+              const e = await linkGoogle();
               if (!e) return;
               if (cloudConfigured) {
                 await linkCloud();
                 if (backupInfo(storage.dump(), 0).total > 0) return setMsg({ text: `دخلت بـ ${e} وبياناتك اتزامنت ✓` });
               }
-              // Drive already has your data: bring it back to an empty phone, or ask when both have some.
-              const x = await fetchDrive().catch(() => null);
-              const p = x ? parseBackup(x) : null;
-              if (p?.ok && p.info.total > 0) {
-                if (mine.total === 0) {
-                  applyBackup(p.data, p.photos);
-                  return setMsg({ text: `دخلت بـ ${e} ورجّعت بياناتك من Drive ✓` });
-                }
-                setPending({ data: p.data, photos: p.photos, info: p.info, exportedAt: p.exportedAt });
-                return setMsg({ text: `دخلت بـ ${e}. على Drive نسخة فيها بيانات: ترجّعها ولا تخلّي اللي على الموبايل؟` });
-              }
-              await syncDrive(true).catch(() => {});
               setMsg({ text: `دخلت بـ ${e} ✓` });
             })
           }
@@ -172,53 +150,15 @@ export default function Account() {
             </>
           ) : null}
 
-          <Label>النسخة على Google Drive</Label>
-          <Card>
-            <Row
-              label={failed ? 'آخر رفعة ما نفعتش' : at ? `آخر رفعة: ${dayAr(at)}` : 'لسه ما اترفعش'}
-              sub={failed ? 'اتأكد من النت، ولو فضلت كده اخرج وادخل تاني' : 'ملف واحد «Gym backup.json» بيتحدّث لوحده بعد كل تغيير بدقايق، ومعاه الصور'}>
-              <Ionicons name={failed ? 'alert-circle' : 'cloud-done'} size={24} color={failed ? t.bad : t.okText} />
-            </Row>
-            <Sep />
-            <View style={{ flexDirection: 'row', gap: 8, padding: 12 }}>
-              <Btn label="ارفع دلوقتي" kind="solid" style={{ flex: 1 }} onPress={() => run(async () => { const r = await syncDrive(true); setMsg(r === 'kept' ? { text: 'الموبايل مفيهوش حاجة متسجلة وDrive عليه بياناتك، فما رفعتش عشان متضيعش. دوس «رجّع من Drive»', bad: true } : { text: 'اترفعت على Drive ✓' }); })} />
-              <Btn
-                label="رجّع من Drive"
-                style={{ flex: 1 }}
-                onPress={() =>
-                  run(async () => {
-                    const x = await fetchDrive();
-                    if (x == null) return setMsg({ text: 'مفيش نسخة على Drive لسه', bad: true });
-                    const p = parseBackup(x);
-                    if (!p.ok) return setMsg({ text: p.error, bad: true });
-                    setPending({ data: p.data, photos: p.photos, info: p.info, exportedAt: p.exportedAt });
-                  })
-                }
-              />
-            </View>
-            {pending ? (
-              <View style={[s.box, { backgroundColor: t.warnSoft }]}>
-                <T w="semi" style={{ color: t.warn }}>
-                  {`النسخة اللي على Drive${pending.exportedAt ? ` (${dayAr(pending.exportedAt.slice(0, 10))})` : ''}: ${infoText(pending.info)}`}
-                </T>
-                <T style={{ fontSize: 12.5, lineHeight: 19 }}>هتحط النسخة دي مكان اللي على الموبايل دلوقتي. الصور اللي على الموبايل بتفضل. متأكد؟</T>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  <Btn label="أيوه رجّعها" kind="solid" style={{ flex: 1 }} onPress={() => { applyBackup(pending.data, pending.photos); setPending(null); setMsg({ text: 'رجّعت النسخة ✓' }); }} />
-                  <Btn label="لا" onPress={() => setPending(null)} />
-                </View>
-              </View>
-            ) : null}
-          </Card>
-
           {!leaving ? (
             <Btn label="تسجيل الخروج" onPress={() => setLeaving(true)} />
           ) : (
             <View style={[s.box, { backgroundColor: t.warnSoft, marginHorizontal: 0 }]}>
               <T w="semi" style={{ color: t.warn }}>تسجيل الخروج</T>
-              <T style={{ fontSize: 12.5, lineHeight: 19 }}>بياناتك على السيرفر وعلى Drive بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
+              <T style={{ fontSize: 12.5, lineHeight: 19 }}>بياناتك على السيرفر بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
               <Btn label="اخرج بس (البيانات تفضل على الموبايل)" onPress={() => signOut(false)} />
               <Btn label="اخرج وامسح بياناتي من الموبايل" kind="solid" onPress={() => signOut(true)} />
-              <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيزامن ويرفع آخر نسخة على Drive الأول، ومش بيمسح غير لو ده نجح.</T>
+              <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيزامن آخر تغييراتك الأول، ومش بيمسح غير لو ده نجح. الصور مش على السيرفر، فاحفظ نسخة من الإعدادات لو عايزها.</T>
               <Btn label="لا" onPress={() => setLeaving(false)} />
             </View>
           )}

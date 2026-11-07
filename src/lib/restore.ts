@@ -10,7 +10,7 @@ import { untracked } from './track';
 /** Meta key: the welcome screen was answered (signed in or skipped), so it doesn't show again. */
 export const WELCOME_KEY = 'welcomeDone';
 
-const KEEP = ['driveUser', 'driveName', 'drivePhoto', 'driveFileId', 'driveAt', 'driveSig', 'driveError', 'welcomeDone'];
+const KEEP = ['driveUser', 'driveName', 'drivePhoto', 'welcomeDone'];
 
 /** Returns how many photos were added. */
 export function applyBackup(data: Dump, photos: readonly PhotoData[]): number {

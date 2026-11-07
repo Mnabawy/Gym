@@ -7,7 +7,7 @@
 import { useDataVersion } from './bus';
 import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
 import { applyRows, localRows, pushItems, rowId, type Pulled } from './cloudSync';
-import { DRIVE_USER, googleIdToken } from './drive';
+import { GOOGLE_USER, googleIdToken } from './google';
 import { useSettings } from './settings';
 import { storage } from './storage';
 import { dirty, rawStorage, saveDirty, setTracking, trackingOn } from './track';
@@ -133,11 +133,11 @@ async function syncOnce() {
 }
 
 /**
- * Turns sync on for the Google account the phone is signed in with (after linkDrive) and runs the first sync, which
+ * Turns sync on for the Google account the phone is signed in with (after linkGoogle) and runs the first sync, which
  * brings back everything on the server and sends what's only here. Throws if Supabase sign-in fails.
  */
 export async function linkCloud(): Promise<void> {
-  if (!cloudConfigured || !storage.getMeta(DRIVE_USER)) return;
+  if (!cloudConfigured || !storage.getMeta(GOOGLE_USER)) return;
   const s = await freshSignIn();
   const old = readSession();
   // Another account than before: start over (don't mix its pending changes in).
