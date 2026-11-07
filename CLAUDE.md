@@ -78,4 +78,4 @@ Exercise names stay in English (gym vocabulary).
 - `npx expo install <pkg>` — always, for SDK-compatible versions
 
 ## Git
-- Work, commit and push directly on `main`. No feature branches (the owner asked for this).
+- Work, commit and push directly on `master` (the default branch, renamed from `main`). No feature branches (the owner asked for this).
