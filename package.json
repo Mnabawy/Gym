@@ -60,7 +60,8 @@
     "web": "expo start --web",
     "test": "jest",
     "typecheck": "tsc --noEmit",
-    "lint": "expo lint"
+    "lint": "expo lint",
+    "update": "sh scripts/update.sh"
   },
   "private": true,
   "jest": {

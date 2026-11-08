@@ -79,6 +79,7 @@ Exercise names stay in English (gym vocabulary).
 - `npm test` — unit tests for pure logic (`src/lib/logic.ts`, goals, quit, tasks, color, `src/lib/gaps.ts`, `src/lib/shop.ts`, `src/lib/energy.ts`, `src/lib/schedule.ts`, `src/lib/prayer.ts`, backup, weight, journal, plates, summary, report, programEdit, brief, focus, cloudSync, cloudApi, track, habits, cardio, csv, settings, data integrity incl. videos and alternatives)
 - `npm run typecheck`
 - `npx expo install <pkg>` — always, for SDK-compatible versions
+- `npm run update` (`scripts/update.sh`) — the owner's update on the Mac: fetch, stash local edits (package-lock), switch to `master` tracking origin/master, fast-forward (local commits kept on a `backup-…` branch), `npm install`; `-- --build` also re-prebuilds when package.json/app.json changed and installs the release build
 
 ## Git
 - Work, commit and push directly on `master` (the only branch). No feature branches (the owner asked for this).
