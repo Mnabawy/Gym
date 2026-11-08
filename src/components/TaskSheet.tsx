@@ -7,7 +7,7 @@ import { MonthCalendar } from './MonthCalendar';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
-import { PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, type Priority, type Repeat, type Sub, type Task } from '../lib/tasks';
+import { PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, type Priority, type Repeat, type Sub, type Task, type Space } from '../lib/tasks';
 import { deleteTask, readTasks, saveTask } from '../lib/taskStore';
 import { allowReminders } from '../lib/reminder';
 import { showUndo } from '../lib/undo';
@@ -35,7 +35,7 @@ type Open = 'date' | 'time' | 'repeat' | 'priority' | 'tag' | null;
  * Add or edit a task. The title and a note, then one row per detail: the date on a month calendar, the time on a clock,
  * repeat, a reminder, priority, a tag and small steps. Nothing is guessed from the text.
  */
-export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initial?: string; day?: string | null; onClose: () => void }) {
+export function TaskSheet({ task, initial, day, space, onClose }: { task?: Task; initial?: string; day?: string | null; space?: Space; onClose: () => void }) {
   const t = useTheme();
   const today = dateKey();
   const editing = !!task;
@@ -63,7 +63,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
     if (!ok) return;
     tap();
     const next: Task = {
-      ...(task ?? { id: taskId(stamp()), done: null, created: today }),
+      ...(task ?? { id: taskId(stamp()), done: null, created: today, ...(space === 'work' ? { space } : {}) }),
       title: title.trim(),
       due: due ?? (repeat ? today : null),
       time,

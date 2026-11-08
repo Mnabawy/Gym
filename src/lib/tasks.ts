@@ -30,7 +30,15 @@ export type Task = {
   /** A done copy of a repeating task: the task it came from, and the day it was for (to undo). */
   from?: string;
   wasDue?: string | null;
+  /** Which list it's on: «خاص» (personal, the default when missing) or «شغل» (work). */
+  space?: Space;
 };
+
+/** Two separate to-do lists on the same page: personal and work. */
+export type Space = 'personal' | 'work';
+export const SPACES: Record<Space, string> = { personal: 'خاص', work: 'شغل' };
+export const spaceOf = (t: Task): Space => t.space ?? 'personal';
+export const inSpace = (list: readonly Task[], s: Space): Task[] => list.filter((t) => spaceOf(t) === s);
 
 export const PRIORITY = {
   1: { label: 'مهم جدًا', color: '#D93B3B' },
@@ -83,6 +91,7 @@ export function parseTasks(raw: string | null): Task[] {
       done: isDate(o.done) ? o.done : null,
       created: isDate(o.created) ? o.created : '2026-01-01',
       ...(typeof o.from === 'string' ? { from: o.from, wasDue: isDate(o.wasDue) ? o.wasDue : null } : {}),
+      ...(o.space === 'work' ? { space: 'work' as const } : {}),
     });
   }
   return out;

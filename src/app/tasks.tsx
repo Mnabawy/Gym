@@ -10,9 +10,10 @@ import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
+import { storage } from '../lib/storage';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
-import { addSub, allView, counts, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
+import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
 import { deleteTask, pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
@@ -46,7 +47,17 @@ function Tasks() {
   const inset = useSafeAreaInsets();
   const kb = useKeyboardShown();
   const today = dateKey();
-  const list = readTasks();
+  const [space, setSpaceState] = useState<Space>(() => (storage.getMeta('taskSpace') === 'work' ? 'work' : 'personal'));
+  const setSpace = (v: Space) => {
+    if (v === space) return;
+    tap();
+    storage.setMeta('taskSpace', v);
+    setSpaceState(v);
+    setOpenSubs(null);
+  };
+  const everything = readTasks();
+  // The two lists never mix on this page: everything below only sees the one you're on.
+  const list = inSpace(everything, space);
   const [tab, setTab] = useState<Tab>('today');
   const [day, setDay] = useState(today);
   const [editing, setEditing] = useState<Task | null>(null);
@@ -72,7 +83,7 @@ function Tasks() {
     if (!title) return;
     tap();
     ease();
-    saveTask({ id: taskId(stamp()), title, due: target, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today });
+    saveTask({ id: taskId(stamp()), title, due: target, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, ...(space === 'work' ? { space } : {}) });
     setQuick('');
     quickRef.current?.focus();
   };
@@ -153,7 +164,23 @@ function Tasks() {
         </View>
       }>
       {editing ? <TaskSheet task={editing} onClose={() => setEditing(null)} /> : null}
-      {adding ? <TaskSheet initial={adding.title} day={target} onClose={() => setAdding(null)} /> : null}
+      {adding ? <TaskSheet initial={adding.title} day={target} space={space} onClose={() => setAdding(null)} /> : null}
+
+      {/* خاص / شغل: two separate lists, one tap (or a swipe across the bar) to switch. */}
+      <View style={[s.spaceBar, { backgroundColor: t.soft }]} accessibilityRole="tablist">
+        {(['personal', 'work'] as Space[]).map((k) => {
+          const on = space === k;
+          const v = todayView(inSpace(everything, k), today);
+          const n = v.overdue.length + v.day.length;
+          return (
+            <Pressable key={k} onPress={() => setSpace(k)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={`${SPACES[k]}${n ? `، ${n} النهارده` : ''}`} style={[s.spaceBtn, on ? { backgroundColor: t.card, boxShadow: '0px 1px 4px rgba(0,0,0,0.12)' } : null]}>
+              <Ionicons name={k === 'work' ? 'briefcase-outline' : 'person-outline'} size={15} color={on ? t.fg : t.mute} />
+              <T w={on ? 'semi' : 'medium'} style={{ fontSize: 14, color: on ? t.fg : t.mute }}>{SPACES[k]}</T>
+              {n ? <T w="numBold" style={{ fontSize: 12, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
+            </Pressable>
+          );
+        })}
+      </View>
 
       <View style={[s.tabs, { borderColor: t.line }]}>
         {(
@@ -286,6 +313,12 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
     deleteTask(x.id);
     showUndo(`اتمسحت: ${x.title}`, () => writeTasks(list));
   };
+  const other: Space = spaceOf(x) === 'work' ? 'personal' : 'work';
+  const move = () => {
+    const list = before();
+    saveTask({ ...x, space: other });
+    showUndo(`${x.title} · اتنقلت لـ ${SPACES[other]}`, () => writeTasks(list));
+  };
   const tomorrow = () => {
     const list = before();
     saveTask({ ...x, due: addDays(today, 1) });
@@ -298,6 +331,7 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
         { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove },
         ...(done ? [] : [{ icon: 'arrow-redo' as const, label: 'بكرة', color: ACTION.orange, onPress: tomorrow }]),
         { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: onOpen },
+        { icon: other === 'work' ? 'briefcase-outline' : 'person-outline', label: `لـ${SPACES[other]}`, color: ACTION.indigo, onPress: move },
       ]}>
     <View style={{ borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth, borderColor: t.line, backgroundColor: t.card }}>
     <View style={s.task}>
@@ -388,6 +422,8 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 }
 
 const s = StyleSheet.create({
+  spaceBar: { flexDirection: 'row', borderRadius: 9, padding: 2, gap: 2 },
+  spaceBtn: { flex: 1, minHeight: 34, borderRadius: 7, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6 },
   tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
   tab: { flex: 1, alignItems: 'center', paddingTop: 4, gap: 5 },
   under: { height: 3, width: '60%', borderRadius: 2 },

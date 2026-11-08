@@ -1,5 +1,6 @@
 /// <reference types="jest" />
 import { addMonths, addSub, removeSub, toggleSub, allView, counts, dayTasks, doneBetween, doneOn, dueCounts, from12, monthGrid, nextDue, parseTasks, tagColor, timeAr, to12, todayView, toggleTask, type Task } from '../src/lib/tasks';
+import { inSpace, spaceOf } from '../src/lib/tasks';
 
 // Sunday 8 Nov 2026
 const T = '2026-11-08';
@@ -96,4 +97,23 @@ test('subtasks: add, tick, remove', () => {
   x = toggleSub(x, 's1');
   expect(x.subs[0].done).toBe(true);
   expect(removeSub(x, 's1').subs.map((y) => y.id)).toEqual(['s3']);
+});
+
+describe('spaces (خاص / شغل)', () => {
+  it('keeps work, defaults to personal, and splits the lists', () => {
+    const raw = JSON.stringify([
+      { id: 'a', title: 'لبن', due: null, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: '2026-11-08' },
+      { id: 'b', title: 'build', due: null, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: '2026-11-08', space: 'work' },
+      { id: 'c', title: 'x', due: null, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: '2026-11-08', space: 'other' },
+    ]);
+    const list = parseTasks(raw);
+    expect(list.map(spaceOf)).toEqual(['personal', 'work', 'personal']);
+    expect(inSpace(list, 'work').map((x) => x.id)).toEqual(['b']);
+    expect(inSpace(list, 'personal').map((x) => x.id)).toEqual(['a', 'c']);
+  });
+  it('a repeating work task stays on the work list when ticked', () => {
+    const t = parseTasks(JSON.stringify([{ id: 'r', title: 'standup', due: '2026-11-08', time: null, priority: 3, subs: [], repeat: 'daily', remind: false, done: null, created: '2026-11-08', space: 'work' }]));
+    const after = toggleTask(t, 'r', '2026-11-08', 'r2');
+    expect(after.every((x) => spaceOf(x) === 'work')).toBe(true);
+  });
 });
