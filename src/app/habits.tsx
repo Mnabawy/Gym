@@ -12,13 +12,15 @@ import { addDays } from '../lib/gaps';
 import { dayState, groupHabits, habitStats, isDue, logKey, partsDone, pausedNow, togglePause, type DayState, type Habit, type Log, type PartsLog } from '../lib/habits';
 import { addHabits, moveHabit, readHabitLog, readHabitParts, readHabits, saveHabit, setMark, setPart } from '../lib/habitStore';
 import { showUndo } from '../lib/undo';
+import { ADHKAR_KEY, adhkarKey, adhkarOf, adhkarProgress, listFor, parseAdhkarLog } from '../lib/adhkar';
+import { storage } from '../lib/storage';
 import { MY_HABITS } from '../data/habitTemplates';
 import { allowReminders } from '../lib/reminder';
 import { useSettings } from '../lib/settings';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
 import { usePop } from '../lib/motion';
-import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
+import { font, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -164,6 +166,7 @@ function Arrow({ t, name, label, disabled, onPress }: { t: Theme; name: IconName
 
 function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log; parts: PartsLog; today: string; t: Theme; dim?: boolean; paused?: boolean }) {
   const done = h.parts?.length ? partsDone(h, log, parts, today) : [];
+  const adhkarLog = h.parts?.some((_, i) => adhkarOf(h, i)) ? parseAdhkarLog(storage.getMeta(ADHKAR_KEY)) : {};
   const st = habitStats(h, log, today);
   const mark = log[logKey(h.id, today)];
   const on = mark === 'done';
@@ -232,19 +235,28 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
             <View style={s.parts}>
               {h.parts.map((p, i) => {
                 const pOn = done.includes(i);
+                // An adhkar part opens its list (counted there; finishing it ticks this part).
+                const ad = adhkarOf(h, i);
+                const ap = ad && !pOn ? adhkarProgress(listFor(ad), adhkarLog[adhkarKey(today, ad)]) : null;
                 return (
                   <Pressable
                     key={i}
                     onPress={() => {
                       tap();
-                      setPart(h, today, i);
+                      if (ad) router.push({ pathname: '/adhkar', params: { time: ad } });
+                      else setPart(h, today, i);
                     }}
+                    onLongPress={ad ? () => { tap(); setPart(h, today, i); } : undefined}
                     hitSlop={{ top: 6, bottom: 6 }}
-                    accessibilityRole="checkbox"
+                    accessibilityRole={ad ? 'button' : 'checkbox'}
                     accessibilityState={{ checked: pOn }}
-                    accessibilityLabel={`${h.name}: ${p.name}`}
-                    style={[s.part, pOn ? { backgroundColor: h.color, borderColor: h.color } : { borderColor: tint(h.color, 0.4) }]}>
+                    accessibilityLabel={`${h.name}: ${p.name}${ap?.done ? `، ${ap.done} من ${ap.total}` : ''}`}
+                    accessibilityHint={ad ? 'افتح الأذكار · دوسة طويلة تعلّم عليها' : undefined}
+                    style={[s.part, ad ? s.partWide : null, pOn ? { backgroundColor: h.color, borderColor: h.color } : { borderColor: tint(h.color, 0.4) }]}>
+                    {pOn ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}
                     <T w="semi" style={{ fontSize: 11.5, color: pOn ? '#FFFFFF' : t.fg }} numberOfLines={1}>{p.name}</T>
+                    {ap?.done ? <T style={{ fontSize: 11, color: t.mute, ...font('num') }} numberOfLines={1}>{`\u2066${ap.done}/${ap.total}\u2069`}</T> : null}
+                    {ad && !pOn ? <Ionicons name="chevron-back" size={12} color={t.mute} /> : null}
                   </Pressable>
                 );
               })}
@@ -283,7 +295,8 @@ const s = StyleSheet.create({
   arrow: { width: 40, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   check: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   parts: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 2 },
-  part: { borderWidth: 1.2, borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: 'center' },
+  part: { borderWidth: 1.2, borderRadius: 999, paddingHorizontal: 9, height: 26, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4 },
+  partWide: { height: 28, paddingHorizontal: 11, flexShrink: 0 },
   risk: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
   empty: { alignItems: 'center', gap: 8, paddingTop: 60, paddingHorizontal: 12 },
   emptyIcon: { width: 84, height: 84, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },

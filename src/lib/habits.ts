@@ -39,7 +39,8 @@ export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 /** A reminder tied to a prayer time: minutes after it (negative = before). */
 export type PrayerRef = { prayer: PrayerKey; offset: number };
 /** One sub-check of a habit (e.g. الفجر in الصلوات الخمس), with its own optional prayer-linked reminder. */
-export type Part = { name: string; at?: PrayerRef };
+/** `adhkar`: this part is a list of morning/evening adhkar, read and counted on /adhkar (finishing it ticks the part). */
+export type Part = { name: string; at?: PrayerRef; adhkar?: 'morning' | 'evening' };
 
 export type Habit = {
   id: string;
@@ -106,9 +107,9 @@ export function parseHabits(raw: string | null): Habit[] {
       ...(Array.isArray(o.parts)
         ? {
             parts: o.parts
-              .filter((p): p is { name: string; at?: unknown } => !!p && typeof p === 'object' && typeof (p as { name?: unknown }).name === 'string' && !!(p as { name: string }).name.trim())
+              .filter((p): p is { name: string; at?: unknown; adhkar?: unknown } => !!p && typeof p === 'object' && typeof (p as { name?: unknown }).name === 'string' && !!(p as { name: string }).name.trim())
               .slice(0, 12)
-              .map((p) => ({ name: p.name.trim().slice(0, 30), ...(parseRef(p.at) ? { at: parseRef(p.at)! } : null) })),
+              .map((p) => ({ name: p.name.trim().slice(0, 30), ...(parseRef(p.at) ? { at: parseRef(p.at)! } : null), ...(p.adhkar === 'morning' || p.adhkar === 'evening' ? { adhkar: p.adhkar } : null) })),
           }
         : null),
       ...(Array.isArray(o.pauses)

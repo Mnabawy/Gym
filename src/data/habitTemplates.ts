@@ -67,8 +67,8 @@ export const MY_HABITS: Template[] = [
     remind: null,
     cue: 'الصباح بعد الفجر، والمساء بعد العصر',
     parts: [
-      { name: 'الصباح', at: { prayer: 'fajr', offset: 15 } },
-      { name: 'المساء', at: { prayer: 'asr', offset: 15 } },
+      { name: 'الصباح', at: { prayer: 'fajr', offset: 15 }, adhkar: 'morning' },
+      { name: 'المساء', at: { prayer: 'asr', offset: 15 }, adhkar: 'evening' },
     ],
   },
   { group: 'العلم', name: 'العلم الشرعي', icon: 'school', color: '#D55E00', days: EVERY_DAY, remind: null },

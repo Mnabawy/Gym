@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Item, Pop } from '../components/Motion';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { ACTION, Swipe } from '../components/Swipe';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Screen, T, useKeyboardShown } from '../components/ui';
+import { MiniSwitch, Screen, T, useKeyboardShown } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
@@ -26,7 +25,6 @@ const ease = () => {
   // Reanimated layout transitions (Item) animate list changes now.
 };
 const LATE = '#C0392B';
-const SW_HALF = 44; // one half of the خاص / شغل switch
 /** Short weekday names by `Date.getDay()` for the week strip. */
 const WD = ['حد', 'اتنين', 'تلات', 'أربع', 'خميس', 'جمعة', 'سبت'];
 
@@ -122,7 +120,7 @@ function Tasks() {
       sub={sub[tab]}
       aside={
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-          <SpaceSwitch t={t} value={space} onChange={setSpace} />
+          <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
           {tab === 'today' && todayAll ? (
             <View style={[s.count, { backgroundColor: tint(t.ok, 0.14) }]}>
               <T w="numBold" style={{ fontSize: 11.5, color: t.okText }}>{`${tv.done.length}/${todayAll}`}</T>
@@ -236,43 +234,6 @@ function Tasks() {
       ) : null}
       <View style={{ height: 8 }} />
     </Screen>
-  );
-}
-
-/**
- * خاص / شغل as one small switch next to the title: the knob moves to the list you're on; a tap anywhere flips it.
- * The two lists never mix on the page.
- */
-function SpaceSwitch({ t, value, onChange }: { t: Theme; value: Space; onChange: (v: Space) => void }) {
-  const work = value === 'work';
-  return (
-    <Pressable
-      onPress={() => onChange(work ? 'personal' : 'work')}
-      hitSlop={8}
-      accessibilityRole="switch"
-      accessibilityState={{ checked: work }}
-      accessibilityLabel={`المهام: ${SPACES[value]}`}
-      accessibilityHint="دوس تبدّل بين خاص وشغل"
-      style={[s.sw, { backgroundColor: t.soft }]}>
-      {(['personal', 'work'] as Space[]).map((k) => (
-        <SwitchHalf key={k} t={t} label={SPACES[k]} on={value === k} />
-      ))}
-    </Pressable>
-  );
-}
-
-/** One side of the switch: the white knob fades onto the side you pick. */
-function SwitchHalf({ t, label, on }: { t: Theme; label: string; on: boolean }) {
-  const v = useSharedValue(on ? 1 : 0);
-  useEffect(() => {
-    v.set(withTiming(on ? 1 : 0, { duration: 180 }));
-  }, [on, v]);
-  const knob = useAnimatedStyle(() => ({ opacity: v.value, transform: [{ scale: 0.92 + v.value * 0.08 }] }));
-  return (
-    <View style={s.swHalf}>
-      <Animated.View style={[StyleSheet.absoluteFill, s.knob, { backgroundColor: t.card }, knob]} />
-      <T w={on ? 'semi' : 'medium'} style={{ fontSize: 12.5, color: on ? t.fg : t.mute }}>{label}</T>
-    </View>
   );
 }
 
@@ -446,9 +407,6 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 }
 
 const s = StyleSheet.create({
-  sw: { flexDirection: 'row', width: SW_HALF * 2 + 4, height: 30, borderRadius: 15, padding: 2 },
-  knob: { borderRadius: 13, boxShadow: '0px 1px 3px rgba(0,0,0,0.15)' },
-  swHalf: { width: SW_HALF, alignItems: 'center', justifyContent: 'center' },
   tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
   tab: { flex: 1, alignItems: 'center', paddingTop: 4, gap: 5 },
   under: { height: 3, width: '60%', borderRadius: 2 },

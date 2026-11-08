@@ -19,6 +19,7 @@ import { readNumbers } from './meta';
 import { energyFor } from './energy';
 import { parseWeights, WEIGHTS_KEY } from './weight';
 import { isDue, logKey, partsDone, pausedNow, prayerTime, type Habit } from './habits';
+import { ADHKAR_AR, adhkarOf } from './adhkar';
 import { readHabitLog, readHabitParts, readHabits } from './habitStore';
 import { addDays } from './gaps';
 
@@ -109,9 +110,9 @@ export function syncReminders(): Promise<void> {
       const hlog = readHabitLog();
       const hparts = readHabitParts();
       const body = (h: Habit) => (h.cue ? `${h.cue} · علّم عليها لما تعملها` : 'عادة النهارده: علّم عليها لما تعملها');
-      const at = async (title: string, text: string, date: Date) =>
+      const at = async (title: string, text: string, date: Date, url?: string) =>
         Notifications.scheduleNotificationAsync({
-          content: { title, body: text, sound: true, data: { kind: HABIT } },
+          content: { title, body: text, sound: true, data: { kind: HABIT, ...(url ? { url } : null) } },
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
         });
       // Prayer-linked times need the location from the prayer times settings.
@@ -138,7 +139,9 @@ export function syncReminders(): Promise<void> {
           for (const [i, p] of (h.parts ?? []).entries()) {
             if (!p.at || doneParts.includes(i) || (d === today && marked)) continue;
             const t = prayerTime(p.at, d, place, st.prayerMethod);
-            if (t && t > now) await at(`${h.name}: ${p.name}`, 'علّم عليها لما تعملها', t);
+            const ad = adhkarOf(h, i);
+            // An adhkar part opens its list on tap (handled in the root layout).
+            if (t && t > now) await (ad ? at(`أذكار ${ADHKAR_AR[ad]}`, 'دوس تفتحها وتعدّ', t, `/adhkar?time=${ad}`) : at(`${h.name}: ${p.name}`, 'علّم عليها لما تعملها', t));
           }
         }
       }

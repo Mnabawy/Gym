@@ -1,7 +1,8 @@
 import { useEffect } from 'react';
 import { AppState, I18nManager, Platform } from 'react-native';
-import { Stack } from 'expo-router';
+import { router, Stack, type Href } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -55,6 +56,7 @@ export default function RootLayout() {
       <Stack screenOptions={{ headerShown: false, animation: Platform.OS === 'android' ? 'ios_from_right' : 'default', fullScreenGestureEnabled: true }} />
       <VersePopup />
       <ReminderSync />
+      <OpenFromNotification />
       <CloudSync />
       <UndoBar />
       <ConfirmHost />
@@ -62,6 +64,21 @@ export default function RootLayout() {
     </SafeAreaProvider>
     </GestureHandlerRootView>
   );
+}
+
+/** A notification that carries a page (`data.url`, e.g. the adhkar list) opens it when tapped, also from a closed app. */
+function OpenFromNotification() {
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const go = (r: Notifications.NotificationResponse | null) => {
+      const url = r?.notification.request.content.data?.url;
+      if (typeof url === 'string' && url.startsWith('/')) setTimeout(() => router.push(url as Href), 300);
+    };
+    Notifications.getLastNotificationResponseAsync().then(go).catch(() => {});
+    const sub = Notifications.addNotificationResponseReceivedListener(go);
+    return () => sub.remove();
+  }, []);
+  return null;
 }
 
 /** Keeps the workout reminders in step with the settings and the log (a few seconds after the last change). */

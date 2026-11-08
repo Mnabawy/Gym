@@ -482,6 +482,41 @@ export function Row({ label, sub, children }: { label: string; sub?: string; chi
   );
 }
 
+/**
+ * Two-way switch with both labels (خاص / شغل, الصباح / المساء), small enough to sit next to a page title: the white
+ * knob fades onto the side that's on; a tap anywhere flips it.
+ */
+export function MiniSwitch<K extends string>({ options, value, onChange, label }: { options: readonly [readonly [K, string], readonly [K, string]]; value: K; onChange: (k: K) => void; label: string }) {
+  const t = useTheme();
+  const second = value === options[1][0];
+  const cur = options.find((o) => o[0] === value)?.[1] ?? '';
+  return (
+    <Pressable
+      onPress={() => onChange(second ? options[0][0] : options[1][0])}
+      hitSlop={8}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: second }}
+      accessibilityLabel={`${label}: ${cur}`}
+      accessibilityHint={`دوس تبدّل بين ${options[0][1]} و${options[1][1]}`}
+      style={[s.mini, { backgroundColor: t.soft }]}>
+      {options.map(([k, l]) => (
+        <MiniHalf key={k} label={l} on={value === k} />
+      ))}
+    </Pressable>
+  );
+}
+
+function MiniHalf({ label, on }: { label: string; on: boolean }) {
+  const t = useTheme();
+  const v = useTween(on ? 1 : 0, 180, true);
+  return (
+    <View style={s.miniHalf}>
+      <Animated.View style={[StyleSheet.absoluteFill, s.miniKnob, { backgroundColor: t.card, opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]} />
+      <T w={on ? 'semi' : 'medium'} numberOfLines={1} style={{ fontSize: 12.5, color: on ? t.fg : t.mute }}>{label}</T>
+    </View>
+  );
+}
+
 /** Hairline between rows inside a Card. */
 export function Sep() {
   const t = useTheme();
@@ -491,6 +526,9 @@ export function Sep() {
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
 
 const s = StyleSheet.create({
+  mini: { flexDirection: 'row', height: 30, borderRadius: 15, padding: 2 },
+  miniHalf: { minWidth: 44, paddingHorizontal: 8, alignItems: 'center', justifyContent: 'center' },
+  miniKnob: { borderRadius: 13, boxShadow: '0px 1px 3px rgba(0,0,0,0.15)' },
   scroll: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 120, gap: 8, maxWidth: 620, width: '100%', alignSelf: 'center' },
   dense: { paddingHorizontal: 12, gap: 6 },
   head: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 2, minHeight: 44 },
