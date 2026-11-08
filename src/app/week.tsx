@@ -16,6 +16,8 @@ import { storage } from '../lib/storage';
 import { readGoals } from '../lib/goalStore';
 import { readQuits } from '../lib/quitStore';
 import { readTasks } from '../lib/taskStore';
+import { readSessions } from '../lib/focusStore';
+import { minAr } from '../lib/focus';
 import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
@@ -56,6 +58,7 @@ export default function WeekScreen() {
     goals: readGoals(),
     quits: readQuits(),
     tasks: readTasks(),
+    focus: readSessions(),
   });
   const live = from === thisWeek;
   // Only for a finished week: a week in progress would always look like a drop.
@@ -171,6 +174,15 @@ export default function WeekScreen() {
           <Label>مهامي</Label>
           <Card style={{ padding: 14 }}>
             <T style={{ fontSize: 13.5 }}>{`✓ خلّصت ${r.tasksDone} ${r.tasksDone === 1 ? 'مهمة' : 'مهام'} الأسبوع ده`}</T>
+          </Card>
+        </>
+      ) : null}
+
+      {r.focus.work + r.focus.study ? (
+        <>
+          <Label>بومودورو</Label>
+          <Card style={{ padding: 14 }}>
+            <T style={{ fontSize: 13.5 }}>{`⏱ ركّزت ${minAr(r.focus.work + r.focus.study)} الأسبوع ده${r.focus.work && r.focus.study ? ` (شغل ${minAr(r.focus.work)} · مذاكرة ${minAr(r.focus.study)})` : ''}`}</T>
           </Card>
         </>
       ) : null}

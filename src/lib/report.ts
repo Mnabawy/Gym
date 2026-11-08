@@ -9,6 +9,7 @@ import { dayState, type Habit, type Log } from './habits';
 import { goalsWeek, type Goal, type GoalWeek } from './goals';
 import { quitsWeek, type Quit, type QuitWeek } from './quit';
 import { doneBetween, type Task } from './tasks';
+import { minutesBetween, type Kind, type Session } from './focus';
 import { cardioWeek, stepsWeek, type Cardio, type CardioWeek } from './cardio';
 
 export type WeekReport = {
@@ -36,6 +37,8 @@ export type WeekReport = {
   quits: (QuitWeek & { name: string; color: string })[];
   /** Tasks finished this week. */
   tasksDone: number;
+  /** Focus minutes this week (بومودورو), per kind. */
+  focus: Record<Kind, number>;
 };
 
 export type ReportInput = {
@@ -55,6 +58,7 @@ export type ReportInput = {
   goals?: readonly Goal[];
   quits?: readonly Quit[];
   tasks?: readonly Task[];
+  focus?: readonly Session[];
 };
 
 const vol = (rows: readonly SetRow[]) => Math.round(rows.reduce((a, r) => a + (r.kg ?? 0) * (r.reps ?? 0), 0));
@@ -105,6 +109,7 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
     habits,
     goals: goalsWeek(x.goals ?? [], from, end),
     tasksDone: doneBetween(x.tasks ?? [], from, end),
+    focus: minutesBetween(x.focus ?? [], from, end),
     quits: quitsWeek(x.quits ?? [], from, to, today).map((w) => {
       const q = x.quits!.find((y) => y.id === w.id)!;
       return { ...w, name: q.name, color: q.color };

@@ -20,6 +20,8 @@ import { addDays, daysBetween, weekStart } from '../lib/gaps';
 import { tap } from '../lib/timer';
 import { readQuits } from '../lib/quitStore';
 import { readTasks } from '../lib/taskStore';
+import { readCfg, readFocus, readSessions } from '../lib/focusStore';
+import { clock, countOn, minAr, minutesOn, PHASE_AR, remaining, running } from '../lib/focus';
 import { todayView } from '../lib/tasks';
 import { clean, runLabel } from '../lib/quit';
 import { useNow } from '../lib/useNow';
@@ -38,7 +40,7 @@ const SHORT = VERSES.filter((v) => v.text.join(' ').length <= 60);
 const glueMarks = (line: string) => line.replace(/ ([ۖ-ۜ])/g, '$1');
 
 /**
- * أقسامك: equal tiles (مهامي، الجيم، العادات، الأهداف، بطّل — the odd one out spans the row), each with its icon, name, one number and one line; tap to
+ * أقسامك: equal tiles (مهامي، بومودورو، الجيم، العادات، الأهداف، بطّل — the odd one out spans the row), each with its icon, name, one number and one line; tap to
  * open. Under them your next goal step with a tick, and a verse of the day.
  */
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -81,8 +83,13 @@ function Hub() {
   const tv = todayView(readTasks(), today);
   const tOpen = [...tv.overdue, ...tv.day];
   const tAll = tOpen.length + tv.done.length;
+  const fs = readSessions();
+  const fNow = readFocus();
+  const fMin = minutesOn(fs, today);
+  const fLine = running(fNow) ? `${PHASE_AR[fNow.phase]} شغال · ${clock(remaining(fNow, readCfg(), now))}` : fMin ? `${countOn(fs, today)} جلسات النهارده` : 'ركّز 25 دقيقة';
   const tiles: { key: Section; title: string; icon: IconName; color: string; stat: string; line: string; night?: boolean }[] = [
     { key: 'tasks', title: 'مهامي', icon: 'checkbox', color: t.sec.tasks, stat: tAll ? `${tv.done.length} من ${tAll}` : '—', line: tOpen[0] ? `الجاي: ${tOpen[0].title}${tv.overdue.length ? ` · ${tv.overdue.length} متأخرة` : ''}` : tAll ? 'خلّصت مهام النهارده ✓' : 'يومك فاضي' },
+    { key: 'focus', title: 'بومودورو', icon: 'timer', color: t.sec.focus, stat: fMin ? minAr(fMin) : '—', line: fLine },
     { key: 'gym', title: 'الجيم', icon: 'barbell', color: t.sec.gym, stat: trained.has(today) ? 'اتمرنت ✓' : day?.titleAr ?? '—', line: `${weekDone} من ${target} تمارين الأسبوع ده${meal ? ` · ${meal} ${MEAL_TIME[meal][training ? 'training' : 'rest']}` : ''}` },
     { key: 'habits', title: 'العادات', icon: 'checkmark-done', color: t.sec.habits, stat: due.length ? `${done} من ${due.length}` : '—', line: !habits.length ? 'ابدأ أول عادة' : streak > 1 ? `النهارده · 🔥 ${streak} يوم` : 'عادات النهارده' },
     { key: 'goals', title: 'الأهداف', icon: 'flag', color: t.sec.goals, stat: goal ? `${Math.floor(progress(goal) * 100)}%` : '—', line: goal ? goal.name : 'حدّد هدفك الكبير' },
