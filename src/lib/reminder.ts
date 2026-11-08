@@ -109,10 +109,11 @@ export function syncReminders(): Promise<void> {
       // Each habit with a reminder: its next due days at its time; not today once it's ticked (done or excused).
       const hlog = readHabitLog();
       const hparts = readHabitParts();
-      const body = (h: Habit) => (h.cue ? `${h.cue} · علّم عليها لما تعملها` : 'عادة النهارده: علّم عليها لما تعملها');
-      const at = async (title: string, text: string, date: Date, url?: string) =>
+      const body = (h: Habit) => (h.app ? `${h.cue ? `${h.cue} · ` : ''}دوس تفتح التطبيق` : h.cue ? `${h.cue} · علّم عليها لما تعملها` : 'عادة النهارده: علّم عليها لما تعملها');
+      // `url`: a page to open on tap; `app`: an app to open on tap (the habit's, e.g. the Quran app).
+      const at = async (title: string, text: string, date: Date, url?: string, app?: string) =>
         Notifications.scheduleNotificationAsync({
-          content: { title, body: text, sound: true, data: { kind: HABIT, ...(url ? { url } : null) } },
+          content: { title, body: text, sound: true, data: { kind: HABIT, ...(url ? { url } : null), ...(app ? { app } : null) } },
           trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
         });
       // Prayer-linked times need the location from the prayer times settings.
@@ -121,7 +122,7 @@ export function syncReminders(): Promise<void> {
       for (const h of habits) {
         const marked = !!hlog[logKey(h.id, today)];
         if (h.remind != null) {
-          for (const date of reminderTimes(now, h.remind, h.days, marked, 5)) if (dateKey(date) >= h.start) await at(h.name, body(h), date);
+          for (const date of reminderTimes(now, h.remind, h.days, marked, 5)) if (dateKey(date) >= h.start) await at(h.name, body(h), date, undefined, h.app);
         }
         if (!place) continue;
         // The next 5 days it's due, at the prayer time + offset; today only if not done yet and still ahead.
@@ -133,7 +134,7 @@ export function syncReminders(): Promise<void> {
         for (const d of days) {
           if (h.at && !(d === today && marked)) {
             const t = prayerTime(h.at, d, place, st.prayerMethod);
-            if (t && t > now) await at(h.name, body(h), t);
+            if (t && t > now) await at(h.name, body(h), t, undefined, h.app);
           }
           const doneParts = d === today ? partsDone(h, hlog, hparts, today) : [];
           for (const [i, p] of (h.parts ?? []).entries()) {

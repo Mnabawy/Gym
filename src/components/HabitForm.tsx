@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { packageFrom } from '../lib/apps';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { WEEKDAYS_AR } from '../data/program';
@@ -18,9 +19,9 @@ const timeAr = (m: number) => `${Math.floor(m / 60) % 12 || 12}:${String(m % 60)
 /** Add a habit (`habit` null) or edit one: name, icon, color, weekdays and an optional reminder. Mount it only while open. */
 export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit: Habit | null; onClose: () => void }) {
   const t = useTheme();
-  const blank = { group: '', parts: [] as Part[], at: undefined as PrayerRef | undefined, name: '', cue: '', icon: HABIT_ICONS[0] as string, color: HABIT_COLORS[0] as string, days: [...ALL_DAYS], remind: null as number | null };
+  const blank = { group: '', parts: [] as Part[], at: undefined as PrayerRef | undefined, name: '', cue: '', app: '', icon: HABIT_ICONS[0] as string, color: HABIT_COLORS[0] as string, days: [...ALL_DAYS], remind: null as number | null };
   // The parent mounts this only while open (keyed by habit), so the fields start fresh each time.
-  const [f, setF] = useState(() => (habit ? { ...habit, cue: habit.cue ?? '', group: habit.group ?? '', parts: habit.parts ?? [] } : blank));
+  const [f, setF] = useState(() => (habit ? { ...habit, cue: habit.cue ?? '', app: habit.app ?? '', group: habit.group ?? '', parts: habit.parts ?? [] } : blank));
   const [denied, setDenied] = useState(false);
   const [newPart, setNewPart] = useState('');
   const hasPlace = !!useSettings((s) => s.place);
@@ -30,6 +31,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
   const save = () => {
     if (!f.name.trim() || !f.days.length) return;
     const cue = (f.cue ?? '').trim();
+    const app = packageFrom(f.app ?? '');
     const group = (f.group ?? '').trim();
     const parts = (f.parts ?? []).filter((p) => p.name.trim());
     saveHabit({
@@ -42,6 +44,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
       remind: f.at ? null : f.remind,
       ...(f.at ? { at: f.at } : null),
       ...(cue ? { cue } : null),
+      ...(app ? { app } : null),
       ...(group ? { group } : null),
       ...(parts.length ? { parts } : null),
       ...(habit?.pauses ? { pauses: habit.pauses } : null),
@@ -79,6 +82,23 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           style={[INPUT, s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
         />
         <T style={{ fontSize: 11.5, color: t.mute, lineHeight: 17 }}>اختياري، بس بيفرق: لما تحدد امتى وفين، الموقف نفسه بيفكّرك بالعادة. واربطها بحاجة بتعملها كل يوم.</T>
+      </View>
+
+      <View style={{ gap: 4 }}>
+        <T w="medium">تفتح تطبيق؟ · اختياري</T>
+        <TextInput
+          value={f.app ?? ''}
+          onChangeText={(v) => setF({ ...f, app: v })}
+          placeholder="الصق رابط التطبيق من Google Play"
+          placeholderTextColor={t.mute}
+          autoCapitalize="none"
+          autoCorrect={false}
+          accessibilityLabel="رابط التطبيق اللي العادة بتفتحه"
+          style={[INPUT, s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body'), textAlign: 'left', writingDirection: 'ltr' }]}
+        />
+        <T style={{ fontSize: 11.5, color: (f.app ?? '').trim() && !packageFrom(f.app ?? '') ? t.bad : t.mute, lineHeight: 17 }}>
+          {(f.app ?? '').trim() ? (packageFrom(f.app ?? '') ? `هيفتح ${packageFrom(f.app ?? '')} · من زرار «افتح» على الكارت ومن التذكير` : 'ده مش رابط تطبيق من Google Play') : 'من صفحة التطبيق في المتجر: ⋮ ← مشاركة ← انسخ الرابط. زي المصحف لورد القرآن'}
+        </T>
       </View>
 
       <View style={{ gap: 6 }}>

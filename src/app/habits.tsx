@@ -14,6 +14,7 @@ import { addHabits, moveHabit, readHabitLog, readHabitParts, readHabits, saveHab
 import { showUndo } from '../lib/undo';
 import { ADHKAR_KEY, adhkarKey, adhkarOf, adhkarProgress, listFor, parseAdhkarLog } from '../lib/adhkar';
 import { storage } from '../lib/storage';
+import { canOpenApps, openApp } from '../lib/appsIO';
 import { MY_HABITS } from '../data/habitTemplates';
 import { allowReminders } from '../lib/reminder';
 import { useSettings } from '../lib/settings';
@@ -197,6 +198,7 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
         ...(paused || mark === 'skip' ? [] : [{ icon: 'remove-circle-outline' as const, label: 'معذور', color: ACTION.orange, onPress: () => setMark(h.id, today, 'skip') }]),
         paused ? { icon: 'play' as const, label: 'كمّل', color: ACTION.teal, onPress: pause } : { icon: 'pause' as const, label: 'وقّف', color: ACTION.indigo, onPress: pause },
         { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEditing(true) },
+        ...(h.app && canOpenApps ? [{ icon: 'open-outline' as const, label: 'افتح', color: ACTION.blue, onPress: () => void openApp(h.app!) }] : []),
       ]}>
     {/* The screen's color under the row, so a dimmed (see-through) row never shows the actions under it. */}
     <View style={{ backgroundColor: t.bg, borderRadius: 12 }}>
@@ -263,6 +265,12 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
             </View>
           ) : null}
         </View>
+        {h.app && canOpenApps && !paused ? (
+          // Opens the habit's app (e.g. the Quran app for the wird).
+          <Pressable onPress={() => { tap(); void openApp(h.app!); }} hitSlop={4} accessibilityRole="button" accessibilityLabel={`افتح التطبيق بتاع ${h.name}`} style={({ pressed }) => [s.check, { backgroundColor: tint(h.color, 0.14), opacity: pressed ? 0.6 : 1 }]}>
+            <Ionicons name="open-outline" size={20} color={h.color} />
+          </Pressable>
+        ) : null}
         {paused ? (
           <View style={[s.check, { backgroundColor: t.soft }]}>
             <Ionicons name="pause" size={20} color={t.mute} />

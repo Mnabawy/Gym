@@ -12,6 +12,7 @@
 //   every repetition raises it, a miss lowers it a little instead of wiping it out.
 // - Cue ("امتى وفين؟"): an if-then plan of when and where (implementation intention; Gollwitzer & Sheeran 2006
 //   meta-analysis) makes the situation itself the reminder.
+import { isPackage } from './apps';
 import { addDays, daysBetween } from './gaps';
 import { weekdayOf } from './logic';
 import { PRAYERS, timesFor, type Method, type PrayerKey } from './prayer';
@@ -37,6 +38,7 @@ export const phaseFill = (formed: number) => PHASES.map((p) => Math.max(0, Math.
 export const ALL_DAYS = [0, 1, 2, 3, 4, 5, 6];
 
 /** A reminder tied to a prayer time: minutes after it (negative = before). */
+
 export type PrayerRef = { prayer: PrayerKey; offset: number };
 /** One sub-check of a habit (e.g. الفجر in الصلوات الخمس), with its own optional prayer-linked reminder. */
 /** `adhkar`: this part is a list of morning/evening adhkar, read and counted on /adhkar (finishing it ticks the part). */
@@ -59,6 +61,8 @@ export type Habit = {
   remind: number | null;
   /** When and where: "بعد الفجر في أوضتي" (optional). */
   cue?: string;
+  /** Android package of an app the habit opens (e.g. a Quran app): an «افتح» button on its card and its reminder. */
+  app?: string;
   /** Paused stretches (Ramadan, travel…): those days count as neither done nor missed. `to` null = paused now. */
   pauses?: { from: string; to: string | null }[];
   /** Date it was added: days before it don't count. */
@@ -102,6 +106,7 @@ export function parseHabits(raw: string | null): Habit[] {
       remind: typeof o.remind === 'number' && o.remind >= 0 && o.remind < 1440 ? o.remind : null,
       start: o.start,
       ...(typeof o.cue === 'string' && o.cue.trim() ? { cue: o.cue.trim().slice(0, 60) } : null),
+      ...(typeof o.app === 'string' && isPackage(o.app) ? { app: o.app } : null),
       ...(typeof o.group === 'string' && o.group.trim() ? { group: o.group.trim().slice(0, 30) } : null),
       ...(parseRef(o.at) ? { at: parseRef(o.at)! } : null),
       ...(Array.isArray(o.parts)

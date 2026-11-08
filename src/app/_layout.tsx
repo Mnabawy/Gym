@@ -6,6 +6,8 @@ import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { isPackage } from '../lib/apps';
+import { openApp } from '../lib/appsIO';
 import { AmiriQuran_400Regular } from '@expo-google-fonts/amiri-quran';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VersePopup } from '../components/VersePopup';
@@ -66,13 +68,16 @@ export default function RootLayout() {
   );
 }
 
-/** A notification that carries a page (`data.url`, e.g. the adhkar list) opens it when tapped, also from a closed app. */
+/** A notification that carries a page (`data.url`, e.g. the adhkar list) or an app (`data.app`) opens it when tapped, also from a closed app. */
 function OpenFromNotification() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const go = (r: Notifications.NotificationResponse | null) => {
-      const url = r?.notification.request.content.data?.url;
+      const data = r?.notification.request.content.data;
+      const url = data?.url;
       if (typeof url === 'string' && url.startsWith('/')) setTimeout(() => router.push(url as Href), 300);
+      // A habit's app (e.g. the Quran app): open it straight away.
+      if (typeof data?.app === 'string' && isPackage(data.app)) void openApp(data.app);
     };
     Notifications.getLastNotificationResponseAsync().then(go).catch(() => {});
     const sub = Notifications.addNotificationResponseReceivedListener(go);

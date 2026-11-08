@@ -20,7 +20,8 @@
       "predictiveBackGestureEnabled": false,
       "package": "com.mnabawy.gym",
       "permissions": [
-        "android.permission.health.READ_STEPS"
+        "android.permission.health.READ_STEPS",
+        "android.permission.QUERY_ALL_PACKAGES"
       ]
     },
     "web": {
