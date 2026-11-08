@@ -33,7 +33,7 @@ const set = (idx: number): SetRow => ({ date: '2026-11-01', weekday: 1, exId: 'b
 test('nothing is noted while sync is off', () => {
   const s = track(memory());
   s.saveSet(set(0));
-  s.setMeta('habits', '[]');
+  s.setMeta('notes', '[]');
   expect(dirty()).toEqual({});
 });
 
@@ -45,10 +45,10 @@ test('writes are noted while on; phone-only keys and untracked writes are not', 
   s.saveSet(set(0));
   s.saveSet(set(1));
   s.setMealCheck('d', 'm', true);
-  s.setMeta('habits', '[]');
+  s.setMeta('notes', '[]');
   s.setMeta('driveUser', 'x');
   untracked(() => s.setMeta('notes', '{}'));
-  expect(Object.keys(dirty()).sort()).toEqual(['meal:d|m', 'meta:habits', 'set:2026-11-01|bench|0', 'set:2026-11-01|bench|1']);
+  expect(Object.keys(dirty()).sort()).toEqual(['meal:d|m', 'meta:notes', 'set:2026-11-01|bench|0', 'set:2026-11-01|bench|1']);
   expect(calls).toBe(4);
   s.clearDay('2026-11-01', ['bench']);
   expect(dirty()['set:2026-11-01|bench|1'].row?.deleted).toBe(true);
@@ -59,11 +59,11 @@ test('sync keys stay out of backups and survive a restore; turning off clears th
   const s = track(memory());
   setTracking(true);
   s.setMeta('sync.session', 'tok');
-  s.setMeta('habits', '[1]');
-  expect(s.dump().meta).toEqual({ habits: '[1]' });
+  s.setMeta('notes', '[1]');
+  expect(s.dump().meta).toEqual({ notes: '[1]' });
   s.restore({ sets: [set(0)], meals: [], shop: [], meta: { goals: '[]', 'sync.session': 'evil' } });
   expect(s.getMeta('sync.session')).toBe('tok');
-  expect(dirty()['meta:habits']).toBeDefined(); // gone → sent as a delete
+  expect(dirty()['meta:notes']).toBeDefined(); // gone → sent as a delete
   expect(dirty()['set:2026-11-01|bench|0'].row?.deleted).toBe(false);
   setTracking(false);
   expect(dirty()).toEqual({});

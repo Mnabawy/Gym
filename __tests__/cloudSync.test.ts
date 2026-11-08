@@ -29,15 +29,15 @@ test('pulled rows land on the phone: sets, meals, shop, meta, deletes', () => {
     pulled(setRow(set({ idx: 1 }), true, 10), 2),
     { kind: 'meal', key: '2026-11-01|breakfast', data: { date: '2026-11-01', meal: 'breakfast' }, deleted: false, updated_at: 10, rev: 3 },
     { kind: 'shop', key: '2026-W44|eggs', data: { week: '2026-W44', item: 'eggs' }, deleted: false, updated_at: 10, rev: 4 },
-    { kind: 'meta', key: 'habits', data: '[1]', deleted: false, updated_at: 10, rev: 5 },
+    { kind: 'meta', key: 'notes', data: '[1]', deleted: false, updated_at: 10, rev: 5 },
   ];
   const r = applyRows(rows, {}, f.t);
-  expect(r).toEqual({ changed: true, meta: ['habits'] });
+  expect(r).toEqual({ changed: true, meta: ['notes'] });
   expect([...f.sets.keys()]).toEqual(['2026-11-01|bench|0']);
   expect(f.sets.get('2026-11-01|bench|0')?.kg).toBe(60);
   expect(f.meals.has('2026-11-01|breakfast')).toBe(true);
   expect(f.shop.has('2026-W44|eggs')).toBe(true);
-  expect(f.meta.habits).toBe('[1]');
+  expect(f.meta.notes).toBe('[1]');
 });
 
 test('a newer change on the phone beats the server; an older one is dropped', () => {
@@ -72,7 +72,7 @@ test('the same value again is not a change; phone-only keys are never touched', 
   expect(r.changed).toBe(false);
   expect(f.meta.driveUser).toBeUndefined();
   expect(isLocalMeta('sync.dirty')).toBe(true);
-  expect(isLocalMeta('habits')).toBe(false);
+  expect(isLocalMeta('notes')).toBe(false);
 });
 
 test('broken rows are skipped', () => {
@@ -82,17 +82,17 @@ test('broken rows are skipped', () => {
 });
 
 test('push: saved rows as they are, meta read now, empty meta = deleted', () => {
-  const meta: Record<string, string> = { habits: '[2]', water: '' };
-  const dirty: Dirty = { 'set:a': { t: 3, row: setRow(set(), false, 3) }, 'meta:habits': { t: 4 }, 'meta:water': { t: 5 }, 'meta:sync.at': { t: 6 } };
+  const meta: Record<string, string> = { notes: '[2]', water: '' };
+  const dirty: Dirty = { 'set:a': { t: 3, row: setRow(set(), false, 3) }, 'meta:notes': { t: 4 }, 'meta:water': { t: 5 }, 'meta:sync.at': { t: 6 } };
   const items = pushItems(dirty, (k) => meta[k] ?? null);
-  expect(items.map((x) => x.id)).toEqual(['set:a', 'meta:habits', 'meta:water']);
-  expect(items[1].row).toEqual({ kind: 'meta', key: 'habits', data: '[2]', deleted: false, updated_at: 4 });
+  expect(items.map((x) => x.id)).toEqual(['set:a', 'meta:notes', 'meta:water']);
+  expect(items[1].row).toEqual({ kind: 'meta', key: 'notes', data: '[2]', deleted: false, updated_at: 4 });
   expect(items[2].row.deleted).toBe(true);
 });
 
 test('first sync sends everything on the phone except empty and phone-only meta', () => {
-  const rows = localRows({ sets: [set()], meals: [{ date: 'd', meal: 'm' }], shop: [{ week: 'w', item: 'i' }], meta: { habits: '[]', water: '', driveUser: 'x', 'sync.on': '1' } }, 7);
-  expect(rows.map((r) => `${r.kind}:${r.key}`)).toEqual(['set:2026-11-01|bench|0', 'meal:d|m', 'shop:w|i', 'meta:habits']);
+  const rows = localRows({ sets: [set()], meals: [{ date: 'd', meal: 'm' }], shop: [{ week: 'w', item: 'i' }], meta: { notes: '[]', water: '', driveUser: 'x', 'sync.on': '1' } }, 7);
+  expect(rows.map((r) => `${r.kind}:${r.key}`)).toEqual(['set:2026-11-01|bench|0', 'meal:d|m', 'shop:w|i', 'meta:notes']);
   expect(rows.every((r) => r.updated_at === 7 && !r.deleted)).toBe(true);
 });
 
@@ -119,7 +119,7 @@ describe('the to-do list goes one task per row', () => {
     expect(rows.map((r) => [r.key, r.deleted])).toEqual([['tasks/a', false], ['tasks/c', false], ['tasks/b', true]]);
     expect(rows[0].data).toEqual({ id: 'a', title: 'A2' });
     expect(splitKey('tasks/a')).toEqual({ key: 'tasks', id: 'a' });
-    expect(splitKey('habits/a')).toBeNull();
+    expect(splitKey('notes/a')).toBeNull();
   });
 
   test('pulled task rows edit, add and remove inside the list, leaving the others', () => {
@@ -159,5 +159,50 @@ describe('the to-do list goes one task per row', () => {
     expect(diff.map((r) => [r.key, r.deleted])).toEqual([['tasks/a', false], ['tasks/b', true]]);
     // An old whole-list entry in the log sends every task.
     expect(pushItems({ 'meta:tasks': { t: 3 } }, () => L(a, b)).map((x) => x.row.key)).toEqual(['tasks/a', 'tasks/b']);
+  });
+});
+
+describe('habits, goals and quits go one record per row too', () => {
+  test('habits: each habit is a row and the order is one more; moving one sends only the order', () => {
+    const h = (id: string) => ({ id, name: id });
+    const before = JSON.stringify([h('a'), h('b')]);
+    expect(localRows({ sets: [], meals: [], shop: [], meta: { habits: before } }, 1).map((r) => r.key)).toEqual(['habits/a', 'habits/b', 'habits/~order']);
+    const rows = itemChanges('habits', before, JSON.stringify([h('b'), h('a')]), 2);
+    expect(rows.map((r) => [r.key, r.data])).toEqual([['habits/~order', ['b', 'a']]]);
+    // The other phone gets the new order, and a habit it added stays (last).
+    const f = fakeTarget();
+    f.meta.habits = JSON.stringify([h('a'), h('b'), h('c')]);
+    applyRows(rows.map((r, i) => ({ ...r, rev: i + 1 })), {}, f.t);
+    expect(JSON.parse(f.meta.habits).map((x: { id: string }) => x.id)).toEqual(['b', 'a', 'c']);
+  });
+
+  test('habit log: one row per habit day; two phones ticking different days both keep them', () => {
+    const f = fakeTarget();
+    f.meta.habitLog = JSON.stringify({ 'a|2026-11-01': 'done' });
+    const mine = itemChanges('habitLog', '{}', f.meta.habitLog, 20);
+    expect(mine.map((r) => [r.key, r.data])).toEqual([['habitLog/a|2026-11-01', 'done']]);
+    const d: Dirty = { [`meta:${mine[0].key}`]: { t: 20, row: mine[0] } };
+    applyRows([
+      { kind: 'meta', key: 'habitLog/a|2026-11-02', data: 'skip', deleted: false, updated_at: 10, rev: 1 },
+      { kind: 'meta', key: 'habitParts/a|2026-11-02', data: [0, 2], deleted: false, updated_at: 10, rev: 2 },
+    ], d, f.t);
+    expect(JSON.parse(f.meta.habitLog)).toEqual({ 'a|2026-11-01': 'done', 'a|2026-11-02': 'skip' });
+    expect(JSON.parse(f.meta.habitParts)).toEqual({ 'a|2026-11-02': [0, 2] });
+    // Unticking sends a delete for that day only.
+    expect(itemChanges('habitLog', f.meta.habitLog, JSON.stringify({ 'a|2026-11-02': 'skip' }), 30).map((r) => [r.key, r.deleted])).toEqual([['habitLog/a|2026-11-01', true]]);
+  });
+
+  test('goals and quits: a goal edited on one phone, a quit added on another', () => {
+    const f = fakeTarget();
+    f.meta.goals = JSON.stringify([{ id: 'g', name: 'old' }]);
+    f.meta.quits = JSON.stringify([{ id: 'q1' }]);
+    const r = applyRows([
+      { kind: 'meta', key: 'goals/g', data: { id: 'g', name: 'new' }, deleted: false, updated_at: 5, rev: 1 },
+      { kind: 'meta', key: 'quits/q2', data: { id: 'q2' }, deleted: false, updated_at: 5, rev: 2 },
+      { kind: 'meta', key: 'goals/x', data: { id: 'other' }, deleted: false, updated_at: 5, rev: 3 },
+    ], {}, f.t);
+    expect(r.meta).toEqual(['goals', 'quits']);
+    expect(JSON.parse(f.meta.goals)).toEqual([{ id: 'g', name: 'new' }]);
+    expect(JSON.parse(f.meta.quits)).toEqual([{ id: 'q1' }, { id: 'q2' }]);
   });
 });

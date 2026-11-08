@@ -3,8 +3,8 @@
 // Change log on every write: src/lib/track.ts. Server table and its upsert: supabase/schema.sql.
 //
 // Every record is one row: a set (`date|exId|idx`), a ticked meal (`date|meal`), a shopping tick (`week|item`) or a
-// meta key. A list kept under one meta key (`SPLIT_META`, e.g. the to-do list) goes as one row per record
-// (`tasks/<id>`), so edits to different tasks on two phones both survive. The newest edit of each row wins (`updated_at`, ms). Deletes travel as rows with `deleted`.
+// meta key. Lists and maps kept under one meta key (`SPLIT_META`: tasks, goals, quits, habits and their log) go as one
+// row per record (`tasks/<id>`, `habitLog/<id|date>`), so edits to different records on two phones both survive. The newest edit of each row wins (`updated_at`, ms). Deletes travel as rows with `deleted`.
 // Photos aren't synced (they stay in the backup file).
 import type { Dump, SetRow } from './storage.types';
 
@@ -21,60 +21,103 @@ export const isLocalMeta = (k: string) => k.startsWith(SYNC_PREFIX) || LOCAL_MET
 
 export const rowId = (kind: Kind, key: string) => `${kind}:${key}`;
 
-/** Meta keys holding a JSON list of records with an `id`: synced one record per row, keyed `key/id`. */
-export const SPLIT_META: ReadonlySet<string> = new Set(['tasks']);
+/**
+ * Meta keys synced one record per row (`key/id`) instead of as one value, so edits to different records on two phones
+ * both survive. `list`: a JSON list of records with an `id`; `ordered`: the same, plus the order as one more row
+ * (`key/~order`); `map`: a JSON object, one row per entry (e.g. a habit's day `id|date`).
+ */
+export const SPLIT_META: Readonly<Record<string, 'list' | 'ordered' | 'map'>> = {
+  tasks: 'list',
+  goals: 'ordered',
+  quits: 'ordered',
+  habits: 'ordered',
+  habitLog: 'map',
+  habitParts: 'map',
+};
+export const isSplit = (k: string) => Object.prototype.hasOwnProperty.call(SPLIT_META, k);
 const SEP = '/';
-type Item = { id: string } & Record<string, unknown>;
+export const ORDER = '~order';
 export const itemKey = (key: string, id: string) => `${key}${SEP}${id}`;
 /** `tasks/t1` → { key: 'tasks', id: 't1' }; null for any other key. */
 export function splitKey(k: string): { key: string; id: string } | null {
   const i = k.indexOf(SEP);
   if (i < 0) return null;
   const key = k.slice(0, i);
-  return SPLIT_META.has(key) && i < k.length - 1 ? { key, id: k.slice(i + 1) } : null;
+  return isSplit(key) && i < k.length - 1 ? { key, id: k.slice(i + 1) } : null;
 }
-const isItem = (x: unknown): x is Item => !!x && typeof x === 'object' && !Array.isArray(x) && typeof (x as Item).id === 'string';
-export function listItems(v: string | null | undefined): Item[] {
+const isObj = (x: unknown): x is Record<string, unknown> => !!x && typeof x === 'object' && !Array.isArray(x);
+const isIds = (x: unknown): x is string[] => Array.isArray(x) && x.every(str);
+const okEntry = (key: string, id: string, data: unknown) =>
+  SPLIT_META[key] === 'map' ? data != null : id === ORDER ? SPLIT_META[key] === 'ordered' && isIds(data) : isObj(data) && data.id === id;
+
+/** A split key's value as its records, by id (a list's order kept as the `~order` record). */
+export function entriesOf(key: string, v: string | null | undefined): Map<string, unknown> {
+  const out = new Map<string, unknown>();
+  let a: unknown;
   try {
-    const a: unknown = JSON.parse(v || '[]');
-    return Array.isArray(a) ? a.filter(isItem) : [];
+    a = JSON.parse(v || 'null');
   } catch {
-    return [];
+    return out;
   }
+  if (SPLIT_META[key] === 'map') {
+    if (isObj(a)) for (const [k, x] of Object.entries(a)) if (x != null) out.set(k, x);
+  } else if (Array.isArray(a)) {
+    for (const x of a) if (isObj(x) && typeof x.id === 'string' && x.id !== ORDER) out.set(x.id, x);
+    if (SPLIT_META[key] === 'ordered' && out.size > 1) out.set(ORDER, [...out.keys()]);
+  }
+  return out;
 }
-const itemRow = (key: string, it: Item, deleted: boolean, t: number): CloudRow => ({ kind: 'meta', key: itemKey(key, it.id), data: deleted ? null : it, deleted, updated_at: t });
-const itemRows = (key: string, v: string | null | undefined, t: number) => listItems(v).map((it) => itemRow(key, it, false, t));
+/** Back to the stored value: a map as an object; a list in its `~order` (records it doesn't name go last). */
+function valueOf(key: string, m: Map<string, unknown>): string {
+  if (SPLIT_META[key] === 'map') return JSON.stringify(Object.fromEntries(m));
+  const order = m.get(ORDER);
+  const items = [...m.entries()].filter(([k]) => k !== ORDER).map(([, x]) => x as { id: string });
+  if (isIds(order)) {
+    const at = new Map(order.map((id, i) => [id, i]));
+    const pos = (x: { id: string }) => at.get(x.id) ?? order.length;
+    items.sort((p, q) => pos(p) - pos(q));
+  }
+  return JSON.stringify(items);
+}
+const entryRow = (key: string, id: string, data: unknown, t: number): CloudRow => ({ kind: 'meta', key: itemKey(key, id), data: data ?? null, deleted: data == null, updated_at: t });
+const allRows = (key: string, v: string | null | undefined, t: number) => [...entriesOf(key, v)].map(([id, x]) => entryRow(key, id, x, t));
 
 /** The rows for the records that changed between two values of a split meta key (added, edited, removed). */
 export function itemChanges(key: string, before: string | null | undefined, after: string | null | undefined, t: number): CloudRow[] {
-  const old = new Map(listItems(before).map((it) => [it.id, JSON.stringify(it)]));
+  const old = entriesOf(key, before);
+  const now = entriesOf(key, after);
   const out: CloudRow[] = [];
-  const now = new Set<string>();
-  for (const it of listItems(after)) {
-    now.add(it.id);
-    if (old.get(it.id) !== JSON.stringify(it)) out.push(itemRow(key, it, false, t));
-  }
-  for (const id of old.keys()) if (!now.has(id)) out.push(itemRow(key, { id }, true, t));
+  for (const [id, x] of now) if (JSON.stringify(old.get(id)) !== JSON.stringify(x)) out.push(entryRow(key, id, x, t));
+  for (const id of old.keys()) if (!now.has(id)) out.push(entryRow(key, id, null, t));
   return out;
 }
 /** A change-log entry for a row: plain meta keys are read when sent; everything else keeps the row. */
 export const entry = (r: CloudRow) => (r.kind === 'meta' && !splitKey(r.key) ? { t: r.updated_at } : { t: r.updated_at, row: r });
 
-/** Puts one pulled record into its list (null = removed). False when nothing changed. */
-function applyItem(s: Target, key: string, id: string, data: unknown): boolean {
-  const list = listItems(s.getMeta(key));
-  const i = list.findIndex((x) => x.id === id);
+/** Puts one pulled record into its key's value (null = removed). False when nothing changed. */
+function applyEntry(s: Target, key: string, id: string, data: unknown): boolean {
+  const m = entriesOf(key, s.getMeta(key));
   if (data == null) {
-    if (i < 0) return false;
-    list.splice(i, 1);
+    if (!m.has(id)) return false;
+    m.delete(id);
   } else {
-    if (!isItem(data) || data.id !== id) return false;
-    if (i >= 0 && JSON.stringify(list[i]) === JSON.stringify(data)) return false;
-    if (i >= 0) list[i] = data;
-    else list.push(data);
+    if (!okEntry(key, id, data) || JSON.stringify(m.get(id)) === JSON.stringify(data)) return false;
+    m.set(id, data);
   }
-  s.setMeta(key, JSON.stringify(list));
+  s.setMeta(key, valueOf(key, m));
   return true;
+}
+/** A whole value sent before records went one by one: only adds the records missing here. */
+function mergeWhole(s: Target, key: string, v: string): boolean {
+  const m = entriesOf(key, s.getMeta(key));
+  let added = false;
+  for (const [id, x] of entriesOf(key, v)) {
+    if (id === ORDER || m.has(id)) continue;
+    m.set(id, x);
+    added = true;
+  }
+  if (added) s.setMeta(key, valueOf(key, m));
+  return added;
 }
 
 export function setRow(r: SetRow, deleted: boolean, t: number): CloudRow {
@@ -131,14 +174,10 @@ export function applyRows(rows: readonly Pulled[], dirty: Dirty, s: Target): { c
       s.setShopCheck(d.week, d.item, !r.deleted);
     } else if (r.kind === 'meta' && splitKey(r.key)) {
       const sp = splitKey(r.key)!;
-      if (!applyItem(s, sp.key, sp.id, r.deleted ? null : r.data)) continue;
+      if (!applyEntry(s, sp.key, sp.id, r.deleted ? null : r.data)) continue;
       if (!meta.includes(sp.key)) meta.push(sp.key);
-    } else if (r.kind === 'meta' && SPLIT_META.has(r.key)) {
-      // The whole list, sent before records went one by one: only adds the ones missing here.
-      const have = new Set(listItems(s.getMeta(r.key)).map((x) => x.id));
-      const add = r.deleted || !str(r.data) ? [] : listItems(r.data).filter((x) => !have.has(x.id));
-      if (!add.length) continue;
-      s.setMeta(r.key, JSON.stringify([...listItems(s.getMeta(r.key)), ...add]));
+    } else if (r.kind === 'meta' && isSplit(r.key)) {
+      if (r.deleted || !str(r.data) || !mergeWhole(s, r.key, r.data)) continue;
       if (!meta.includes(r.key)) meta.push(r.key);
     } else if (r.kind === 'meta') {
       const v = r.deleted || !str(r.data) ? '' : r.data;
@@ -160,9 +199,9 @@ export function pushItems(dirty: Dirty, getMeta: (k: string) => string | null): 
       const key = id.slice(5);
       if (isLocalMeta(key)) continue;
       const v = getMeta(key);
-      if (SPLIT_META.has(key)) {
+      if (isSplit(key)) {
         // Noted as a whole (before this version): send every record now.
-        for (const row of itemRows(key, v, e.t)) out.push({ id, t: e.t, row });
+        for (const row of allRows(key, v, e.t)) out.push({ id, t: e.t, row });
         continue;
       }
       out.push({ id, t: e.t, row: { kind: 'meta', key, data: v || null, deleted: !v, updated_at: e.t } });
@@ -179,7 +218,7 @@ export function localRows(d: Dump, t: number): CloudRow[] {
   for (const x of d.shop) out.push(shopRow(x.week, x.item, false, t));
   for (const [k, v] of Object.entries(d.meta)) {
     if (!v || isLocalMeta(k)) continue;
-    if (SPLIT_META.has(k)) out.push(...itemRows(k, v, t));
+    if (isSplit(k)) out.push(...allRows(k, v, t));
     else out.push({ kind: 'meta', key: k, data: v, deleted: false, updated_at: t });
   }
   return out;
@@ -190,7 +229,7 @@ export function diffRows(before: Dump, after: Dump, t: number): CloudRow[] {
   const now = new Map(localRows(after, t).map((r) => [rowId(r.kind, r.key), r]));
   for (const r of localRows(before, t)) {
     const id = rowId(r.kind, r.key);
-    if (!now.has(id)) now.set(id, { ...r, data: r.kind === 'meta' && !splitKey(r.key) ? null : r.data, deleted: true });
+    if (!now.has(id)) now.set(id, { ...r, data: r.kind === 'meta' ? null : r.data, deleted: true });
   }
   return [...now.values()];
 }

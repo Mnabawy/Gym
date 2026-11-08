@@ -2,7 +2,7 @@
 // noted as "changed here" until src/lib/cloud.ts has sent it. Only while sync is on (meta `sync.on`); before that, the
 // first sync compares everything. The log is meta `sync.dirty`. `sync.*` keys stay on this phone: they're left out of
 // dump() (backups) and survive restore().
-import { diffRows, entry, isLocalMeta, itemChanges, mealRow, rowId, setRow, shopRow, SPLIT_META, SYNC_PREFIX, type CloudRow, type Dirty } from './cloudSync';
+import { diffRows, entry, isLocalMeta, itemChanges, mealRow, rowId, setRow, shopRow, isSplit, SYNC_PREFIX, type CloudRow, type Dirty } from './cloudSync';
 import type { Dump, Storage } from './storage.types';
 
 const ON = 'sync.on';
@@ -93,8 +93,8 @@ export function track(base: Storage): Storage {
       note(gone);
     },
     setMeta(key, value) {
-      if (SPLIT_META.has(key)) {
-        // A list synced one record per row: note only the records that changed.
+      if (isSplit(key)) {
+        // Synced one record per row: note only the records that changed.
         const before = base.getMeta(key);
         base.setMeta(key, value);
         if (!paused && trackingOn()) note(itemChanges(key, before, value, Date.now()).map(row));

@@ -6,7 +6,7 @@
 // phone goes up. Photos aren't synced. Setup (project, table, Google provider): docs/supabase-setup.md.
 import { useDataVersion } from './bus';
 import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
-import { applyRows, entry, localRows, pushItems, rowId, type Pulled } from './cloudSync';
+import { applyRows, entry, localRows, SPLIT_META, splitKey, pushItems, rowId, type Pulled } from './cloudSync';
 import { GOOGLE_USER, googleIdToken } from './google';
 import { useSettings } from './settings';
 import { storage } from './storage';
@@ -19,6 +19,8 @@ export const cloudConfigured = !!(CONFIG.url && CONFIG.key);
 /** Meta keys (this phone only): the session, the last rev pulled, last good sync (ms), last error. */
 const SESSION = 'sync.session';
 const CURSOR = 'sync.cursor';
+/** Which keys this phone has already sent one record per row (after updating, each record goes up once). */
+const SPLIT_SENT = 'sync.split';
 export const SYNC_AT = 'sync.at';
 export const SYNC_ERROR = 'sync.error';
 
@@ -109,6 +111,17 @@ async function syncOnce() {
       }
       saveDirty();
       setMeta(CURSOR, String(cursor));
+    }
+    const split = Object.keys(SPLIT_META).join(',');
+    if (meta(SPLIT_SENT) !== split) {
+      // Habits, goals, quits and tasks used to go as one value: send each record once (the server then has them all).
+      const d = dirty();
+      for (const r of localRows(storage.dump(), Date.now())) {
+        const id = rowId(r.kind, r.key);
+        if (splitKey(r.key) && !d[id]) d[id] = entry(r);
+      }
+      saveDirty();
+      setMeta(SPLIT_SENT, split);
     }
     // Push what changed here, in batches; an entry edited again meanwhile stays for next time.
     const items = pushItems(dirty(), (k) => rawStorage().getMeta(k));
