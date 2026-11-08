@@ -257,7 +257,7 @@ function HabitScreen() {
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Btn label="عدّل" style={{ flex: 1 }} onPress={() => setEditing(true)} />
         <Btn label={pausedNow(h) ? 'رجّعها' : 'وقّفها مؤقتاً'} kind={pausedNow(h) ? 'solid' : 'ghost'} style={{ flex: 1 }} onPress={() => saveHabit(togglePause(h, today))} />
-        <Btn label="امسحها" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: 'تمسح العادة دي؟', body: 'هتتشال هي وكل اللي اتسجل ليها.', confirmLabel: 'امسح', danger: true })) { deleteHabit(h.id); router.back(); } }} />
+        <Btn kind="danger" label="امسحها" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: 'تمسح العادة دي؟', body: 'هتتشال هي وكل اللي اتسجل ليها.', confirmLabel: 'امسح', danger: true })) { deleteHabit(h.id); router.back(); } }} />
       </View>
       <T style={{ color: t.mute, fontSize: 12, textAlign: 'center' }}>{`بدأتها ${+h.start.slice(8)} ${MONTHS_AR[+h.start.slice(5, 7) - 1]} ${h.start.slice(0, 4)}`}</T>
       {editing ? <HabitForm visible habit={h} onClose={() => setEditing(false)} /> : null}

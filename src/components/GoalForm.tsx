@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Pill, Sheet, Stepper, T } from './ui';
+import { INPUT, Btn, Pill, Sheet, Stepper, T } from './ui';
 import { GOAL_TEMPLATES, fromTemplate, type GoalTemplate } from '../data/goalTemplates';
-import { GOAL_COLORS, GOAL_ICONS, type Goal } from '../lib/goals';
+import { current, GOAL_COLORS, GOAL_ICONS, goalId, type Goal } from '../lib/goals';
 import { saveGoal } from '../lib/goalStore';
 import { daysBetween } from '../lib/gaps';
 import { dateKey, parseNum } from '../lib/logic';
@@ -22,19 +22,21 @@ const plusMonths = (from: string, n: number) => {
  * New goal (pick a ready road first: money, a skill, or your own) or edit one: name, icon, color, what you count,
  * where you start and where you want to be, and an optional time frame. Mounted only while open.
  */
+const stamp = () => Date.now();
+
 export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () => void; onSaved?: (g: Goal) => void }) {
   const t = useTheme();
   const today = dateKey();
   const [tp, setTp] = useState<GoalTemplate | null>(null);
   const [f, setF] = useState(() =>
     goal
-      ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why }
+      ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), now: String(current(goal)), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why }
       : null,
   );
 
   const pick = (x: GoalTemplate) => {
     setTp(x);
-    setF({ name: x.name, icon: x.icon, color: x.color, unit: x.unit, start: '0', target: String(x.target), months: x.key === 'money' ? 60 : x.key === 'skill' ? 12 : 0, why: '' });
+    setF({ name: x.name, icon: x.icon, color: x.color, unit: x.unit, start: '0', now: '', target: String(x.target), months: x.key === 'money' ? 60 : x.key === 'skill' ? 12 : 0, why: '' });
   };
 
   if (!f) {
@@ -58,13 +60,17 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
 
   const start = parseNum(f.start) ?? NaN;
   const target = parseNum(f.target) ?? NaN;
-  const ok = !!f.name.trim() && Number.isFinite(start) && Number.isFinite(target) && start !== target;
+  // Where you are now: empty = at the start. Anything else is logged as progress today.
+  const now = f.now.trim() ? parseNum(f.now) ?? NaN : start;
+  const ok = !!f.name.trim() && Number.isFinite(start) && Number.isFinite(target) && Number.isFinite(now) && start !== target;
   const set = (p: Partial<typeof f>) => setF({ ...f, ...p });
 
   const save = () => {
     if (!ok) return;
     const base = goal ?? fromTemplate(tp ?? GOAL_TEMPLATES[GOAL_TEMPLATES.length - 1], today);
     const g: Goal = { ...base, name: f.name.trim(), icon: f.icon, color: f.color, unit: f.unit.trim(), start, target, due: f.months ? plusMonths(base.startDate, f.months) : null, why: f.why.trim() };
+    const gap = now - current(g);
+    if (gap) g.entries = [...g.entries, { id: goalId(stamp()), date: today < g.startDate ? g.startDate : today, amount: gap, note: 'من «انت فين»' }];
     saveGoal(g);
     onSaved?.(g);
     onClose();
@@ -76,32 +82,37 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
         <View style={[s.icon, { backgroundColor: f.color }]}>
           <Ionicons name={f.icon as IconName} size={22} color="#FFFFFF" />
         </View>
-        <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="هدفك إيه؟" placeholderTextColor={t.mute} maxLength={50} accessibilityLabel="اسم الهدف" style={[s.name, { color: t.fg, ...font('semi') }]} />
+        <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="هدفك إيه؟" placeholderTextColor={t.mute} maxLength={50} accessibilityLabel="اسم الهدف" style={[INPUT, s.name, { color: t.fg, ...font('semi') }]} />
       </View>
 
       <T w="medium">بتعدّ إيه؟</T>
       <View style={s.grid}>
         {UNITS.map((u) => <Pill key={u} label={u} on={f.unit === u} onPress={() => set({ unit: u })} />)}
-        <TextInput value={UNITS.includes(f.unit) ? '' : f.unit} onChangeText={(v) => set({ unit: v })} placeholder="حاجة تانية" placeholderTextColor={t.mute} maxLength={12} accessibilityLabel="وحدة تانية" style={[s.field, { width: 110, color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+        <TextInput value={UNITS.includes(f.unit) ? '' : f.unit} onChangeText={(v) => set({ unit: v })} placeholder="حاجة تانية" placeholderTextColor={t.mute} maxLength={12} accessibilityLabel="وحدة تانية" style={[INPUT, s.field, { width: 110, color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 10 }}>
-        <View style={{ flex: 1, gap: 4 }}>
-          <T w="medium">انت فين دلوقتي</T>
-          <TextInput value={f.start} onChangeText={(v) => set({ start: v })} keyboardType="numeric" accessibilityLabel="البداية" style={[s.field, { color: t.fg, backgroundColor: t.soft, ...font('num') }]} />
-        </View>
-        <View style={{ flex: 1, gap: 4 }}>
-          <T w="medium">عايز توصل لكام</T>
-          <TextInput value={f.target} onChangeText={(v) => set({ target: v })} keyboardType="numeric" accessibilityLabel="الهدف" style={[s.field, { color: t.fg, backgroundColor: t.soft, ...font('num') }]} />
-        </View>
+      {/* Three numbers, in the order you walk them: where it starts, where you are, where you want to be. */}
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        {(
+          [
+            ['start', 'نقطة البداية', f.start, '0'],
+            ['now', 'انت فين دلوقتي', f.now, f.start || '0'],
+            ['target', 'الهدف النهائي', f.target, ''],
+          ] as const
+        ).map(([k, label, v, ph]) => (
+          <View key={k} style={{ flex: 1, gap: 4 }}>
+            <T w="medium" style={{ fontSize: 13 }} numberOfLines={1} adjustsFontSizeToFit>{label}</T>
+            <TextInput value={v} onChangeText={(x) => set({ [k]: x })} keyboardType="numeric" placeholder={ph} placeholderTextColor={t.mute} accessibilityLabel={label} style={[s.field, INPUT, { color: t.fg, backgroundColor: t.soft, ...font('num') }]} />
+          </View>
+        ))}
       </View>
-      {f.start.trim() && f.target.trim() && !ok && f.name.trim() ? <T style={{ fontSize: 12, color: t.warn }}>اكتب رقمين مختلفين</T> : null}
+      {f.start.trim() && f.target.trim() && !ok && f.name.trim() ? <T style={{ fontSize: 12, color: t.warn }}>{Number.isFinite(now) ? 'البداية والهدف لازم يبقوا رقمين مختلفين' : 'اكتب رقم في «انت فين» أو سيبها فاضية'}</T> : null}
 
       <T w="medium">في قد إيه؟</T>
       <Stepper value={f.months} min={0} max={120} step={f.months >= 12 ? 6 : 1} onChange={(v) => set({ months: v })} label="المدة" format={(v) => (!v ? 'من غير ميعاد' : v % 12 === 0 ? `${v / 12} سنة` : `${v} شهر`)} />
 
       <T w="medium">ليه عايز توصل؟ · اختياري</T>
-      <TextInput value={f.why} onChangeText={(v) => set({ why: v })} placeholder="السبب اللي هيخليك تكمّل لما تزهق" placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel="ليه" style={[s.field, { height: 70, paddingTop: 10, textAlignVertical: 'top', color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+      <TextInput value={f.why} onChangeText={(v) => set({ why: v })} placeholder="السبب اللي هيخليك تكمّل لما تزهق" placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel="ليه" style={[INPUT, s.field, { height: 70, paddingTop: 10, textAlignVertical: 'top', color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
 
       <T w="medium">الأيقونة</T>
       <View style={s.grid}>

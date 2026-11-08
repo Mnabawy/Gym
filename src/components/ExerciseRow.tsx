@@ -13,7 +13,7 @@ import { storage } from '../lib/storage';
 import { deloadOn, useSettings } from '../lib/settings';
 import { nope, useTimer, tap } from '../lib/timer';
 import { glow, tint, useTheme, font } from '../theme';
-import { Btn, InfoPopup, Sheet, TagBadge, T } from './ui';
+import { INPUT, Btn, InfoPopup, Sheet, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { showUndo } from '../lib/undo';
@@ -319,7 +319,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
               placeholder="مثلًا: الكرسي على رقم 4"
               placeholderTextColor={t.mute}
               accessibilityLabel="الملاحظة"
-              style={[s.note, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+              style={[INPUT, s.note, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
             />
             <Btn label="احفظ" kind="solid" onPress={saveNote} />
           </Sheet>
@@ -681,7 +681,7 @@ function Field({ value, unit, label, decimal, error, autoFocus, inputRef, onChan
         onFocus={() => setFocus(true)}
         onBlur={() => setFocus(false)}
         accessibilityLabel={label}
-        style={[s.fin, { color: t.fg }]}
+        style={[INPUT, s.fin, { color: t.fg }]}
       />
       <T style={{ fontSize: 9.5, color: t.mute }}>{unit}</T>
       {btn(1)}

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Animated, Easing, Modal, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Btn, Pill, Sheet, T } from './ui';
+import { INPUT, Btn, Pill, Sheet, T } from './ui';
 import { longest, runLabel, TRIGGERS, URGE_MINUTES, type Quit, type Trigger } from '../lib/quit';
 import { addSlip, addUrge } from '../lib/quitStore';
 import { confirm } from '../lib/confirm';
@@ -150,7 +150,7 @@ export function SlipSheet({ q, onClose }: { q: Quit; onClose: () => void }) {
       <View style={s.grid}>{WHEN.map((w) => <Pill key={w.h} label={w.label} on={h === w.h} onPress={() => setH(w.h)} />)}</View>
       <T w="medium" style={{ fontSize: 13.5 }}>إيه اللي جابها؟</T>
       <TriggerPicks value={trigger} onChange={setTrigger} />
-      <TextInput value={note} onChangeText={setNote} placeholder="حاجة تتعلم منها المرة الجاية (اختياري)" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="ملاحظة" textAlign="right" style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+      <TextInput value={note} onChangeText={setNote} placeholder="حاجة تتعلم منها المرة الجاية (اختياري)" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="ملاحظة" textAlign="right" style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       <Btn label="سجّل وابدأ من جديد" kind="solid" onPress={save} />
     </Sheet>
   );
@@ -170,7 +170,7 @@ export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, o
         maxLength={40}
         accessibilityLabel="كلمة السر"
         textAlign="right"
-        style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+        style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
       />
       <Btn label="ادخل" kind="solid" onPress={onConfirm} />
     </Sheet>

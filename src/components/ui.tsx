@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, type StyleProp, type TextStyle, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Svg, { Circle } from 'react-native-svg';
@@ -23,6 +23,12 @@ export function useKeyboardShown(): boolean {
   }, []);
   return on;
 }
+
+/**
+ * Put first in every TextInput's style. Android pads a text field's text box and font; with the system font that cut
+ * the Arabic text off while typing in 44pt fields. Explicit paddingTop (multiline fields) still wins over this.
+ */
+export const INPUT: TextStyle = Platform.OS === 'android' ? { paddingVertical: 0, includeFontPadding: false, textAlignVertical: 'center' } : {};
 
 /** App-wide text size: screens write sizes at full scale and every T draws them this much smaller (the user wants a small font everywhere). */
 export const TEXT_SCALE = 0.9;
@@ -367,9 +373,11 @@ export function Ring({ value, size = 60, stroke = 5, color, track, children, ani
 }
 
 /** The app's one button size: 40pt tall (44pt touch target with hitSlop), one line of 14pt text that shrinks to fit. */
-export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; onPress: () => void; kind?: 'ghost' | 'solid'; style?: ViewStyle }) {
+/** `danger`: every delete button — red text on a soft red (`dangerSolid`: white on red, for the last step of a wipe). */
+export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; onPress: () => void; kind?: 'ghost' | 'solid' | 'danger' | 'dangerSolid'; style?: ViewStyle }) {
   const t = useTheme();
-  const solid = kind === 'solid';
+  const bg = kind === 'solid' ? t.ok : kind === 'danger' ? tint(t.bad, 0.12) : kind === 'dangerSolid' ? t.bad : t.okSoft;
+  const fg = kind === 'solid' ? t.onOk : kind === 'danger' ? t.bad : kind === 'dangerSolid' ? '#FFFFFF' : t.okText;
   return (
     <Press
       accessibilityRole="button"
@@ -378,8 +386,8 @@ export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; 
       hitSlop={{ top: 2, bottom: 2 }}
       scale={0.96}
       // iOS: filled (tint) or tinted (soft tint behind tint text); shrinks a little under the finger.
-      style={[s.btn, { backgroundColor: solid ? t.ok : t.okSoft }, style]}>
-      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 15, color: solid ? t.onOk : t.okText }}>
+      style={[s.btn, { backgroundColor: bg }, style]}>
+      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 15, color: fg }}>
         {label}
       </T>
     </Press>

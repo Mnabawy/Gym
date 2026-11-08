@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Sheet, T } from './ui';
+import { INPUT, Sheet, T } from './ui';
 import { ClockPicker } from './ClockPicker';
 import { MonthCalendar } from './MonthCalendar';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
@@ -108,7 +108,7 @@ export function TaskSheet({ task, initial, day, space, onClose }: { task?: Task;
         placeholderTextColor={t.mute}
         maxLength={140}
         accessibilityLabel="المهمة"
-        style={[s.title, { color: t.fg, ...font('semi') }]}
+        style={[INPUT, s.title, { color: t.fg, ...font('semi') }]}
       />
       <TextInput
         value={note}
@@ -118,7 +118,7 @@ export function TaskSheet({ task, initial, day, space, onClose }: { task?: Task;
         placeholderTextColor={t.mute}
         maxLength={400}
         accessibilityLabel="ملاحظة"
-        style={[s.note, { color: t.fg, ...font('body') }]}
+        style={[INPUT, s.note, { color: t.fg, ...font('body') }]}
       />
 
       <View style={[s.group, { backgroundColor: t.soft }]}>
@@ -204,7 +204,7 @@ export function TaskSheet({ task, initial, day, space, onClose }: { task?: Task;
               placeholderTextColor={t.mute}
               maxLength={16}
               accessibilityLabel="تصنيف جديد"
-              style={[s.tagIn, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+              style={[INPUT, s.tagIn, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
             />
           </View>
         ) : null}
@@ -232,7 +232,7 @@ export function TaskSheet({ task, initial, day, space, onClose }: { task?: Task;
           </Pressable>
           <T style={{ flex: 1, fontSize: 14.5, color: x.done ? t.mute : t.fg, textDecorationLine: x.done ? 'line-through' : 'none' }}>{x.title}</T>
           <Pressable onPress={() => setSubs(subs.filter((y) => y.id !== x.id))} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.title}`}>
-            <Ionicons name="close" size={18} color={t.mute} />
+            <Ionicons name="close" size={18} color={t.bad} />
           </Pressable>
         </View>
       ))}
@@ -247,7 +247,7 @@ export function TaskSheet({ task, initial, day, space, onClose }: { task?: Task;
           placeholderTextColor={t.mute}
           maxLength={80}
           accessibilityLabel="مهمة فرعية جديدة"
-          style={[s.subIn, { color: t.fg, ...font('body') }]}
+          style={[INPUT, s.subIn, { color: t.fg, ...font('body') }]}
         />
         {sub.trim() ? (
           <Pressable onPress={addSub} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">

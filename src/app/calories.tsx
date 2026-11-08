@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import { TARGETS } from '../data/nutrition';
-import { Card, Label, Pill, Row, Screen, Sep, T } from '../components/ui';
+import { INPUT, Card, Label, Pill, Row, Screen, Sep, T } from '../components/ui';
 import { ACTIVITY, energyFor, GOAL, inRange, LIMITS, type Activity, type Body, type Goal } from '../lib/energy';
 import { parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
@@ -61,7 +61,7 @@ export default function Calories() {
                   placeholder={f.optional ? 'مش لازم' : '–'}
                   placeholderTextColor={t.mute}
                   accessibilityLabel={f.label}
-                  style={[s.input, { backgroundColor: t.soft, color: t.fg, borderColor: bad ? t.warn : 'transparent' }]}
+                  style={[INPUT, s.input, { backgroundColor: t.soft, color: t.fg, borderColor: bad ? t.warn : 'transparent' }]}
                 />
                 {bad ? <T style={{ color: t.warn, fontSize: 11.5 }}>{`بين ${LIMITS[f.k][0]} و ${LIMITS[f.k][1]}`}</T> : null}
               </View>

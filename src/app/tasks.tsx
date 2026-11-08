@@ -4,7 +4,7 @@ import { ACTION, Swipe } from '../components/Swipe';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { MiniSwitch, Screen, T, useKeyboardShown } from '../components/ui';
+import { INPUT, MiniSwitch, Screen, T, useKeyboardShown } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
@@ -144,7 +144,7 @@ function Tasks() {
               placeholderTextColor={t.mute}
               maxLength={140}
               accessibilityLabel="مهمة سريعة"
-              style={[s.quickIn, { color: t.fg, ...font('body') }]}
+              style={[INPUT, s.quickIn, { color: t.fg, ...font('body') }]}
             />
             {quick.trim() ? (
               <Pressable onPress={addQuick} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف">
@@ -376,7 +376,7 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
           </Pressable>
           <T style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: y.done ? t.mute : t.fg, textDecorationLine: y.done ? 'line-through' : 'none' }}>{y.title}</T>
           <Pressable onPress={() => { ease(); saveTask(removeSub(x, y.id)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${y.title}`} style={s.subX}>
-            <Ionicons name="close" size={16} color={t.mute} />
+            <Ionicons name="close" size={16} color={t.bad} />
           </Pressable>
         </View></Item>
       ))}
@@ -394,7 +394,7 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
           placeholderTextColor={t.mute}
           maxLength={80}
           accessibilityLabel={`مهمة فرعية لـ ${x.title}`}
-          style={[s.subIn, { color: t.fg, ...font('body') }]}
+          style={[INPUT, s.subIn, { color: t.fg, ...font('body') }]}
         />
         {text.trim() ? (
           <Pressable onPress={add} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">

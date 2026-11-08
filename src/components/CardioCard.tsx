@@ -10,7 +10,7 @@ import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { tint, useTheme, font } from '../theme';
 import { ACTION, Swipe } from './Swipe';
-import { Btn, Card, Pill, Progress, Sheet, Stepper, T } from './ui';
+import { INPUT, Btn, Card, Pill, Progress, Sheet, Stepper, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const iso = (s: string) => `⁦${s}⁩`;
@@ -74,7 +74,7 @@ export function CardioCard({ date }: { date: string }) {
           </T>
           {weight ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`≈${cardioKcal(c, weight)} سعر`}</T> : null}
           <Pressable onPress={() => remove(c.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${CARDIO[c.type].label}`}>
-            <Ionicons name="close" size={16} color={t.mute} />
+            <Ionicons name="close" size={16} color={t.bad} />
           </Pressable>
         </View>
         </Swipe>
@@ -126,7 +126,7 @@ function Field({ label, value, onChange, decimal }: { label: string; value: stri
         placeholderTextColor={t.mute}
         maxLength={6}
         accessibilityLabel={label}
-        style={[s.input, { color: t.fg, backgroundColor: tint(t.fg, 0.06), ...font('numBold') }]}
+        style={[INPUT, s.input, { color: t.fg, backgroundColor: tint(t.fg, 0.06), ...font('numBold') }]}
       />
     </View>
   );

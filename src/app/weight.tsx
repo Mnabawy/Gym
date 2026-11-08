@@ -4,7 +4,7 @@ import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
-import { Btn, Card, Label, Screen, Sep, Sheet, T } from '../components/ui';
+import { INPUT, Btn, Card, Label, Screen, Sep, Sheet, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { ACTION, Swipe } from '../components/Swipe';
 import { GOAL } from '../lib/energy';
@@ -105,7 +105,7 @@ export default function WeightScreen() {
               maxLength={6}
               accessibilityLabel="الوزن بالكيلو"
               onSubmitEditing={log}
-              style={[s.input, { color: t.fg }]}
+              style={[INPUT, s.input, { color: t.fg }]}
             />
             <T style={{ color: t.mute, fontSize: 13 }}>كجم</T>
           </View>
@@ -159,7 +159,7 @@ export default function WeightScreen() {
                     {prev ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{iso(signed(w.kg - prev.kg))}</T> : null}
                     <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{iso(fmt(w.kg))}</T>
                     <Pressable onPress={remove} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح وزن ${dayLabel(w.date)}`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}>
-                      <Ionicons name="trash-outline" size={16} color={t.mute} />
+                      <Ionicons name="trash-outline" size={16} color={t.bad} />
                     </Pressable>
                   </View>
                   </Swipe>
@@ -264,7 +264,7 @@ export default function WeightScreen() {
                   placeholderTextColor={t.mute}
                   maxLength={5}
                   accessibilityLabel={`${p.label} بالسنتيمتر`}
-                  style={[s.small, { color: t.fg, backgroundColor: t.soft }]}
+                  style={[INPUT, s.small, { color: t.fg, backgroundColor: t.soft }]}
                 />
               </View>
             ))
@@ -300,7 +300,7 @@ export default function WeightScreen() {
           <>
             <Image source={{ uri: view.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 12 }} resizeMode="contain" />
             <BodyLine t={t} b={at(view.date)} />
-            <Btn label="امسح الصورة" onPress={async () => { if (await confirm({ title: 'تمسح الصورة؟', confirmLabel: 'امسح', danger: true })) { deletePhoto(view); setPhotos(listPhotos()); setView(null); } }} />
+            <Btn kind="danger" label="امسح الصورة" onPress={async () => { if (await confirm({ title: 'تمسح الصورة؟', confirmLabel: 'امسح', danger: true })) { deletePhoto(view); setPhotos(listPhotos()); setView(null); } }} />
           </>
         ) : null}
       </Sheet>

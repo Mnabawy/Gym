@@ -22,7 +22,7 @@ export function ConfirmHost() {
           {opts?.body ? <T style={{ fontSize: 14, lineHeight: 23, color: t.mute }}>{opts.body}</T> : null}
           <View style={{ flexDirection: 'row', gap: 8 }}>
             <Btn label="لا" onPress={() => close(false)} style={{ flex: 1 }} />
-            <Btn label={opts?.confirmLabel ?? 'تمام'} kind="solid" onPress={() => close(true)} style={{ flex: 1, ...(opts?.danger ? { backgroundColor: t.bad } : null) }} />
+            <Btn label={opts?.confirmLabel ?? 'تمام'} kind={opts?.danger ? 'dangerSolid' : 'solid'} onPress={() => close(true)} style={{ flex: 1 }} />
           </View>
         </Pressable>
       </Pressable>

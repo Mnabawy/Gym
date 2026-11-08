@@ -12,8 +12,10 @@ export const IDLE_DAYS = 7;
 /** Shares of the way that count as a win. */
 export const MILESTONES = [0.1, 0.25, 0.5, 0.75, 1] as const;
 
-export type Task = { id: string; title: string; done: string | null };
-export type Stage = { id: string; title: string; note?: string; tasks: Task[] };
+/** `due`: a date you set for this step yourself; without it the step gets one from `schedule`. */
+export type Task = { id: string; title: string; done: string | null; due?: string };
+/** `until`: the date you set for the stage to be finished by; without it `schedule` works it out. */
+export type Stage = { id: string; title: string; note?: string; until?: string; tasks: Task[] };
 export type Entry = { id: string; date: string; amount: number; note?: string };
 export type Win = { id: string; date: string; title: string; auto?: boolean };
 export type Review = { date: string; did: string; blocked: string; next: string };
@@ -77,8 +79,9 @@ export function parseGoals(raw: string | null): Goal[] {
         id: s.id as string,
         title: str(s.title).trim(),
         ...(str(s.note) ? { note: str(s.note) } : {}),
+        ...(isDate(s.until) ? { until: s.until } : {}),
         tasks: arr(s.tasks).filter(obj).filter((t) => typeof t.id === 'string' && str(t.title).trim())
-          .map((t) => ({ id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null })),
+          .map((t) => ({ id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null, ...(isDate(t.due) ? { due: t.due } : {}) })),
       })),
       entries: arr(g.entries).filter(obj).filter((e) => typeof e.id === 'string' && isDate(e.date) && num(e.amount) !== null)
         .map((e) => ({ id: e.id as string, date: e.date as string, amount: e.amount as number, ...(str(e.note) ? { note: str(e.note) } : {}) }))
@@ -238,4 +241,54 @@ export function addNextStep(g: Goal, title: string, id: string): Goal {
   const i = currentStage(g);
   if (i < 0) return { ...g, stages: [...g.stages, { id: `${id}s`, title: 'الجاي', tasks: [task] }] };
   return { ...g, stages: g.stages.map((s, j) => (j === i ? { ...s, tasks: [...s.tasks.filter((t) => t.done), task, ...s.tasks.filter((t) => !t.done)] } : s)) };
+}
+
+export type Schedule = {
+  /** The date each step is planned for (yours if you set one, else spread out). */
+  task: Record<string, string>;
+  /** Each stage's window, and whether its end is one you set. */
+  stage: Record<string, { from: string; to: string; fixed: boolean }>;
+};
+
+const dayNum = (d: string) => Math.round(Date.parse(`${d}T00:00:00Z`) / 86400000);
+const dayStr = (n: number) => new Date(n * 86400000).toISOString().slice(0, 10);
+
+/**
+ * Spreads the steps over the goal's time frame (start day → due day): every step gets an even share of the time, in
+ * road order, and each stage ends on its last step's day. Dates you set yourself (a step's `due`, a stage's `until`)
+ * are kept and the steps around them are spread between them instead. An empty stage counts as one step so it still
+ * gets some time. Null when the goal has no due date.
+ */
+export function schedule(g: Goal): Schedule | null {
+  if (!g.due || !g.stages.length) return null;
+  type Slot = { pos: number; fixed?: string; task?: string; stage?: string };
+  const slots: Slot[] = [];
+  let p = 0;
+  for (const st of g.stages) {
+    for (const t of st.tasks) slots.push({ pos: ++p, fixed: t.due, task: t.id });
+    if (!st.tasks.length) p++;
+    slots.push({ pos: p, fixed: st.until, stage: st.id });
+  }
+  const anchors = [{ pos: 0, day: dayNum(g.startDate) }, ...slots.filter((x) => x.fixed).map((x) => ({ pos: x.pos, day: dayNum(x.fixed!) })), { pos: p, day: dayNum(g.due) }];
+  const at = (pos: number) => {
+    let a = anchors[0];
+    let b = anchors[anchors.length - 1];
+    for (const x of anchors) {
+      if (x.pos <= pos && x.pos >= a.pos) a = x;
+      if (x.pos >= pos && x.pos <= b.pos) b = x;
+    }
+    if (b.pos === a.pos) return a.day;
+    return Math.round(a.day + ((b.day - a.day) * (pos - a.pos)) / (b.pos - a.pos));
+  };
+  const out: Schedule = { task: {}, stage: {} };
+  let from = g.startDate;
+  for (const x of slots) {
+    const day = x.fixed ?? dayStr(at(x.pos));
+    if (x.task) out.task[x.task] = day;
+    else if (x.stage) {
+      out.stage[x.stage] = { from, to: day, fixed: !!x.fixed };
+      from = day;
+    }
+  }
+  return out;
 }

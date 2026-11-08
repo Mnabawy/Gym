@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, moveStage, nextTask, pace, parseGoals, progress, reviewDue, stageDone, toggleTask, type Goal } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, moveStage, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -110,4 +110,36 @@ test('the review step goes first on the stage you are on, or a new stage', () =>
   const h = addNextStep(allDone, 'جديد', 'y');
   expect(h.stages).toHaveLength(2);
   expect(nextTask(h)?.task.id).toBe('y');
+});
+
+describe('schedule (steps spread over the time frame)', () => {
+  const base = (stages: Goal['stages'], due: string | null = '2026-04-10') =>
+    ({ id: 'g', name: 'x', icon: 'flag', color: '#000000', unit: '$', start: 0, target: 100, startDate: '2026-01-01', due, why: '', stages, entries: [], wins: [], reviews: [] }) as Goal;
+  const task = (id: string, due?: string) => ({ id, title: id, done: null, ...(due ? { due } : {}) });
+  it('is null without a due date', () => {
+    expect(schedule(base([{ id: 's', title: 's', tasks: [task('a')] }], null))).toBeNull();
+  });
+  it('spreads steps evenly and ends each stage on its last step', () => {
+    // 2026-01-01 → 2026-04-10 is 99 days; 3 steps → every 33 days.
+    const p = schedule(base([{ id: 's1', title: '1', tasks: [task('a'), task('b')] }, { id: 's2', title: '2', tasks: [task('c')] }]))!;
+    expect(p.task).toEqual({ a: '2026-02-03', b: '2026-03-08', c: '2026-04-10' });
+    expect(p.stage.s1).toEqual({ from: '2026-01-01', to: '2026-03-08', fixed: false });
+    expect(p.stage.s2).toEqual({ from: '2026-03-08', to: '2026-04-10', fixed: false });
+  });
+  it('keeps your own dates and spreads the rest around them', () => {
+    const p = schedule(base([{ id: 's1', title: '1', until: '2026-01-21', tasks: [task('a'), task('b')] }, { id: 's2', title: '2', tasks: [task('c', '2026-03-01'), task('d')] }]))!;
+    expect(p.task.a).toBe('2026-01-11');
+    expect(p.task.b).toBe('2026-01-21');
+    expect(p.stage.s1.fixed).toBe(true);
+    expect(p.task.c).toBe('2026-03-01');
+    expect(p.task.d).toBe('2026-04-10');
+  });
+  it('gives an empty stage its share and parses the dates back', () => {
+    const p = schedule(base([{ id: 's1', title: '1', tasks: [] }, { id: 's2', title: '2', tasks: [task('a')] }]))!;
+    expect(p.stage.s1.to < p.task.a).toBe(true);
+    const g = parseGoals(JSON.stringify([base([{ id: 's', title: 's', until: '2026-02-01', tasks: [task('a', '2026-01-15'), { id: 'b', title: 'b', done: null, due: 'nope' }] }])]))[0];
+    expect(g.stages[0].until).toBe('2026-02-01');
+    expect(g.stages[0].tasks[0].due).toBe('2026-01-15');
+    expect(g.stages[0].tasks[1].due).toBeUndefined();
+  });
 });

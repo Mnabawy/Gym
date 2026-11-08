@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Card, T } from './ui';
+import { INPUT, Btn, Card, T } from './ui';
 import { ACCENT_PRESETS, normHex } from '../lib/color';
 import { DEFAULT_SETTINGS, useSettings } from '../lib/settings';
 import { useTheme, font } from '../theme';
@@ -40,7 +40,7 @@ export function AccentPicker() {
           autoCorrect={false}
           maxLength={7}
           accessibilityLabel="كود اللون"
-          style={[s.input, { color: t.fg, backgroundColor: t.soft, borderColor: bad ? t.bad : 'transparent', ...font('num') }]}
+          style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, borderColor: bad ? t.bad : 'transparent', ...font('num') }]}
         />
         {accent !== DEFAULT_SETTINGS.accent ? <Btn label="الأصلي" onPress={() => apply(DEFAULT_SETTINGS.accent)} /> : null}
       </View>

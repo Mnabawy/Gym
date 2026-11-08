@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU, type MealKey } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
-import { Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } from '../../components/ui';
+import { INPUT, Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { energyFor, targetsFor } from '../../lib/energy';
@@ -253,7 +253,7 @@ export default function Food() {
               <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
               <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
               <Pressable onPress={() => removeExtra(i)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
-                <Ionicons name="close" size={16} color={t.mute} />
+                <Ionicons name="close" size={16} color={t.bad} />
               </Pressable>
             </View>
             </Swipe>
@@ -291,12 +291,12 @@ export default function Food() {
       <Sheet visible={extraForm != null} onClose={() => setExtraForm(null)} title="أكل برة الخطة" sub="السعرات والبروتين من على العلبة أو بالتقريب">
         {extraForm ? (
           <>
-            <TextInput value={extraForm.name} onChangeText={(v) => setExtraForm({ ...extraForm, name: v })} placeholder="إيه اللي كلته؟" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="اسم الأكل" style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body'), textAlign: 'right' }]} />
+            <TextInput value={extraForm.name} onChangeText={(v) => setExtraForm({ ...extraForm, name: v })} placeholder="إيه اللي كلته؟" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="اسم الأكل" style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body'), textAlign: 'right' }]} />
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['kcal', 'p'] as const).map((k) => (
                 <View key={k} style={{ flex: 1, gap: 4 }}>
                   <T w="medium" style={{ fontSize: 13 }}>{k === 'kcal' ? 'السعرات' : 'البروتين (جم)'}</T>
-                  <TextInput value={extraForm[k]} onChangeText={(v) => setExtraForm({ ...extraForm, [k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })} keyboardType="number-pad" placeholder="–" placeholderTextColor={t.mute} maxLength={5} accessibilityLabel={k === 'kcal' ? 'السعرات' : 'البروتين'} style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('numBold'), textAlign: 'center' }]} />
+                  <TextInput value={extraForm[k]} onChangeText={(v) => setExtraForm({ ...extraForm, [k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })} keyboardType="number-pad" placeholder="–" placeholderTextColor={t.mute} maxLength={5} accessibilityLabel={k === 'kcal' ? 'السعرات' : 'البروتين'} style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('numBold'), textAlign: 'center' }]} />
                 </View>
               ))}
             </View>

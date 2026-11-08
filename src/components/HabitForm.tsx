@@ -9,7 +9,7 @@ import { useSettings } from '../lib/settings';
 import { dateKey } from '../lib/logic';
 import { allowReminders } from '../lib/reminder';
 import { tint, useTheme, font } from '../theme';
-import { Btn, Pill, Sheet, Stepper, SwitchRow, T } from './ui';
+import { INPUT, Btn, Pill, Sheet, Stepper, SwitchRow, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const WEEK = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
@@ -63,7 +63,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           maxLength={40}
           autoFocus={!habit}
           accessibilityLabel="اسم العادة"
-          style={[s.input, { color: t.fg, ...font('semi') }]}
+          style={[INPUT, s.input, { color: t.fg, ...font('semi') }]}
         />
       </View>
 
@@ -76,7 +76,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           placeholderTextColor={t.mute}
           maxLength={60}
           accessibilityLabel="امتى وفين هتعمل العادة"
-          style={[s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+          style={[INPUT, s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
         />
         <T style={{ fontSize: 11.5, color: t.mute, lineHeight: 17 }}>اختياري، بس بيفرق: لما تحدد امتى وفين، الموقف نفسه بيفكّرك بالعادة. واربطها بحاجة بتعملها كل يوم.</T>
       </View>
@@ -90,7 +90,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           placeholderTextColor={t.mute}
           maxLength={30}
           accessibilityLabel="المجموعة"
-          style={[s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+          style={[INPUT, s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
         />
         {groups.length ? (
           <View style={s.grid}>
@@ -109,7 +109,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
             <T style={{ flex: 1, fontSize: 14 }}>{p.name}</T>
             {p.at ? <T style={{ fontSize: 11, color: t.mute }}>{refAr(p.at, PRAYER_AR)}</T> : null}
             <Pressable onPress={() => setF({ ...f, parts: (f.parts ?? []).filter((_, j) => j !== i) })} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${p.name}`}>
-              <Ionicons name="close" size={18} color={t.mute} />
+              <Ionicons name="close" size={18} color={t.bad} />
             </Pressable>
           </View>
         ))}
@@ -126,7 +126,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
               setF({ ...f, parts: [...(f.parts ?? []), { name: newPart.trim() }] });
               setNewPart('');
             }}
-            style={[s.cue, { flex: 1, color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+            style={[INPUT, s.cue, { flex: 1, color: t.fg, backgroundColor: t.soft, ...font('body') }]}
           />
           <Btn
             label="ضيف"

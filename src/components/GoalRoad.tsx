@@ -2,11 +2,13 @@ import React, { useState } from 'react';
 import { Item } from './Motion';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Sheet, T } from './ui';
+import { INPUT, Btn, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
-import { currentStage, goalId, moveStage, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { currentStage, goalId, moveStage, schedule, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { MonthCalendar } from './MonthCalendar';
+import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
 import { tint, type Theme, font } from '../theme';
 
@@ -31,6 +33,8 @@ const freshId = () => goalId(Date.now());
  */
 export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) {
   const cur = currentStage(g);
+  // Dates for every step and stage, spread over the goal's time frame (only when it has a due date).
+  const plan = schedule(g);
   const [opened, setOpened] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState<string | null>(null);
   const [text, setText] = useState('');
@@ -82,7 +86,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         returnKeyType="done"
         onSubmitEditing={() => submit(key)}
         accessibilityLabel={ph}
-        style={[s.input, { fontSize: big ? 16 : 14.5, color: t.fg, backgroundColor: t.card, borderColor: tint(t.fg, 0.15), ...font(big ? 'semi' : 'body') }]}
+        style={[INPUT, s.input, { fontSize: big ? 16 : 14.5, color: t.fg, backgroundColor: t.card, borderColor: tint(t.fg, 0.15), ...font(big ? 'semi' : 'body') }]}
       />
       <Pressable onPress={() => submit(key)} accessibilityRole="button" accessibilityLabel="ضيف" style={({ pressed }) => [s.ok, { backgroundColor: t.fg, opacity: pressed ? 0.7 : 1 }]}>
         <Ionicons name="checkmark" size={20} color={t.bg} />
@@ -122,6 +126,9 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               <View style={{ flex: 1 }}>
                 <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
                 <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
+                {plan?.stage[r.st.id] && r.state !== 'done' ? (
+                  <T style={{ fontSize: 11.5, color: plan.stage[r.st.id].to < today ? t.bad : t.mute }}>{`${dayShort(plan.stage[r.st.id].from)} ← ${dayShort(plan.stage[r.st.id].to)}`}</T>
+                ) : null}
               </View>
               <Ionicons name={r.open ? 'chevron-up' : 'chevron-down'} size={16} color={t.mute} />
             </View>
@@ -148,7 +155,15 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               {done ? <Ionicons name="checkmark" size={13} color={t.bg} /> : null}
             </View>
           );
-          body = <T style={{ fontSize: 14, lineHeight: 20, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{r.task.title}</T>;
+          const when = plan?.task[r.task.id];
+          body = (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <T style={{ flex: 1, fontSize: 14, lineHeight: 20, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{r.task.title}</T>
+              {when && !done ? (
+                <T style={{ fontSize: 11.5, color: when < today ? t.bad : r.task.due ? t.okText : t.mute, ...font('num') }}>{dayShort(when)}</T>
+              ) : null}
+            </View>
+          );
           onPress = () => {
             tap();
             ease();
@@ -211,6 +226,10 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
   );
 }
 
+const MONTHS_SHORT = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+/** "12 ديسمبر" (the year only when it isn't this year). */
+const dayShort = (d: string) => `${+d.slice(8)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]}${d.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? ` ${d.slice(0, 4)}` : ''}`;
+
 /** Deletes a stage (with its tasks) or one task, with undo. */
 function removeBead(g: Goal, st: Stage, task?: Task) {
   saveGoal({ ...g, stages: task ? g.stages.map((x) => (x.id === st.id ? { ...x, tasks: x.tasks.filter((y) => y.id !== task.id) } : x)) : g.stages.filter((x) => x.id !== st.id) });
@@ -220,7 +239,23 @@ function removeBead(g: Goal, st: Stage, task?: Task) {
 /** Long-press on a bead: rename it, move a stage, or delete it. */
 function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void }) {
   const [name, setName] = useState(task ? task.title : st.title);
+  const [picking, setPicking] = useState(false);
   const i = g.stages.findIndex((x) => x.id === st.id);
+  const plan = schedule(g);
+  const own = task ? task.due : st.until;
+  const when = task ? plan?.task[task.id] : plan?.stage[st.id]?.to;
+  /** Your own date for this step / the stage's end, or undefined to let it be spread out again. */
+  const setDate = (d: string | undefined) => {
+    tap();
+    const put = <X extends object>(x: X, k: 'due' | 'until'): X => {
+      const y = { ...x } as Record<string, unknown>;
+      if (d) y[k] = d;
+      else delete y[k];
+      return y as X;
+    };
+    saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? put(y, 'due') : y)) } : put(x, 'until'))) });
+    setPicking(false);
+  };
   const save = () => {
     const v = name.trim();
     if (!v) return;
@@ -233,7 +268,21 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
   };
   return (
     <Sheet visible onClose={onClose} title={task ? 'الخطوة' : 'المرحلة'} sub={task ? st.title : `${st.tasks.length} خطوات`}>
-      <TextInput value={name} onChangeText={setName} autoFocus maxLength={80} onSubmitEditing={save} accessibilityLabel="الاسم" style={[s.input, { flex: 0, color: t.fg, backgroundColor: t.soft, borderColor: 'transparent', ...font('body') }]} />
+      <TextInput value={name} onChangeText={setName} autoFocus maxLength={80} onSubmitEditing={save} accessibilityLabel="الاسم" style={[INPUT, s.input, { flex: 0, color: t.fg, backgroundColor: t.soft, borderColor: 'transparent', ...font('body') }]} />
+      {plan && when ? (
+        <View style={{ gap: 6 }}>
+          <Pressable onPress={() => setPicking(!picking)} accessibilityRole="button" accessibilityState={{ expanded: picking }} style={[s.dateRow, { backgroundColor: t.soft }]}>
+            <Ionicons name="calendar-outline" size={18} color={t.okText} />
+            <T style={{ flex: 1, fontSize: 14 }}>{task ? 'ميعاد الخطوة' : 'المرحلة تخلص'}</T>
+            <T w="semi" style={{ fontSize: 14, color: own ? t.okText : t.fg }}>{dayShort(when)}</T>
+            <T style={{ fontSize: 12, color: t.mute }}>{own ? 'انت حدّدته' : 'تلقائي'}</T>
+          </Pressable>
+          {picking ? <MonthCalendar value={when} today={dateKey()} onPick={(d) => setDate(d)} /> : null}
+          {own ? <Btn label="رجّعه تلقائي (يتوزع مع الباقي)" onPress={() => setDate(undefined)} /> : null}
+        </View>
+      ) : (
+        <T style={{ fontSize: 12.5, color: t.mute }}>حدّد مدة للهدف (من «عدّل الهدف») والخطوات هتتوزع عليها لوحدها، وتقدر تغيّر ميعاد أي خطوة من هنا</T>
+      )}
       {!task ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Btn label="↑ طلّعها" onPress={() => { saveGoal(moveStage(g, st.id, -1)); onClose(); }} style={{ flex: 1, opacity: i > 0 ? 1 : 0.4 }} />
@@ -241,7 +290,7 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
         </View>
       ) : null}
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <Btn label={task ? 'امسح الخطوة' : 'امسح المرحلة'} onPress={remove} style={{ flex: 1 }} />
+        <Btn kind="danger" label={task ? 'امسح الخطوة' : 'امسح المرحلة'} onPress={remove} style={{ flex: 1 }} />
         <Btn label="احفظ" kind="solid" onPress={save} style={{ flex: 1 }} />
       </View>
     </Sheet>
@@ -249,9 +298,10 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
 }
 
 const s = StyleSheet.create({
+  dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 10, paddingHorizontal: 12 },
   row: { flexDirection: 'row', gap: 10 },
   rail: { width: RAIL, alignItems: 'center' },
-  line: { width: 2.5, borderRadius: 2 },
+  line: { width: 4, borderRadius: 2 },
   big: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   small: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   input: { flex: 1, minWidth: 0, height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, textAlign: 'right', outlineWidth: 0 },

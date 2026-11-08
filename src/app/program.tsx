@@ -5,7 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { DEFAULT_SETS, MUSCLE_AR, PDF_PROGRAM, PROGRAM, SETS_MAX, SETS_MIN, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
 import { ALTERNATIVES } from '../data/alternatives';
 import { TAG_INFO } from '../data/rules';
-import { Btn, Card, Pill, Screen, Sep, Sheet, Stepper, SwitchRow, T } from '../components/ui';
+import { INPUT, Btn, Card, Pill, Screen, Sep, Sheet, Stepper, SwitchRow, T } from '../components/ui';
 import { WorkoutChips } from '../components/WorkoutChips';
 import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
 import { dateKey } from '../lib/logic';
@@ -14,7 +14,7 @@ import { move, newId, REPS_MAX, REPS_MIN } from '../lib/programEdit';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { deloadOn, useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
-import { useTheme, font } from '../theme';
+import { useTheme, font, tint } from '../theme';
 
 const TAGS: Tag[] = ['heavy', 'fail', 'drop', null];
 const iso = (s: string) => `⁦${s}⁩`;
@@ -144,7 +144,7 @@ export default function ProgramScreen() {
               autoCorrect={false}
               maxLength={40}
               accessibilityLabel="اسم التمرين"
-              style={[s.input, { color: t.fg, backgroundColor: t.soft }]}
+              style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft }]}
             />
             <T w="medium">العضلة</T>
             <View style={s.wrap}>
@@ -206,8 +206,8 @@ function Icon({ name, label, onPress, disabled }: { name: React.ComponentProps<t
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ disabled }}
-      style={({ pressed }) => [s.icon, { backgroundColor: t.soft, opacity: disabled ? 0.3 : pressed ? 0.6 : 1 }]}>
-      <Ionicons name={name} size={17} color={t.fg} />
+      style={({ pressed }) => [s.icon, { backgroundColor: name.startsWith('trash') ? tint(t.bad, 0.12) : t.soft, opacity: disabled ? 0.3 : pressed ? 0.6 : 1 }]}>
+      <Ionicons name={name} size={17} color={name.startsWith('trash') ? t.bad : t.fg} />
     </Pressable>
   );
 }

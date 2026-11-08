@@ -158,7 +158,7 @@ export default function Account() {
               <T w="semi" style={{ color: t.warn }}>تسجيل الخروج</T>
               <T style={{ fontSize: 12.5, lineHeight: 19 }}>بياناتك على حسابك بتفضل زي ما هي، وتقدر تدخل تاني في أي وقت.</T>
               <Btn label="اخرج بس (البيانات تفضل على الموبايل)" onPress={() => signOut(false)} />
-              <Btn label="اخرج وامسح بياناتي من الموبايل" kind="solid" onPress={() => signOut(true)} />
+              <Btn label="اخرج وامسح بياناتي من الموبايل" kind="dangerSolid" onPress={() => signOut(true)} />
               <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>المسح بيحفظ آخر تغييراتك على حسابك الأول، ومش بيمسح غير لو ده نجح. صور التقدّم مش على حسابك، فاحفظ نسخة من الإعدادات لو عايزها.</T>
               <Btn label="لا" onPress={() => setLeaving(false)} />
             </View>

@@ -169,7 +169,7 @@ function WorkoutScreen() {
         </Pressable>
       ) : null}
       <View style={{ gap: 8, marginTop: 4 }}>
-        <Btn label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) { storage.clearDay(date, day.exercises.map((e) => e.id)); bumpAll(); } }} />
+        <Btn kind="danger" label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) { storage.clearDay(date, day.exercises.map((e) => e.id)); bumpAll(); } }} />
       </View>
     </Screen>
   );

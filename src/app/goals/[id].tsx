@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Card, HeaderBtn, Label, Pill, Screen, Sheet, T } from '../../components/ui';
+import { INPUT, Btn, Card, HeaderBtn, Label, Pill, Screen, Sheet, T } from '../../components/ui';
 import { GoalForm } from '../../components/GoalForm';
 import { GoalRoad } from '../../components/GoalRoad';
 import { ACTION, Swipe } from '../../components/Swipe';
@@ -170,7 +170,7 @@ function GoalPage() {
               <T style={{ fontSize: 11.5, color: t.mute }}>{dayLabel(w.date)}</T>
               {!w.auto ? (
                 <Pressable onPress={() => { save({ ...g, wins: g.wins.filter((x) => x.id !== w.id) }); showUndo('اتمسح إنجاز', () => save(g)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${w.title}`}>
-                  <Ionicons name="close" size={16} color={t.mute} />
+                  <Ionicons name="close" size={16} color={t.bad} />
                 </Pressable>
               ) : null}
             </View>
@@ -191,7 +191,7 @@ function GoalPage() {
               <T style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{e.note ?? ''}</T>
               <T style={{ fontSize: 11.5, color: t.mute }}>{dayLabel(e.date)}</T>
               <Pressable onPress={() => { save({ ...g, entries: g.entries.filter((x) => x.id !== e.id) }); showUndo('اتمسح تسجيل', () => save(g)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="امسح">
-                <Ionicons name="close" size={16} color={t.mute} />
+                <Ionicons name="close" size={16} color={t.bad} />
               </Pressable>
             </View>
             </Swipe>
@@ -224,7 +224,7 @@ function GoalPage() {
       )}
 
       <T style={{ fontSize: 12, color: t.mute, textAlign: 'center' }}>{`بدأت ${dayLabel(g.startDate)} · من ${daysBetween(g.startDate, today) + 1} يوم${g.due ? ` · الميعاد ${monthLabel(g.due)}` : ''}`}</T>
-      <Btn label="امسح الهدف" onPress={async () => { if (await confirm({ title: 'تمسح الهدف ده؟', body: 'هيتشال هو وكل اللي اتسجل فيه.', confirmLabel: 'امسح', danger: true })) { deleteGoal(g.id); router.back(); } }} />
+      <Btn kind="danger" label="امسح الهدف" onPress={async () => { if (await confirm({ title: 'تمسح الهدف ده؟', body: 'هيتشال هو وكل اللي اتسجل فيه.', confirmLabel: 'امسح', danger: true })) { deleteGoal(g.id); router.back(); } }} />
     </Screen>
   );
 }
@@ -264,8 +264,8 @@ export function LogSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
         <Btn label="+ زاد" kind={minus ? 'ghost' : 'solid'} onPress={() => setMinus(false)} style={{ flex: 1 }} />
         <Btn label="− نقص" kind={minus ? 'solid' : 'ghost'} onPress={() => setMinus(true)} style={{ flex: 1 }} />
       </View>
-      <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" autoFocus placeholder="المبلغ أو العدد" placeholderTextColor={t.mute} accessibilityLabel="الكمية" onSubmitEditing={add} style={[s.input, { height: 52, fontSize: 20, color: t.fg, backgroundColor: t.soft, ...font('numBold') }]} />
-      <TextInput value={note} onChangeText={setNote} placeholder="منين؟ (اختياري) مثلًا: مشروع فلان" placeholderTextColor={t.mute} maxLength={60} accessibilityLabel="ملاحظة" style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+      <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" autoFocus placeholder="المبلغ أو العدد" placeholderTextColor={t.mute} accessibilityLabel="الكمية" onSubmitEditing={add} style={[INPUT, s.input, { height: 52, fontSize: 20, color: t.fg, backgroundColor: t.soft, ...font('numBold') }]} />
+      <TextInput value={note} onChangeText={setNote} placeholder="منين؟ (اختياري) مثلًا: مشروع فلان" placeholderTextColor={t.mute} maxLength={60} accessibilityLabel="ملاحظة" style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       <Btn label="سجّل" kind="solid" onPress={add} style={{ opacity: ok ? 1 : 0.5 }} />
     </Sheet>
   );
@@ -282,7 +282,7 @@ function WinSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
   };
   return (
     <Sheet visible onClose={onClose} title="إنجاز جديد 🏆" sub="أي حاجة قرّبتك من الهدف تستاهل تتسجل">
-      <TextInput value={title} onChangeText={setTitle} autoFocus placeholder="مثلًا: أول عميل دفع" placeholderTextColor={t.mute} maxLength={80} accessibilityLabel="الإنجاز" onSubmitEditing={add} style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+      <TextInput value={title} onChangeText={setTitle} autoFocus placeholder="مثلًا: أول عميل دفع" placeholderTextColor={t.mute} maxLength={80} accessibilityLabel="الإنجاز" onSubmitEditing={add} style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       <Btn label="سجّل" kind="solid" onPress={add} style={{ opacity: title.trim() ? 1 : 0.5 }} />
     </Sheet>
   );
@@ -304,7 +304,7 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
   const field = (k: keyof typeof r, q: string, ph: string) => (
     <View style={{ gap: 4 }}>
       <T w="medium" style={{ fontSize: 13.5 }}>{q}</T>
-      <TextInput value={r[k]} onChangeText={(v) => setR({ ...r, [k]: v })} placeholder={ph} placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel={q} style={[s.input, { minHeight: 44, height: undefined, paddingVertical: 10, color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+      <TextInput value={r[k]} onChangeText={(v) => setR({ ...r, [k]: v })} placeholder={ph} placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel={q} style={[INPUT, s.input, { minHeight: 44, height: undefined, paddingVertical: 10, color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
     </View>
   );
   return (

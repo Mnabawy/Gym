@@ -176,7 +176,7 @@ function QuitPage() {
                   <T style={{ fontSize: 11.5, color: t.mute }}>{when(sl.at)}</T>
                 </View>
                 <Pressable onPress={remove} hitSlop={10} accessibilityRole="button" accessibilityLabel="امسح الوقعة دي">
-                  <Ionicons name="close" size={16} color={t.mute} />
+                  <Ionicons name="close" size={16} color={t.bad} />
                 </Pressable>
               </View>
               </Swipe>
@@ -187,7 +187,7 @@ function QuitPage() {
       ) : null}
 
       <T style={{ fontSize: 12, color: t.mute, textAlign: 'center' }}>{`بدأت ${when(q.start)} · ${dateKey(new Date(q.start)) === dateKey(new Date(now)) ? 'النهارده' : `من ${days.total} يوم`}`}</T>
-      <Btn label="امسحها" onPress={async () => { if (await confirm({ title: 'تمسحها؟', body: 'هتتشال هي وكل اللي اتسجل فيها.', confirmLabel: 'امسح', danger: true })) { deleteQuit(q.id); router.back(); } }} />
+      <Btn kind="danger" label="امسحها" onPress={async () => { if (await confirm({ title: 'تمسحها؟', body: 'هتتشال هي وكل اللي اتسجل فيها.', confirmLabel: 'امسح', danger: true })) { deleteQuit(q.id); router.back(); } }} />
     </Screen>
   );
 }
