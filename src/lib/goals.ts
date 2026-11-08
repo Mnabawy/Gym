@@ -14,8 +14,11 @@ export const MILESTONES = [0.1, 0.25, 0.5, 0.75, 1] as const;
 
 /** `due`: a date you set for this step yourself; without it the step gets one from `schedule`. */
 export type Task = { id: string; title: string; done: string | null; due?: string };
-/** `until`: the date you set for the stage to be finished by; without it `schedule` works it out. */
-export type Stage = { id: string; title: string; note?: string; until?: string; tasks: Task[] };
+/**
+ * `until`: the date you set for the stage to be finished by; without it `schedule` works it out.
+ * `at`: the stage's milestone on the goal's number (e.g. 25,000 of 100,000): the stage is done only once you reach it.
+ */
+export type Stage = { id: string; title: string; note?: string; until?: string; at?: number; tasks: Task[] };
 export type Entry = { id: string; date: string; amount: number; note?: string };
 export type Win = { id: string; date: string; title: string; auto?: boolean };
 export type Review = { date: string; did: string; blocked: string; next: string };
@@ -80,6 +83,7 @@ export function parseGoals(raw: string | null): Goal[] {
         title: str(s.title).trim(),
         ...(str(s.note) ? { note: str(s.note) } : {}),
         ...(isDate(s.until) ? { until: s.until } : {}),
+        ...(num(s.at) !== null ? { at: s.at as number } : {}),
         tasks: arr(s.tasks).filter(obj).filter((t) => typeof t.id === 'string' && str(t.title).trim())
           .map((t) => ({ id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null, ...(isDate(t.due) ? { due: t.due } : {}) })),
       })),
@@ -104,10 +108,47 @@ export const current = (g: Goal) => g.start + g.entries.reduce((a, e) => a + e.a
 /** Share of the way from start to target, 0–1 (works for goals that go down too). */
 export const progress = (g: Goal, at = current(g)) => Math.max(0, Math.min(1, (at - g.start) / (g.target - g.start)));
 
-export const stageDone = (s: Stage) => s.tasks.length > 0 && s.tasks.every((t) => t.done);
+/** Whether the number has got to `v` (either way: goals that go down reach it from above). */
+export const reached = (g: Goal, v: number, at = current(g)) => (g.target > g.start ? at >= v - 1e-9 : at <= v + 1e-9);
+
+/** The day the logged progress first got to `v`, or null if it hasn't (or the start already was there: the goal's start day). */
+export function reachDate(g: Goal, v: number): string | null {
+  let at = g.start;
+  if (reached(g, v, at)) return g.startDate;
+  for (const e of g.entries) {
+    at += e.amount;
+    if (reached(g, v, at)) return e.date;
+  }
+  return null;
+}
+
+/**
+ * A stage is done once all its steps are ticked and, if it has a milestone number (`at`) and you pass the goal,
+ * the goal's number has reached it. A stage with a milestone and no steps is done by the number alone.
+ */
+export function stageDone(s: Stage, g?: Goal): boolean {
+  const ticked = s.tasks.every((t) => t.done);
+  if (g && s.at !== undefined) return ticked && reached(g, s.at);
+  return s.tasks.length > 0 && ticked;
+}
 
 /** The stage you're on: the first one not done (−1 once every stage is done). */
-export const currentStage = (g: Goal) => g.stages.findIndex((s) => !stageDone(s));
+export const currentStage = (g: Goal) => g.stages.findIndex((s) => !stageDone(s, g));
+
+/** Milestones spread evenly from start to target over the stages: the last one is the target itself. */
+export function spreadMilestones(g: Goal): Goal {
+  const n = g.stages.length;
+  const step = (g.target - g.start) / Math.max(1, n);
+  const round = (v: number) => {
+    const span = Math.abs(g.target - g.start);
+    const unit = span >= 1000 ? 10 ** Math.floor(Math.log10(span) - 2) : span >= 10 ? 1 : 0.1;
+    return Number((Math.round(v / unit) * unit).toFixed(6));
+  };
+  return { ...g, stages: g.stages.map((s, i) => ({ ...s, at: i === n - 1 ? g.target : round(g.start + step * (i + 1)) })) };
+}
+
+/** The stages' milestone numbers in road order (only stages that have one). */
+export const milestones = (g: Goal) => g.stages.flatMap((s, i) => (s.at === undefined ? [] : [{ stage: s, i, at: s.at, done: reached(g, s.at) }]));
 
 /** The next thing to do: the first open task of the stage you're on. */
 export function nextTask(g: Goal): { stage: Stage; task: Task } | null {
@@ -161,8 +202,8 @@ export function autoWins(g: Goal, fmt: (n: number) => string = String): Win[] {
     }
   }
   for (const s of g.stages) {
-    if (!stageDone(s)) continue;
-    const date = s.tasks.reduce((a, t) => (t.done! > a ? t.done! : a), '');
+    if (!stageDone(s, g)) continue;
+    const date = s.tasks.reduce((a, t) => (t.done! > a ? t.done! : a), s.at !== undefined ? reachDate(g, s.at) ?? '' : '');
     out.push({ id: `s${s.id}`, date, title: `خلّصت مرحلة: ${s.title}`, auto: true });
   }
   return out;

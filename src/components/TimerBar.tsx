@@ -5,7 +5,7 @@ import { buzz, useTimer } from '../lib/timer';
 import { formatClock } from '../lib/logic';
 import { useTween } from '../lib/motion';
 import { Ring, T } from './ui';
-import { glow, tint, useTheme } from '../theme';
+import { glow, useTheme } from '../theme';
 
 export function TimerBar() {
   const t = useTheme();
@@ -35,7 +35,9 @@ export function TimerBar() {
     <Animated.View
       style={[
         s.bar,
-        t.neon ? { backgroundColor: tint(t.card, 0.94), borderWidth: 1, borderColor: tint(t.ok, 0.45), boxShadow: glow(t, t.ok, 16) } : { backgroundColor: t.ink, boxShadow: t.shadow },
+        // Always a dark bar with white text (like iOS's floating player): `ink` is near-black in light mode, but it turns
+        // light in dark mode, which hid the white clock and text there; dark mode uses the raised dark grey instead.
+        { backgroundColor: t.fg === '#FFFFFF' ? '#2C2C2E' : '#1C1C1E', boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.25)' },
         { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] },
       ]}
       accessibilityLiveRegion="polite">

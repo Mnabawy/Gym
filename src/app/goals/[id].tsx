@@ -9,7 +9,7 @@ import { ACTION, Swipe } from '../../components/Swipe';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
-import { addNextStep, addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
+import { addNextStep, addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, milestones, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
 import { addDays, daysBetween } from '../../lib/gaps';
 import { dateKey, parseNum } from '../../lib/logic';
 import { confirm } from '../../lib/confirm';
@@ -56,6 +56,14 @@ function GoalPage() {
 
   const fmt = (n: number) => fmtAmount(n, g.unit);
   const p = progress(g);
+  // Ticks on the bar at your stages' milestones (in order of the number), the target last.
+  const ms = milestones(g).map((m) => ({ key: m.stage.id, share: progress(g, m.at), v: m.at, done: m.done })).sort((a, b) => a.share - b.share);
+  const marks = ms.length ? [...ms.filter((m) => m.share < 1), { key: 'end', share: 1, v: g.target, done: p >= 1 }] : [];
+  // Labels under the bar: the start and the milestones (at most 5, spread out), or the quarter marks.
+  const pick = marks.length <= 5 ? marks : [0, 1, 2, 3].map((k) => marks[Math.round((k * (marks.length - 1)) / 4)]).concat(marks[marks.length - 1]);
+  const labels = marks.length
+    ? [{ key: 'start', v: g.start, done: true }, ...pick.filter((m, i, a) => a.findIndex((x) => x.key === m.key) === i)]
+    : [0, 0.25, 0.5, 0.75, 1].map((m) => ({ key: String(m), v: g.start + (g.target - g.start) * m, done: p >= m }));
   const now = current(g);
   const pc = pace(g, today);
   const cur = currentStage(g);
@@ -82,7 +90,7 @@ function GoalPage() {
         <T style={{ fontSize: 12.5, color: t.mute }}>{there ? 'وصلت للهدف 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}${pc.eta ? ` · هتوصل ${monthLabel(pc.eta)}` : ''}`}</T>
       </View>
 
-      {/* The whole way as one bar: the part you've done in ink, the rest striped, with the quarter marks under it. */}
+      {/* The whole way as one bar: the part you've done in ink, the rest striped, with your milestones (or quarter marks) under it. */}
       <View>
         <View style={s.bar}>
           {p > 0 ? <View style={{ flex: Math.max(p, 0.04), backgroundColor: t.fg, borderRadius: 12 }} /> : null}
@@ -91,10 +99,18 @@ function GoalPage() {
               {Array.from({ length: 24 }, (_, i) => <View key={i} style={{ flex: 1, backgroundColor: i % 2 ? 'transparent' : tint(t.fg, 0.05) }} />)}
             </View>
           ) : null}
+          {/* Your stages' milestones as thin ticks across the bar (each segment ends at one). */}
+          {marks.length ? (
+            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { flexDirection: 'row' }]}>
+              {marks.map((m, i) => (
+                <View key={m.key} style={{ flex: Math.max(0.0001, m.share - (i ? marks[i - 1].share : 0)), borderEndWidth: m.share < 1 ? 2 : 0, borderColor: t.card }} />
+              ))}
+            </View>
+          ) : null}
         </View>
         <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
-          {[0, 0.25, 0.5, 0.75, 1].map((m) => (
-            <T key={m} w={p >= m ? 'numBold' : 'numRegular'} style={{ fontSize: 11.5, color: p >= m ? t.fg : t.mute }}>{short(g.start + (g.target - g.start) * m, g.unit)}</T>
+          {labels.map((m) => (
+            <T key={m.key} w={m.done ? 'numBold' : 'numRegular'} style={{ fontSize: 11.5, color: m.done ? t.fg : t.mute }}>{short(m.v, g.unit)}</T>
           ))}
         </View>
       </View>

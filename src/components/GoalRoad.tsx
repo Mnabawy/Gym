@@ -6,7 +6,7 @@ import { INPUT, Btn, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
-import { currentStage, goalId, moveStage, schedule, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { current, currentStage, fmtAmount, goalId, moveStage, reached, schedule, spreadMilestones, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
@@ -43,7 +43,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
   const isOpen = (st: Stage, i: number) => opened[st.id] ?? i === cur;
   const rows: Row[] = [];
   g.stages.forEach((st, i) => {
-    const state = stageDone(st) ? 'done' : i === cur ? 'now' : 'later';
+    const state = stageDone(st, g) ? 'done' : i === cur ? 'now' : 'later';
     const open = isOpen(st, i);
     rows.push({ kind: 'stage', st, i, state, open });
     if (open) {
@@ -126,6 +126,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               <View style={{ flex: 1 }}>
                 <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
                 <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
+                {r.st.at !== undefined ? <Milestone g={g} t={t} i={r.i} at={r.st.at} /> : null}
                 {plan?.stage[r.st.id] && r.state !== 'done' ? (
                   <T style={{ fontSize: 11.5, color: plan.stage[r.st.id].to < today ? t.bad : t.mute }}>{`${dayShort(plan.stage[r.st.id].from)} ← ${dayShort(plan.stage[r.st.id].to)}`}</T>
                 ) : null}
@@ -236,10 +237,36 @@ function removeBead(g: Goal, st: Stage, task?: Task) {
   showUndo(task ? 'اتمسحت خطوة' : 'اتمسحت مرحلة', () => saveGoal(g));
 }
 
+/**
+ * A stage's milestone on the goal's number: the target, how much is left, and a thin bar filled from the
+ * stage before's milestone (or the goal's start) to this one. ✓ once the number got there.
+ */
+function Milestone({ g, t, i, at }: { g: Goal; t: Theme; i: number; at: number }) {
+  const now = current(g);
+  const done = reached(g, at, now);
+  const from = g.stages.slice(0, i).reduce<number>((a, x) => (x.at !== undefined ? x.at : a), g.start);
+  const share = from === at ? (done ? 1 : 0) : Math.max(0, Math.min(1, (now - from) / (at - from)));
+  return (
+    <View style={{ gap: 3, marginTop: 2 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+        <Ionicons name={done ? 'flag' : 'flag-outline'} size={12} color={done ? t.green : t.okText} />
+        <T w="numBold" style={{ fontSize: 12.5, color: done ? t.green : t.fg }}>{`\u2066${fmtAmount(at, g.unit)}\u2069`}</T>
+        <T style={{ fontSize: 12, color: t.mute }}>{done ? 'وصلت ✓' : `فاضل \u2066${fmtAmount(Math.abs(at - now), g.unit)}\u2069`}</T>
+      </View>
+      {!done ? (
+        <View style={{ height: 4, borderRadius: 2, backgroundColor: tint(t.fg, 0.08), overflow: 'hidden', maxWidth: 180 }}>
+          <View style={{ width: `${share * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.okText }} />
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 /** Long-press on a bead: rename it, move a stage, or delete it. */
 function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void }) {
   const [name, setName] = useState(task ? task.title : st.title);
   const [picking, setPicking] = useState(false);
+  const [mark, setMark] = useState(st.at !== undefined ? String(st.at) : '');
   const i = g.stages.findIndex((x) => x.id === st.id);
   const plan = schedule(g);
   const own = task ? task.due : st.until;
@@ -256,11 +283,28 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
     saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? put(y, 'due') : y)) } : put(x, 'until'))) });
     setPicking(false);
   };
+  /** The milestone typed in: a number, or empty to take it off. */
+  const markVal = () => {
+    const n = Number(mark.replace(/[,،\s]/g, '').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
+    return mark.trim() && Number.isFinite(n) ? n : undefined;
+  };
   const save = () => {
     const v = name.trim();
     if (!v) return;
-    saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? { ...y, title: v } : y)) } : { ...x, title: v })) });
+    const at = markVal();
+    const withMark = (x: Stage): Stage => {
+      const { at: _old, ...rest } = x;
+      return at === undefined ? { ...rest, title: v } : { ...rest, title: v, at };
+    };
+    saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? { ...y, title: v } : y)) } : withMark(x))) });
     onClose();
+  };
+  const spread = () => {
+    tap();
+    const next = spreadMilestones(g);
+    saveGoal(next);
+    const mine = next.stages.find((x) => x.id === st.id)?.at;
+    setMark(mine !== undefined ? String(mine) : '');
   };
   const remove = () => {
     removeBead(g, st, task);
@@ -283,6 +327,26 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
       ) : (
         <T style={{ fontSize: 12.5, color: t.mute }}>حدّد مدة للهدف (من «عدّل الهدف») والخطوات هتتوزع عليها لوحدها، وتقدر تغيّر ميعاد أي خطوة من هنا</T>
       )}
+      {!task ? (
+        <View style={{ gap: 6 }}>
+          <View style={[s.dateRow, { backgroundColor: t.soft }]}>
+            <Ionicons name="flag-outline" size={18} color={t.okText} />
+            <T style={{ fontSize: 14 }}>توصل لكام؟</T>
+            <TextInput
+              value={mark}
+              onChangeText={setMark}
+              keyboardType="numeric"
+              placeholder={`مثلاً ${fmtAmount(g.start + (g.target - g.start) * ((i + 1) / Math.max(1, g.stages.length)), '')}`}
+              placeholderTextColor={t.mute}
+              accessibilityLabel="رقم المرحلة"
+              style={[INPUT, { flex: 1, minWidth: 0, height: 44, textAlign: 'left', color: t.fg, outlineWidth: 0, ...font('num'), fontSize: 15 }]}
+            />
+            {g.unit ? <T style={{ fontSize: 13, color: t.mute }}>{g.unit}</T> : null}
+          </View>
+          <T style={{ fontSize: 12, color: t.mute }}>{`المرحلة تخلص لما رقمك يوصل له وخطواتها تخلص · من \u2066${fmtAmount(g.start, g.unit)}\u2069 لـ \u2066${fmtAmount(g.target, g.unit)}\u2069`}</T>
+          {g.stages.length > 1 ? <Btn label="وزّع الأرقام على كل المراحل بالتساوي" onPress={spread} /> : null}
+        </View>
+      ) : null}
       {!task ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Btn label="↑ طلّعها" onPress={() => { saveGoal(moveStage(g, st.id, -1)); onClose(); }} style={{ flex: 1, opacity: i > 0 ? 1 : 0.4 }} />
