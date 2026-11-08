@@ -81,7 +81,7 @@ function Tasks() {
   const row = (x: Task, last: boolean, showDate: boolean) => <TaskRow key={x.id} t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} />;
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
-      <View key={key} style={{ gap: 6 }}>
+      <View key={key} style={{ gap: 3 }}>
         {label ? <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} style={s.sec}>
           {o.color ? <View style={[s.secDot, { backgroundColor: o.color }]} /> : null}
           <T w="semi" style={{ fontSize: 13.5, color: o.color ?? t.mute }}>{label}</T>
@@ -102,6 +102,7 @@ function Tasks() {
 
   return (
     <Screen
+      dense
       title="مهامي"
       action={<MenuButton />}
       footer={
@@ -187,7 +188,7 @@ function Tasks() {
 
       {tab === 'calendar' ? (
         <>
-          <View style={[s.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 8, paddingHorizontal: 6 }]}>
+          <View style={[s.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 4, paddingHorizontal: 4 }]}>
             {month ? (
               <MonthCalendar value={day} today={today} marks={dueCounts(list)} onPick={(d) => { tap(); ease(); setDay(d); setMonth(false); }} />
             ) : (
@@ -284,7 +285,7 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
         {done ? <Ionicons name="checkmark" size={16} color={t.bg} /> : null}
       </Pressable>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 3 })}>
-        <T style={{ fontSize: 15.5, lineHeight: 23, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
+        <T style={{ fontSize: 15, lineHeight: 21, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
         {(meta.length || x.tag) && !done ? (
           <View style={s.meta}>
             {meta.map((m) => (
@@ -367,36 +368,36 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 
 const s = StyleSheet.create({
   tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
-  tab: { flex: 1, alignItems: 'center', paddingTop: 8, gap: 8 },
+  tab: { flex: 1, alignItems: 'center', paddingTop: 4, gap: 5 },
   under: { height: 3, width: '60%', borderRadius: 2 },
   top: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
-  track: { height: 5, borderRadius: 3, overflow: 'hidden', marginTop: -6 },
+  track: { height: 4, borderRadius: 2, overflow: 'hidden', marginTop: -4 },
   fill: { height: '100%', borderRadius: 3 },
   secDot: { width: 7, height: 7, borderRadius: 4 },
-  monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 32, marginTop: 4 },
-  wArrow: { width: 26, height: 56, alignItems: 'center', justifyContent: 'center' },
-  wd: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, gap: 1 },
+  monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 28, marginTop: 2 },
+  wArrow: { width: 24, height: 48, alignItems: 'center', justifyContent: 'center' },
+  wd: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 12, borderWidth: 1.5, gap: 1 },
   dot: { width: 4, height: 4, borderRadius: 2 },
   seg: { flexDirection: 'row', padding: 4, borderRadius: 16, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
-  sec: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 6, marginTop: 4 },
-  card: { borderRadius: 20, paddingHorizontal: 14, borderWidth: 1 },
-  task: { flexDirection: 'row', gap: 12, paddingVertical: 12, alignItems: 'flex-start' },
-  cb: { width: 26, height: 26, borderRadius: 13, borderWidth: 2.2, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 2 },
+  sec: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, marginTop: 2 },
+  card: { borderRadius: 16, paddingHorizontal: 10, borderWidth: 1 },
+  task: { flexDirection: 'row', gap: 9, paddingVertical: 6, alignItems: 'center' },
+  cb: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 0 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
-  subBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 28, borderRadius: 14, paddingHorizontal: 8, marginTop: 0 },
-  subAddBtn: { width: 32, height: 28, alignItems: 'center', justifyContent: 'center' },
-  subs: { marginStart: 38, borderStartWidth: 2, paddingStart: 10, paddingBottom: 10, gap: 2 },
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40 },
-  subCb: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  subX: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
-  subIn: { flex: 1, minWidth: 0, height: 40, fontSize: 14.5, textAlign: 'right', outlineWidth: 0 },
-  flag: { width: 4, alignSelf: 'stretch', borderRadius: 2, marginVertical: 3 },
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8 },
-  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 54, borderRadius: 18, borderWidth: 1, paddingHorizontal: 12 },
-  quickIn: { flex: 1, minWidth: 0, fontSize: 15, textAlign: 'right', outlineWidth: 0, height: 54 },
-  fab: { width: 54, height: 54, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  subBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 24, borderRadius: 12, paddingHorizontal: 7 },
+  subAddBtn: { width: 28, height: 24, alignItems: 'center', justifyContent: 'center' },
+  subs: { marginStart: 30, borderStartWidth: 2, paddingStart: 8, paddingBottom: 6, gap: 0 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },
+  subCb: { width: 18, height: 18, borderRadius: 5, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  subX: { width: 26, height: 30, alignItems: 'center', justifyContent: 'center' },
+  subIn: { flex: 1, minWidth: 0, height: 34, fontSize: 14, textAlign: 'right', outlineWidth: 0 },
+  flag: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 6 },
+  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 12 },
+  quickIn: { flex: 1, minWidth: 0, fontSize: 15, textAlign: 'right', outlineWidth: 0, height: 48 },
+  fab: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
 });
