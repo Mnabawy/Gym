@@ -1,6 +1,5 @@
-# Gym App
-
-Personal workout + nutrition app for one user. Arabic UI, RTL, Egyptian dialect copy.
+# Brainy
+App name Brainy (expo `name` / `slug`; bundle id and scheme stay `gym`). Personal workout + nutrition app for one user. Arabic UI, RTL, Egyptian dialect copy.
 Exercise names stay in English (gym vocabulary).
 
 ## Stack
