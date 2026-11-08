@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, HeaderBtn, Label, Pill, Screen, Sheet, T } from '../../components/ui';
 import { GoalForm } from '../../components/GoalForm';
 import { GoalRoad } from '../../components/GoalRoad';
+import { ACTION, Swipe } from '../../components/Swipe';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
@@ -128,7 +129,7 @@ function GoalPage() {
         <T style={{ fontSize: 13, color: t.mute }}>{cur >= 0 ? `مرحلة ${cur + 1} من ${g.stages.length}` : g.stages.length ? 'كل المراحل خلصت ✓' : ''}</T>
       </View>
       <T style={{ fontSize: 12, color: t.mute, marginTop: -6 }}>دوس على النقطة لما تخلّص · + تضيف · دوسة طويلة تعدّل أو تمسح</T>
-      <Card style={{ paddingHorizontal: 8, paddingVertical: 6 }}>
+      <Card style={{ paddingHorizontal: 8, paddingVertical: 6, overflow: 'hidden' }}>
         <GoalRoad g={g} t={t} today={today} />
       </Card>
 
@@ -157,10 +158,11 @@ function GoalPage() {
         </View>
         <HeaderBtn icon="add" label="إنجاز جديد" onPress={() => setWinning(true)} />
       </View>
-      <Card style={{ padding: 12, gap: 8 }}>
+      <Card style={{ padding: 12, gap: 8, overflow: 'hidden' }}>
         {wins.length ? (
           wins.slice(0, 12).map((w) => (
-            <View key={w.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Swipe key={w.id} end={w.auto ? [] : [{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => { save({ ...g, wins: g.wins.filter((x) => x.id !== w.id) }); showUndo('اتمسح إنجاز', () => save(g)); } }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card }}>
               <View style={[s.winIcon, { backgroundColor: tint(w.auto ? g.color : '#E69F00', 0.15) }]}>
                 <Ionicons name={w.auto ? 'ribbon' : 'trophy'} size={16} color={w.auto ? g.color : '#E69F00'} />
               </View>
@@ -172,6 +174,7 @@ function GoalPage() {
                 </Pressable>
               ) : null}
             </View>
+            </Swipe>
           ))
         ) : (
           <T style={{ color: t.mute, fontSize: 13, lineHeight: 20 }}>كل خطوة تفرق: أول عميل، أول كورس خلّصته، أول مبلغ حوّشته… سجّلها هنا. والتطبيق بيسجّل لوحده كل مرحلة تخلص و10% و25% و50%.</T>
@@ -179,10 +182,11 @@ function GoalPage() {
       </Card>
 
       <Label>سجل التقدّم</Label>
-      <Card style={{ padding: 12, gap: 8 }}>
+      <Card style={{ padding: 12, gap: 8, overflow: 'hidden' }}>
         {g.entries.length ? (
           [...g.entries].reverse().slice(0, allLog ? undefined : 6).map((e) => (
-            <View key={e.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <Swipe key={e.id} end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => { save({ ...g, entries: g.entries.filter((x) => x.id !== e.id) }); showUndo('اتمسح تسجيل', () => save(g)); } }]}>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card }}>
               <T w="num" style={{ fontSize: 14.5, color: e.amount >= 0 ? t.okText : t.warn, minWidth: 84 }}>{`${e.amount >= 0 ? '+' : ''}${fmt(e.amount)}`}</T>
               <T style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{e.note ?? ''}</T>
               <T style={{ fontSize: 11.5, color: t.mute }}>{dayLabel(e.date)}</T>
@@ -190,6 +194,7 @@ function GoalPage() {
                 <Ionicons name="close" size={16} color={t.mute} />
               </Pressable>
             </View>
+            </Swipe>
           ))
         ) : (
           <T style={{ color: t.mute, fontSize: 13 }}>لسه مسجلتش تقدّم. دوس «سجّل تقدّم» كل ما يدخلك مبلغ أو تخلّص حاجة.</T>
@@ -235,7 +240,7 @@ function Stat({ t, label, value, sub, warn }: { t: Theme; label: string; value: 
 }
 
 /** Log progress: how much (minus for a step back), a note, and the day. */
-function LogSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
+export function LogSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
   const t = useTheme();
   const today = dateKey();
   const [amount, setAmount] = useState('');

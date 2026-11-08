@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../data/program';
 import { MEAL_ORDER } from '../data/nutrition';
 import { Card, Label, Progress, Ring, Screen, T } from '../components/ui';
+import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
 import { energyFor } from '../lib/energy';
 import { addDays, weekStart } from '../lib/gaps';
 import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../lib/journal';
@@ -30,6 +31,9 @@ const TARGET = 10;
 const iso = (s: string) => `⁦${s}⁩`;
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 const signed = (n: number) => `${n > 0 ? '+' : ''}${n}`;
+
+/** Swipe shortcut on a report row: open that habit / goal / quit's own page. */
+const open = (href: Parameters<typeof router.push>[0]): SwipeAction => ({ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress: () => router.push(href) });
 
 /** One Saturday–Friday week: attendance, sets per muscle, volume vs the week before, records, weight, food. */
 export default function WeekScreen() {
@@ -135,9 +139,10 @@ export default function WeekScreen() {
       {r.habits.length ? (
         <>
           <Label>العادات</Label>
-          <Card style={{ padding: 14, gap: 10 }}>
+          <Card style={{ padding: 14, gap: 10, overflow: 'hidden' }}>
             {r.habits.map((h) => (
-              <View key={h.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Swipe key={h.id} start={[open(`/habit/${h.id}`)]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.card }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: h.color }} />
                 <T style={{ width: 110, fontSize: 13 }} numberOfLines={1}>{h.name}</T>
                 <View style={{ flex: 1 }}>
@@ -145,6 +150,7 @@ export default function WeekScreen() {
                 </View>
                 <T w="num" style={{ width: 40, fontSize: 12.5, textAlign: 'center' }}>{`${h.done}/${h.due}`}</T>
               </View>
+              </Swipe>
             ))}
           </Card>
         </>
@@ -153,9 +159,10 @@ export default function WeekScreen() {
       {r.goals.length ? (
         <>
           <Label>الأهداف</Label>
-          <Card style={{ padding: 14, gap: 10 }}>
+          <Card style={{ padding: 14, gap: 10, overflow: 'hidden' }}>
             {r.goals.map((g) => (
-              <View key={g.id} style={{ gap: 4 }}>
+              <Swipe key={g.id} start={[open(`/goals/${g.id}`)]}>
+              <View style={{ gap: 4, backgroundColor: t.card }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: g.color }} />
                   <T w="semi" style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{g.name}</T>
@@ -164,6 +171,7 @@ export default function WeekScreen() {
                 <Progress value={g.share} color={g.color} height={8} />
                 <T style={{ fontSize: 12, color: t.mute }}>{g.gained || g.tasks ? `الأسبوع ده: ${g.gained ? iso(`${g.gained > 0 ? '+' : ''}${fmtAmount(g.gained, g.unit)}`) : ''}${g.gained && g.tasks ? ' · ' : ''}${g.tasks ? `${g.tasks} خطوات خلصت` : ''}` : 'مفيش حركة الأسبوع ده'}</T>
               </View>
+              </Swipe>
             ))}
           </Card>
         </>
@@ -190,12 +198,14 @@ export default function WeekScreen() {
       {r.quits.length ? (
         <>
           <Label>بطّل</Label>
-          <Card style={{ padding: 14, gap: 10 }}>
+          <Card style={{ padding: 14, gap: 10, overflow: 'hidden' }}>
             {r.quits.map((q) => (
-              <View key={q.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Swipe key={q.id} start={[open(`/quit/${q.id}`)]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.card }}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: q.color }} />
                 <T style={{ fontSize: 12.5, color: t.mute }}>{`${q.cleanDays} أيام نضيفة${q.slips ? ` · ${q.slips} وقعة` : ''}${q.urges ? ` · قاومت ${q.resisted} من ${q.urges}` : ''}`}</T>
               </View>
+              </Swipe>
             ))}
           </Card>
         </>

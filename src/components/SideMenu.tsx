@@ -3,6 +3,8 @@ import { Animated, Easing, Image, Modal, Pressable, StyleSheet, View, useWindowD
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ACTION, Swipe } from './Swipe';
 import { useReducedMotion } from '../lib/motion';
 import { useSettings } from '../lib/settings';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported } from '../lib/google';
@@ -62,6 +64,8 @@ export function MenuButton() {
         <HeaderBtn icon="menu" label="القايمة" onPress={() => setOpen(true)} />
       </View>
       <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onShow={() => run(1)} onRequestClose={() => close()}>
+        {/* Gestures (the rows' swipe actions) need their own root inside a Modal on Android. */}
+        <GestureHandlerRootView style={{ flex: 1 }}>
         <Animated.View style={[StyleSheet.absoluteFill, s.back, { opacity: p }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} accessibilityRole="button" accessibilityLabel="اقفل القايمة" />
         </Animated.View>
@@ -89,21 +93,24 @@ export function MenuButton() {
             const a = p.interpolate({ inputRange: [0.25 + i * 0.1, Math.min(1, 0.65 + i * 0.1)], outputRange: [0, 1], extrapolate: 'clamp' });
             return (
               <Animated.View key={it.path} style={{ opacity: a, transform: [{ translateX: a.interpolate({ inputRange: [0, 1], outputRange: [-18, 0] }) }] }}>
+                <Swipe style={s.clip} start={[{ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress: () => close(() => router.push(it.path)) }]}>
                 <Pressable
                   onPress={() => close(() => router.push(it.path))}
                   accessibilityRole="button"
                   accessibilityLabel={it.label}
-                  style={({ pressed }) => [s.item, { backgroundColor: pressed ? t.soft : 'transparent' }]}>
+                  style={({ pressed }) => [s.item, { backgroundColor: pressed ? t.soft : t.card }]}>
                   <View style={[s.icon, { backgroundColor: tint(t.ok, 0.13) }]}>
                     <Ionicons name={it.icon} size={19} color={t.okText} />
                   </View>
                   <T w="semi" style={{ fontSize: 15, flex: 1 }}>{it.label}</T>
                   <Ionicons name="chevron-back" size={16} color={t.mute} />
                 </Pressable>
+                </Swipe>
               </Animated.View>
             );
           })}
         </Animated.View>
+        </GestureHandlerRootView>
       </Modal>
     </>
   );
@@ -136,6 +143,9 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
   const name = storage.getMeta(GOOGLE_NAME);
   const photo = storage.getMeta(GOOGLE_PHOTO);
   return (
+    <Swipe style={[s.clip, { borderRadius: 12, marginBottom: 8 }]} start={[{ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress: () => onPress('/account') }]}>
+    {/* Opaque under the light tint, so the swipe actions stay hidden until you swipe. */}
+    <View style={{ backgroundColor: t.card }}>
     <Pressable
       onPress={() => onPress('/account')}
       accessibilityRole="button"
@@ -151,12 +161,15 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
         <T style={{ fontSize: 12, color: !email ? t.mute : { saved: t.okText, waiting: t.mute, failed: t.bad, off: t.mute }[syncStatus().state] }} numberOfLines={1}>{!email ? 'بياناتك تتحفظ وترجع على أي موبايل' : { saved: '☁️ بياناتك محفوظة', waiting: '☁️ بيحفظ…', failed: '⚠️ الحفظ واقف، دوس هنا', off: email }[syncStatus().state]}</T>
       </View>
     </Pressable>
+    </View>
+    </Swipe>
   );
 }
 
 const s = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12 },
-  account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 8 },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12 },
+  clip: { borderRadius: 14, overflow: 'hidden' },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   back: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },
   panel: { position: 'absolute', top: 0, bottom: 0, end: 0, borderTopStartRadius: 22, borderBottomStartRadius: 22, borderStartWidth: 1, paddingHorizontal: 10, gap: 2, boxShadow: '0px 0px 24px rgba(0, 0, 0, 0.25)' },

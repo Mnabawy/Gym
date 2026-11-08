@@ -6,9 +6,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, Ring, Screen, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { GoalForm } from '../../components/GoalForm';
+import { ACTION, Swipe } from '../../components/Swipe';
+import { LogSheet } from './[id]';
 import { useDataVersion } from '../../lib/bus';
-import { readGoals } from '../../lib/goalStore';
-import { current, fmtAmount, IDLE_DAYS, idleDays, nextTask, progress, reviewDue } from '../../lib/goals';
+import { deleteGoal, readGoals } from '../../lib/goalStore';
+import { current, fmtAmount, IDLE_DAYS, idleDays, nextTask, progress, reviewDue, type Goal } from '../../lib/goals';
+import { confirm } from '../../lib/confirm';
 import { dateKey } from '../../lib/logic';
 import { glow, ThemeProvider, tint, useTheme, useWarm } from '../../theme';
 
@@ -29,10 +32,15 @@ function Goals() {
   const today = dateKey();
   const goals = readGoals();
   const [adding, setAdding] = useState(false);
+  const [logging, setLogging] = useState<Goal | null>(null);
+  const remove = async (g: Goal) => {
+    if (await confirm({ title: 'تمسح الهدف ده؟', body: 'هيتشال هو وكل اللي اتسجل فيه.', confirmLabel: 'امسح', danger: true })) deleteGoal(g.id);
+  };
 
   return (
     <Screen title="الأهداف" action={<MenuButton />}>
       {adding ? <GoalForm onClose={() => setAdding(false)} onSaved={(g) => router.push(`/goals/${g.id}`)} /> : null}
+      {logging ? <LogSheet g={logging} onClose={() => setLogging(null)} /> : null}
       {!goals.length ? (
         <Card style={{ padding: 16, gap: 8, alignItems: 'center' }}>
           <View style={[s.big, { backgroundColor: tint(t.sec.goals, 0.14), borderColor: tint(t.sec.goals, 0.6), boxShadow: glow(t, t.sec.goals, 18) }]}>
@@ -51,7 +59,13 @@ function Goals() {
             const next = nextTask(g);
             const idle = idleDays(g, today);
             return (
-              <Item key={g.id}><Pressable
+              <Item key={g.id}><Swipe
+                style={s.swipe}
+                start={[{ icon: 'add-circle-outline', label: 'سجّل', color: ACTION.green, onPress: () => setLogging(g) }]}
+                end={[
+                  { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => void remove(g) },
+                  { icon: 'open-outline', label: 'افتح', color: ACTION.grey, onPress: () => router.push(`/goals/${g.id}`) },
+                ]}><Pressable
                 onPress={() => router.push(`/goals/${g.id}`)}
                 accessibilityRole="button"
                 accessibilityLabel={`${g.name}: ${Math.floor(p * 100)}%`}
@@ -82,7 +96,7 @@ function Goals() {
                     <T style={{ flex: 1, fontSize: 12, color: t.warn }}>{idle >= IDLE_DAYS ? `بقالك ${idle} يوم من غير حركة` : 'مراجعة الأسبوع مستنياك'}</T>
                   </View>
                 ) : null}
-              </Pressable></Item>
+              </Pressable></Swipe></Item>
             );
           })}
           <Btn label="+ هدف جديد" onPress={() => setAdding(true)} />
@@ -94,6 +108,7 @@ function Goals() {
 
 const s = StyleSheet.create({
   big: { width: 76, height: 76, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  swipe: { borderRadius: 12, overflow: 'hidden' },
   tile: { padding: 13, borderRadius: 12, borderWidth: 1.5, gap: 8 },
   icon: { width: 52, height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   next: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },

@@ -6,6 +6,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
 import { Btn, Card, Label, Screen, Sep, Sheet, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
+import { ACTION, Swipe } from '../components/Swipe';
 import { GOAL } from '../lib/energy';
 import { dateKey, parseNum } from '../lib/logic';
 import { confirm } from '../lib/confirm';
@@ -145,20 +146,23 @@ export default function WeightScreen() {
           </Card>
 
           <Label>الوزنات اللي سجلتها</Label>
-          <Card>
+          <Card style={{ overflow: 'hidden' }}>
             {shown.map((w, i) => {
               const prev = list[list.indexOf(w) - 1];
+              const remove = () => { save(removeWeighIn(list, w.date)); showUndo('اتمسح وزن', () => save(list)); };
               return (
                 <Item key={w.date}><React.Fragment>
                   {i ? <Sep /> : null}
-                  <View style={s.row}>
+                  <Swipe end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove }]}>
+                  <View style={[s.row, { backgroundColor: t.card }]}>
                     <T style={{ flex: 1, fontSize: 13.5 }}>{w.date === today ? 'النهارده' : dayLabel(w.date)}</T>
                     {prev ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{iso(signed(w.kg - prev.kg))}</T> : null}
                     <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{iso(fmt(w.kg))}</T>
-                    <Pressable onPress={() => { save(removeWeighIn(list, w.date)); showUndo('اتمسح وزن', () => save(list)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح وزن ${dayLabel(w.date)}`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}>
+                    <Pressable onPress={remove} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح وزن ${dayLabel(w.date)}`} style={({ pressed }) => ({ opacity: pressed ? 0.5 : 1, padding: 4 })}>
                       <Ionicons name="trash-outline" size={16} color={t.mute} />
                     </Pressable>
                   </View>
+                  </Swipe>
                 </React.Fragment></Item>
               );
             })}
@@ -175,18 +179,20 @@ export default function WeightScreen() {
       ) : null}
 
       <Label>القياسات (سم)</Label>
-      <Card>
+      <Card style={{ overflow: 'hidden' }}>
         {measures.length ? (
           PARTS.map((p, i) => {
             const c = measureChange(measures, p.k);
             return (
               <React.Fragment key={p.k}>
                 {i ? <Sep /> : null}
-                <View style={s.row}>
-                  <T style={{ flex: 1, fontSize: 13.5 }}>{p.label}</T>
-                  {c?.change != null ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{`${iso(signed(c.change))} من ${dayLabel(c.since)}`}</T> : null}
-                  <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{c ? iso(fmt(c.last)) : '–'}</T>
-                </View>
+                <Swipe end={[{ icon: 'create-outline', label: 'قيس', color: ACTION.grey, onPress: openMeasure }]}>
+                  <View style={[s.row, { backgroundColor: t.card }]}>
+                    <T style={{ flex: 1, fontSize: 13.5 }}>{p.label}</T>
+                    {c?.change != null ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{`${iso(signed(c.change))} من ${dayLabel(c.since)}`}</T> : null}
+                    <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{c ? iso(fmt(c.last)) : '–'}</T>
+                  </View>
+                </Swipe>
               </React.Fragment>
             );
           })

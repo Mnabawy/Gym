@@ -15,6 +15,8 @@ import { nope, useTimer, tap } from '../lib/timer';
 import { glow, tint, useTheme, font } from '../theme';
 import { Btn, InfoPopup, Sheet, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
+import { ACTION, Swipe, type SwipeAction } from './Swipe';
+import { showUndo } from '../lib/undo';
 
 type Props = {
   ex: Exercise;
@@ -218,13 +220,56 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   const record = summary && prevBest > 0 && bestE1rm(doneSets) > prevBest;
   const line = doneSets.map((s) => (s.kg ? `${fmt(s.kg)}×${s.reps ?? '–'}` : `${s.reps ?? '–'}`)).join(' · ');
   const ink = t.neon ? color : t.fg;
+  // The card's own background, made opaque (card + the open exercise's wash) so swipe actions stay hidden under rows.
+  const wash = open ? tint(color, t.neon ? 0.07 : 0.06) : undefined;
+
+  // Swipe shortcuts. Closed cards open first, since their sheets live in the open card.
+  const openSheet = (k: 'swap' | 'note') => {
+    if (k === 'note') setNoteDraft(note);
+    if (!open) onOpen();
+    setSheet(k);
+  };
+  const rowStart: SwipeAction[] = [
+    ...(alts.length || alt ? [{ icon: 'swap-horizontal' as const, label: 'بدّل', color: ACTION.blue, onPress: () => openSheet('swap') }] : []),
+    ...(video ? [{ icon: 'play' as const, label: 'فيديو', color: ACTION.purple, onPress: () => setWatching(true) }] : []),
+  ];
+  const rowEnd: SwipeAction[] = [{ icon: 'create-outline', label: 'ملاحظة', color: ACTION.orange, onPress: () => openSheet('note') }];
+
+  /** Put a set back as it was (undo), on top of whatever the rows are by then. */
+  const restoreSet = (i: number, r: Row) => {
+    setRows((prev) => {
+      const next = [...prev];
+      next[i] = r;
+      return next;
+    });
+    save(i, r);
+    setDraft({ at: -1, kg: '', reps: '' }); // the fields read the set again
+    onChange(false);
+  };
+  /** Empty a set's logged numbers (and its tick), with undo. */
+  const clearSet = (i: number) => {
+    const old = rows[i];
+    const next = put(i, { kg: '', reps: '', done: false, rir: null, at: null });
+    if (rirAt === i) setRirAt(null);
+    setMissing(null);
+    setPicked(null);
+    setDraft(suggest(lineAt(next), next, last));
+    onChange(false);
+    showUndo(`اتمسحت مجموعة ${i + 1} · ${name}`, () => restoreSet(i, old));
+  };
+  const setStart = (i: number): SwipeAction[] => [
+    rows[i].done
+      ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => toggle(i) }
+      : { icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: () => toggle(i) },
+  ];
+  const setEnd = (i: number): SwipeAction[] =>
+    rows[i].done || rows[i].kg || rows[i].reps ? [{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => clearSet(i) }] : [];
 
   return (
     <View
       style={[
-        s.wrap,
         { borderTopWidth: first ? 0 : StyleSheet.hairlineWidth * 2, borderTopColor: t.neon ? t.border : t.line },
-        open ? { backgroundColor: tint(color, t.neon ? 0.07 : 0.06), borderStartWidth: 3, borderStartColor: color } : null,
+        open ? { borderStartWidth: 3, borderStartColor: color } : null,
       ]}>
       {video ? <VideoSheet video={video} name={ex.name} visible={watching} onClose={() => setWatching(false)} /> : null}
       {open ? (
@@ -293,190 +338,218 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
         />
       ) : null}
 
-      <View style={s.head}>
-        {/* Tapping the name opens this exercise. Open, the name has the line to itself (its buttons go on the line under it). */}
-        <Pressable
-          onPress={open ? undefined : onOpen}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: open }}
-          accessibilityLabel={`${name}، ${doneCount} من ${ex.sets} مجموعات`}
-          hitSlop={{ top: 7, bottom: 7 }}
-          style={s.title}>
-          <View style={[s.num, { backgroundColor: tint(color, t.neon ? 0.16 : 0.2), boxShadow: glow(t, color, 6) }]}>
-            <T w="numBold" style={{ fontSize: 11, color: ink }}>{index + 1}</T>
-          </View>
-          <T w="num" style={{ fontSize: open ? 13 : 14.5, flexShrink: summary ? 0 : 1 }} numberOfLines={1}>{name}</T>
-          {summary ? (
-            <>
-              <T w="bold" style={{ fontSize: 14, color: t.okText }}>✓</T>
-              <T w="num" style={{ flexShrink: 1, fontSize: 12, color: t.mute }} numberOfLines={1}>{iso(line)}</T>
-            </>
-          ) : null}
-        </Pressable>
-        {record ? (
-          <View style={[s.pr, { boxShadow: t.neon ? '0 0 8px rgba(255,197,61,0.5)' : undefined }]}>
-            <T w="bold" style={{ fontSize: 10.5, color: '#1A1200' }}>🏆 رقم جديد</T>
-          </View>
-        ) : null}
-        {open || summary ? null : <TagBadge tag={ex.tag} />}
-        {summary ? null : (
-          <T w="numBold" style={{ fontSize: 12.5, minWidth: 30, textAlign: 'center', color: doneCount ? t.fg : t.mute }}>{iso(`${doneCount} / ${ex.sets}`)}</T>
-        )}
-      </View>
-
-      {open ? (
-        <>
-          <View style={s.meta}>
-            <TagBadge tag={ex.tag} />
-            {up ? (
-              <Pressable onPress={() => setWhy(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`زوّد ${weightStep} كجم، اعرف ليه`} style={[s.chip, { borderColor: tint(t.ok, 0.5), backgroundColor: t.neon ? undefined : t.okSoft }]}>
-                <T w="semi" style={{ fontSize: 10.5, color: t.okText }}>{`${iso(`+${weightStep}`)} ↑`}</T>
-              </Pressable>
-            ) : null}
-            {video ? (
-              <Pressable
-                onPress={() => setWatching(true)}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name}`}
-                style={({ pressed }) => [s.chip, { borderColor: tint(t.ok, 0.5), boxShadow: glow(t, t.ok, 6), opacity: pressed ? 0.6 : 1 }]}>
-                <Ionicons name="play" size={10} color={t.okText} />
-                <T style={{ fontSize: 10.5, color: t.okText }}>فيديو</T>
-              </Pressable>
-            ) : null}
-            {ex.tag === 'heavy' ? <MetaChip icon="flame-outline" label="إحماء" a11y="مجموعات الإحماء" onPress={() => setSheet('warm')} /> : null}
-            {alts.length || alt ? <MetaChip icon="swap-horizontal" label={alt ? 'متبدّل' : 'بدّل'} on={!!alt} a11y={`بدّل ${name} بتمرين تاني النهارده`} onPress={() => setSheet('swap')} /> : null}
-            {bar != null ? <MetaChip icon="barbell-outline" label="طارات" a11y="احسب الطارات" onPress={() => setSheet('plates')} /> : null}
-            <MetaChip icon="create-outline" label={note ? undefined : 'ملاحظة'} a11y={note ? 'عدّل الملاحظة' : 'اكتب ملاحظة'} onPress={() => { setNoteDraft(note); setSheet('note'); }} />
-            <T style={{ marginStart: 'auto', fontSize: 10.5, color: t.mute }} numberOfLines={1}>
-              {`تكرار ${iso(range)}${ex.perLeg ? ' · لكل رجل' : ''}`}
-            </T>
-          </View>
-          {alt ? <T style={{ fontSize: 11, color: t.warn, marginTop: 3 }} numberOfLines={1}>{`بدل ${iso(ex.name)} النهارده`}</T> : null}
-          {note ? (
-            <Pressable onPress={() => { setNoteDraft(note); setSheet('note'); }} accessibilityRole="button" accessibilityLabel={`ملاحظة: ${note}، دوس تعدّلها`} style={[s.noteLine, { backgroundColor: t.soft }]}>
-              <Ionicons name="document-text-outline" size={12} color={t.mute} />
-              <T style={{ flex: 1, fontSize: 11.5, color: t.fg }} numberOfLines={2}>{note}</T>
-            </Pressable>
-          ) : null}
-
-          <View style={s.sets}>
-            {rows.map((r, i) => {
-              if (i === sel) {
-                const err = missing?.at === i ? missing : null;
-                return (
-                  <React.Fragment key={i}>
-                    <View style={[s.srow, { borderColor: color, backgroundColor: tint(color, 0.08), boxShadow: t.neon ? glow(t, color, 8) : undefined }]}>
-                      <T w="numBold" style={[s.sn, { color: ink }]}>{i + 1}</T>
-                      <Field
-                        inputRef={kgRef}
-                        value={draft.kg}
-                        unit="كجم"
-                        decimal
-                        error={!!err?.kg}
-                        autoFocus={!!err?.kg}
-                        label={`الوزن مجموعة ${i + 1}`}
-                        onChange={(v) => setField('kg', v)}
-                        onStep={(d) => step('kg', d)}
-                      />
-                      <Field
-                        inputRef={repsRef}
-                        value={draft.reps}
-                        unit="تكرار"
-                        error={!!err?.reps}
-                        autoFocus={!!err?.reps && !err.kg}
-                        label={`التكرارات مجموعة ${i + 1}`}
-                        onChange={(v) => setField('reps', v)}
-                        onStep={(d) => step('reps', d)}
-                      />
-                      <Tick on={r.done} primary onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
-                    </View>
-                    {err && (err.kg || err.reps) ? (
-                      <T accessibilityLiveRegion="polite" style={{ fontSize: 11.5, color: t.bad, marginTop: -1, marginStart: 27 }}>
-                        {err.kg && err.reps ? 'اكتب الوزن والتكرارات الأول' : err.kg ? 'اكتب الوزن الأول' : 'اكتب التكرارات الأول'}
-                      </T>
-                    ) : null}
-                  </React.Fragment>
-                );
-              }
-              const v = r.done ? r : suggest(i, rows, last);
-              const cell = [s.cell, r.done ? null : { backgroundColor: t.soft }];
-              const txt = { fontSize: 14, color: r.done ? t.fg : t.mute, opacity: r.done ? 1 : 0.7 };
-              return (
-                <View key={i} style={[s.srow, { borderColor: 'transparent', backgroundColor: r.done ? tint(t.ok, 0.07) : 'transparent' }]}>
-                  {/* Tap the numbers to edit this set. */}
-                  <Pressable
-                    onPress={() => select(i)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`مجموعة ${i + 1}: ${v.kg ? `${v.kg} كجم، ` : ''}${v.reps || range} تكرار، دوس تعدّلها`}
-                    style={({ pressed }) => [s.cells, { opacity: pressed ? 0.6 : 1 }]}>
-                    <T w="numBold" style={[s.sn, { color: t.mute }]}>{i + 1}</T>
-                    <View style={cell}><T w="numBold" style={txt}>{v.kg || '–'}</T></View>
-                    <View style={cell}>
-                      <T w="numBold" style={txt}>
-                        {iso(v.reps || range)}
-                        {r.done && r.rir != null ? <T style={{ fontSize: 10.5, color: t.mute }}>{`  ${rirAr(r.rir)}`}</T> : null}
-                      </T>
-                    </View>
-                  </Pressable>
-                  <Tick on={r.done} onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
-                </View>
-              );
-            })}
-          </View>
-          {rirAt != null && rows[rirAt]?.done ? (
-            <View style={s.rir}>
-              <T style={{ fontSize: 11.5, color: t.mute }}>{`مجموعة ${rirAt + 1}: كان فاضل كام تكرار؟`}</T>
-              <View style={{ flexDirection: 'row', gap: 5 }}>
-                {RIR.map((n) => (
-                  <Pressable
-                    key={n}
-                    onPress={() => setRir(rirAt, n)}
-                    hitSlop={{ top: 8, bottom: 8 }}
-                    accessibilityRole="button"
-                    accessibilityLabel={n === 0 ? 'وصلت للفشل' : n >= 4 ? 'فاضل 4 أو أكتر' : `فاضل ${n}`}
-                    style={({ pressed }) => [s.rirBtn, { backgroundColor: t.soft, borderColor: tint(color, 0.5), opacity: pressed ? 0.6 : 1 }]}>
-                    <T w="numBold" style={{ fontSize: 13 }}>{n >= 4 ? '+4' : String(n)}</T>
-                  </Pressable>
-                ))}
-                <Pressable onPress={closeRir} hitSlop={8} accessibilityRole="button" accessibilityLabel="مش عايز أسجّل" style={({ pressed }) => [s.rirBtn, { borderColor: 'transparent', opacity: pressed ? 0.6 : 1 }]}>
-                  <Ionicons name="close" size={15} color={t.mute} />
-                </Pressable>
+      {/* Swipe the exercise: بدّل / فيديو from the start edge, ملاحظة from the end edge. */}
+      <Swipe start={rowStart} end={rowEnd}>
+        <Under color={wash}>
+          <View style={[s.top, open ? null : s.topClosed]}>
+          <View style={s.head}>
+            {/* Tapping the name opens this exercise. Open, the name has the line to itself (its buttons go on the line under it). */}
+            <Pressable
+              onPress={open ? undefined : onOpen}
+              accessibilityRole="button"
+              accessibilityState={{ expanded: open }}
+              accessibilityLabel={`${name}، ${doneCount} من ${ex.sets} مجموعات`}
+              hitSlop={{ top: 7, bottom: 7 }}
+              style={s.title}>
+              <View style={[s.num, { backgroundColor: tint(color, t.neon ? 0.16 : 0.2), boxShadow: glow(t, color, 6) }]}>
+                <T w="numBold" style={{ fontSize: 11, color: ink }}>{index + 1}</T>
               </View>
-            </View>
-          ) : null}
-        </>
-      ) : summary ? null : (
-        <View style={s.boxes}>
-          {rows.map((r, i) => {
-            const v = r.done ? r : suggest(i, rows, last);
-            const reps = r.done && r.reps ? r.reps : range;
-            const text = v.kg ? `${v.kg} × ${reps}` : reps; // no weight yet: just the target reps
-            return (
-              <Pressable
-                key={i}
-                onPress={() => toggle(i)}
-                hitSlop={{ top: 8, bottom: 8 }}
-                accessibilityRole="checkbox"
-                accessibilityState={{ checked: r.done }}
-                accessibilityLabel={`مجموعة ${i + 1}: ${v.kg ? `${v.kg} كجم × ` : ''}${reps}`}
-                style={({ pressed }) => [
-                  s.box,
-                  { backgroundColor: r.done ? t.okSoft : t.soft, borderColor: r.done ? tint(t.ok, t.neon ? 0.45 : 0.6) : 'transparent', opacity: pressed ? 0.7 : 1 },
-                ]}>
-                <T w="num" style={{ fontSize: 12, color: r.done ? t.fg : t.mute, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>
-                  {iso(text)}
+              <T w="num" style={{ fontSize: open ? 13 : 14.5, flexShrink: summary ? 0 : 1 }} numberOfLines={1}>{name}</T>
+              {summary ? (
+                <>
+                  <T w="bold" style={{ fontSize: 14, color: t.okText }}>✓</T>
+                  <T w="num" style={{ flexShrink: 1, fontSize: 12, color: t.mute }} numberOfLines={1}>{iso(line)}</T>
+                </>
+              ) : null}
+            </Pressable>
+            {record ? (
+              <View style={[s.pr, { boxShadow: t.neon ? '0 0 8px rgba(255,197,61,0.5)' : undefined }]}>
+                <T w="bold" style={{ fontSize: 10.5, color: '#1A1200' }}>🏆 رقم جديد</T>
+              </View>
+            ) : null}
+            {open || summary ? null : <TagBadge tag={ex.tag} />}
+            {summary ? null : (
+              <T w="numBold" style={{ fontSize: 12.5, minWidth: 30, textAlign: 'center', color: doneCount ? t.fg : t.mute }}>{iso(`${doneCount} / ${ex.sets}`)}</T>
+            )}
+          </View>
+
+          {open ? (
+            <>
+              <View style={s.meta}>
+                <TagBadge tag={ex.tag} />
+                {up ? (
+                  <Pressable onPress={() => setWhy(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`زوّد ${weightStep} كجم، اعرف ليه`} style={[s.chip, { borderColor: tint(t.ok, 0.5), backgroundColor: t.neon ? undefined : t.okSoft }]}>
+                    <T w="semi" style={{ fontSize: 10.5, color: t.okText }}>{`${iso(`+${weightStep}`)} ↑`}</T>
+                  </Pressable>
+                ) : null}
+                {video ? (
+                  <Pressable
+                    onPress={() => setWatching(true)}
+                    hitSlop={8}
+                    accessibilityRole="button"
+                    accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name}`}
+                    style={({ pressed }) => [s.chip, { borderColor: tint(t.ok, 0.5), boxShadow: glow(t, t.ok, 6), opacity: pressed ? 0.6 : 1 }]}>
+                    <Ionicons name="play" size={10} color={t.okText} />
+                    <T style={{ fontSize: 10.5, color: t.okText }}>فيديو</T>
+                  </Pressable>
+                ) : null}
+                {ex.tag === 'heavy' ? <MetaChip icon="flame-outline" label="إحماء" a11y="مجموعات الإحماء" onPress={() => setSheet('warm')} /> : null}
+                {alts.length || alt ? <MetaChip icon="swap-horizontal" label={alt ? 'متبدّل' : 'بدّل'} on={!!alt} a11y={`بدّل ${name} بتمرين تاني النهارده`} onPress={() => setSheet('swap')} /> : null}
+                {bar != null ? <MetaChip icon="barbell-outline" label="طارات" a11y="احسب الطارات" onPress={() => setSheet('plates')} /> : null}
+                <MetaChip icon="create-outline" label={note ? undefined : 'ملاحظة'} a11y={note ? 'عدّل الملاحظة' : 'اكتب ملاحظة'} onPress={() => { setNoteDraft(note); setSheet('note'); }} />
+                <T style={{ marginStart: 'auto', fontSize: 10.5, color: t.mute }} numberOfLines={1}>
+                  {`تكرار ${iso(range)}${ex.perLeg ? ' · لكل رجل' : ''}`}
                 </T>
-                <T w="bold" style={{ fontSize: 12, color: r.done ? t.okText : t.mute }}>{r.done ? '✓' : '○'}</T>
-              </Pressable>
-            );
-          })}
-          {/* Short exercises keep boxes the same width as the rest. */}
-          {Array.from({ length: Math.max(0, 3 - rows.length) }, (_, i) => (
-            <View key={`pad${i}`} style={{ flex: 1 }} />
-          ))}
-        </View>
-      )}
+              </View>
+              {alt ? <T style={{ fontSize: 11, color: t.warn, marginTop: 3 }} numberOfLines={1}>{`بدل ${iso(ex.name)} النهارده`}</T> : null}
+              {note ? (
+                <Pressable onPress={() => { setNoteDraft(note); setSheet('note'); }} accessibilityRole="button" accessibilityLabel={`ملاحظة: ${note}، دوس تعدّلها`} style={[s.noteLine, { backgroundColor: t.soft }]}>
+                  <Ionicons name="document-text-outline" size={12} color={t.mute} />
+                  <T style={{ flex: 1, fontSize: 11.5, color: t.fg }} numberOfLines={2}>{note}</T>
+                </Pressable>
+              ) : null}
+            </>
+          ) : summary ? null : (
+            <View style={s.boxes}>
+              {rows.map((r, i) => {
+                const v = r.done ? r : suggest(i, rows, last);
+                const reps = r.done && r.reps ? r.reps : range;
+                const text = v.kg ? `${v.kg} × ${reps}` : reps; // no weight yet: just the target reps
+                return (
+                  <Pressable
+                    key={i}
+                    onPress={() => toggle(i)}
+                    hitSlop={{ top: 8, bottom: 8 }}
+                    accessibilityRole="checkbox"
+                    accessibilityState={{ checked: r.done }}
+                    accessibilityLabel={`مجموعة ${i + 1}: ${v.kg ? `${v.kg} كجم × ` : ''}${reps}`}
+                    style={({ pressed }) => [
+                      s.box,
+                      { backgroundColor: r.done ? t.okSoft : t.soft, borderColor: r.done ? tint(t.ok, t.neon ? 0.45 : 0.6) : 'transparent', opacity: pressed ? 0.7 : 1 },
+                    ]}>
+                    <T w="num" style={{ fontSize: 12, color: r.done ? t.fg : t.mute, flexShrink: 1 }} numberOfLines={1} adjustsFontSizeToFit>
+                      {iso(text)}
+                    </T>
+                    <T w="bold" style={{ fontSize: 12, color: r.done ? t.okText : t.mute }}>{r.done ? '✓' : '○'}</T>
+                  </Pressable>
+                );
+              })}
+              {/* Short exercises keep boxes the same width as the rest. */}
+              {Array.from({ length: Math.max(0, 3 - rows.length) }, (_, i) => (
+                <View key={`pad${i}`} style={{ flex: 1 }} />
+              ))}
+            </View>
+          )}
+          </View>
+        </Under>
+      </Swipe>
+      {open ? (
+        <Under color={wash} style={s.bottom}>
+              <View style={s.sets}>
+                {rows.map((r, i) => {
+                  if (i === sel) {
+                    const err = missing?.at === i ? missing : null;
+                    return (
+                      <React.Fragment key={i}>
+                        <Swipe style={s.swipe} start={setStart(i)} end={setEnd(i)}>
+                        <Under color={wash}>
+                        <View style={[s.srow, { borderColor: color, backgroundColor: tint(color, 0.08), boxShadow: t.neon ? glow(t, color, 8) : undefined }]}>
+                          <T w="numBold" style={[s.sn, { color: ink }]}>{i + 1}</T>
+                          <Field
+                            inputRef={kgRef}
+                            value={draft.kg}
+                            unit="كجم"
+                            decimal
+                            error={!!err?.kg}
+                            autoFocus={!!err?.kg}
+                            label={`الوزن مجموعة ${i + 1}`}
+                            onChange={(v) => setField('kg', v)}
+                            onStep={(d) => step('kg', d)}
+                          />
+                          <Field
+                            inputRef={repsRef}
+                            value={draft.reps}
+                            unit="تكرار"
+                            error={!!err?.reps}
+                            autoFocus={!!err?.reps && !err.kg}
+                            label={`التكرارات مجموعة ${i + 1}`}
+                            onChange={(v) => setField('reps', v)}
+                            onStep={(d) => step('reps', d)}
+                          />
+                          <Tick on={r.done} primary onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
+                        </View>
+                        </Under>
+                        </Swipe>
+                        {err && (err.kg || err.reps) ? (
+                          <T accessibilityLiveRegion="polite" style={{ fontSize: 11.5, color: t.bad, marginTop: -1, marginStart: 27 }}>
+                            {err.kg && err.reps ? 'اكتب الوزن والتكرارات الأول' : err.kg ? 'اكتب الوزن الأول' : 'اكتب التكرارات الأول'}
+                          </T>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  }
+                  const v = r.done ? r : suggest(i, rows, last);
+                  const cell = [s.cell, r.done ? null : { backgroundColor: t.soft }];
+                  const txt = { fontSize: 14, color: r.done ? t.fg : t.mute, opacity: r.done ? 1 : 0.7 };
+                  return (
+                    <Swipe key={i} style={s.swipe} start={setStart(i)} end={setEnd(i)}>
+                    <Under color={wash}>
+                    <View style={[s.srow, { borderColor: 'transparent', backgroundColor: r.done ? tint(t.ok, 0.07) : 'transparent' }]}>
+                      {/* Tap the numbers to edit this set. */}
+                      <Pressable
+                        onPress={() => select(i)}
+                        accessibilityRole="button"
+                        accessibilityLabel={`مجموعة ${i + 1}: ${v.kg ? `${v.kg} كجم، ` : ''}${v.reps || range} تكرار، دوس تعدّلها`}
+                        style={({ pressed }) => [s.cells, { opacity: pressed ? 0.6 : 1 }]}>
+                        <T w="numBold" style={[s.sn, { color: t.mute }]}>{i + 1}</T>
+                        <View style={cell}><T w="numBold" style={txt}>{v.kg || '–'}</T></View>
+                        <View style={cell}>
+                          <T w="numBold" style={txt}>
+                            {iso(v.reps || range)}
+                            {r.done && r.rir != null ? <T style={{ fontSize: 10.5, color: t.mute }}>{`  ${rirAr(r.rir)}`}</T> : null}
+                          </T>
+                        </View>
+                      </Pressable>
+                      <Tick on={r.done} onPress={() => toggle(i)} label={`${r.done ? 'رجّع' : 'خلصت'} مجموعة ${i + 1}`} />
+                    </View>
+                    </Under>
+                    </Swipe>
+                  );
+                })}
+              </View>
+              {rirAt != null && rows[rirAt]?.done ? (
+                <View style={s.rir}>
+                  <T style={{ fontSize: 11.5, color: t.mute }}>{`مجموعة ${rirAt + 1}: كان فاضل كام تكرار؟`}</T>
+                  <View style={{ flexDirection: 'row', gap: 5 }}>
+                    {RIR.map((n) => (
+                      <Pressable
+                        key={n}
+                        onPress={() => setRir(rirAt, n)}
+                        hitSlop={{ top: 8, bottom: 8 }}
+                        accessibilityRole="button"
+                        accessibilityLabel={n === 0 ? 'وصلت للفشل' : n >= 4 ? 'فاضل 4 أو أكتر' : `فاضل ${n}`}
+                        style={({ pressed }) => [s.rirBtn, { backgroundColor: t.soft, borderColor: tint(color, 0.5), opacity: pressed ? 0.6 : 1 }]}>
+                        <T w="numBold" style={{ fontSize: 13 }}>{n >= 4 ? '+4' : String(n)}</T>
+                      </Pressable>
+                    ))}
+                    <Pressable onPress={closeRir} hitSlop={8} accessibilityRole="button" accessibilityLabel="مش عايز أسجّل" style={({ pressed }) => [s.rirBtn, { borderColor: 'transparent', opacity: pressed ? 0.6 : 1 }]}>
+                      <Ionicons name="close" size={15} color={t.mute} />
+                    </Pressable>
+                  </View>
+                </View>
+              ) : null}
+        </Under>
+      ) : null}
+    </View>
+  );
+}
+
+/** An opaque card background with an optional wash on top (what the row shows), so a swiped row hides its actions. */
+function Under({ color, style, children }: { color?: string; style?: React.ComponentProps<typeof View>['style']; children: React.ReactNode }) {
+  const t = useTheme();
+  return (
+    <View style={{ backgroundColor: t.card }}>
+      <View style={[{ backgroundColor: color }, style]}>{children}</View>
     </View>
   );
 }
@@ -618,7 +691,10 @@ function Field({ value, unit, label, decimal, error, autoFocus, inputRef, onChan
 
 // Tight layout: 36pt set rows; small buttons keep 44pt touch targets through hitSlop.
 const s = StyleSheet.create({
-  wrap: { paddingHorizontal: 10, paddingVertical: 7 },
+  top: { paddingHorizontal: 10, paddingTop: 7 },
+  topClosed: { paddingBottom: 7 },
+  bottom: { paddingHorizontal: 10, paddingBottom: 7 },
+  swipe: { borderRadius: 10, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 30 },
   num: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7 },

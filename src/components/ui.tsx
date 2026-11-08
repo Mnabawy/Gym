@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Animated, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { F, font, glow, tint, useTheme } from '../theme';
@@ -125,6 +126,8 @@ export function Sheet({ visible, onClose, title, sub, children }: { visible: boo
   const t = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
+      {/* Modals are their own window on Android: swipe rows inside need their own gesture root. */}
+      <GestureHandlerRootView style={{ flex: 1 }}>
       <KeyboardAvoidingView behavior="padding" style={s.popBack}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="قفل" />
         <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.18)', maxHeight: '88%' }]}>
@@ -142,6 +145,7 @@ export function Sheet({ visible, onClose, title, sub, children }: { visible: boo
           </ScrollView>
         </View>
       </KeyboardAvoidingView>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

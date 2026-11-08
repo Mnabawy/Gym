@@ -6,6 +6,7 @@ import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU, typ
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
 import { Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
+import { ACTION, Swipe } from '../../components/Swipe';
 import { energyFor, targetsFor } from '../../lib/energy';
 import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
 import { readNumbers, writeEntry } from '../../lib/meta';
@@ -98,6 +99,14 @@ export default function Food() {
     setExtraForm(null);
     saveExtras([...extras, { name: extraForm.name.trim() || 'أكل برة الخطة', kcal: Math.round(kcal), p: Math.round(parseNum(extraForm.p) ?? 0) }]);
   };
+  const removeExtra = (i: number) => {
+    saveExtras(extras.filter((_, j) => j !== i));
+    showUndo('اتمسح أكل', () => saveExtras(extras));
+  };
+  const tickMeal = (m: MealKey, on: boolean) => {
+    storage.setMealCheck(selDate, m, on);
+    bump();
+  };
   const tickSupp = (name: string, on: boolean) => writeEntry(SUPPS_KEY, 'number', dayKey(selDate, name), on ? 1 : undefined, { dated: true });
 
   const order = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
@@ -187,7 +196,14 @@ export default function Food() {
       {meals.map((m) => {
         const on = canLog && checks.has(m.meal);
         return (
-          <Item key={m.meal}><Card style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 7, gap: 2, opacity: on ? 0.7 : 1 }}>
+          <Item key={m.meal}>
+          <Swipe
+            style={s.swipeCard}
+            start={canLog ? [on ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => tickMeal(m.meal, false) } : { icon: 'checkmark', label: 'أكلتها', color: ACTION.green, onPress: () => tickMeal(m.meal, true) }] : undefined}
+            end={[{ icon: 'swap-horizontal', label: 'بدّل', color: ACTION.blue, onPress: () => setSwapMeal(m.meal) }]}>
+          {/* Page background under the card, so the faded (eaten) card still hides the actions. */}
+          <View style={{ backgroundColor: t.bg }}>
+          <Card style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 7, gap: 2, opacity: on ? 0.7 : 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {/* Full meal name (wraps if long), its time after it in small muted text. */}
               <T w="bold" style={{ flex: 1, fontSize: 14 }}>
@@ -202,7 +218,7 @@ export default function Food() {
                 style={({ pressed }) => [s.swap, { backgroundColor: m.swapped ? t.warnSoft : t.soft, opacity: pressed ? 0.6 : 1 }]}>
                 <Ionicons name="swap-horizontal" size={15} color={m.swapped ? t.warn : t.mute} />
               </Pressable>
-              {canLog ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => { storage.setMealCheck(selDate, m.meal, !on); bump(); }} /> : null}
+              {canLog ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => tickMeal(m.meal, !on)} /> : null}
             </View>
             {/* The meal's items as a list: colored dot (protein / carbs / fat / veg), item, its calories. */}
             <View>
@@ -220,21 +236,28 @@ export default function Food() {
               <T w="num" style={{ fontSize: 12, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
               <T w="num" style={{ fontSize: 12, color: t.fat }}>{`${Math.round(m.mac.f)} دهون`}</T>
             </View>
-          </Card></Item>
+          </Card>
+          </View>
+          </Swipe>
+          </Item>
         );
       })}
 
       {canLog ? (
-        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4 }}>
+        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4, overflow: 'hidden' }}>
           <T w="bold" style={{ fontSize: 14 }}>أكل برة الخطة</T>
           {extras.map((x, i) => (
-            <Item key={i}><View style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
+            <Item key={i}>
+            <Swipe style={s.swipeRow} end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeExtra(i) }]}>
+            <View style={[s.item, s.rowPad, { backgroundColor: t.card }, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
               <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
               <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
-              <Pressable onPress={() => { saveExtras(extras.filter((_, j) => j !== i)); showUndo('اتمسح أكل', () => saveExtras(extras)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
+              <Pressable onPress={() => removeExtra(i)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
                 <Ionicons name="close" size={16} color={t.mute} />
               </Pressable>
-            </View></Item>
+            </View>
+            </Swipe>
+            </Item>
           ))}
           <Pressable onPress={() => setExtraForm({ name: '', kcal: '', p: '' })} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 36, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
             <T w="semi" style={{ fontSize: 13, color: t.okText }}>+ سجّل حاجة كلتها</T>
@@ -243,18 +266,23 @@ export default function Food() {
       ) : null}
 
       {canLog ? (
-        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 2 }}>
+        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 2, overflow: 'hidden' }}>
           <T w="bold" style={{ fontSize: 14 }}>المكملات</T>
           {SUPPLEMENTS.map((x) => {
             const on = !!supps[dayKey(selDate, x.name)];
             return (
-              <View key={x.name} style={[s.item, { minHeight: 40 }]}>
+              <Swipe
+                key={x.name}
+                style={s.swipeRow}
+                start={[on ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => tickSupp(x.name, false) } : { icon: 'checkmark', label: 'خدتها', color: ACTION.green, onPress: () => tickSupp(x.name, true) }]}>
+              <View style={[s.item, s.rowPad, { minHeight: 40, backgroundColor: t.card }]}>
                 <View style={{ flex: 1 }}>
                   <T style={{ fontSize: 13.5 }}>{x.name}</T>
                   <T style={{ fontSize: 11, color: t.mute }} numberOfLines={1}>{x.dose}</T>
                 </View>
                 <Check compact on={on} label={`خدت ${x.name}`} onPress={() => tickSupp(x.name, !on)} />
               </View>
+              </Swipe>
             );
           })}
         </Card>
@@ -381,6 +409,9 @@ export default function Food() {
 
 const s = StyleSheet.create({
   item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
+  swipeCard: { borderRadius: 12, overflow: 'hidden' },
+  swipeRow: { marginHorizontal: -12 },
+  rowPad: { paddingHorizontal: 12 },
   dot: { width: 7, height: 7, borderRadius: 4 },
   wbtn: { width: 36, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   input: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 15, outlineWidth: 0 },

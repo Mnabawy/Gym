@@ -9,6 +9,7 @@ import { parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { tint, useTheme, font } from '../theme';
+import { ACTION, Swipe } from './Swipe';
 import { Btn, Card, Pill, Progress, Sheet, Stepper, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -39,9 +40,13 @@ export function CardioCard({ date }: { date: string }) {
     save([...list, { id: cardioId(), type: form.type, minutes: form.minutes, intensity: form.intensity, ...(km ? { km } : null), ...(steps ? { steps: Math.round(steps) } : null) }]);
     setForm(null);
   };
+  const remove = (id: string) => {
+    save(list.filter((x) => x.id !== id));
+    showUndo('اتمسح كارديو', () => save(list));
+  };
 
   return (
-    <Card style={{ paddingVertical: 10, paddingHorizontal: 12, gap: 8 }}>
+    <Card style={{ paddingVertical: 10, paddingHorizontal: 12, gap: 8, overflow: 'hidden' }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Ionicons name="walk" size={18} color={t.okText} />
         <T w="bold" style={{ flex: 1, fontSize: 14 }}>كارديو ومشي</T>
@@ -59,7 +64,8 @@ export function CardioCard({ date }: { date: string }) {
         </View>
       ) : null}
       {list.map((c) => (
-        <View key={c.id} style={s.item}>
+        <Swipe key={c.id} style={s.swipe} end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => remove(c.id) }]}>
+        <View style={[s.item, { backgroundColor: t.card }]}>
           <Ionicons name={CARDIO[c.type].icon as IconName} size={16} color={t.mute} />
           <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>
             {`${CARDIO[c.type].label} · ${c.minutes} د · ${INTENSITY[c.intensity].label}`}
@@ -67,10 +73,11 @@ export function CardioCard({ date }: { date: string }) {
             {c.steps ? ` · ${iso(c.steps.toLocaleString('en-US'))} خطوة` : ''}
           </T>
           {weight ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`≈${cardioKcal(c, weight)} سعر`}</T> : null}
-          <Pressable onPress={() => { save(list.filter((x) => x.id !== c.id)); showUndo('اتمسح كارديو', () => save(list)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${CARDIO[c.type].label}`}>
+          <Pressable onPress={() => remove(c.id)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${CARDIO[c.type].label}`}>
             <Ionicons name="close" size={16} color={t.mute} />
           </Pressable>
         </View>
+        </Swipe>
       ))}
       <Pressable onPress={() => setForm({ type: 'walk', minutes: 30, intensity: 'moderate', km: '', steps: '' })} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 34, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
         <T w="semi" style={{ fontSize: 13, color: t.okText }}>+ سجّل كارديو أو مشي</T>
@@ -126,7 +133,8 @@ function Field({ label, value, onChange, decimal }: { label: string; value: stri
 }
 
 const s = StyleSheet.create({
-  item: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 30 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 30, paddingHorizontal: 12 },
+  swipe: { marginHorizontal: -12 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
   input: { height: 42, borderRadius: 10, textAlign: 'center', fontSize: 15, outlineWidth: 0, writingDirection: 'ltr' },
 });

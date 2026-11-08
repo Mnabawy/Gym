@@ -1,14 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { Item } from '../components/Motion';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Ring, Screen, Sheet, Stepper, T } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
+import { ACTION, Swipe } from '../components/Swipe';
+import { showUndo } from '../lib/undo';
 import { useDataVersion } from '../lib/bus';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { clock, countOn, KINDS, minAr, minutesOn, paused, PHASE_AR, phaseMs, remaining, running, streak, week, type Kind } from '../lib/focus';
-import { endPhase, pauseFocus, readCfg, readFocus, readSessions, resetFocus, saveCfg, setFocus, startFocus, tickFocus } from '../lib/focusStore';
+import { endPhase, pauseFocus, readCfg, readFocus, readSessions, resetFocus, saveCfg, setFocus, startFocus, tickFocus, writeSessions } from '../lib/focusStore';
 import { allView } from '../lib/tasks';
 import { readTasks } from '../lib/taskStore';
 import { useNow } from '../lib/useNow';
@@ -84,13 +87,21 @@ function Focus() {
             <T style={{ flex: 1, fontSize: 14.5, color: t.mute }}>من غير مهمة</T>
             {!s.task ? <Ionicons name="checkmark" size={18} color={t.ok} /> : null}
           </Pressable>
-          {tasks.map((x) => (
-            <Pressable key={x.id} onPress={() => { tap(); setFocus({ task: x.title }); setPicking(false); }} style={[s_.pick, { borderColor: t.line }]} accessibilityRole="button">
-              <Ionicons name="ellipse-outline" size={16} color={t.mute} />
-              <T style={{ flex: 1, fontSize: 14.5 }} numberOfLines={1}>{x.title}</T>
-              {s.task === x.title ? <Ionicons name="checkmark" size={18} color={t.ok} /> : null}
-            </Pressable>
-          ))}
+          {/* The sheet is a Modal: its rows' swipe gestures need their own root there on Android. */}
+          <GestureHandlerRootView>
+          {tasks.map((x) => {
+            const pick = () => { tap(); setFocus({ task: x.title }); setPicking(false); };
+            return (
+              <Swipe key={x.id} start={[{ icon: 'checkmark-circle', label: 'اختار', color: ACTION.green, onPress: pick }]}>
+                <Pressable onPress={pick} style={[s_.pick, { borderColor: t.line, backgroundColor: t.card }]} accessibilityRole="button">
+                  <Ionicons name="ellipse-outline" size={16} color={t.mute} />
+                  <T style={{ flex: 1, fontSize: 14.5 }} numberOfLines={1}>{x.title}</T>
+                  {s.task === x.title ? <Ionicons name="checkmark" size={18} color={t.ok} /> : null}
+                </Pressable>
+              </Swipe>
+            );
+          })}
+          </GestureHandlerRootView>
           {!tasks.length ? <T style={{ color: t.mute, fontSize: 13 }}>مفيش مهام مفتوحة في مهامي</T> : null}
         </Sheet>
       ) : null}
@@ -163,15 +174,27 @@ function Focus() {
       </View>
 
       {todays.length ? (
-        <View style={[s_.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 2, alignItems: 'stretch' }]}>
-          {todays.map((x, i) => (
-            <Item key={x.id}><View style={[s_.sess, { borderTopWidth: i ? 1 : 0, borderColor: t.line }]}>
-              <Ionicons name={x.kind === 'work' ? 'briefcase-outline' : 'book-outline'} size={14} color={t.sec.focus} />
-              <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.task ?? KINDS[x.kind]}</T>
-              <T w="num" style={{ fontSize: 12, color: t.mute }}>{hm(x.start)}</T>
-              <T w="numBold" style={{ fontSize: 12.5, color: t.sec.focus, minWidth: 44, textAlign: 'left' }}>{minAr(x.min)}</T>
-            </View></Item>
-          ))}
+        <View style={[s_.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 2, alignItems: 'stretch', overflow: 'hidden' }]}>
+          {todays.map((x, i) => {
+            const remove = () => {
+              const before = readSessions();
+              ease();
+              writeSessions(before.filter((y) => y.id !== x.id));
+              showUndo(`اتمسحت: ${minAr(x.min)} ${x.task ?? KINDS[x.kind]}`, () => writeSessions(before));
+            };
+            return (
+              <Item key={x.id}>
+                <Swipe end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove }]}>
+                  <View style={[s_.sess, { borderTopWidth: i ? 1 : 0, borderColor: t.line, backgroundColor: t.card }]}>
+                    <Ionicons name={x.kind === 'work' ? 'briefcase-outline' : 'book-outline'} size={14} color={t.sec.focus} />
+                    <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.task ?? KINDS[x.kind]}</T>
+                    <T w="num" style={{ fontSize: 12, color: t.mute }}>{hm(x.start)}</T>
+                    <T w="numBold" style={{ fontSize: 12.5, color: t.sec.focus, minWidth: 44, textAlign: 'left' }}>{minAr(x.min)}</T>
+                  </View>
+                </Swipe>
+              </Item>
+            );
+          })}
         </View>
       ) : null}
 

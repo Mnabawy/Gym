@@ -3,6 +3,7 @@ import { Item } from './Motion';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Sheet, T } from './ui';
+import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
 import { currentStage, goalId, moveStage, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
@@ -106,6 +107,8 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         let onPress: (() => void) | undefined;
         let onLong: (() => void) | undefined;
         let label = '';
+        let start: SwipeAction[] = [];
+        let end: SwipeAction[] = [];
 
         if (r.kind === 'stage') {
           const n = r.st.tasks.filter((x) => x.done).length;
@@ -129,6 +132,15 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           };
           onLong = () => setEdit({ st: r.st });
           label = r.st.title;
+          start = [{ icon: 'add', label: 'خطوة', color: ACTION.blue, onPress: () => {
+            setOpened({ ...opened, [r.st.id]: true });
+            setText('');
+            setAdding(r.st.id);
+          } }];
+          end = [
+            { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeBead(g, r.st) },
+            { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEdit({ st: r.st }) },
+          ];
         } else if (r.kind === 'task') {
           const done = !!r.task.done;
           bead = (
@@ -144,6 +156,12 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           };
           onLong = () => setEdit({ st: r.st, task: r.task });
           label = r.task.title;
+          const tick = () => saveGoal(toggleTask(g, r.task.id, today));
+          start = [done ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: tick } : { icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: tick }];
+          end = [
+            { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeBead(g, r.st, r.task) },
+            { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEdit({ st: r.st, task: r.task }) },
+          ];
         } else {
           const k = r.kind === 'addStage' ? 'stage' : r.st.id;
           const on = adding === k;
@@ -174,8 +192,9 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         );
         // While you type in a "+" bead the row is a plain view (its ✓ and ✕ are buttons of their own).
         if (!onPress && !onLong) return <View key={key} style={s.row}>{rail}</View>;
+        // The row is the card's color, so the swipe actions stay hidden under it until you drag.
         return (
-          <Item key={key}><Pressable
+          <Item key={key}><Swipe start={start} end={end}><Pressable
             onPress={onPress}
             onLongPress={onLong}
             delayLongPress={350}
@@ -183,13 +202,19 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
             accessibilityState={r.kind === 'task' ? { checked: !!r.task.done } : undefined}
             accessibilityLabel={label}
             accessibilityHint={onLong ? 'دوسة طويلة للتعديل أو المسح' : undefined}
-            style={({ pressed }) => [s.row, { opacity: pressed && onPress ? 0.6 : 1 }]}>
+            style={({ pressed }) => [s.row, { backgroundColor: t.card }, { opacity: pressed && onPress ? 0.6 : 1 }]}>
             {rail}
-          </Pressable></Item>
+          </Pressable></Swipe></Item>
         );
       })}
     </View>
   );
+}
+
+/** Deletes a stage (with its tasks) or one task, with undo. */
+function removeBead(g: Goal, st: Stage, task?: Task) {
+  saveGoal({ ...g, stages: task ? g.stages.map((x) => (x.id === st.id ? { ...x, tasks: x.tasks.filter((y) => y.id !== task.id) } : x)) : g.stages.filter((x) => x.id !== st.id) });
+  showUndo(task ? 'اتمسحت خطوة' : 'اتمسحت مرحلة', () => saveGoal(g));
 }
 
 /** Long-press on a bead: rename it, move a stage, or delete it. */
@@ -203,8 +228,7 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
     onClose();
   };
   const remove = () => {
-    saveGoal({ ...g, stages: task ? g.stages.map((x) => (x.id === st.id ? { ...x, tasks: x.tasks.filter((y) => y.id !== task.id) } : x)) : g.stages.filter((x) => x.id !== st.id) });
-    showUndo(task ? 'اتمسحت خطوة' : 'اتمسحت مرحلة', () => saveGoal(g));
+    removeBead(g, st, task);
     onClose();
   };
   return (

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Item, Pop } from '../components/Motion';
+import { ACTION, Swipe } from '../components/Swipe';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -12,7 +13,7 @@ import { useDataVersion } from '../lib/bus';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { addSub, allView, counts, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
-import { pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
+import { deleteTask, pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../theme';
@@ -279,8 +280,26 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
   if (x.remind) meta.push({ icon: 'notifications-outline', text: '' });
   if (x.note) meta.push({ icon: 'document-text-outline', text: '' });
   const subsDone = x.subs.filter((y) => y.done).length;
+  const before = () => readTasks();
+  const remove = () => {
+    const list = before();
+    deleteTask(x.id);
+    showUndo(`اتمسحت: ${x.title}`, () => writeTasks(list));
+  };
+  const tomorrow = () => {
+    const list = before();
+    saveTask({ ...x, due: addDays(today, 1) });
+    showUndo(`${x.title} · بكرة`, () => writeTasks(list));
+  };
   return (
-    <View style={{ borderBottomWidth: last ? 0 : 1, borderColor: t.line }}>
+    <Swipe
+      start={[done ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: onToggle } : { icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: onToggle }]}
+      end={[
+        { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove },
+        ...(done ? [] : [{ icon: 'arrow-redo' as const, label: 'بكرة', color: ACTION.orange, onPress: tomorrow }]),
+        { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: onOpen },
+      ]}>
+    <View style={{ borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth, borderColor: t.line, backgroundColor: t.card }}>
     <View style={s.task}>
       <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.mute : c, backgroundColor: done ? t.mute : tint(c, 0.1) }]}>
         {done ? <Pop value="done"><Ionicons name="checkmark" size={16} color={t.bg} /></Pop> : null}
@@ -313,6 +332,7 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
     </View>
     {subsOpen && !done ? <SubList t={t} x={x} /> : null}
     </View>
+    </Swipe>
   );
 }
 

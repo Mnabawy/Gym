@@ -52,6 +52,12 @@ export const setFocus = (p: Partial<Pick<State, 'kind' | 'task'>>) => {
   if (!s.task) delete s.task;
   write(s);
 };
+/** Puts the logged blocks back as given (deleting one, or undoing that). */
+export function writeSessions(list: ReturnType<typeof readSessions>) {
+  storage.setMeta(FOCUS_KEY, JSON.stringify(list));
+  useDataVersion.getState().bump();
+}
+
 export const startFocus = () => write(start(readFocus(), readCfg(), Date.now()));
 export const pauseFocus = () => write(pause(readFocus(), Date.now()));
 export const resetFocus = () => write(reset(readFocus()));

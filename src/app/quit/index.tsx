@@ -6,10 +6,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Screen, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { QuitForm } from '../../components/QuitForm';
+import { ACTION, Swipe } from '../../components/Swipe';
 import { NightCard, QuitCard } from '../../components/QuitHero';
 import { PasswordModal, SlipSheet, UrgeScreen } from '../../components/QuitSheets';
 import { useDataVersion } from '../../lib/bus';
-import { readQuits } from '../../lib/quitStore';
+import { deleteQuit, readQuits } from '../../lib/quitStore';
+import { confirm } from '../../lib/confirm';
 import { type Quit } from '../../lib/quit';
 import { useNow } from '../../lib/useNow';
 import { ThemeProvider, useTheme, useWarm } from '../../theme';
@@ -44,6 +46,10 @@ function QuitList() {
     }
   };
 
+  const remove = async (q: Quit) => {
+    if (await confirm({ title: 'تمسحها؟', body: 'هتتشال هي وكل اللي اتسجل فيها.', confirmLabel: 'امسح', danger: true })) deleteQuit(q.id);
+  };
+
   const checkPassword = () => {
     const q = quits.find((x) => x.id === passwordFor);
     if (q && q.password === passwordInput) {
@@ -76,7 +82,18 @@ function QuitList() {
       ) : (
         <>
           {quits.map((q) => (
-            <Item key={q.id}><QuitCard q={q} now={now} onOpen={() => openQuit(q)} onUrge={() => setUrge(q)} /></Item>
+            <Item key={q.id}>
+              {/* A protected one only gets the urge button (already on its card): slipping or deleting waits for the password. */}
+              <Swipe
+                style={s.swipe}
+                start={[{ icon: 'pulse', label: 'إلحاح', color: ACTION.purple, onPress: () => setUrge(q) }]}
+                end={q.password ? [] : [
+                  { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => void remove(q) },
+                  { icon: 'arrow-down-circle-outline', label: 'وقعت', color: ACTION.orange, onPress: () => setSlip(q) },
+                ]}>
+                <QuitCard q={q} now={now} onOpen={() => openQuit(q)} onUrge={() => setUrge(q)} />
+              </Swipe>
+            </Item>
           ))}
           <Btn label="+ عادة تانية" onPress={() => setAdding(true)} />
         </>
@@ -86,6 +103,7 @@ function QuitList() {
 }
 
 const s = StyleSheet.create({
+  swipe: { borderRadius: 12, overflow: 'hidden' },
   big: { width: 76, height: 76, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   cta: { alignSelf: 'stretch', height: 52, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
 });

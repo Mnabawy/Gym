@@ -6,10 +6,12 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, Ring, Screen, T } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { HabitForm } from '../components/HabitForm';
+import { ACTION, Swipe } from '../components/Swipe';
 import { useDataVersion } from '../lib/bus';
 import { addDays } from '../lib/gaps';
-import { dayState, groupHabits, habitStats, isDue, logKey, partsDone, pausedNow, type DayState, type Habit, type Log, type PartsLog } from '../lib/habits';
-import { addHabits, moveHabit, readHabitLog, readHabitParts, readHabits, setMark, setPart } from '../lib/habitStore';
+import { dayState, groupHabits, habitStats, isDue, logKey, partsDone, pausedNow, togglePause, type DayState, type Habit, type Log, type PartsLog } from '../lib/habits';
+import { addHabits, moveHabit, readHabitLog, readHabitParts, readHabits, saveHabit, setMark, setPart } from '../lib/habitStore';
+import { showUndo } from '../lib/undo';
 import { MY_HABITS } from '../data/habitTemplates';
 import { allowReminders } from '../lib/reminder';
 import { useSettings } from '../lib/settings';
@@ -175,8 +177,27 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
     tap();
     setMark(h.id, today, mark === 'skip' ? undefined : 'skip');
   };
+  const [editing, setEditing] = useState(false);
+  // Swipe shortcuts (the row's own buttons stay as they are).
+  const open = () => router.push({ pathname: '/habit/[id]', params: { id: h.id } });
+  const clear = () => setMark(h.id, today, undefined);
+  const pause = () => {
+    saveHabit(togglePause(h, today));
+    showUndo(paused ? `${h.name} · رجعت` : `${h.name} · اتوقفت مؤقتاً`, () => saveHabit(h));
+  };
   return (
-    <Pressable onPress={() => router.push({ pathname: '/habit/[id]', params: { id: h.id } })} accessibilityRole="button" accessibilityLabel={`${h.name}، افتح النتايج`} style={({ pressed }) => ({ opacity: pressed ? 0.85 : dim ? 0.75 : 1 })}>
+    <>
+    <Swipe
+      style={s.swipe}
+      start={paused ? [] : [mark ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: clear } : { icon: 'checkmark', label: 'عملتها', color: ACTION.green, onPress: () => setMark(h.id, today, 'done') }]}
+      end={[
+        ...(paused || mark === 'skip' ? [] : [{ icon: 'remove-circle-outline' as const, label: 'معذور', color: ACTION.orange, onPress: () => setMark(h.id, today, 'skip') }]),
+        paused ? { icon: 'play' as const, label: 'كمّل', color: ACTION.teal, onPress: pause } : { icon: 'pause' as const, label: 'وقّف', color: ACTION.indigo, onPress: pause },
+        { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEditing(true) },
+      ]}>
+    {/* The screen's color under the row, so a dimmed (see-through) row never shows the actions under it. */}
+    <View style={{ backgroundColor: t.bg, borderRadius: 12 }}>
+    <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`${h.name}، افتح النتايج`} style={({ pressed }) => ({ opacity: pressed ? 0.85 : dim ? 0.75 : 1 })}>
       <Card style={[s.row, on ? { borderWidth: 1, borderColor: tint(h.color, 0.5) } : null]}>
         <View style={[s.icon, { backgroundColor: tint(h.color, 0.15) }]}>
           <Ionicons name={h.icon as IconName} size={20} color={h.color} />
@@ -247,11 +268,16 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
         )}
       </Card>
     </Pressable>
+    </View>
+    </Swipe>
+    {editing ? <HabitForm visible habit={h} onClose={() => setEditing(false)} /> : null}
+    </>
   );
 }
 
 const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12 },
+  swipe: { borderRadius: 12, overflow: 'hidden' },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 9, height: 9, borderRadius: 3 },
   arrow: { width: 40, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

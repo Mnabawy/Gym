@@ -6,6 +6,7 @@ import { ALL_EXERCISES, MUSCLE_AR, PROGRAM, WEEKDAYS_AR, type Muscle } from '../
 import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { gapText } from '../components/GapCard';
+import { ACTION, Swipe } from '../components/Swipe';
 import { useReport } from '../lib/useReport';
 import { bestE1rm, countAr, dateKey } from '../lib/logic';
 import { storage } from '../lib/storage';
@@ -59,6 +60,7 @@ export default function ProgressScreen() {
 
   return (
     <Screen title="التقدم" sub="الأسبوع بيبدأ السبت" onBack={() => router.back()}>
+      <Swipe style={{ borderRadius: 12, overflow: 'hidden' }} start={[{ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress: () => router.push('/gaps') }]}>
       <Pressable onPress={() => router.push('/gaps')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
         <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ring value={report.score ?? 0} size={54} stroke={5}>
@@ -78,6 +80,7 @@ export default function ProgressScreen() {
           <Ionicons name="chevron-back" size={20} color={t.mute} />
         </Card>
       </Pressable>
+      </Swipe>
 
       <Card style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

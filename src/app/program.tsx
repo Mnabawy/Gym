@@ -7,6 +7,7 @@ import { ALTERNATIVES } from '../data/alternatives';
 import { TAG_INFO } from '../data/rules';
 import { Btn, Card, Pill, Screen, Sep, Sheet, Stepper, SwitchRow, T } from '../components/ui';
 import { WorkoutChips } from '../components/WorkoutChips';
+import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
 import { dateKey } from '../lib/logic';
 import { confirm } from '../lib/confirm';
 import { move, newId, REPS_MAX, REPS_MIN } from '../lib/programEdit';
@@ -64,7 +65,7 @@ export default function ProgramScreen() {
         <T style={{ color: t.warn, fontSize: 12.5 }}>أسبوع خفيف شغال: التمرين بنص المجموعات. الأرقام هنا هي العادية، وبترجع بعد الأسبوع.</T>
       ) : null}
       <WorkoutChips value={day} current={due} onChange={(d) => setDay(d)} />
-      <Card>
+      <Card style={{ overflow: 'hidden' }}>
         <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 8, gap: 1 }}>
           <T style={{ color: t.mute, fontSize: 12.5 }}>{`تمرين ${seqIndex(day) + 1} من ${PROGRAM.length} · ${plan.exercises.length} تمارين · ${total} مجموعة`}</T>
           <T w="bold" style={{ fontSize: 16 }}>{plan.titleAr}</T>
@@ -72,10 +73,26 @@ export default function ProgramScreen() {
         {plan.exercises.map((e, i) => {
           const base = DEFAULT_SETS[e.id];
           const pdf = PDF_PROGRAM[day].find((x) => x.id === e.id);
+          const first = i === 0;
+          const lastOne = i === plan.exercises.length - 1;
+          const only = plan.exercises.length === 1;
+          const up = () => save(move(defs(), i, -1));
+          const down = () => save(move(defs(), i, 1));
+          const edit = () => setForm({ at: i, name: e.name, muscle: e.muscle, sets: e.sets, repLow: e.repLow, repHigh: e.repHigh, tag: e.tag, perLeg: !!e.perLeg });
+          const remove = async () => { if (await confirm({ title: `تمسح ${e.name}؟`, body: 'هيتشال من البرنامج. اللي سجلته قبل كده مش هيتمسح.', confirmLabel: 'امسح', danger: true })) save(defs().filter((x) => x.id !== e.id)); };
+          const startActs: SwipeAction[] = [
+            ...(first ? [] : [{ icon: 'arrow-up' as const, label: 'طلّع', color: ACTION.blue, onPress: up }]),
+            ...(lastOne ? [] : [{ icon: 'arrow-down' as const, label: 'نزّل', color: ACTION.indigo, onPress: down }]),
+          ];
+          const endActs: SwipeAction[] = [
+            ...(only ? [] : [{ icon: 'trash' as const, label: 'امسح', color: ACTION.red, onPress: () => void remove() }]),
+            { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: edit },
+          ];
           return (
             <React.Fragment key={e.id}>
               <Sep />
-              <View style={{ paddingHorizontal: 14, paddingVertical: 8, gap: 6 }}>
+              <Swipe start={startActs} end={endActs}>
+              <View style={{ paddingHorizontal: 14, paddingVertical: 8, gap: 6, backgroundColor: t.card }}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.muscle[e.muscle] }} />
                   <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
@@ -89,12 +106,13 @@ export default function ProgramScreen() {
                   <Stepper compact value={st.sets[e.id] ?? base} min={SETS_MIN} max={SETS_MAX} onChange={(v) => st.setSets(e.id, v)} label={`مجموعات ${e.name}`} />
                 </View>
                 <View style={{ flexDirection: 'row', gap: 6, justifyContent: 'flex-end' }}>
-                  <Icon name="arrow-up" label={`طلّع ${e.name} لفوق`} disabled={i === 0} onPress={() => save(move(defs(), i, -1))} />
-                  <Icon name="arrow-down" label={`نزّل ${e.name} لتحت`} disabled={i === plan.exercises.length - 1} onPress={() => save(move(defs(), i, 1))} />
-                  <Icon name="create-outline" label={`عدّل ${e.name}`} onPress={() => setForm({ at: i, name: e.name, muscle: e.muscle, sets: e.sets, repLow: e.repLow, repHigh: e.repHigh, tag: e.tag, perLeg: !!e.perLeg })} />
-                  <Icon name="trash-outline" label={`امسح ${e.name}`} disabled={plan.exercises.length === 1} onPress={async () => { if (await confirm({ title: `تمسح ${e.name}؟`, body: 'هيتشال من البرنامج. اللي سجلته قبل كده مش هيتمسح.', confirmLabel: 'امسح', danger: true })) save(defs().filter((x) => x.id !== e.id)); }} />
+                  <Icon name="arrow-up" label={`طلّع ${e.name} لفوق`} disabled={first} onPress={up} />
+                  <Icon name="arrow-down" label={`نزّل ${e.name} لتحت`} disabled={lastOne} onPress={down} />
+                  <Icon name="create-outline" label={`عدّل ${e.name}`} onPress={edit} />
+                  <Icon name="trash-outline" label={`امسح ${e.name}`} disabled={only} onPress={remove} />
                 </View>
               </View>
+              </Swipe>
             </React.Fragment>
           );
         })}

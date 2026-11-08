@@ -4,6 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, HeaderBtn, Label, Screen, T } from '../../components/ui';
 import { QuitForm } from '../../components/QuitForm';
+import { ACTION, Swipe } from '../../components/Swipe';
 import { CleanRing, Clock, nextLine, NightCard } from '../../components/QuitHero';
 import { SlipSheet, UrgeScreen } from '../../components/QuitSheets';
 import { MONTHS_AR } from '../../data/program';
@@ -163,19 +164,24 @@ function QuitPage() {
       {q.slips.length ? (
         <>
           <Label>{`الوقعات · ${q.slips.length}`}</Label>
-          <Card style={{ padding: 12, gap: 8 }}>
-            {[...q.slips].reverse().slice(0, 8).map((sl) => (
-              <View key={sl.at} style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          <Card style={{ padding: 12, gap: 8, overflow: 'hidden' }}>
+            {[...q.slips].reverse().slice(0, 8).map((sl) => {
+              const remove = () => { const prev = q.slips; saveQuit({ ...q, slips: q.slips.filter((x) => x.at !== sl.at) }); showUndo('اتمسحت وقعة', () => saveQuit({ ...q, slips: prev })); };
+              return (
+              <Swipe key={sl.at} end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove }]}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: t.card }}>
                 <View style={[s.dot, { backgroundColor: t.fg }]} />
                 <View style={{ flex: 1 }}>
                   <T style={{ fontSize: 13.5 }}>{sl.trigger ? TRIGGERS[sl.trigger] : 'من غير سبب'}{sl.note ? ` · ${sl.note}` : ''}</T>
                   <T style={{ fontSize: 11.5, color: t.mute }}>{when(sl.at)}</T>
                 </View>
-                <Pressable onPress={() => { const prev = q.slips; saveQuit({ ...q, slips: q.slips.filter((x) => x.at !== sl.at) }); showUndo('اتمسحت وقعة', () => saveQuit({ ...q, slips: prev })); }} hitSlop={10} accessibilityRole="button" accessibilityLabel="امسح الوقعة دي">
+                <Pressable onPress={remove} hitSlop={10} accessibilityRole="button" accessibilityLabel="امسح الوقعة دي">
                   <Ionicons name="close" size={16} color={t.mute} />
                 </Pressable>
               </View>
-            ))}
+              </Swipe>
+              );
+            })}
           </Card>
         </>
       ) : null}

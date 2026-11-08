@@ -5,6 +5,7 @@ import * as Clipboard from 'expo-clipboard';
 import { SHOPPING } from '../../data/shopping';
 import { Btn, Card, HeaderBtn, Label, Ring, Screen, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
+import { ACTION, Swipe, type SwipeAction } from '../../components/Swipe';
 import { countAr, shopWeekKey, TIMES } from '../../lib/logic';
 import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } from '../../lib/shop';
 import { useSettings } from '../../lib/settings';
@@ -41,6 +42,13 @@ export default function Shop() {
   const editMode = split && editing;
 
   const moveTo = (id: string, to: number) => setQuiet({ shopMoves: { ...allMoves, [`${count}:${id}`]: to } });
+  const toggleItem = (key: string, on: boolean) => {
+    storage.setShopCheck(week, key, on);
+    bump();
+  };
+  // Swipe toward the start edge: move an item to another trip (same as the edit mode's picker).
+  const moveActions = (id: string): SwipeAction[] =>
+    split ? trips.filter((tr) => tr.index !== k).map((tr) => ({ icon: 'arrow-redo', label: `المرة ${tr.index + 1}`, color: ACTION.blue, onPress: () => moveTo(id, tr.index) })) : [];
   const resetMoves = () => setQuiet({ shopMoves: Object.fromEntries(Object.entries(allMoves).filter(([key]) => !key.startsWith(`${count}:`))) });
 
   const copy = async () => {
@@ -156,15 +164,20 @@ export default function Shop() {
           {trip.groups.map((g) => (
             <View key={g.title} style={{ gap: 4 }}>
               <Label color={color[g.color]}>{g.title}</Label>
-              <Card>
+              <Card style={{ overflow: 'hidden' }}>
                 {g.items.map((i, row) => {
                   const on = checks.has(i.key);
                   const sub = [i.need && `محتاج ${i.need}`, i.item.note, i.days.length ? daysText(i.days) : ''].filter(Boolean).join(' · ');
                   return (
-                    <Item key={i.key}><Pressable
+                    <Item key={i.key}>
+                    <Swipe
+                      start={[on ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => toggleItem(i.key, false) } : { icon: 'checkmark', label: 'اشتريتها', color: ACTION.green, onPress: () => toggleItem(i.key, true) }]}
+                      end={moveActions(i.item.id)}>
+                    <View style={{ backgroundColor: t.card }}>
+                    <Pressable
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: on }}
-                      onPress={() => { storage.setShopCheck(week, i.key, !on); bump(); }}
+                      onPress={() => toggleItem(i.key, !on)}
                       style={[s.row, { borderTopWidth: row ? 1 : 0, borderTopColor: t.line, opacity: on ? 0.55 : 1 }]}>
                       <View style={{ width: 20, height: 20, borderRadius: 10, borderWidth: 1.6, borderColor: color[g.color], backgroundColor: on ? color[g.color] : 'transparent', alignItems: 'center', justifyContent: 'center' }}>
                         {on ? <T w="bold" style={{ color: '#fff', fontSize: 12 }}>✓</T> : null}
@@ -174,7 +187,10 @@ export default function Shop() {
                         {sub ? <T style={{ color: t.mute, fontSize: 11, lineHeight: 16 }}>{sub}</T> : null}
                       </View>
                       <T w="bold" style={{ fontSize: 12.5 }}>{i.buy}</T>
-                    </Pressable></Item>
+                    </Pressable>
+                    </View>
+                    </Swipe>
+                    </Item>
                   );
                 })}
               </Card>

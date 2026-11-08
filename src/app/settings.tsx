@@ -4,6 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { MONTHS_AR, PROGRAM, WEEKDAYS_AR } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
+import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
 import { useVersePopup } from '../components/VersePopup';
 import { countAr, dateKey, DAYS, formatClock } from '../lib/logic';
 import { storage } from '../lib/storage';
@@ -44,6 +45,10 @@ const WEEK = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
 const PHOTOS: [string, string, string, string] = ['صورة', 'صورتين', 'صور', 'صورة'];
 const infoAr = (i: BackupInfo) => (i.total ? `${infoText(i)}${i.from && i.to ? ` (تمارين من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''}` : 'مفيش تسجيل لسه');
+
+/** Swipe shortcut on a row that opens a page. */
+const openAct = (href: Parameters<typeof router.push>[0]): SwipeAction => ({ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress: () => router.push(href) });
+const CLIP = { borderRadius: 12, overflow: 'hidden' } as const;
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -94,6 +99,7 @@ export default function SettingsScreen() {
   return (
     <Screen title="الإعدادات" sub="التمرين والراحة والمشتريات والآية" onBack={() => router.back()}>
       <Label>بياناتك</Label>
+      <Swipe style={CLIP} start={[openAct('/calories')]}>
       <Pressable onPress={() => router.push('/calories')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
         <Card>
           <Row label="احسب احتياجك من السعرات" sub={need ? `${need.kcal.toLocaleString('en-US')} سعر · ${need.protein} جم بروتين في اليوم` : 'السن والطول والوزن ونشاطك وهدفك'}>
@@ -101,9 +107,10 @@ export default function SettingsScreen() {
           </Row>
         </Card>
       </Pressable>
+      </Swipe>
 
       <Label>نسخة احتياطية</Label>
-      <Card>
+      <Card style={{ overflow: 'hidden' }}>
         <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, gap: 3 }}>
           <T w="medium" style={{ color: since == null || since >= BACKUP_STALE_DAYS ? t.warn : t.okText }}>
             {since == null ? 'لسه ما عملتش نسخة احتياطية' : since === 0 ? 'آخر نسخة النهارده ✓' : `آخر نسخة من ${countAr(since, DAYS)}`}
@@ -136,11 +143,13 @@ export default function SettingsScreen() {
           </View>
         ) : null}
         <Sep />
-        <Pressable onPress={() => router.push('/account')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
+        <Swipe start={[openAct('/account')]}>
+        <Pressable onPress={() => router.push('/account')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, backgroundColor: t.card })}>
           <Row label="حسابك" sub={!googleSupported ? 'على الموبايل بس' : storage.getMeta(GOOGLE_USER) ? `${storage.getMeta(GOOGLE_USER)} · ${{ saved: 'بياناتك محفوظة ✓', waiting: 'بيحفظ…', failed: 'الحفظ واقف، افتح وشوف', off: 'الحفظ على حسابك مقفول' }[syncStatus().state]}` : 'ادخل بجوجل عشان بياناتك تتحفظ وترجع على أي موبايل'}>
             <Ionicons name="chevron-back" size={20} color={t.mute} />
           </Row>
         </Pressable>
+        </Swipe>
         <Sep />
         <SwitchRow
           label="نسخة تلقائية كل أسبوع"
@@ -159,12 +168,17 @@ export default function SettingsScreen() {
             {listAutoBackups().length ? (
               <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
                 <T style={{ color: t.mute, fontSize: 12.5 }}>{`النسخ التلقائية (كل ${AUTO_DAYS} أيام):`}</T>
-                {listAutoBackups().map((f) => (
-                  <View key={f.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <T style={{ flex: 1, fontSize: 13 }}>{dayAr(f.date)}</T>
-                    <Btn label="رجّعها" onPress={() => run(async () => load(await readAutoBackup(f.name)))} />
-                  </View>
-                ))}
+                {listAutoBackups().map((f) => {
+                  const back = () => run(async () => load(await readAutoBackup(f.name)));
+                  return (
+                    <Swipe key={f.name} start={[{ icon: 'arrow-undo', label: 'رجّع', color: ACTION.orange, onPress: back }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: t.card }}>
+                        <T style={{ flex: 1, fontSize: 13 }}>{dayAr(f.date)}</T>
+                        <Btn label="رجّعها" onPress={back} />
+                      </View>
+                    </Swipe>
+                  );
+                })}
               </View>
             ) : null}
           </>
@@ -173,6 +187,7 @@ export default function SettingsScreen() {
       </Card>
 
       <Label>البرنامج</Label>
+      <Swipe style={CLIP} start={[openAct('/program')]}>
       <Pressable onPress={() => router.push('/program')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
         <Card>
           <Row label="عدّل البرنامج" sub={`التمارين والمجموعات والتكرارات · ${PROGRAM.length} أيام · ${PROGRAM.reduce((n, d) => n + d.exercises.length, 0)} تمرين${storage.getMeta('program') ? ' · متعدّل' : ''}`}>
@@ -180,6 +195,7 @@ export default function SettingsScreen() {
           </Row>
         </Card>
       </Pressable>
+      </Swipe>
 
       <Label>الراحة</Label>
       <Card>
