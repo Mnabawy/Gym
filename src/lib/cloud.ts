@@ -19,6 +19,8 @@ export const cloudConfigured = !!(CONFIG.url && CONFIG.key);
 /** Meta keys (this phone only): the session, the last rev pulled, last good sync (ms), last error. */
 const SESSION = 'sync.session';
 const CURSOR = 'sync.cursor';
+/** '1' once this phone's first full sync finished (pulled everything and queued what only the phone has). */
+const FULL = 'sync.full';
 /** Which keys this phone has already sent one record per row (after updating, each record goes up once). */
 const SPLIT_SENT = 'sync.split';
 export const SYNC_AT = 'sync.at';
@@ -81,7 +83,8 @@ export function syncCloud(): Promise<'ok' | 'off'> {
 async function syncOnce() {
   try {
     const token = await accessToken();
-    const first = meta(CURSOR) == null || meta(CURSOR) === '';
+    // Until the first full sync finishes (it may be cut off midway), each sync also queues what only the phone has.
+    const first = meta(FULL) !== '1';
     let cursor = Number(meta(CURSOR) || 0);
     const seen = new Set<string>();
     const changedMeta: string[] = [];
@@ -111,6 +114,7 @@ async function syncOnce() {
       }
       saveDirty();
       setMeta(CURSOR, String(cursor));
+      setMeta(FULL, '1');
     }
     const split = Object.keys(SPLIT_META).join(',');
     if (meta(SPLIT_SENT) !== split) {
@@ -153,11 +157,16 @@ export async function linkCloud(): Promise<void> {
   if (!cloudConfigured || !storage.getMeta(GOOGLE_USER)) return;
   const s = await freshSignIn();
   const old = readSession();
-  // Another account than before: start over (don't mix its pending changes in).
-  if (old && old.uid !== s.uid) setMeta(CURSOR, '');
+  // Another account than before: start over (drop the old account's pending changes; this phone's data goes up whole).
+  if (old && old.uid !== s.uid) {
+    setTracking(false);
+    setMeta(CURSOR, '');
+    setMeta(FULL, '');
+  }
   setMeta(SESSION, JSON.stringify(s));
   if (!trackingOn()) {
     setMeta(CURSOR, '');
+    setMeta(FULL, '');
     setTracking(true);
   }
   await syncCloud();
@@ -166,5 +175,25 @@ export async function linkCloud(): Promise<void> {
 /** Sync off on this phone (sign-out). The data on the server stays. */
 export function unlinkCloud() {
   setTracking(false);
-  for (const k of [SESSION, CURSOR, SYNC_AT, SYNC_ERROR]) setMeta(k, '');
+  for (const k of [SESSION, CURSOR, FULL, SYNC_AT, SYNC_ERROR]) setMeta(k, '');
+}
+
+/**
+ * What the app runs on its own (after a change, on open, coming back, leaving): sync — or, signed in to Google but
+ * sync not on yet (it failed before, e.g. offline at the welcome screen), turn it on. Never throws.
+ */
+export function keepSynced(): Promise<void> {
+  if (!cloudConfigured) return Promise.resolve();
+  const p = !cloudLinked() && storage.getMeta(GOOGLE_USER) ? linkCloud() : syncCloud();
+  return p.then(() => undefined, () => undefined);
+}
+
+export type SyncStatus = { state: 'off' | 'saved' | 'waiting' | 'failed'; at: number; waiting: number };
+/** In plain terms: off (not signed in / not set up), saved (all on your account), waiting (changes not sent yet), failed. */
+export function syncStatus(): SyncStatus {
+  const at = Number(meta(SYNC_AT) || 0);
+  if (!cloudLinked()) return { state: 'off', at, waiting: 0 };
+  const waiting = pendingChanges();
+  if (meta(SYNC_ERROR)) return { state: 'failed', at, waiting };
+  return { state: waiting || !at ? 'waiting' : 'saved', at, waiting };
 }

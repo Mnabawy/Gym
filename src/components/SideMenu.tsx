@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '../lib/motion';
 import { useSettings } from '../lib/settings';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported } from '../lib/google';
+import { syncStatus } from '../lib/cloud';
 import { storage } from '../lib/storage';
 import { lastSection } from '../lib/section';
 import { tint, useTheme } from '../theme';
@@ -147,7 +148,7 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
       )}
       <View style={{ flex: 1, minWidth: 0 }}>
         <T w="semi" style={{ fontSize: 14.5 }} numberOfLines={1}>{email ? name || 'حسابك' : 'ادخل بحساب Google'}</T>
-        <T style={{ fontSize: 12, color: t.mute }} numberOfLines={1}>{email ?? 'بياناتك تتحفظ وترجع على أي موبايل'}</T>
+        <T style={{ fontSize: 12, color: !email ? t.mute : { saved: t.okText, waiting: t.mute, failed: t.bad, off: t.mute }[syncStatus().state] }} numberOfLines={1}>{!email ? 'بياناتك تتحفظ وترجع على أي موبايل' : { saved: '☁️ بياناتك محفوظة', waiting: '☁️ بيحفظ…', failed: '⚠️ الحفظ واقف، دوس هنا', off: email }[syncStatus().state]}</T>
       </View>
     </Pressable>
   );

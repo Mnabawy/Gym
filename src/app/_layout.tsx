@@ -14,9 +14,7 @@ import { ConfirmHost } from '../components/ConfirmHost';
 import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
-import { GOOGLE_USER } from '../lib/google';
-import { cloudConfigured, cloudLinked, linkCloud, syncCloud } from '../lib/cloud';
-import { storage } from '../lib/storage';
+import { cloudConfigured, keepSynced } from '../lib/cloud';
 import { onDirty } from '../lib/track';
 import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
@@ -80,17 +78,14 @@ function ReminderSync() {
 
 /**
  * Supabase sync (src/lib/cloud.ts): a few seconds after each change, on opening, on coming back to the app and on
- * leaving it. A phone already signed in to Google from before sync existed turns it on by itself (its data goes up).
+ * leaving it. Signed in to Google but sync not on yet (it failed before, or from before sync existed): it turns on by itself.
  */
 function CloudSync() {
   useEffect(() => {
     if (!cloudConfigured) return;
-    const go = () => syncCloud().catch(() => {});
+    const go = () => void keepSynced();
     let timer: ReturnType<typeof setTimeout> | undefined;
-    const first = setTimeout(() => {
-      if (!cloudLinked() && storage.getMeta(GOOGLE_USER)) linkCloud().catch(() => {});
-      else go();
-    }, 1500);
+    const first = setTimeout(go, 1500);
     const off = onDirty(() => {
       clearTimeout(timer);
       timer = setTimeout(go, 4000);
