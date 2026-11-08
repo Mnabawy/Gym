@@ -12,7 +12,7 @@ import { deleteTask, readTasks, saveTask } from '../lib/taskStore';
 import { allowReminders } from '../lib/reminder';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
-import { F, tint, useTheme, type Theme } from '../theme';
+import { F, useTheme, type Theme } from '../theme';
 
 const stamp = () => Date.now();
 const ease = () => {
@@ -29,7 +29,7 @@ export function dueAr(due: string | null, today: string): string {
   return `${WEEKDAYS_AR[weekdayOf(due)]} ${+due.slice(8)} ${MONTHS_AR[+due.slice(5, 7) - 1]}${y}`;
 }
 
-type Open = 'date' | 'time' | 'repeat' | null;
+type Open = 'date' | 'time' | 'repeat' | 'priority' | 'tag' | null;
 
 /**
  * Add or edit a task. The title and a note, then one row per detail: the date on a month calendar, the time on a clock,
@@ -174,6 +174,41 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
           </View>
         ) : null}
         <Line t={t} />
+        <Row t={t} icon="flag" color={PRIORITY[priority].color} label="الأهمية" value={PRIORITY[priority].label} valueColor={PRIORITY[priority].color} on={open === 'priority'} onPress={() => toggle('priority')} />
+        {open === 'priority' ? (
+          <View style={[s.chips, { paddingHorizontal: 12, paddingBottom: 12 }]}>
+            {([1, 2, 3, 4] as Priority[]).map((p) => (
+              <Chip key={p} t={t} label={PRIORITY[p].label} dot={PRIORITY[p].color} on={priority === p} color={PRIORITY[p].color} onPress={() => { ease(); setPriority(p); setOpen(null); }} />
+            ))}
+          </View>
+        ) : null}
+        <Line t={t} />
+        <Row t={t} icon="pricetag" color="#7A5CFA" label="التصنيف" value={tag ? `# ${tag}` : 'من غير'} valueColor={tag ? tagColor(tag) : undefined} on={open === 'tag'} onPress={() => toggle('tag')} onClear={tag ? () => setTag('') : undefined} />
+        {open === 'tag' ? (
+          <View style={[s.chips, { paddingHorizontal: 12, paddingBottom: 12 }]}>
+            {tags.map((x) => <Chip key={x} t={t} label={`# ${x}`} on={tag === x} color={tagColor(x)} onPress={() => { ease(); setTag(tag === x ? '' : x); setOpen(null); }} />)}
+            <TextInput
+              value={newTag}
+              onChangeText={setNewTag}
+              onSubmitEditing={() => {
+                const v = newTag.replace(/^#/, '').trim();
+                if (v) setTag(v);
+                setNewTag('');
+              }}
+              onBlur={() => {
+                const v = newTag.replace(/^#/, '').trim();
+                if (v) setTag(v);
+                setNewTag('');
+              }}
+              placeholder="+ تصنيف"
+              placeholderTextColor={t.mute}
+              maxLength={16}
+              accessibilityLabel="تصنيف جديد"
+              style={[s.tagIn, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+            />
+          </View>
+        ) : null}
+        <Line t={t} />
         <Pressable onPress={() => setRemind(!remind)} disabled={time == null} accessibilityRole="switch" accessibilityLabel="فكّرني" accessibilityState={{ checked: remind && time != null, disabled: time == null }} style={[s.row, { opacity: time == null ? 0.55 : 1 }]}>
           <View style={[s.icon, { backgroundColor: '#E8902A' }]}>
             <Ionicons name="notifications" size={16} color="#FFFFFF" />
@@ -187,44 +222,6 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
             <View style={s.thumb} />
           </View>
         </Pressable>
-      </View>
-
-      <T style={[s.lbl, { color: t.mute }]}>الأهمية</T>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        {([1, 2, 3, 4] as Priority[]).map((p) => {
-          const on = priority === p;
-          const c = PRIORITY[p].color;
-          return (
-            <Pressable key={p} onPress={() => setPriority(p)} accessibilityRole="button" accessibilityState={{ selected: on }} style={({ pressed }) => [s.prio, { borderColor: on ? c : 'transparent', backgroundColor: on ? tint(c, 0.14) : t.soft, opacity: pressed ? 0.7 : 1 }]}>
-              <View style={[s.pdot, { backgroundColor: c }]} />
-              <T w="semi" style={{ fontSize: 12.5, color: on ? c : t.fg }} numberOfLines={1}>{PRIORITY[p].label}</T>
-            </Pressable>
-          );
-        })}
-      </View>
-
-      <T style={[s.lbl, { color: t.mute }]}>التصنيف</T>
-      <View style={s.chips}>
-        {tags.map((x) => <Chip key={x} t={t} label={`# ${x}`} on={tag === x} color={tagColor(x)} onPress={() => setTag(tag === x ? '' : x)} />)}
-        <TextInput
-          value={newTag}
-          onChangeText={setNewTag}
-          onSubmitEditing={() => {
-            const v = newTag.replace(/^#/, '').trim();
-            if (v) setTag(v);
-            setNewTag('');
-          }}
-          onBlur={() => {
-            const v = newTag.replace(/^#/, '').trim();
-            if (v) setTag(v);
-            setNewTag('');
-          }}
-          placeholder="+ تصنيف"
-          placeholderTextColor={t.mute}
-          maxLength={16}
-          accessibilityLabel="تصنيف جديد"
-          style={[s.tagIn, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
-        />
       </View>
 
       <T style={[s.lbl, { color: t.mute }]}>{subs.length ? `المهام الفرعية · ${subs.filter((x) => x.done).length} من ${subs.length}` : 'المهام الفرعية'}</T>
@@ -282,7 +279,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
   );
 }
 
-function Row({ t, icon, color, label, value, on, onPress, onClear }: { t: Theme; icon: React.ComponentProps<typeof Ionicons>['name']; color: string; label: string; value: string; on: boolean; onPress: () => void; onClear?: () => void }) {
+function Row({ t, icon, color, label, value, valueColor, on, onPress, onClear }: { t: Theme; icon: React.ComponentProps<typeof Ionicons>['name']; color: string; label: string; value: string; valueColor?: string; on: boolean; onPress: () => void; onClear?: () => void }) {
   return (
     <View style={s.row}>
       <Pressable onPress={onPress} accessibilityRole="button" accessibilityLabel={`${label}: ${value}`} accessibilityState={{ expanded: on }} style={({ pressed }) => [s.rowBtn, { opacity: pressed ? 0.6 : 1 }]}>
@@ -290,7 +287,7 @@ function Row({ t, icon, color, label, value, on, onPress, onClear }: { t: Theme;
           <Ionicons name={icon} size={16} color="#FFFFFF" />
         </View>
         <T style={{ fontSize: 15, flex: 1 }}>{label}</T>
-        <T w="semi" style={{ fontSize: 14, color: onClear ? t.okText : t.mute }} numberOfLines={1}>{value}</T>
+        <T w="semi" style={{ fontSize: 14, color: valueColor ?? (onClear ? t.okText : t.mute) }} numberOfLines={1}>{value}</T>
         {!onClear ? <Ionicons name={on ? 'chevron-up' : 'chevron-down'} size={16} color={t.mute} /> : null}
       </Pressable>
       {onClear ? (
@@ -304,9 +301,10 @@ function Row({ t, icon, color, label, value, on, onPress, onClear }: { t: Theme;
 
 const Line = ({ t }: { t: Theme }) => <View style={{ height: 1, backgroundColor: t.line, marginStart: 52 }} />;
 
-function Chip({ t, label, on, onPress, color }: { t: Theme; label: string; on: boolean; onPress: () => void; color?: string }) {
+function Chip({ t, label, on, onPress, color, dot }: { t: Theme; label: string; on: boolean; onPress: () => void; color?: string; dot?: string }) {
   return (
     <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} style={({ pressed }) => [s.chip, { backgroundColor: on ? color ?? t.fg : t.soft, opacity: pressed ? 0.7 : 1 }]}>
+      {dot ? <View style={[s.pdot, { backgroundColor: on ? '#FFFFFF' : dot }]} /> : null}
       <T w="semi" style={{ fontSize: 13, color: on ? (color ? '#FFFFFF' : t.bg) : t.fg }}>{label}</T>
     </Pressable>
   );
@@ -324,8 +322,7 @@ const s = StyleSheet.create({
   done: { height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center', alignSelf: 'stretch' },
   lbl: { fontSize: 12.5, marginBottom: -4, marginTop: 2 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 7, alignItems: 'center' },
-  chip: { minHeight: 36, borderRadius: 13, paddingHorizontal: 12, justifyContent: 'center' },
-  prio: { flex: 1, height: 44, borderRadius: 13, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 5, paddingHorizontal: 4 },
+  chip: { minHeight: 36, borderRadius: 13, paddingHorizontal: 12, justifyContent: 'center', flexDirection: 'row', alignItems: 'center', gap: 6 },
   pdot: { width: 8, height: 8, borderRadius: 4 },
   tagIn: { height: 36, minWidth: 90, borderRadius: 13, paddingHorizontal: 10, fontSize: 13, textAlign: 'right', outlineWidth: 0 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40 },

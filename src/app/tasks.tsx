@@ -2,12 +2,13 @@ import React, { useEffect, useRef, useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ring, Screen, T, useKeyboardShown } from '../components/ui';
+import { Screen, T, useKeyboardShown } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
+import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { addSub, allView, counts, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
 import { pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
@@ -21,6 +22,8 @@ const ease = () => {
   if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
 };
 const LATE = '#C0392B';
+/** Short weekday names by `Date.getDay()` for the week strip. */
+const WD = ['حد', 'اتنين', 'تلات', 'أربع', 'خميس', 'جمعة', 'سبت'];
 
 export default function TasksSection() {
   return (
@@ -48,6 +51,8 @@ function Tasks() {
   const [adding, setAdding] = useState<{ title: string } | null>(null);
   const [quick, setQuick] = useState('');
   const [openSubs, setOpenSubs] = useState<string | null>(null);
+  const [showDone, setShowDone] = useState(false);
+  const [month, setMonth] = useState(false);
   const quickRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   useEffect(() => pruneDone(dateKey()), []);
 
@@ -74,22 +79,24 @@ function Tasks() {
   const tv = todayView(list, today);
   const todayAll = tv.overdue.length + tv.day.length + tv.done.length;
   const row = (x: Task, last: boolean, showDate: boolean) => <TaskRow key={x.id} t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} />;
-  const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean } = {}) =>
+  const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
       <View key={key} style={{ gap: 6 }}>
-        <View style={s.sec}>
+        {label ? <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} style={s.sec}>
+          {o.color ? <View style={[s.secDot, { backgroundColor: o.color }]} /> : null}
           <T w="semi" style={{ fontSize: 13.5, color: o.color ?? t.mute }}>{label}</T>
           <T w="num" style={{ fontSize: 12, color: o.color ?? t.mute }}>{String(items.length)}</T>
-        </View>
-        <View style={[s.card, { backgroundColor: t.card, borderColor: t.border }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>
+          {o.fold ? <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={14} color={t.mute} /> : null}
+        </Pressable> : null}
+        {o.fold && !showDone ? null : <View style={[s.card, { backgroundColor: t.card, borderColor: t.border }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
       </View>
     ) : null;
 
   const dayLabel = (d: string) => `${WEEKDAYS_AR[weekdayOf(d)]} ${+d.slice(8)} ${MONTHS_AR[+d.slice(5, 7) - 1]}`;
-  const head: Record<Tab, [string, string]> = {
-    today: ['النهارده', dayLabel(today)],
-    calendar: ['التقويم', day === today ? 'النهارده' : dueAr(day, today)],
-    all: ['كل المهام', c.open ? `${c.open} مفتوحة` : 'مفيش حاجة مفتوحة'],
+  const sub: Record<Tab, string> = {
+    today: dayLabel(today),
+    calendar: day === today ? `النهارده · ${dayLabel(day)}` : dayLabel(day),
+    all: c.open ? `${c.open} مهمة مفتوحة` : 'مفيش حاجة مفتوحة',
   };
   const placeholder = target == null ? 'مهمة جديدة (من غير تاريخ)' : target === today ? 'مهمة جديدة للنهارده' : `مهمة جديدة لـ ${dueAr(target, today)}`;
 
@@ -135,19 +142,7 @@ function Tasks() {
       {editing ? <TaskSheet task={editing} onClose={() => setEditing(null)} /> : null}
       {adding ? <TaskSheet initial={adding.title} day={target} onClose={() => setAdding(null)} /> : null}
 
-      <View style={s.hd}>
-        <View style={{ flex: 1 }}>
-          <T style={{ color: t.mute, fontSize: 13 }}>{head[tab][1]}</T>
-          <T w="bold" style={{ fontSize: 30, lineHeight: 42 }}>{head[tab][0]}</T>
-        </View>
-        {tab === 'today' && todayAll ? (
-          <Ring value={tv.done.length / todayAll} size={58} stroke={6} color={t.ok}>
-            <T w="numBold" style={{ fontSize: 13 }}>{`${tv.done.length}/${todayAll}`}</T>
-          </Ring>
-        ) : null}
-      </View>
-
-      <View style={[s.seg, { backgroundColor: t.soft }]}>
+      <View style={[s.tabs, { borderColor: t.line }]}>
         {(
           [
             ['today', 'النهارده', c.today],
@@ -157,24 +152,33 @@ function Tasks() {
         ).map(([k, l, n]) => {
           const on = tab === k;
           return (
-            <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segBtn, on ? { backgroundColor: t.card, boxShadow: '0px 2px 8px rgba(0,0,0,0.08)' } : null]}>
-              <T w="semi" style={{ fontSize: 14, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
-              {n ? (
-                <View style={[s.badge, { backgroundColor: on ? t.ok : tint(t.mute, 0.18) }]}>
-                  <T w="numBold" style={{ fontSize: 11, color: on ? t.onOk : t.mute }}>{String(n)}</T>
-                </View>
-              ) : null}
+            <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={s.tab}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+                <T w={on ? 'bold' : 'semi'} style={{ fontSize: 15, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
+                {n ? <T w="numBold" style={{ fontSize: 12, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
+              </View>
+              <View style={[s.under, { backgroundColor: on ? t.ok : 'transparent' }]} />
             </Pressable>
           );
         })}
       </View>
 
+      <View style={s.top}>
+        <T style={{ color: t.mute, fontSize: 13, flex: 1 }} numberOfLines={1}>{sub[tab]}</T>
+        {tab === 'today' && todayAll ? <T w="semi" style={{ fontSize: 13, color: t.mute }}>{`خلصت ${tv.done.length} من ${todayAll}`}</T> : null}
+      </View>
+      {tab === 'today' && todayAll ? (
+        <View style={[s.track, { backgroundColor: t.soft }]}>
+          <View style={[s.fill, { width: `${Math.round((tv.done.length / todayAll) * 100)}%`, backgroundColor: t.ok }]} />
+        </View>
+      ) : null}
+
       {tab === 'today' ? (
         todayAll ? (
           <>
             {group('late', 'متأخرة', tv.overdue, { color: LATE, showDate: true })}
-            {group('day', 'النهارده', tv.day)}
-            {group('done', 'خلصت', tv.done)}
+            {tv.day.length ? group('day', tv.overdue.length ? 'النهارده' : '', tv.day) : !tv.overdue.length ? <Empty t={t} icon="checkmark-done-outline" title="خلّصت مهام النهارده" sub="برافو. لو فيه حاجة تانية اكتبها تحت" /> : null}
+            {group('done', 'خلصت', tv.done, { fold: true })}
           </>
         ) : (
           <Empty t={t} icon="sunny-outline" title="يومك فاضي" sub="اكتب مهمة تحت، أو دوس ＋ لو عايز تحدّد ميعاد وتفاصيل" />
@@ -183,14 +187,22 @@ function Tasks() {
 
       {tab === 'calendar' ? (
         <>
-          <View style={[s.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 10, paddingHorizontal: 6 }]}>
-            <MonthCalendar value={day} today={today} marks={dueCounts(list)} onPick={(d) => { tap(); ease(); setDay(d); }} />
+          <View style={[s.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 8, paddingHorizontal: 6 }]}>
+            {month ? (
+              <MonthCalendar value={day} today={today} marks={dueCounts(list)} onPick={(d) => { tap(); ease(); setDay(d); setMonth(false); }} />
+            ) : (
+              <WeekStrip t={t} day={day} today={today} marks={dueCounts(list)} onPick={(d) => { tap(); ease(); setDay(d); }} />
+            )}
+            <Pressable onPress={() => { ease(); setMonth(!month); }} accessibilityRole="button" accessibilityState={{ expanded: month }} style={s.monthBtn}>
+              <T w="semi" style={{ fontSize: 12.5, color: t.okText }}>{month ? 'اقفل الشهر' : 'الشهر كله'}</T>
+              <Ionicons name={month ? 'chevron-up' : 'chevron-down'} size={14} color={t.okText} />
+            </Pressable>
           </View>
           {day === today && tv.overdue.length ? group('late', 'متأخرة', tv.overdue, { color: LATE, showDate: true }) : null}
           {dayTasks(list, day).length || doneOn(list, day).length ? (
             <>
               {group('day', dueAr(day, today), dayTasks(list, day))}
-              {group('done', 'خلصت', doneOn(list, day))}
+              {group('done', 'خلصت', doneOn(list, day), { fold: true })}
             </>
           ) : (
             <Empty t={t} icon="calendar-outline" title={`مفيش مهام ${day === today ? 'النهارده' : `يوم ${+day.slice(8)} ${MONTHS_AR[+day.slice(5, 7) - 1]}`}`} sub="اكتب تحت وهتتضاف لليوم ده" />
@@ -207,6 +219,35 @@ function Tasks() {
       ) : null}
       <View style={{ height: 8 }} />
     </Screen>
+  );
+}
+
+/** A week from Saturday around the picked day: weekday, date, a dot per task; arrows move a week. */
+function WeekStrip({ t, day, today, marks, onPick }: { t: Theme; day: string; today: string; marks: Record<string, number>; onPick: (d: string) => void }) {
+  const start = addDays(day, -((weekdayOf(day) - 6 + 7) % 7));
+  const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+      <Pressable onPress={() => onPick(addDays(day, -7))} hitSlop={6} accessibilityRole="button" accessibilityLabel="الأسبوع اللي فات" style={s.wArrow}>
+        <Ionicons name="chevron-forward" size={18} color={t.mute} />
+      </Pressable>
+      {days.map((d) => {
+        const on = d === day;
+        const n = marks[d] ?? 0;
+        return (
+          <Pressable key={d} onPress={() => onPick(d)} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${WEEKDAYS_AR[weekdayOf(d)]} ${+d.slice(8)}${n ? `، ${n} مهام` : ''}`} style={[s.wd, { backgroundColor: on ? t.ok : 'transparent', borderColor: d === today && !on ? t.ok : 'transparent' }]}>
+            <T style={{ fontSize: 11, color: on ? t.onOk : t.mute }}>{WD[weekdayOf(d)]}</T>
+            <T w="numBold" style={{ fontSize: 16, color: on ? t.onOk : d < today ? t.mute : t.fg }}>{String(+d.slice(8))}</T>
+            <View style={{ flexDirection: 'row', gap: 2, height: 4 }}>
+              {Array.from({ length: Math.min(3, n) }, (_, k) => <View key={k} style={[s.dot, { backgroundColor: on ? t.onOk : t.ok }]} />)}
+            </View>
+          </Pressable>
+        );
+      })}
+      <Pressable onPress={() => onPick(addDays(day, 7))} hitSlop={6} accessibilityRole="button" accessibilityLabel="الأسبوع الجاي" style={s.wArrow}>
+        <Ionicons name="chevron-back" size={18} color={t.mute} />
+      </Pressable>
+    </View>
   );
 }
 
@@ -325,7 +366,17 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 }
 
 const s = StyleSheet.create({
-  hd: { flexDirection: 'row', alignItems: 'flex-end', gap: 12 },
+  tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
+  tab: { flex: 1, alignItems: 'center', paddingTop: 8, gap: 8 },
+  under: { height: 3, width: '60%', borderRadius: 2 },
+  top: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
+  track: { height: 5, borderRadius: 3, overflow: 'hidden', marginTop: -6 },
+  fill: { height: '100%', borderRadius: 3 },
+  secDot: { width: 7, height: 7, borderRadius: 4 },
+  monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 32, marginTop: 4 },
+  wArrow: { width: 26, height: 56, alignItems: 'center', justifyContent: 'center' },
+  wd: { flex: 1, alignItems: 'center', paddingVertical: 6, borderRadius: 14, borderWidth: 1.5, gap: 1 },
+  dot: { width: 4, height: 4, borderRadius: 2 },
   seg: { flexDirection: 'row', padding: 4, borderRadius: 16, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
