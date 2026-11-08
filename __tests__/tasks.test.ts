@@ -1,41 +1,25 @@
 /// <reference types="jest" />
-import { anytime, counts, doneBetween, moveToQuadrant, nextDue, parseQuick, parseTasks, quadrantOf, tagColor, timeAr, todayView, toggleTask, upcoming, type Task } from '../src/lib/tasks';
+import { addMonths, allView, counts, dayTasks, doneBetween, doneOn, dueCounts, from12, monthGrid, nextDue, parseTasks, tagColor, timeAr, to12, todayView, toggleTask, type Task } from '../src/lib/tasks';
 
 // Sunday 8 Nov 2026
 const T = '2026-11-08';
 const mk = (o: Partial<Task>): Task => ({ id: 'x', title: 'مهمة', due: null, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: '2026-11-01', ...o });
 
-test('quick add reads Egyptian Arabic', () => {
-  const p = parseQuick('كلّم المحاسب بكره 5 العصر !1 #فلوس', T);
-  expect(p).toMatchObject({ title: 'كلّم المحاسب', due: '2026-11-09', time: 17 * 60, priority: 1, tag: 'فلوس', repeat: null });
-  expect(p.spans.map((s) => s.kind)).toEqual(['date', 'time', 'priority', 'tag']);
-  expect(parseQuick('ميعاد الدكتور التلات 7 بالليل', T)).toMatchObject({ title: 'ميعاد الدكتور', due: '2026-11-10', time: 19 * 60 });
-  expect(parseQuick('اجتماع الساعة 2', T)).toMatchObject({ title: 'اجتماع', due: T, time: 14 * 60 });
-  expect(parseQuick('جري 6:30 الصبح بعد بكره', T)).toMatchObject({ title: 'جري', due: '2026-11-10', time: 6 * 60 + 30 });
-  expect(parseQuick('غدا الضهر', T)).toMatchObject({ title: 'غدا', time: 13 * 60, due: T });
-  expect(parseQuick('اقرا كل يوم !3', T)).toMatchObject({ title: 'اقرا', repeat: 'daily', priority: 3 });
-  expect(parseQuick('درس كل خميس', T)).toMatchObject({ title: 'درس', repeat: 'weekly', due: '2026-11-12' });
-  expect(parseQuick('شنطة الجيم بالليل', T)).toMatchObject({ title: 'شنطة الجيم', evening: true, due: T });
-  expect(parseQuick('حاجة مهمة !!!', T).priority).toBe(1);
-  expect(parseQuick('تقرير كمان ٣ أيام', T).due).toBe('2026-11-11');
-  expect(parseQuick('تسليم يوم الخميس', T).due).toBe('2026-11-12');
-  expect(parseQuick('ورقة عادية', T)).toMatchObject({ title: 'ورقة عادية', due: null, time: null, priority: null, tag: null });
-});
-
 test('parse drops broken tasks', () => {
   const ok = mk({ id: 'a', time: 600, remind: true });
-  const list = parseTasks(JSON.stringify([ok, { ...ok }, { id: 'b', title: ' ' }, { ...ok, id: 'c', priority: 9, time: 5000, remind: true, due: 'x' }]));
+  const list = parseTasks(JSON.stringify([{ ...ok, note: ' ملاحظة ', evening: true, urgent: true }, { ...ok }, { id: 'b', title: ' ' }, { ...ok, id: 'c', priority: 9, time: 5000, remind: true, due: 'x' }]));
   expect(list.map((t) => t.id)).toEqual(['a', 'c']);
+  expect(list[0]).toEqual({ ...ok, note: 'ملاحظة' });
   expect(list[1]).toMatchObject({ priority: 3, time: null, remind: false, due: null });
   expect(parseTasks('nope')).toEqual([]);
 });
 
-test('views: today with overdue and evening, upcoming by day, anytime', () => {
+test('views: today with overdue, a day, all open by day, the calendar dots', () => {
   const list = [
     mk({ id: 'late', due: '2026-11-07', priority: 1 }),
-    mk({ id: 'am', due: T, time: 9 * 60 }),
     mk({ id: 'pm', due: T, time: 20 * 60 }),
-    mk({ id: 'eve', due: T, evening: true }),
+    mk({ id: 'am', due: T, time: 9 * 60 }),
+    mk({ id: 'notime', due: T, priority: 1 }),
     mk({ id: 'done', due: T, done: T }),
     mk({ id: 'tue', due: '2026-11-10' }),
     mk({ id: 'mon', due: '2026-11-09' }),
@@ -44,13 +28,37 @@ test('views: today with overdue and evening, upcoming by day, anytime', () => {
   ];
   const v = todayView(list, T);
   expect(v.overdue.map((t) => t.id)).toEqual(['late']);
-  expect(v.day.map((t) => t.id)).toEqual(['am']);
-  expect(v.evening.map((t) => t.id)).toEqual(['pm', 'eve']);
+  expect(v.day.map((t) => t.id)).toEqual(['am', 'pm', 'notime']);
   expect(v.done.map((t) => t.id)).toEqual(['done']);
-  expect(upcoming(list, T).map((d) => d.date)).toEqual(['2026-11-09', '2026-11-10']);
-  expect(anytime(list).map((t) => t.id)).toEqual(['any1', 'any2']);
-  expect(counts(list, T)).toEqual({ today: 4, doneToday: 1, upcoming: 2, anytime: 2 });
+  expect(dayTasks(list, '2026-11-09').map((t) => t.id)).toEqual(['mon']);
+  expect(doneOn(list, T).map((t) => t.id)).toEqual(['done']);
+  expect(dueCounts(list)).toEqual({ '2026-11-07': 1, [T]: 3, '2026-11-09': 1, '2026-11-10': 1 });
+  expect(allView(list, T).map((g) => [g.date, g.late, g.tasks.map((t) => t.id)])).toEqual([
+    ['2026-11-07', true, ['late']],
+    [T, false, ['am', 'pm', 'notime']],
+    ['2026-11-09', false, ['mon']],
+    ['2026-11-10', false, ['tue']],
+    [null, false, ['any1', 'any2']],
+  ]);
+  expect(counts(list, T)).toEqual({ today: 4, doneToday: 1, open: 8 });
   expect(doneBetween(list, '2026-11-01', T)).toBe(1);
+});
+
+test('calendar: months from Saturday, and the 12-hour clock', () => {
+  const nov = monthGrid('2026-11'); // 1 Nov 2026 is a Sunday
+  expect(nov[0]).toEqual([null, '2026-11-01', '2026-11-02', '2026-11-03', '2026-11-04', '2026-11-05', '2026-11-06']);
+  expect(nov.flat().filter(Boolean)).toHaveLength(30);
+  expect(nov.every((w) => w.length === 7)).toBe(true);
+  expect(monthGrid('2026-08')[0][0]).toBe('2026-08-01'); // a Saturday
+  expect(addMonths('2026-11', 2)).toBe('2027-01');
+  expect(addMonths('2026-01', -1)).toBe('2025-12');
+  expect(to12(0)).toEqual({ h: 12, min: 0, pm: false });
+  expect(to12(17 * 60 + 35)).toEqual({ h: 5, min: 35, pm: true });
+  expect(to12(12 * 60)).toEqual({ h: 12, min: 0, pm: true });
+  for (const m of [0, 59, 720, 735, 1439]) {
+    const c = to12(m);
+    expect(from12(c.h, c.min, c.pm)).toBe(m);
+  }
 });
 
 test('repeating tasks leave a done copy and move on; undo puts them back', () => {
@@ -72,24 +80,9 @@ test('repeating tasks leave a done copy and move on; undo puts them back', () =>
   expect(toggleTask(toggleTask([mk({ id: 'p' })], 'p', T, 'n'), 'p', T, 'n')[0].done).toBeNull();
 });
 
-test('matrix: urgent by date unless set, important by priority', () => {
-  expect(quadrantOf(mk({ due: T, priority: 1 }), T)).toBe('do');
-  expect(quadrantOf(mk({ due: '2026-11-20', priority: 2 }), T)).toBe('plan');
-  expect(quadrantOf(mk({ due: '2026-11-09', priority: 3 }), T)).toBe('quick');
-  expect(quadrantOf(mk({ priority: 4 }), T)).toBe('drop');
-  const moved = moveToQuadrant(mk({ priority: 4 }), 'do');
-  expect(moved).toMatchObject({ urgent: true, priority: 2 });
-  expect(quadrantOf(moved, T)).toBe('do');
-  expect(moveToQuadrant(mk({ priority: 1, due: T }), 'drop')).toMatchObject({ urgent: false, priority: 3 });
-});
-
 test('labels', () => {
   expect(timeAr(17 * 60)).toBe('5 العصر');
   expect(timeAr(9 * 60 + 30)).toBe('9:30 الصبح');
   expect(timeAr(12 * 60)).toBe('12 الضهر');
   expect(tagColor('شغل')).toBe(tagColor('شغل'));
-});
-
-test('yesterday and tags with diacritics', () => {
-  expect(parseQuick('ابعت الفاتورة امبارح #تعلّم', T)).toMatchObject({ title: 'ابعت الفاتورة', due: '2026-11-07', tag: 'تعلّم' });
 });

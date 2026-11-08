@@ -79,7 +79,7 @@ function Hub() {
 
   const quitMs = quit ? clean(quit, now).ms : 0;
   const tv = todayView(readTasks(), today);
-  const tOpen = [...tv.overdue, ...tv.day, ...tv.evening];
+  const tOpen = [...tv.overdue, ...tv.day];
   const tAll = tOpen.length + tv.done.length;
   const tiles: { key: Section; title: string; icon: IconName; color: string; stat: string; line: string; night?: boolean }[] = [
     { key: 'tasks', title: 'مهامي', icon: 'checkbox', color: t.sec.tasks, stat: tAll ? `${tv.done.length} من ${tAll}` : '—', line: tOpen[0] ? `الجاي: ${tOpen[0].title}${tv.overdue.length ? ` · ${tv.overdue.length} متأخرة` : ''}` : tAll ? 'خلّصت مهام النهارده ✓' : 'يومك فاضي' },

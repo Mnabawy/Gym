@@ -76,7 +76,7 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   }
   if (x.tasks?.length) {
     const v = todayView(x.tasks, date);
-    const open = [...v.day, ...v.evening].sort((a, b) => a.priority - b.priority);
+    const open = [...v.day].sort((a, b) => a.priority - b.priority);
     // Overdue only makes sense for today's brief (later days don't know what you'll finish before then).
     const late = date === x.today ? v.overdue.length : 0;
     if (open.length || late) lines.push(`📝 مهامك: ${open.length}${open.length ? ` (${open.slice(0, 2).map((t) => t.title).join('، ')}${open.length > 2 ? '…' : ''})` : ''}${late ? ` · ${late} متأخرة` : ''}`);

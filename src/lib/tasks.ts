@@ -1,8 +1,8 @@
-// مهامي (the to-do section): tasks with a due day and time, a priority (1 = most important … 4 = someday), a tag,
-// sub-steps, repeat and a reminder. Views like the best to-do apps: Today (overdue + today + this evening, as in
-// Things 3), Upcoming (by day), Anytime (no date), and the Eisenhower matrix (urgent × important, as in TickTick).
-// Quick add reads Egyptian Arabic the way Todoist reads English: "كلّم المحاسب بكره 5 العصر !1 #فلوس".
-// Saved as JSON in storage meta `tasks`. Pure — unit tested in __tests__/tasks.test.ts.
+// مهامي (the to-do section): tasks with an optional day and time (picked on a calendar and a clock, never guessed
+// from the text), a priority (1 = most important … 4 = someday), a tag, a note, sub-steps, repeat and a reminder.
+// Views: Today (overdue + today + done today), Calendar (a month with a dot per busy day, then that day's tasks), and
+// All (everything open, by day, then the ones with no day). Saved as JSON in storage meta `tasks`.
+// Pure — unit tested in __tests__/tasks.test.ts.
 import { addDays } from './gaps';
 import { weekdayOf } from './logic';
 
@@ -17,10 +17,9 @@ export type Task = {
   due: string | null;
   /** Minutes after midnight, or null. */
   time: number | null;
-  /** Put under "بالليل" on the day. */
-  evening?: boolean;
   priority: Priority;
   tag?: string;
+  note?: string;
   subs: Sub[];
   repeat: Repeat | null;
   /** A notification at the day + time. */
@@ -28,8 +27,6 @@ export type Task = {
   /** Day it was done, or null. */
   done: string | null;
   created: string;
-  /** Matrix override: urgent or not, whatever the date says. */
-  urgent?: boolean;
   /** A done copy of a repeating task: the task it came from, and the day it was for (to undo). */
   from?: string;
   wasDue?: string | null;
@@ -49,8 +46,6 @@ export function tagColor(tag: string): string {
   for (const c of tag) h = (h * 31 + c.charCodeAt(0)) | 0;
   return TAG_COLORS[Math.abs(h) % TAG_COLORS.length];
 }
-/** Evening starts at 6 pm. */
-export const EVENING = 18 * 60;
 
 const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const str = (s: unknown) => (typeof s === 'string' ? s : '');
@@ -77,9 +72,9 @@ export function parseTasks(raw: string | null): Task[] {
       title: str(o.title).trim(),
       due: isDate(o.due) ? o.due : null,
       time,
-      ...(o.evening === true ? { evening: true } : {}),
       priority: p === 1 || p === 2 || p === 3 || p === 4 ? p : 3,
       ...(str(o.tag).trim() ? { tag: str(o.tag).trim() } : {}),
+      ...(str(o.note).trim() ? { note: str(o.note).trim() } : {}),
       subs: (Array.isArray(o.subs) ? o.subs : [])
         .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object' && typeof (s as Record<string, unknown>).id === 'string' && !!str((s as Record<string, unknown>).title).trim())
         .map((s) => ({ id: s.id as string, title: str(s.title).trim(), done: s.done === true })),
@@ -87,7 +82,6 @@ export function parseTasks(raw: string | null): Task[] {
       remind: o.remind === true && time != null,
       done: isDate(o.done) ? o.done : null,
       created: isDate(o.created) ? o.created : '2026-01-01',
-      ...(typeof o.urgent === 'boolean' ? { urgent: o.urgent } : {}),
       ...(typeof o.from === 'string' ? { from: o.from, wasDue: isDate(o.wasDue) ? o.wasDue : null } : {}),
     });
   }
@@ -137,163 +131,73 @@ export function toggleTask(list: readonly Task[], id: string, today: string, new
 
 const byOrder = (a: Task, b: Task) => (a.time ?? 9999) - (b.time ?? 9999) || a.priority - b.priority || (a.created < b.created ? -1 : 1);
 
-/** Today: what's overdue, what's for today (the day and the evening), and what you finished today. */
+/** Today: what's overdue, what's for today (by time, then priority), and what you finished today. */
 export function todayView(list: readonly Task[], today: string) {
   const open = list.filter((t) => !t.done);
-  const day = open.filter((t) => t.due === today);
-  const isEvening = (t: Task) => t.evening || (t.time != null && t.time >= EVENING);
   return {
-    overdue: open.filter((t) => t.due != null && t.due < today).sort((a, b) => (a.due! < b.due! ? -1 : 1) || a.priority - b.priority),
-    day: day.filter((t) => !isEvening(t)).sort(byOrder),
-    evening: day.filter(isEvening).sort(byOrder),
+    overdue: open.filter((t) => t.due != null && t.due < today).sort((a, b) => (a.due! < b.due! ? -1 : a.due! > b.due! ? 1 : 0) || a.priority - b.priority),
+    day: open.filter((t) => t.due === today).sort(byOrder),
     done: list.filter((t) => t.done === today).sort((a, b) => a.priority - b.priority),
   };
 }
 
-/** Upcoming: open tasks after today, by day. */
-export function upcoming(list: readonly Task[], today: string): { date: string; tasks: Task[] }[] {
-  const days = new Map<string, Task[]>();
-  for (const t of list) if (!t.done && t.due && t.due > today) days.set(t.due, [...(days.get(t.due) ?? []), t]);
-  return [...days.entries()].sort(([a], [b]) => (a < b ? -1 : 1)).map(([date, tasks]) => ({ date, tasks: tasks.sort(byOrder) }));
+/** Open tasks due on one day, by time then priority. */
+export const dayTasks = (list: readonly Task[], date: string) => list.filter((t) => !t.done && t.due === date).sort(byOrder);
+/** Tasks finished on one day. */
+export const doneOn = (list: readonly Task[], date: string) => list.filter((t) => t.done === date).sort((a, b) => a.priority - b.priority);
+
+/** Open tasks per due day (the calendar's dots). */
+export function dueCounts(list: readonly Task[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const t of list) if (!t.done && t.due) out[t.due] = (out[t.due] ?? 0) + 1;
+  return out;
 }
 
-/** Anytime: open tasks with no day, most important first. */
-export const anytime = (list: readonly Task[]) => list.filter((t) => !t.done && !t.due).sort((a, b) => a.priority - b.priority || (a.created < b.created ? -1 : 1));
-
-export type Quadrant = 'do' | 'plan' | 'quick' | 'drop';
-export const QUADRANTS: { key: Quadrant; title: string; sub: string; color: string; urgent: boolean; important: boolean }[] = [
-  { key: 'do', title: 'اعملها دلوقتي', sub: 'عاجل ومهم', color: '#D93B3B', urgent: true, important: true },
-  { key: 'plan', title: 'حدّدلها ميعاد', sub: 'مهم مش عاجل', color: '#3B7BE0', urgent: false, important: true },
-  { key: 'quick', title: 'خلّصها بسرعة', sub: 'عاجل مش مهم', color: '#E8902A', urgent: true, important: false },
-  { key: 'drop', title: 'سيبها', sub: 'لا عاجل ولا مهم', color: '#B4ADA2', urgent: false, important: false },
-];
-
-/** Urgent: due by tomorrow (or overdue), unless you said otherwise. Important: priority 1 or 2. */
-export function quadrantOf(t: Task, today: string): Quadrant {
-  const urgent = t.urgent ?? (t.due != null && t.due <= addDays(today, 1));
-  const important = t.priority <= 2;
-  return QUADRANTS.find((q) => q.urgent === urgent && q.important === important)!.key;
-}
-
-/** Moving a task to a quadrant: sets "urgent" and raises or lowers the priority across the important line. */
-export function moveToQuadrant(t: Task, q: Quadrant): Task {
-  const target = QUADRANTS.find((x) => x.key === q)!;
-  const priority: Priority = target.important ? (t.priority <= 2 ? t.priority : 2) : t.priority >= 3 ? t.priority : 3;
-  return { ...t, urgent: target.urgent, priority };
+/** All: everything open — overdue, then by day — and last the ones with no day (most important first). */
+export function allView(list: readonly Task[], today: string): { date: string | null; late: boolean; tasks: Task[] }[] {
+  const open = list.filter((t) => !t.done);
+  const days = [...new Set(open.map((t) => t.due).filter((d): d is string => !!d))].sort();
+  const late = days.filter((d) => d < today);
+  const out: { date: string | null; late: boolean; tasks: Task[] }[] = [];
+  if (late.length) out.push({ date: late[0], late: true, tasks: open.filter((t) => t.due != null && t.due < today).sort((a, b) => (a.due! < b.due! ? -1 : 1) || a.priority - b.priority) });
+  for (const d of days) if (d >= today) out.push({ date: d, late: false, tasks: dayTasks(open, d) });
+  const none = open.filter((t) => !t.due).sort((a, b) => a.priority - b.priority || (a.created < b.created ? -1 : 1));
+  if (none.length) out.push({ date: null, late: false, tasks: none });
+  return out;
 }
 
 export const counts = (list: readonly Task[], today: string) => {
   const v = todayView(list, today);
-  return { today: v.overdue.length + v.day.length + v.evening.length, doneToday: v.done.length, upcoming: upcoming(list, today).reduce((a, d) => a + d.tasks.length, 0), anytime: anytime(list).length };
+  return { today: v.overdue.length + v.day.length, doneToday: v.done.length, open: list.filter((t) => !t.done).length };
 };
 
 /** Tasks done between two days (the weekly report). */
 export const doneBetween = (list: readonly Task[], from: string, to: string) => list.filter((t) => t.done && t.done >= from && t.done <= to).length;
 
-// ——— Quick add ———
+// ——— Calendar and clock ———
 
-export type Span = { start: number; end: number; kind: 'date' | 'time' | 'priority' | 'tag' | 'repeat' };
-export type Parsed = { title: string; due: string | null; time: number | null; evening: boolean; priority: Priority | null; tag: string | null; repeat: Repeat | null; spans: Span[] };
-
-/** Weekday names without "ال" (0 = Sunday). */
-const DAYS: [string, number][] = [
-  ['أحد|احد|حد', 0],
-  ['اتنين|إثنين|اثنين', 1],
-  ['تلات|ثلاثاء|تلاتاء', 2],
-  ['أربعاء|اربعاء|أربع|اربع', 3],
-  ['خميس', 4],
-  ['جمعة|جمعه', 5],
-  ['سبت', 6],
-];
-const PM = /^(?:العصر|المغرب|بالليل|بليل|مساء|مساءً|م)$/;
-const AM = /^(?:الصبح|صباحا|صباحًا|ص|بدري)$/;
-
-const toLatin = (s: string) => s.replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660));
-
-/**
- * Reads a quick-add line: the day (النهارده، بكره، بعد بكره، امبارح، a weekday, الأسبوع الجاي، كمان 3 أيام), the time
- * (5 العصر، 9:30 الصبح، الساعة 7، الضهر، بالليل), priority (!1–!4, or !!! / !!), a #tag and repeat (كل يوم/أسبوع/شهر،
- * كل خميس، أيام الشغل). What's left is the title. `spans` mark the parts it understood, to color them as you type.
- */
-export function parseQuick(input: string, today: string): Parsed {
-  const text = toLatin(input);
-  const spans: Span[] = [];
-  let due: string | null = null;
-  let time: number | null = null;
-  let evening = false;
-  let priority: Priority | null = null;
-  let tag: string | null = null;
-  let repeat: Repeat | null = null;
-  const take = (re: RegExp, kind: Span['kind'], f: (m: RegExpExecArray) => void) => {
-    const m = re.exec(text);
-    if (!m || spans.some((s) => m.index < s.end && m.index + m[0].length > s.start)) return false;
-    spans.push({ start: m.index, end: m.index + m[0].length, kind });
-    f(m);
-    return true;
-  };
-  const nextWeekday = (wd: number, includeToday: boolean) => {
-    for (let i = includeToday ? 0 : 1; i <= 7; i++) if (weekdayOf(addDays(today, i)) === wd) return addDays(today, i);
-    return today;
-  };
-
-  // Repeat first ("كل خميس" is a repeat and a day; "كل يوم الخميس" too, before "كل يوم").
-  for (const [stem, wd] of DAYS) {
-    if (take(new RegExp(`(?:^|\\s)(كل\\s+(?:يوم\\s+)?(?:ال)?(?:${stem}))(?=\\s|$)`), 'repeat', () => {
-      repeat = 'weekly';
-      due = nextWeekday(wd, true);
-    })) break;
-  }
-
-  take(/(?:^|\s)(كل\s+(?:يوم|أسبوع|اسبوع|شهر)|أيام الشغل|ايام الشغل)(?=\s|$)/, 'repeat', (m) => {
-    const w = m[1];
-    repeat = /يوم/.test(w) ? 'daily' : /شهر/.test(w) ? 'monthly' : /الشغل/.test(w) ? 'weekdays' : 'weekly';
-  });
-  // Day.
-  take(/(?:^|\s)(بعد\s+بكر[هة])(?=\s|$)/, 'date', () => (due = addDays(today, 2))) ||
-    take(/(?:^|\s)(النهارده|النهاردة|اليوم)(?=\s|$)/, 'date', () => (due = today)) ||
-    take(/(?:^|\s)(امبارح|إمبارح|امس|أمس)(?=\s|$)/, 'date', () => (due = addDays(today, -1))) ||
-    take(/(?:^|\s)(بكر[هة])(?=\s|$)/, 'date', () => (due = addDays(today, 1))) ||
-    take(/(?:^|\s)(الأسبوع الجاي|الاسبوع الجاي)(?=\s|$)/, 'date', () => (due = addDays(today, 7))) ||
-    take(/(?:^|\s)(كمان|بعد)\s+(\d+)\s+(?:يوم|أيام|ايام)(?=\s|$)/, 'date', (m) => (due = addDays(today, Number(m[2])))) ||
-    DAYS.some(([stem, wd]) => take(new RegExp(`(?:^|\\s)((?:يوم\\s+)?ال(?:${stem}))(?=\\s|$)`), 'date', () => (due = nextWeekday(wd, false))));
-
-  // Time.
-  const hm = (h: number, mi: number, period: string | undefined) => {
-    let hh = h % 12;
-    if (period && PM.test(period)) hh += 12;
-    else if (period === 'الضهر' || period === 'الظهر') hh = h === 12 ? 12 : h < 6 ? h + 12 : h;
-    else if (!period || !AM.test(period)) hh = h === 12 ? 12 : h < 7 ? h + 12 : h; // no period: 1–6 is afternoon
-    return hh * 60 + mi;
-  };
-  take(/(?:^|\s)(?:الساعة\s+|الساعه\s+)?(\d{1,2})(?::(\d{2}))?\s*(الصبح|صباحا|صباحًا|ص|بدري|الضهر|الظهر|العصر|المغرب|بالليل|بليل|مساء|مساءً|م)(?=\s|$)/, 'time', (m) => {
-    time = hm(Number(m[1]), Number(m[2] ?? 0), m[3]);
-  }) ||
-    take(/(?:^|\s)(?:الساعة|الساعه)\s+(\d{1,2})(?::(\d{2}))?(?=\s|$)/, 'time', (m) => (time = hm(Number(m[1]), Number(m[2] ?? 0), undefined))) ||
-    take(/(?:^|\s)(\d{1,2}):(\d{2})(?=\s|$)/, 'time', (m) => (time = hm(Number(m[1]), Number(m[2]), undefined))) ||
-    take(/(?:^|\s)(الضهر|الظهر)(?=\s|$)/, 'time', () => (time = 13 * 60)) ||
-    take(/(?:^|\s)(بالليل)(?=\s|$)/, 'time', () => (evening = true));
-  if (time != null && time >= 24 * 60) time = null;
-
-  // Priority and tag.
-  take(/(?:^|\s)(!([1-4])|!{2,3})(?=\s|$)/, 'priority', (m) => {
-    priority = (m[2] ? Number(m[2]) : m[1] === '!!!' ? 1 : 2) as Priority;
-  });
-  take(/(?:^|\s)#([\p{L}\p{M}\p{N}_]+)/u, 'tag', (m) => (tag = m[1]));
-
-  // A time with no day means today (or tomorrow if it's already past is up to you: we keep today).
-  if (time != null && !due) due = today;
-  if (evening && !due) due = today;
-
-  spans.sort((a, b) => a.start - b.start);
-  let title = '';
-  let at = 0;
-  for (const s of spans) {
-    title += input.slice(at, s.start);
-    at = s.end;
-  }
-  title += input.slice(at);
-  return { title: title.replace(/\s+/g, ' ').trim(), due, time, evening, priority, tag, repeat, spans };
+/** The week starts on Saturday (Egypt). */
+export const WEEK_START = 6;
+const pad = (n: number) => String(n).padStart(2, '0');
+/** `2026-11` + n months. */
+export function addMonths(ym: string, n: number): string {
+  const [y, m] = ym.split('-').map(Number);
+  const i = y * 12 + (m - 1) + n;
+  return `${Math.floor(i / 12)}-${pad((i % 12) + 1)}`;
 }
+/** A month as weeks of 7 days from Saturday; days outside the month are null. */
+export function monthGrid(ym: string): (string | null)[][] {
+  const [y, m] = ym.split('-').map(Number);
+  const days = new Date(y, m, 0).getDate();
+  const lead = (new Date(y, m - 1, 1).getDay() - WEEK_START + 7) % 7;
+  const cells: (string | null)[] = [...Array<null>(lead).fill(null), ...Array.from({ length: days }, (_, i) => `${ym}-${pad(i + 1)}`)];
+  while (cells.length % 7) cells.push(null);
+  return Array.from({ length: cells.length / 7 }, (_, w) => cells.slice(w * 7, w * 7 + 7));
+}
+/** Minutes after midnight → 12-hour clock. */
+export const to12 = (m: number) => ({ h: Math.floor(m / 60) % 12 || 12, min: m % 60, pm: m >= 720 });
+/** 12-hour clock → minutes after midnight. */
+export const from12 = (h: number, min: number, pm: boolean) => ((h % 12) + (pm ? 12 : 0)) * 60 + min;
 
 /** "5 العصر" / "9:30 الصبح" */
 export function timeAr(m: number): string {
