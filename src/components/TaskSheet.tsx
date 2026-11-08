@@ -227,7 +227,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
         />
       </View>
 
-      <T style={[s.lbl, { color: t.mute }]}>{subs.length ? `الخطوات · ${subs.filter((x) => x.done).length} من ${subs.length}` : 'الخطوات'}</T>
+      <T style={[s.lbl, { color: t.mute }]}>{subs.length ? `المهام الفرعية · ${subs.filter((x) => x.done).length} من ${subs.length}` : 'المهام الفرعية'}</T>
       {subs.map((x) => (
         <View key={x.id} style={s.subRow}>
           <Pressable onPress={() => setSubs(subs.map((y) => (y.id === x.id ? { ...y, done: !y.done } : y)))} accessibilityRole="checkbox" accessibilityState={{ checked: x.done }} accessibilityLabel={x.title} hitSlop={8}>
@@ -246,14 +246,14 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
           onChangeText={setSub}
           submitBehavior="submit"
           onSubmitEditing={addSub}
-          placeholder="ضيف خطوة"
+          placeholder="ضيف مهمة فرعية"
           placeholderTextColor={t.mute}
           maxLength={80}
-          accessibilityLabel="خطوة جديدة"
+          accessibilityLabel="مهمة فرعية جديدة"
           style={[s.subIn, { color: t.fg, fontFamily: F.body }]}
         />
         {sub.trim() ? (
-          <Pressable onPress={addSub} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف الخطوة">
+          <Pressable onPress={addSub} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">
             <Ionicons name="checkmark" size={22} color={t.ok} />
           </Pressable>
         ) : null}

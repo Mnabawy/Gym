@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addMonths, allView, counts, dayTasks, doneBetween, doneOn, dueCounts, from12, monthGrid, nextDue, parseTasks, tagColor, timeAr, to12, todayView, toggleTask, type Task } from '../src/lib/tasks';
+import { addMonths, addSub, removeSub, toggleSub, allView, counts, dayTasks, doneBetween, doneOn, dueCounts, from12, monthGrid, nextDue, parseTasks, tagColor, timeAr, to12, todayView, toggleTask, type Task } from '../src/lib/tasks';
 
 // Sunday 8 Nov 2026
 const T = '2026-11-08';
@@ -85,4 +85,15 @@ test('labels', () => {
   expect(timeAr(9 * 60 + 30)).toBe('9:30 الصبح');
   expect(timeAr(12 * 60)).toBe('12 الضهر');
   expect(tagColor('شغل')).toBe(tagColor('شغل'));
+});
+
+test('subtasks: add, tick, remove', () => {
+  let x = mk({ id: 'm' });
+  x = addSub(x, '  احجز  ', 's1');
+  x = addSub(x, ' ', 's2');
+  x = addSub(x, 'ادفع', 's3');
+  expect(x.subs).toEqual([{ id: 's1', title: 'احجز', done: false }, { id: 's3', title: 'ادفع', done: false }]);
+  x = toggleSub(x, 's1');
+  expect(x.subs[0].done).toBe(true);
+  expect(removeSub(x, 's1').subs.map((y) => y.id)).toEqual(['s3']);
 });

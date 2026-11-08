@@ -129,6 +129,11 @@ export function toggleTask(list: readonly Task[], id: string, today: string, new
   return list.map((x) => (x.id === id ? { ...x, done: today } : x));
 }
 
+/** Subtasks: tick one on or off, add one at the end, remove one. */
+export const toggleSub = (t: Task, subId: string): Task => ({ ...t, subs: t.subs.map((x) => (x.id === subId ? { ...x, done: !x.done } : x)) });
+export const addSub = (t: Task, title: string, id: string): Task => (title.trim() ? { ...t, subs: [...t.subs, { id, title: title.trim(), done: false }] } : t);
+export const removeSub = (t: Task, subId: string): Task => ({ ...t, subs: t.subs.filter((x) => x.id !== subId) });
+
 const byOrder = (a: Task, b: Task) => (a.time ?? 9999) - (b.time ?? 9999) || a.priority - b.priority || (a.created < b.created ? -1 : 1);
 
 /** Today: what's overdue, what's for today (by time, then priority), and what you finished today. */

@@ -9,7 +9,7 @@ import { dueAr, TaskSheet } from '../components/TaskSheet';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
 import { dateKey, weekdayOf } from '../lib/logic';
-import { allView, counts, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
+import { addSub, allView, counts, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
 import { pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
@@ -47,6 +47,7 @@ function Tasks() {
   const [editing, setEditing] = useState<Task | null>(null);
   const [adding, setAdding] = useState<{ title: string } | null>(null);
   const [quick, setQuick] = useState('');
+  const [openSubs, setOpenSubs] = useState<string | null>(null);
   const quickRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   useEffect(() => pruneDone(dateKey()), []);
 
@@ -72,7 +73,7 @@ function Tasks() {
   const c = counts(list, today);
   const tv = todayView(list, today);
   const todayAll = tv.overdue.length + tv.day.length + tv.done.length;
-  const row = (x: Task, last: boolean, showDate: boolean) => <TaskRow key={x.id} t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} />;
+  const row = (x: Task, last: boolean, showDate: boolean) => <TaskRow key={x.id} t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} />;
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean } = {}) =>
     items.length ? (
       <View key={key} style={{ gap: 6 }}>
@@ -221,19 +222,23 @@ function Empty({ t, icon, title, sub }: { t: Theme; icon: React.ComponentProps<t
   );
 }
 
-/** One task: a round check in its priority's color, the title, and a line with time, steps, repeat, reminder, tag. */
-function TaskRow({ t, x, today, last, showDate, onToggle, onOpen }: { t: Theme; x: Task; today: string; last: boolean; showDate: boolean; onToggle: () => void; onOpen: () => void }) {
+/**
+ * One task: a round check in its priority's color, the title, a line with time, repeat, reminder, tag — and its
+ * subtasks: the button at the end opens them under the task, to tick, remove or add one without opening the form.
+ */
+function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSubs }: { t: Theme; x: Task; today: string; last: boolean; showDate: boolean; onToggle: () => void; onOpen: () => void; subsOpen: boolean; onSubs: () => void }) {
   const c = PRIORITY[x.priority].color;
   const done = !!x.done;
   const meta: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; color?: string }[] = [];
   if (showDate && x.due) meta.push({ icon: 'calendar-outline', text: dueAr(x.due, today), color: x.due < today && !done ? LATE : undefined });
   if (x.time != null) meta.push({ icon: 'time-outline', text: timeAr(x.time) });
-  if (x.subs.length) meta.push({ icon: 'list-outline', text: `${x.subs.filter((y) => y.done).length}/${x.subs.length}` });
   if (x.repeat) meta.push({ icon: 'repeat', text: REPEAT_AR[x.repeat] });
   if (x.remind) meta.push({ icon: 'notifications-outline', text: '' });
   if (x.note) meta.push({ icon: 'document-text-outline', text: '' });
+  const subsDone = x.subs.filter((y) => y.done).length;
   return (
-    <View style={[s.task, { borderBottomWidth: last ? 0 : 1, borderColor: t.line }]}>
+    <View style={{ borderBottomWidth: last ? 0 : 1, borderColor: t.line }}>
+    <View style={s.task}>
       <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.mute : c, backgroundColor: done ? t.mute : tint(c, 0.1) }]}>
         {done ? <Ionicons name="checkmark" size={16} color={t.bg} /> : null}
       </Pressable>
@@ -251,7 +256,70 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen }: { t: Theme; 
           </View>
         ) : null}
       </Pressable>
+      {!done && (x.subs.length || subsOpen) ? (
+        <Pressable onPress={onSubs} hitSlop={6} accessibilityRole="button" accessibilityLabel={`المهام الفرعية ${subsDone} من ${x.subs.length}`} accessibilityState={{ expanded: subsOpen }} style={({ pressed }) => [s.subBtn, { backgroundColor: subsOpen ? tint(t.ok, 0.14) : t.soft, opacity: pressed ? 0.7 : 1 }]}>
+          <T w="numBold" style={{ fontSize: 12, color: subsOpen ? t.okText : t.mute }}>{`${subsDone}/${x.subs.length}`}</T>
+          <Ionicons name={subsOpen ? 'chevron-up' : 'chevron-down'} size={14} color={subsOpen ? t.okText : t.mute} />
+        </Pressable>
+      ) : !done ? (
+        <Pressable onPress={onSubs} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف مهمة فرعية" style={({ pressed }) => [s.subAddBtn, { opacity: pressed ? 0.6 : 1 }]}>
+          <Ionicons name="git-branch-outline" size={17} color={t.mute} />
+        </Pressable>
+      ) : null}
       {x.priority <= 2 && !done ? <View style={[s.flag, { backgroundColor: c }]} /> : null}
+    </View>
+    {subsOpen && !done ? <SubList t={t} x={x} /> : null}
+    </View>
+  );
+}
+
+/** The subtasks under a task: tick, remove, and a field to add the next one (stays open for more). */
+function SubList({ t, x }: { t: Theme; x: Task }) {
+  const [text, setText] = useState('');
+  const ref = useRef<React.ComponentRef<typeof TextInput>>(null);
+  const add = () => {
+    if (!text.trim()) return;
+    tap();
+    ease();
+    saveTask(addSub(x, text, taskId(stamp(), x.subs.length + 1)));
+    setText('');
+    ref.current?.focus();
+  };
+  return (
+    <View style={[s.subs, { borderColor: t.line }]}>
+      {x.subs.map((y) => (
+        <View key={y.id} style={s.subRow}>
+          <Pressable onPress={() => { tap(); saveTask(toggleSub(x, y.id)); }} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: y.done }} accessibilityLabel={y.title} style={[s.subCb, { borderColor: y.done ? t.mute : t.ok, backgroundColor: y.done ? t.mute : 'transparent' }]}>
+            {y.done ? <Ionicons name="checkmark" size={12} color={t.bg} /> : null}
+          </Pressable>
+          <T style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: y.done ? t.mute : t.fg, textDecorationLine: y.done ? 'line-through' : 'none' }}>{y.title}</T>
+          <Pressable onPress={() => { ease(); saveTask(removeSub(x, y.id)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${y.title}`} style={s.subX}>
+            <Ionicons name="close" size={16} color={t.mute} />
+          </Pressable>
+        </View>
+      ))}
+      <View style={s.subRow}>
+        <Ionicons name="add" size={18} color={t.mute} style={{ width: 20, textAlign: 'center' }} />
+        <TextInput
+          ref={ref}
+          value={text}
+          onChangeText={setText}
+          onSubmitEditing={add}
+          submitBehavior="submit"
+          returnKeyType="done"
+          autoFocus={!x.subs.length}
+          placeholder="مهمة فرعية"
+          placeholderTextColor={t.mute}
+          maxLength={80}
+          accessibilityLabel={`مهمة فرعية لـ ${x.title}`}
+          style={[s.subIn, { color: t.fg, fontFamily: F.body }]}
+        />
+        {text.trim() ? (
+          <Pressable onPress={add} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">
+            <Ionicons name="checkmark-circle" size={24} color={t.ok} />
+          </Pressable>
+        ) : null}
+      </View>
     </View>
   );
 }
@@ -267,6 +335,13 @@ const s = StyleSheet.create({
   cb: { width: 26, height: 26, borderRadius: 13, borderWidth: 2.2, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 10, rowGap: 2 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
+  subBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, height: 28, borderRadius: 14, paddingHorizontal: 8, marginTop: 0 },
+  subAddBtn: { width: 32, height: 28, alignItems: 'center', justifyContent: 'center' },
+  subs: { marginStart: 38, borderStartWidth: 2, paddingStart: 10, paddingBottom: 10, gap: 2 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 40 },
+  subCb: { width: 20, height: 20, borderRadius: 6, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
+  subX: { width: 28, height: 36, alignItems: 'center', justifyContent: 'center' },
+  subIn: { flex: 1, minWidth: 0, height: 40, fontSize: 14.5, textAlign: 'right', outlineWidth: 0 },
   flag: { width: 4, alignSelf: 'stretch', borderRadius: 2, marginVertical: 3 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingTop: 8 },
   quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 54, borderRadius: 18, borderWidth: 1, paddingHorizontal: 12 },
