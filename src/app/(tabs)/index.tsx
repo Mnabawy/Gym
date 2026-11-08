@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Item } from '../../components/Motion';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { dayFor, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
@@ -132,6 +133,7 @@ function WorkoutScreen() {
       ) : null}
       <Card style={{ overflow: 'hidden' }}>
         {order.map((e, pos) => (
+          <Item key={e.id}>
           <ExerciseRow
             key={`${e.id}-${date}-${cards}`}
             ex={e}
@@ -145,12 +147,12 @@ function WorkoutScreen() {
             onChange={(fin) => {
               // Last set ticked on the line: it drops to the bottom as a summary and the next exercise opens.
               if (fin) {
-                LayoutAnimation.configureNext(LayoutAnimation.create(220, 'easeInEaseOut', 'opacity'));
                 setTapped(null);
               }
               bump();
             }}
           />
+          </Item>
         ))}
       </Card>
       <CardioCard date={date} />

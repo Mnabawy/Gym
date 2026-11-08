@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Item } from '../components/Motion';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -78,14 +79,14 @@ function Habits() {
             <>
               <T style={{ color: t.mute, fontSize: 12.5 }}>رتّب العادات بالأسهم، والترتيب ده هو اللي هيظهر</T>
               {habits.map((h, i) => (
-                <Card key={h.id} style={[s.row, { paddingVertical: 8 }]}>
+                <Item key={h.id}><Card style={[s.row, { paddingVertical: 8 }]}>
                   <View style={[s.icon, { backgroundColor: tint(h.color, 0.15) }]}>
                     <Ionicons name={h.icon as IconName} size={20} color={h.color} />
                   </View>
                   <T w="semi" style={{ flex: 1, fontSize: 15 }} numberOfLines={1}>{h.name}</T>
                   <Arrow t={t} name="arrow-up" label={`طلّع ${h.name}`} disabled={i === 0} onPress={() => moveHabit(h.id, -1)} />
                   <Arrow t={t} name="arrow-down" label={`نزّل ${h.name}`} disabled={i === habits.length - 1} onPress={() => moveHabit(h.id, 1)} />
-                </Card>
+                </Card></Item>
               ))}
             </>
           ) : (
@@ -104,7 +105,7 @@ function Habits() {
                       </View>
                     ) : null}
                     {items.map((h) => (
-                      <HabitRow key={h.id} h={h} log={log} parts={parts} today={today} t={t} dim={!isDue(h, today)} paused={pausedNow(h)} />
+                      <Item key={h.id}><HabitRow h={h} log={log} parts={parts} today={today} t={t} dim={!isDue(h, today)} paused={pausedNow(h)} /></Item>
                     ))}
                   </View>
                 );
@@ -239,7 +240,7 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
           </Pressable>
         ) : (
           <Pressable onPress={toggle} onLongPress={excuse} delayLongPress={450} hitSlop={4} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`عملت ${h.name}`} accessibilityHint="دوسة طويلة: معذور النهارده">
-            <Animated.View style={[s.check, { transform: [{ scale: pop }] }, on ? { backgroundColor: h.color, boxShadow: `0px 4px 12px ${tint(h.color, 0.45)}` } : { backgroundColor: t.soft }]}>
+            <Animated.View style={[s.check, { transform: [{ scale: pop }] }, on ? { backgroundColor: h.color } : { backgroundColor: t.soft }]}>
               <Ionicons name="checkmark" size={24} color={on ? '#FFFFFF' : t.mute} />
             </Animated.View>
           </Pressable>

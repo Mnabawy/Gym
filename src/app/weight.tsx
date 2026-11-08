@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Item } from '../components/Motion';
 import { Image, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -148,7 +149,7 @@ export default function WeightScreen() {
             {shown.map((w, i) => {
               const prev = list[list.indexOf(w) - 1];
               return (
-                <React.Fragment key={w.date}>
+                <Item key={w.date}><React.Fragment>
                   {i ? <Sep /> : null}
                   <View style={s.row}>
                     <T style={{ flex: 1, fontSize: 13.5 }}>{w.date === today ? 'النهارده' : dayLabel(w.date)}</T>
@@ -158,7 +159,7 @@ export default function WeightScreen() {
                       <Ionicons name="trash-outline" size={16} color={t.mute} />
                     </Pressable>
                   </View>
-                </React.Fragment>
+                </React.Fragment></Item>
               );
             })}
             {list.length > 10 ? (

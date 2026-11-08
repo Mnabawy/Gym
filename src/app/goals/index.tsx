@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Item } from '../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -50,21 +51,20 @@ function Goals() {
             const next = nextTask(g);
             const idle = idleDays(g, today);
             return (
-              <Pressable
-                key={g.id}
+              <Item key={g.id}><Pressable
                 onPress={() => router.push(`/goals/${g.id}`)}
                 accessibilityRole="button"
                 accessibilityLabel={`${g.name}: ${Math.floor(p * 100)}%`}
-                style={({ pressed }) => [s.tile, { backgroundColor: t.card, borderColor: tint(g.color, 0.6), boxShadow: `0px 0px 16px ${tint(g.color, 0.25)}`, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
+                style={({ pressed }) => [s.tile, { backgroundColor: t.card, borderColor: tint(g.color, 0.6), transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                  <View style={[s.icon, { backgroundColor: tint(g.color, 0.14), borderColor: tint(g.color, 0.6), boxShadow: glow(t, g.color, 12) }]}>
+                  <View style={[s.icon, { backgroundColor: tint(g.color, 0.14), borderColor: tint(g.color, 0.6) }]}>
                     <Ionicons name={g.icon as IconName} size={26} color={g.color} />
                   </View>
                   <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
                     <T w="bold" style={{ fontSize: 17 }} numberOfLines={2}>{g.name}</T>
                     <T style={{ fontSize: 12.5, color: t.mute }}>{`${fmtAmount(current(g), g.unit)} من ${fmtAmount(g.target, g.unit)}`}</T>
                   </View>
-                  <View style={{ borderRadius: 12, boxShadow: `0px 0px 12px ${tint(g.color, 0.35)}` }}>
+                  <View>
                     <Ring value={p} size={62} stroke={6} color={g.color} track={tint(g.color, 0.15)}>
                       <T w="numBold" style={{ fontSize: 14, color: g.color }}>{`${Math.floor(p * 100)}%`}</T>
                     </Ring>
@@ -82,7 +82,7 @@ function Goals() {
                     <T style={{ flex: 1, fontSize: 12, color: t.warn }}>{idle >= IDLE_DAYS ? `بقالك ${idle} يوم من غير حركة` : 'مراجعة الأسبوع مستنياك'}</T>
                   </View>
                 ) : null}
-              </Pressable>
+              </Pressable></Item>
             );
           })}
           <Btn label="+ هدف جديد" onPress={() => setAdding(true)} />

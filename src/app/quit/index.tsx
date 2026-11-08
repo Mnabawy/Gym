@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Item } from '../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -75,7 +76,7 @@ function QuitList() {
       ) : (
         <>
           {quits.map((q) => (
-            <QuitCard key={q.id} q={q} now={now} onOpen={() => openQuit(q)} onUrge={() => setUrge(q)} />
+            <Item key={q.id}><QuitCard q={q} now={now} onOpen={() => openQuit(q)} onUrge={() => setUrge(q)} /></Item>
           ))}
           <Btn label="+ عادة تانية" onPress={() => setAdding(true)} />
         </>

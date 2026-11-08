@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { LayoutAnimation, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Item } from '../components/Motion';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Ring, Screen, Sheet, Stepper, T } from '../components/ui';
@@ -15,7 +16,7 @@ import { tap } from '../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
 
 const ease = () => {
-  if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
+  // Reanimated layout transitions (Item) animate list changes now.
 };
 const WD = ['ح', 'ن', 'ث', 'ر', 'خ', 'ج', 'س'];
 const hm = (ms: number) => {
@@ -164,12 +165,12 @@ function Focus() {
       {todays.length ? (
         <View style={[s_.card, { backgroundColor: t.card, borderColor: t.border, paddingVertical: 2, alignItems: 'stretch' }]}>
           {todays.map((x, i) => (
-            <View key={x.id} style={[s_.sess, { borderTopWidth: i ? 1 : 0, borderColor: t.line }]}>
+            <Item key={x.id}><View style={[s_.sess, { borderTopWidth: i ? 1 : 0, borderColor: t.line }]}>
               <Ionicons name={x.kind === 'work' ? 'briefcase-outline' : 'book-outline'} size={14} color={t.sec.focus} />
               <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.task ?? KINDS[x.kind]}</T>
               <T w="num" style={{ fontSize: 12, color: t.mute }}>{hm(x.start)}</T>
               <T w="numBold" style={{ fontSize: 12.5, color: t.sec.focus, minWidth: 44, textAlign: 'left' }}>{minAr(x.min)}</T>
-            </View>
+            </View></Item>
           ))}
         </View>
       ) : null}

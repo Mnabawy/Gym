@@ -4,6 +4,7 @@ import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import { useFonts } from 'expo-font';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { AmiriQuran_400Regular } from '@expo-google-fonts/amiri-quran';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VersePopup } from '../components/VersePopup';
@@ -47,9 +48,11 @@ export default function RootLayout() {
 
   if (!loaded) return null;
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StatusBar style="auto" />
-      <Stack screenOptions={{ headerShown: false }} />
+      {/* iOS-style push on both phones; swipe back from anywhere on the page (iPhone). */}
+      <Stack screenOptions={{ headerShown: false, animation: Platform.OS === 'android' ? 'ios_from_right' : 'default', fullScreenGestureEnabled: true }} />
       <VersePopup />
       <ReminderSync />
       <CloudSync />
@@ -57,6 +60,7 @@ export default function RootLayout() {
       <ConfirmHost />
       <AppLock />
     </SafeAreaProvider>
+    </GestureHandlerRootView>
   );
 }
 

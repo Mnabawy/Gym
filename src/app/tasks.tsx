@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { LayoutAnimation, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Item, Pop } from '../components/Motion';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Screen, T, useKeyboardShown } from '../components/ui';
@@ -19,7 +20,7 @@ import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../the
 type Tab = 'today' | 'calendar' | 'all';
 const stamp = () => Date.now();
 const ease = () => {
-  if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
+  // Reanimated layout transitions (Item) animate list changes now.
 };
 const LATE = '#C0392B';
 /** Short weekday names by `Date.getDay()` for the week strip. */
@@ -78,7 +79,7 @@ function Tasks() {
   const c = counts(list, today);
   const tv = todayView(list, today);
   const todayAll = tv.overdue.length + tv.day.length + tv.done.length;
-  const row = (x: Task, last: boolean, showDate: boolean) => <TaskRow key={x.id} t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} />;
+  const row = (x: Task, last: boolean, showDate: boolean) => <Item key={x.id}><TaskRow t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} /></Item>;
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
       <View key={key} style={{ gap: 3 }}>
@@ -282,7 +283,7 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
     <View style={{ borderBottomWidth: last ? 0 : 1, borderColor: t.line }}>
     <View style={s.task}>
       <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.mute : c, backgroundColor: done ? t.mute : tint(c, 0.1) }]}>
-        {done ? <Ionicons name="checkmark" size={16} color={t.bg} /> : null}
+        {done ? <Pop value="done"><Ionicons name="checkmark" size={16} color={t.bg} /></Pop> : null}
       </Pressable>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 3 })}>
         <T style={{ fontSize: 15, lineHeight: 21, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
@@ -330,15 +331,15 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
   return (
     <View style={[s.subs, { borderColor: t.line }]}>
       {x.subs.map((y) => (
-        <View key={y.id} style={s.subRow}>
+        <Item key={y.id}><View style={s.subRow}>
           <Pressable onPress={() => { tap(); saveTask(toggleSub(x, y.id)); }} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: y.done }} accessibilityLabel={y.title} style={[s.subCb, { borderColor: y.done ? t.mute : t.ok, backgroundColor: y.done ? t.mute : 'transparent' }]}>
-            {y.done ? <Ionicons name="checkmark" size={12} color={t.bg} /> : null}
+            {y.done ? <Pop value="done"><Ionicons name="checkmark" size={12} color={t.bg} /></Pop> : null}
           </Pressable>
           <T style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: y.done ? t.mute : t.fg, textDecorationLine: y.done ? 'line-through' : 'none' }}>{y.title}</T>
           <Pressable onPress={() => { ease(); saveTask(removeSub(x, y.id)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${y.title}`} style={s.subX}>
             <Ionicons name="close" size={16} color={t.mute} />
           </Pressable>
-        </View>
+        </View></Item>
       ))}
       <View style={s.subRow}>
         <Ionicons name="add" size={18} color={t.mute} style={{ width: 20, textAlign: 'center' }} />

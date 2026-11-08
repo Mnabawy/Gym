@@ -5,6 +5,7 @@ import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { F, font, glow, tint, useTheme } from '../theme';
 import { usePop, useTween } from '../lib/motion';
+import { Fade, Press } from './Motion';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
 
@@ -77,7 +78,7 @@ export function Screen({ title, sub, children, footer, onBack, action, dense, as
           </View>
           {action}
         </View>
-        {children}
+        <Fade style={{ gap: dense ? 6 : 8 }}>{children}</Fade>
       </ScrollView>
       {footer}
       </KeyboardAvoidingView>
@@ -366,21 +367,18 @@ export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; 
   const t = useTheme();
   const solid = kind === 'solid';
   return (
-    <Pressable
+    <Press
       accessibilityRole="button"
       accessibilityLabel={label}
       onPress={onPress}
       hitSlop={{ top: 2, bottom: 2 }}
-      style={({ pressed }) => [
-        s.btn,
-        // iOS: filled (tint) or tinted (soft tint behind tint text).
-        { backgroundColor: solid ? t.ok : t.okSoft, opacity: pressed ? 0.6 : 1 },
-        style,
-      ]}>
+      scale={0.96}
+      // iOS: filled (tint) or tinted (soft tint behind tint text); shrinks a little under the finger.
+      style={[s.btn, { backgroundColor: solid ? t.ok : t.okSoft }, style]}>
       <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 15, color: solid ? t.onOk : t.okText }}>
         {label}
       </T>
-    </Pressable>
+    </Press>
   );
 }
 

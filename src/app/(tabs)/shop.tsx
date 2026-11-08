@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from 'react';
+import { Item } from '../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import { SHOPPING } from '../../data/shopping';
@@ -160,8 +161,7 @@ export default function Shop() {
                   const on = checks.has(i.key);
                   const sub = [i.need && `محتاج ${i.need}`, i.item.note, i.days.length ? daysText(i.days) : ''].filter(Boolean).join(' · ');
                   return (
-                    <Pressable
-                      key={i.key}
+                    <Item key={i.key}><Pressable
                       accessibilityRole="checkbox"
                       accessibilityState={{ checked: on }}
                       onPress={() => { storage.setShopCheck(week, i.key, !on); bump(); }}
@@ -174,7 +174,7 @@ export default function Shop() {
                         {sub ? <T style={{ color: t.mute, fontSize: 11, lineHeight: 16 }}>{sub}</T> : null}
                       </View>
                       <T w="bold" style={{ fontSize: 12.5 }}>{i.buy}</T>
-                    </Pressable>
+                    </Pressable></Item>
                   );
                 })}
               </Card>

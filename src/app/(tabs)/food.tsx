@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Item } from '../../components/Motion';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU, type MealKey } from '../../data/nutrition';
@@ -186,7 +187,7 @@ export default function Food() {
       {meals.map((m) => {
         const on = canLog && checks.has(m.meal);
         return (
-          <Card key={m.meal} style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 7, gap: 2, opacity: on ? 0.7 : 1 }}>
+          <Item key={m.meal}><Card style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 7, gap: 2, opacity: on ? 0.7 : 1 }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               {/* Full meal name (wraps if long), its time after it in small muted text. */}
               <T w="bold" style={{ flex: 1, fontSize: 14 }}>
@@ -219,7 +220,7 @@ export default function Food() {
               <T w="num" style={{ fontSize: 12, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
               <T w="num" style={{ fontSize: 12, color: t.fat }}>{`${Math.round(m.mac.f)} دهون`}</T>
             </View>
-          </Card>
+          </Card></Item>
         );
       })}
 
@@ -227,13 +228,13 @@ export default function Food() {
         <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4 }}>
           <T w="bold" style={{ fontSize: 14 }}>أكل برة الخطة</T>
           {extras.map((x, i) => (
-            <View key={i} style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
+            <Item key={i}><View style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
               <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
               <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
               <Pressable onPress={() => { saveExtras(extras.filter((_, j) => j !== i)); showUndo('اتمسح أكل', () => saveExtras(extras)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
                 <Ionicons name="close" size={16} color={t.mute} />
               </Pressable>
-            </View>
+            </View></Item>
           ))}
           <Pressable onPress={() => setExtraForm({ name: '', kcal: '', p: '' })} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 36, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
             <T w="semi" style={{ fontSize: 13, color: t.okText }}>+ سجّل حاجة كلتها</T>

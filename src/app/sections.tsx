@@ -1,4 +1,5 @@
 import React from 'react';
+import { Item } from '../components/Motion';
 import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -142,8 +143,7 @@ export default function Sections() {
         <Header c={c} text="الأقسام" />
         <View style={[s.group, { backgroundColor: c.card }]}>
           {rows.map((r, i) => (
-            <Pressable
-              key={r.key}
+            <Item key={r.key} index={i}><Pressable
               onPress={() => go(r.key)}
               accessibilityRole="button"
               accessibilityLabel={`${r.title}${r.value ? `، ${r.value}` : ''}، ${r.line}`}
@@ -164,7 +164,7 @@ export default function Sections() {
                   <Ionicons name="chevron-back" size={18} color={c.tertiary} />
                 )}
               </View>
-            </Pressable>
+            </Pressable></Item>
           ))}
         </View>
 

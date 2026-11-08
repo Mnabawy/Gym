@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { LayoutAnimation, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { Item } from './Motion';
+import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Sheet, T } from './ui';
 import { saveGoal } from '../lib/goalStore';
@@ -17,7 +18,7 @@ type Row =
 const RAIL = 44;
 /** Beads slide into place instead of jumping (open a stage, tick, add). */
 const ease = () => {
-  if (Platform.OS !== 'web') LayoutAnimation.configureNext(LayoutAnimation.create(200, 'easeInEaseOut', 'opacity'));
+  // Reanimated layout transitions (Item) animate list changes now.
 };
 /** A new id for a stage or task (called from handlers only). */
 const freshId = () => goalId(Date.now());
@@ -174,8 +175,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         // While you type in a "+" bead the row is a plain view (its ✓ and ✕ are buttons of their own).
         if (!onPress && !onLong) return <View key={key} style={s.row}>{rail}</View>;
         return (
-          <Pressable
-            key={key}
+          <Item key={key}><Pressable
             onPress={onPress}
             onLongPress={onLong}
             delayLongPress={350}
@@ -185,7 +185,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
             accessibilityHint={onLong ? 'دوسة طويلة للتعديل أو المسح' : undefined}
             style={({ pressed }) => [s.row, { opacity: pressed && onPress ? 0.6 : 1 }]}>
             {rail}
-          </Pressable>
+          </Pressable></Item>
         );
       })}
     </View>
