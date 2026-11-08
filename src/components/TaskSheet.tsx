@@ -12,7 +12,7 @@ import { deleteTask, readTasks, saveTask } from '../lib/taskStore';
 import { allowReminders } from '../lib/reminder';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
-import { F, useTheme, type Theme } from '../theme';
+import { useTheme, type Theme, font } from '../theme';
 
 const stamp = () => Date.now();
 const ease = () => {
@@ -108,7 +108,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
         placeholderTextColor={t.mute}
         maxLength={140}
         accessibilityLabel="المهمة"
-        style={[s.title, { color: t.fg, fontFamily: F.semi }]}
+        style={[s.title, { color: t.fg, ...font('semi') }]}
       />
       <TextInput
         value={note}
@@ -118,7 +118,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
         placeholderTextColor={t.mute}
         maxLength={400}
         accessibilityLabel="ملاحظة"
-        style={[s.note, { color: t.fg, fontFamily: F.body }]}
+        style={[s.note, { color: t.fg, ...font('body') }]}
       />
 
       <View style={[s.group, { backgroundColor: t.soft }]}>
@@ -204,7 +204,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
               placeholderTextColor={t.mute}
               maxLength={16}
               accessibilityLabel="تصنيف جديد"
-              style={[s.tagIn, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+              style={[s.tagIn, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
             />
           </View>
         ) : null}
@@ -247,7 +247,7 @@ export function TaskSheet({ task, initial, day, onClose }: { task?: Task; initia
           placeholderTextColor={t.mute}
           maxLength={80}
           accessibilityLabel="مهمة فرعية جديدة"
-          style={[s.subIn, { color: t.fg, fontFamily: F.body }]}
+          style={[s.subIn, { color: t.fg, ...font('body') }]}
         />
         {sub.trim() ? (
           <Pressable onPress={addSub} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">

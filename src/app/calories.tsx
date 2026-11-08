@@ -6,7 +6,7 @@ import { Card, Label, Pill, Row, Screen, Sep, T } from '../components/ui';
 import { ACTIVITY, energyFor, GOAL, inRange, LIMITS, type Activity, type Body, type Goal } from '../lib/energy';
 import { parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
-import { F, tint, useTheme } from '../theme';
+import { tint, useTheme, font } from '../theme';
 
 type Field = 'age' | 'height' | 'weight' | 'bodyFat';
 const FIELDS: { k: Field; label: string; unit: string; decimal?: boolean; optional?: boolean }[] = [
@@ -191,7 +191,7 @@ export default function Calories() {
 const s = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   cell: { flexBasis: '47%', flexGrow: 1, gap: 4 },
-  input: { fontFamily: F.num, fontSize: 18, textAlign: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, writingDirection: 'ltr', minHeight: 48 },
+  input: { ...font('num'), fontSize: 18, textAlign: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, writingDirection: 'ltr', minHeight: 48 },
   option: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, minHeight: 56 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },

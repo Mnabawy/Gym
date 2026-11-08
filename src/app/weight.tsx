@@ -14,7 +14,7 @@ import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { bodyOn, latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
 import { addPhoto, deletePhoto, listPhotos, photosSupported, type Photo } from '../lib/photos';
-import { F, useTheme, type Theme } from '../theme';
+import { useTheme, type Theme, font } from '../theme';
 
 const iso = (s: string) => `⁦${s}⁩`;
 const fmt = (n: number) => String(Math.round(n * 100) / 100);
@@ -311,9 +311,9 @@ function BodyLine({ t, b }: { t: Theme; b: { kg: number | null; waist: number | 
 
 const s = StyleSheet.create({
   field: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 6, height: 48, borderRadius: 12, borderWidth: 1.5, paddingHorizontal: 12 },
-  input: { flex: 1, fontFamily: F.numBold, fontSize: 18, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
+  input: { flex: 1, ...font('numBold'), fontSize: 18, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
   row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 46, paddingHorizontal: 14 },
   bf: { marginHorizontal: 12, marginTop: 4, padding: 12, borderRadius: 12, gap: 6 },
-  small: { width: 80, height: 42, borderRadius: 10, fontFamily: F.numBold, fontSize: 15, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
+  small: { width: 80, height: 42, borderRadius: 10, ...font('numBold'), fontSize: 15, textAlign: 'center', writingDirection: 'ltr', padding: 0, outlineWidth: 0 },
   thumb: { width: 84, height: 112, borderRadius: 10 },
 });

@@ -3,8 +3,7 @@ import { AppState, I18nManager, Platform } from 'react-native';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
-import { useFonts, ReadexPro_400Regular, ReadexPro_500Medium, ReadexPro_600SemiBold, ReadexPro_700Bold } from '@expo-google-fonts/readex-pro';
-import { Inter_400Regular, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
+import { useFonts } from 'expo-font';
 import { AmiriQuran_400Regular } from '@expo-google-fonts/amiri-quran';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { VersePopup } from '../components/VersePopup';
@@ -32,7 +31,7 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
 }
 
 export default function RootLayout() {
-  const [loaded] = useFonts({ ReadexPro_400Regular, ReadexPro_500Medium, ReadexPro_600SemiBold, ReadexPro_700Bold, Inter_400Regular, Inter_600SemiBold, Inter_700Bold, AmiriQuran_400Regular });
+  const [loaded] = useFonts({ AmiriQuran_400Regular });
 
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => {});

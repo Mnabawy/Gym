@@ -14,7 +14,7 @@ import { addSub, allView, counts, removeSub, toggleSub, dayTasks, doneOn, dueCou
 import { pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
-import { F, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';
+import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../theme';
 
 type Tab = 'today' | 'calendar' | 'all';
 const stamp = () => Date.now();
@@ -130,7 +130,7 @@ function Tasks() {
               placeholderTextColor={t.mute}
               maxLength={140}
               accessibilityLabel="مهمة سريعة"
-              style={[s.quickIn, { color: t.fg, fontFamily: F.body }]}
+              style={[s.quickIn, { color: t.fg, ...font('body') }]}
             />
             {quick.trim() ? (
               <Pressable onPress={addQuick} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف">
@@ -354,7 +354,7 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
           placeholderTextColor={t.mute}
           maxLength={80}
           accessibilityLabel={`مهمة فرعية لـ ${x.title}`}
-          style={[s.subIn, { color: t.fg, fontFamily: F.body }]}
+          style={[s.subIn, { color: t.fg, ...font('body') }]}
         />
         {text.trim() ? (
           <Pressable onPress={add} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">

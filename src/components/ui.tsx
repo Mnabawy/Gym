@@ -3,7 +3,7 @@ import { Animated, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platf
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { F, glow, tint, useTheme } from '../theme';
+import { F, font, glow, tint, useTheme } from '../theme';
 import { usePop, useTween } from '../lib/motion';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
@@ -27,7 +27,7 @@ export const TEXT_SCALE = 0.9;
 
 export function T({ style, w = 'body', ...p }: TextProps & { w?: keyof typeof F }) {
   const t = useTheme();
-  const flat = StyleSheet.flatten([{ color: t.fg, fontFamily: F[w], fontSize: 15 }, style]) ?? {};
+  const flat = StyleSheet.flatten([{ color: t.fg, fontSize: 15 }, font(w), style]) ?? {};
   const size = { fontSize: (flat.fontSize ?? 15) * TEXT_SCALE, ...(flat.lineHeight ? { lineHeight: flat.lineHeight * TEXT_SCALE } : null) };
   // The phone's text-size setting still applies, capped so a big system font doesn't blow up the compact layout.
   return <Text maxFontSizeMultiplier={1.15} {...p} style={[flat, size]} />;

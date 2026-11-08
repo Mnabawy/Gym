@@ -1,5 +1,5 @@
 import { createContext, useContext, useMemo } from 'react';
-import { useColorScheme } from 'react-native';
+import { Platform, useColorScheme, type TextStyle } from 'react-native';
 import type { Muscle } from '../data/program';
 import { accentTokens } from '../lib/color';
 import { useSettings } from '../lib/settings';
@@ -114,16 +114,24 @@ export function useTheme(): Theme {
 /** Glow around something in `color` — only in the bordered (warm) look. */
 export const glow = (t: Theme, color: string, r = 10): string | undefined => (t.neon ? `0px 0px ${r}px ${tint(color, 0.6)}` : undefined);
 
+/** Apple's font: the system font (SF Pro + SF Arabic on iPhone, Roboto + Noto on Android), weights by name. */
+const SYS = Platform.select({ ios: 'System', android: 'sans-serif', default: 'System' }) as string;
 export const F = {
-  body: 'ReadexPro_400Regular',
-  medium: 'ReadexPro_500Medium',
-  semi: 'ReadexPro_600SemiBold',
-  bold: 'ReadexPro_700Bold',
-  num: 'Inter_600SemiBold',
-  numBold: 'Inter_700Bold',
-  numRegular: 'Inter_400Regular',
+  body: SYS,
+  medium: SYS,
+  semi: SYS,
+  bold: SYS,
+  num: SYS,
+  numBold: SYS,
+  numRegular: SYS,
   quran: 'AmiriQuran_400Regular',
 };
+const W = { body: '400', medium: '500', semi: '600', bold: '700', num: '600', numBold: '700', numRegular: '400', quran: '400' } as const;
+
+/** fontFamily + fontWeight (+ even-width digits for the number styles) for a text style. */
+export function font(w: keyof typeof F): TextStyle {
+  return { fontFamily: F[w], fontWeight: W[w], ...(w.startsWith('num') ? { fontVariant: ['tabular-nums'] } : null) };
+}
 
 /** Mix a hex color with the background for tinted fills. */
 export function tint(hex: string, alpha: number): string {

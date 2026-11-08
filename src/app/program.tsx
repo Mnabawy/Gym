@@ -13,7 +13,7 @@ import { move, newId, REPS_MAX, REPS_MIN } from '../lib/programEdit';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { deloadOn, useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
-import { F, useTheme } from '../theme';
+import { useTheme, font } from '../theme';
 
 const TAGS: Tag[] = ['heavy', 'fail', 'drop', null];
 const iso = (s: string) => `⁦${s}⁩`;
@@ -198,6 +198,6 @@ const s = StyleSheet.create({
   icon: { width: 40, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   warn: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 10 },
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
-  input: { height: 46, borderRadius: 12, paddingHorizontal: 12, fontFamily: F.num, fontSize: 15, textAlign: 'left', writingDirection: 'ltr' },
+  input: { height: 46, borderRadius: 12, paddingHorizontal: 12, ...font('num'), fontSize: 15, textAlign: 'left', writingDirection: 'ltr' },
   opt: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 12, paddingHorizontal: 12 },
 });

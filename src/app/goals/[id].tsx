@@ -14,7 +14,7 @@ import { dateKey, parseNum } from '../../lib/logic';
 import { confirm } from '../../lib/confirm';
 import { showUndo } from '../../lib/undo';
 import { tap } from '../../lib/timer';
-import { F, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
+import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../../theme';
 
 const dayLabel = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 /** 25000 → "$25K", 300 → "300". */
@@ -259,8 +259,8 @@ function LogSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
         <Btn label="+ زاد" kind={minus ? 'ghost' : 'solid'} onPress={() => setMinus(false)} style={{ flex: 1 }} />
         <Btn label="− نقص" kind={minus ? 'solid' : 'ghost'} onPress={() => setMinus(true)} style={{ flex: 1 }} />
       </View>
-      <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" autoFocus placeholder="المبلغ أو العدد" placeholderTextColor={t.mute} accessibilityLabel="الكمية" onSubmitEditing={add} style={[s.input, { height: 52, fontSize: 20, color: t.fg, backgroundColor: t.soft, fontFamily: F.numBold }]} />
-      <TextInput value={note} onChangeText={setNote} placeholder="منين؟ (اختياري) مثلًا: مشروع فلان" placeholderTextColor={t.mute} maxLength={60} accessibilityLabel="ملاحظة" style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+      <TextInput value={amount} onChangeText={setAmount} keyboardType="numeric" autoFocus placeholder="المبلغ أو العدد" placeholderTextColor={t.mute} accessibilityLabel="الكمية" onSubmitEditing={add} style={[s.input, { height: 52, fontSize: 20, color: t.fg, backgroundColor: t.soft, ...font('numBold') }]} />
+      <TextInput value={note} onChangeText={setNote} placeholder="منين؟ (اختياري) مثلًا: مشروع فلان" placeholderTextColor={t.mute} maxLength={60} accessibilityLabel="ملاحظة" style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       <Btn label="سجّل" kind="solid" onPress={add} style={{ opacity: ok ? 1 : 0.5 }} />
     </Sheet>
   );
@@ -277,7 +277,7 @@ function WinSheet({ g, onClose }: { g: Goal; onClose: () => void }) {
   };
   return (
     <Sheet visible onClose={onClose} title="إنجاز جديد 🏆" sub="أي حاجة قرّبتك من الهدف تستاهل تتسجل">
-      <TextInput value={title} onChangeText={setTitle} autoFocus placeholder="مثلًا: أول عميل دفع" placeholderTextColor={t.mute} maxLength={80} accessibilityLabel="الإنجاز" onSubmitEditing={add} style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+      <TextInput value={title} onChangeText={setTitle} autoFocus placeholder="مثلًا: أول عميل دفع" placeholderTextColor={t.mute} maxLength={80} accessibilityLabel="الإنجاز" onSubmitEditing={add} style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       <Btn label="سجّل" kind="solid" onPress={add} style={{ opacity: title.trim() ? 1 : 0.5 }} />
     </Sheet>
   );
@@ -299,7 +299,7 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
   const field = (k: keyof typeof r, q: string, ph: string) => (
     <View style={{ gap: 4 }}>
       <T w="medium" style={{ fontSize: 13.5 }}>{q}</T>
-      <TextInput value={r[k]} onChangeText={(v) => setR({ ...r, [k]: v })} placeholder={ph} placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel={q} style={[s.input, { minHeight: 44, height: undefined, paddingVertical: 10, color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+      <TextInput value={r[k]} onChangeText={(v) => setR({ ...r, [k]: v })} placeholder={ph} placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel={q} style={[s.input, { minHeight: 44, height: undefined, paddingVertical: 10, color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
     </View>
   );
   return (

@@ -8,7 +8,7 @@ import { PRAYER_AR, PRAYERS } from '../lib/prayer';
 import { useSettings } from '../lib/settings';
 import { dateKey } from '../lib/logic';
 import { allowReminders } from '../lib/reminder';
-import { F, tint, useTheme } from '../theme';
+import { tint, useTheme, font } from '../theme';
 import { Btn, Pill, Sheet, Stepper, SwitchRow, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -63,7 +63,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           maxLength={40}
           autoFocus={!habit}
           accessibilityLabel="اسم العادة"
-          style={[s.input, { color: t.fg, fontFamily: F.semi }]}
+          style={[s.input, { color: t.fg, ...font('semi') }]}
         />
       </View>
 
@@ -76,7 +76,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           placeholderTextColor={t.mute}
           maxLength={60}
           accessibilityLabel="امتى وفين هتعمل العادة"
-          style={[s.cue, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+          style={[s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
         />
         <T style={{ fontSize: 11.5, color: t.mute, lineHeight: 17 }}>اختياري، بس بيفرق: لما تحدد امتى وفين، الموقف نفسه بيفكّرك بالعادة. واربطها بحاجة بتعملها كل يوم.</T>
       </View>
@@ -90,7 +90,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
           placeholderTextColor={t.mute}
           maxLength={30}
           accessibilityLabel="المجموعة"
-          style={[s.cue, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+          style={[s.cue, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
         />
         {groups.length ? (
           <View style={s.grid}>
@@ -126,7 +126,7 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
               setF({ ...f, parts: [...(f.parts ?? []), { name: newPart.trim() }] });
               setNewPart('');
             }}
-            style={[s.cue, { flex: 1, color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+            style={[s.cue, { flex: 1, color: t.fg, backgroundColor: t.soft, ...font('body') }]}
           />
           <Btn
             label="ضيف"

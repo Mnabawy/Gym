@@ -14,7 +14,7 @@ import { dateKey, mealMacros, parseNum } from '../../lib/logic';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
-import { F, tint, useTheme, type Theme } from '../../theme';
+import { tint, useTheme, type Theme, font } from '../../theme';
 
 const l1 = (ml: number) => String(Math.round(ml / 100) / 10);
 const typeColor = (t: Theme, ty: string) => (ty === 'p' ? t.protein : ty === 'c' ? t.carbs : ty === 'f' ? t.fat : t.veg);
@@ -262,12 +262,12 @@ export default function Food() {
       <Sheet visible={extraForm != null} onClose={() => setExtraForm(null)} title="أكل برة الخطة" sub="السعرات والبروتين من على العلبة أو بالتقريب">
         {extraForm ? (
           <>
-            <TextInput value={extraForm.name} onChangeText={(v) => setExtraForm({ ...extraForm, name: v })} placeholder="إيه اللي كلته؟" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="اسم الأكل" style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body, textAlign: 'right' }]} />
+            <TextInput value={extraForm.name} onChangeText={(v) => setExtraForm({ ...extraForm, name: v })} placeholder="إيه اللي كلته؟" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="اسم الأكل" style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body'), textAlign: 'right' }]} />
             <View style={{ flexDirection: 'row', gap: 8 }}>
               {(['kcal', 'p'] as const).map((k) => (
                 <View key={k} style={{ flex: 1, gap: 4 }}>
                   <T w="medium" style={{ fontSize: 13 }}>{k === 'kcal' ? 'السعرات' : 'البروتين (جم)'}</T>
-                  <TextInput value={extraForm[k]} onChangeText={(v) => setExtraForm({ ...extraForm, [k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })} keyboardType="number-pad" placeholder="–" placeholderTextColor={t.mute} maxLength={5} accessibilityLabel={k === 'kcal' ? 'السعرات' : 'البروتين'} style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.numBold, textAlign: 'center' }]} />
+                  <TextInput value={extraForm[k]} onChangeText={(v) => setExtraForm({ ...extraForm, [k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })} keyboardType="number-pad" placeholder="–" placeholderTextColor={t.mute} maxLength={5} accessibilityLabel={k === 'kcal' ? 'السعرات' : 'البروتين'} style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('numBold'), textAlign: 'center' }]} />
                 </View>
               ))}
             </View>

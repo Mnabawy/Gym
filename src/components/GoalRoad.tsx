@@ -6,7 +6,7 @@ import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
 import { currentStage, goalId, moveStage, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { tap } from '../lib/timer';
-import { F, tint, type Theme } from '../theme';
+import { tint, type Theme, font } from '../theme';
 
 type Row =
   | { kind: 'stage'; st: Stage; i: number; state: 'done' | 'now' | 'later'; open: boolean }
@@ -80,7 +80,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         returnKeyType="done"
         onSubmitEditing={() => submit(key)}
         accessibilityLabel={ph}
-        style={[s.input, { fontSize: big ? 16 : 14.5, color: t.fg, backgroundColor: t.card, borderColor: tint(t.fg, 0.15), fontFamily: big ? F.semi : F.body }]}
+        style={[s.input, { fontSize: big ? 16 : 14.5, color: t.fg, backgroundColor: t.card, borderColor: tint(t.fg, 0.15), ...font(big ? 'semi' : 'body') }]}
       />
       <Pressable onPress={() => submit(key)} accessibilityRole="button" accessibilityLabel="ضيف" style={({ pressed }) => [s.ok, { backgroundColor: t.fg, opacity: pressed ? 0.7 : 1 }]}>
         <Ionicons name="checkmark" size={20} color={t.bg} />
@@ -209,7 +209,7 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
   };
   return (
     <Sheet visible onClose={onClose} title={task ? 'الخطوة' : 'المرحلة'} sub={task ? st.title : `${st.tasks.length} خطوات`}>
-      <TextInput value={name} onChangeText={setName} autoFocus maxLength={80} onSubmitEditing={save} accessibilityLabel="الاسم" style={[s.input, { flex: 0, color: t.fg, backgroundColor: t.soft, borderColor: 'transparent', fontFamily: F.body }]} />
+      <TextInput value={name} onChangeText={setName} autoFocus maxLength={80} onSubmitEditing={save} accessibilityLabel="الاسم" style={[s.input, { flex: 0, color: t.fg, backgroundColor: t.soft, borderColor: 'transparent', ...font('body') }]} />
       {!task ? (
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Btn label="↑ طلّعها" onPress={() => { saveGoal(moveStage(g, st.id, -1)); onClose(); }} style={{ flex: 1, opacity: i > 0 ? 1 : 0.4 }} />

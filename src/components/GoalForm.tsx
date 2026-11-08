@@ -7,7 +7,7 @@ import { GOAL_COLORS, GOAL_ICONS, type Goal } from '../lib/goals';
 import { saveGoal } from '../lib/goalStore';
 import { daysBetween } from '../lib/gaps';
 import { dateKey, parseNum } from '../lib/logic';
-import { F, tint, useTheme } from '../theme';
+import { tint, useTheme, font } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const UNITS = ['$', 'ج.م', 'ساعة', 'كتاب', 'كجم', '%'];
@@ -76,23 +76,23 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
         <View style={[s.icon, { backgroundColor: f.color }]}>
           <Ionicons name={f.icon as IconName} size={22} color="#FFFFFF" />
         </View>
-        <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="هدفك إيه؟" placeholderTextColor={t.mute} maxLength={50} accessibilityLabel="اسم الهدف" style={[s.name, { color: t.fg, fontFamily: F.semi }]} />
+        <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="هدفك إيه؟" placeholderTextColor={t.mute} maxLength={50} accessibilityLabel="اسم الهدف" style={[s.name, { color: t.fg, ...font('semi') }]} />
       </View>
 
       <T w="medium">بتعدّ إيه؟</T>
       <View style={s.grid}>
         {UNITS.map((u) => <Pill key={u} label={u} on={f.unit === u} onPress={() => set({ unit: u })} />)}
-        <TextInput value={UNITS.includes(f.unit) ? '' : f.unit} onChangeText={(v) => set({ unit: v })} placeholder="حاجة تانية" placeholderTextColor={t.mute} maxLength={12} accessibilityLabel="وحدة تانية" style={[s.field, { width: 110, color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+        <TextInput value={UNITS.includes(f.unit) ? '' : f.unit} onChangeText={(v) => set({ unit: v })} placeholder="حاجة تانية" placeholderTextColor={t.mute} maxLength={12} accessibilityLabel="وحدة تانية" style={[s.field, { width: 110, color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       </View>
 
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1, gap: 4 }}>
           <T w="medium">انت فين دلوقتي</T>
-          <TextInput value={f.start} onChangeText={(v) => set({ start: v })} keyboardType="numeric" accessibilityLabel="البداية" style={[s.field, { color: t.fg, backgroundColor: t.soft, fontFamily: F.num }]} />
+          <TextInput value={f.start} onChangeText={(v) => set({ start: v })} keyboardType="numeric" accessibilityLabel="البداية" style={[s.field, { color: t.fg, backgroundColor: t.soft, ...font('num') }]} />
         </View>
         <View style={{ flex: 1, gap: 4 }}>
           <T w="medium">عايز توصل لكام</T>
-          <TextInput value={f.target} onChangeText={(v) => set({ target: v })} keyboardType="numeric" accessibilityLabel="الهدف" style={[s.field, { color: t.fg, backgroundColor: t.soft, fontFamily: F.num }]} />
+          <TextInput value={f.target} onChangeText={(v) => set({ target: v })} keyboardType="numeric" accessibilityLabel="الهدف" style={[s.field, { color: t.fg, backgroundColor: t.soft, ...font('num') }]} />
         </View>
       </View>
       {f.start.trim() && f.target.trim() && !ok && f.name.trim() ? <T style={{ fontSize: 12, color: t.warn }}>اكتب رقمين مختلفين</T> : null}
@@ -101,7 +101,7 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
       <Stepper value={f.months} min={0} max={120} step={f.months >= 12 ? 6 : 1} onChange={(v) => set({ months: v })} label="المدة" format={(v) => (!v ? 'من غير ميعاد' : v % 12 === 0 ? `${v / 12} سنة` : `${v} شهر`)} />
 
       <T w="medium">ليه عايز توصل؟ · اختياري</T>
-      <TextInput value={f.why} onChangeText={(v) => set({ why: v })} placeholder="السبب اللي هيخليك تكمّل لما تزهق" placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel="ليه" style={[s.field, { height: 70, paddingTop: 10, textAlignVertical: 'top', color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+      <TextInput value={f.why} onChangeText={(v) => set({ why: v })} placeholder="السبب اللي هيخليك تكمّل لما تزهق" placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel="ليه" style={[s.field, { height: 70, paddingTop: 10, textAlignVertical: 'top', color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
 
       <T w="medium">الأيقونة</T>
       <View style={s.grid}>

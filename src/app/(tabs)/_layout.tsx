@@ -6,7 +6,7 @@ import { GOOGLE_USER, googleSupported } from '../../lib/google';
 import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
 import { lastSection, SECTION_PATH } from '../../lib/section';
-import { F, useTheme } from '../../theme';
+import { useTheme, font } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -24,7 +24,7 @@ function TabLabel({ color, children }: { color: ColorValue; children: string }) 
       adjustsFontSizeToFit
       minimumFontScale={0.7}
       maxFontSizeMultiplier={1.2}
-      style={{ color, fontFamily: F.medium, fontSize: 11, lineHeight: 18, textAlign: 'center', paddingHorizontal: 2 }}>
+      style={{ color, ...font('medium'), fontSize: 11, lineHeight: 18, textAlign: 'center', paddingHorizontal: 2 }}>
       {children}
     </Text>
   );

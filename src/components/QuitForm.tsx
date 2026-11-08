@@ -5,7 +5,7 @@ import { Btn, Pill, Sheet, T } from './ui';
 import { DAY_MS, QUIT_COLORS, QUIT_ICONS, quitId, HABIT_TYPES, type Quit, type HabitType } from '../lib/quit';
 import { saveQuit } from '../lib/quitStore';
 import { parseNum } from '../lib/logic';
-import { F, tint, useTheme } from '../theme';
+import { tint, useTheme, font } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const SINCE = [
@@ -76,7 +76,7 @@ export function QuitForm({ quit, onClose, onSaved }: { quit?: Quit; onClose: () 
         maxLength={multiline ? 160 : 40}
         accessibilityLabel={label}
         textAlign="right"
-        style={[s.input, multiline ? { height: 66, paddingTop: 10, textAlignVertical: 'top' } : null, { color: t.fg, backgroundColor: t.soft, fontFamily: numeric ? F.num : F.body }]}
+        style={[s.input, multiline ? { height: 66, paddingTop: 10, textAlignVertical: 'top' } : null, { color: t.fg, backgroundColor: t.soft, ...font(numeric ? 'num' : 'body') }]}
       />
     </View>
   );
@@ -87,7 +87,7 @@ export function QuitForm({ quit, onClose, onSaved }: { quit?: Quit; onClose: () 
         <View style={[s.icon, { backgroundColor: f.color }]}>
           <Ionicons name={f.icon as IconName} size={22} color="#FFFFFF" />
         </View>
-        <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="مثلًا: السجاير، السوشيال بالليل" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="العادة" textAlign="right" style={[s.name, { color: t.fg, fontFamily: F.semi }]} />
+        <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="مثلًا: السجاير، السوشيال بالليل" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="العادة" textAlign="right" style={[s.name, { color: t.fg, ...font('semi') }]} />
       </View>
 
       {!quit ? (

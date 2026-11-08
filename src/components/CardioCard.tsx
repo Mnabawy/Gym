@@ -8,7 +8,7 @@ import { weekStart } from '../lib/gaps';
 import { parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
-import { F, tint, useTheme } from '../theme';
+import { tint, useTheme, font } from '../theme';
 import { Btn, Card, Pill, Progress, Sheet, Stepper, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -119,7 +119,7 @@ function Field({ label, value, onChange, decimal }: { label: string; value: stri
         placeholderTextColor={t.mute}
         maxLength={6}
         accessibilityLabel={label}
-        style={[s.input, { color: t.fg, backgroundColor: tint(t.fg, 0.06), fontFamily: F.numBold }]}
+        style={[s.input, { color: t.fg, backgroundColor: tint(t.fg, 0.06), ...font('numBold') }]}
       />
     </View>
   );

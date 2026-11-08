@@ -9,7 +9,7 @@ import { confirm } from '../lib/confirm';
 import { useNow } from '../lib/useNow';
 import { useReducedMotion } from '../lib/motion';
 import { tap } from '../lib/timer';
-import { F, tint, useTheme } from '../theme';
+import { tint, useTheme, font } from '../theme';
 
 const stamp = () => Date.now();
 const INHALE = 4000;
@@ -150,7 +150,7 @@ export function SlipSheet({ q, onClose }: { q: Quit; onClose: () => void }) {
       <View style={s.grid}>{WHEN.map((w) => <Pill key={w.h} label={w.label} on={h === w.h} onPress={() => setH(w.h)} />)}</View>
       <T w="medium" style={{ fontSize: 13.5 }}>إيه اللي جابها؟</T>
       <TriggerPicks value={trigger} onChange={setTrigger} />
-      <TextInput value={note} onChangeText={setNote} placeholder="حاجة تتعلم منها المرة الجاية (اختياري)" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="ملاحظة" textAlign="right" style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]} />
+      <TextInput value={note} onChangeText={setNote} placeholder="حاجة تتعلم منها المرة الجاية (اختياري)" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="ملاحظة" textAlign="right" style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
       <Btn label="سجّل وابدأ من جديد" kind="solid" onPress={save} />
     </Sheet>
   );
@@ -170,7 +170,7 @@ export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, o
         maxLength={40}
         accessibilityLabel="كلمة السر"
         textAlign="right"
-        style={[s.input, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+        style={[s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
       />
       <Btn label="ادخل" kind="solid" onPress={onConfirm} />
     </Sheet>

@@ -12,7 +12,7 @@ import { usePop } from '../lib/motion';
 import { storage } from '../lib/storage';
 import { deloadOn, useSettings } from '../lib/settings';
 import { nope, useTimer, tap } from '../lib/timer';
-import { F, glow, tint, useTheme } from '../theme';
+import { glow, tint, useTheme, font } from '../theme';
 import { Btn, InfoPopup, Sheet, TagBadge, T } from './ui';
 import { VideoSheet } from './VideoSheet';
 
@@ -274,7 +274,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
               placeholder="مثلًا: الكرسي على رقم 4"
               placeholderTextColor={t.mute}
               accessibilityLabel="الملاحظة"
-              style={[s.note, { color: t.fg, backgroundColor: t.soft, fontFamily: F.body }]}
+              style={[s.note, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
             />
             <Btn label="احفظ" kind="solid" onPress={saveNote} />
           </Sheet>
@@ -640,7 +640,7 @@ const s = StyleSheet.create({
   cell: { flex: 1, minWidth: 0, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   fld: { flex: 1, minWidth: 0, height: 30, borderRadius: 8, borderWidth: 1, flexDirection: 'row', alignItems: 'center' },
   fbtn: { width: 30, height: 30, alignItems: 'center', justifyContent: 'center' },
-  fin: { flex: 1, minWidth: 0, fontFamily: F.numBold, fontSize: 14, textAlign: 'center', writingDirection: 'ltr', padding: 0, margin: 0, height: 28, includeFontPadding: false, outlineWidth: 0 },
+  fin: { flex: 1, minWidth: 0, ...font('numBold'), fontSize: 14, textAlign: 'center', writingDirection: 'ltr', padding: 0, margin: 0, height: 28, includeFontPadding: false, outlineWidth: 0 },
   tick: { width: 40, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
   boxes: { flexDirection: 'row', gap: 5, marginTop: 5 },
   box: { flex: 1, minWidth: 0, height: 28, borderRadius: 8, borderWidth: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, gap: 4 },

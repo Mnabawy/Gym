@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, T } from './ui';
 import { ACCENT_PRESETS, normHex } from '../lib/color';
 import { DEFAULT_SETTINGS, useSettings } from '../lib/settings';
-import { F, useTheme } from '../theme';
+import { useTheme, font } from '../theme';
 
 /** Settings → لون التطبيق: type any hex color (or tap a ready one) and it becomes the app's color everywhere. */
 export function AccentPicker() {
@@ -40,7 +40,7 @@ export function AccentPicker() {
           autoCorrect={false}
           maxLength={7}
           accessibilityLabel="كود اللون"
-          style={[s.input, { color: t.fg, backgroundColor: t.soft, borderColor: bad ? t.bad : 'transparent', fontFamily: F.num }]}
+          style={[s.input, { color: t.fg, backgroundColor: t.soft, borderColor: bad ? t.bad : 'transparent', ...font('num') }]}
         />
         {accent !== DEFAULT_SETTINGS.accent ? <Btn label="الأصلي" onPress={() => apply(DEFAULT_SETTINGS.accent)} /> : null}
       </View>

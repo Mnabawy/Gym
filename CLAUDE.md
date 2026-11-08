@@ -7,7 +7,7 @@ Exercise names stay in English (gym vocabulary).
 - State: zustand (`src/lib/timer.ts`, `src/lib/bus.ts`)
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
 - react-native-health-connect (steps, Android), expo-build-properties (minSdk 26), expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-local-authentication (app lock), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe)
-- Fonts: Readex Pro (Arabic) + Inter (numbers/Latin) via @expo-google-fonts
+- Fonts: Apple's system font (SF Pro + SF Arabic on iPhone; sans-serif on Android): `F` + `font(w)` in `src/theme/index.ts` give fontFamily + fontWeight (+ tabular digits for `num*`); `T` uses it. Only Amiri Quran is loaded (verses)
 - No backend. Offline-first.
 
 ## Design rules
