@@ -6,13 +6,14 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Card, Label, Ring, Screen, T } from '../components/ui';
 import { dayFor, MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
-import { CAL_SOURCES, daysIn, goalMarks, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
+import { CAL_SOURCES, daysIn, goalMarks, goalSpans, weekPieces, type Span, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
 import { readGoals } from '../lib/goalStore';
 import { readHabitLog, readHabitParts, readHabits } from '../lib/habitStore';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { readQuits } from '../lib/quitStore';
 import { storage } from '../lib/storage';
 import { addMonths, monthGrid, WEEK_START } from '../lib/tasks';
+import { addDays } from '../lib/gaps';
 import { tap } from '../lib/timer';
 import { font, tint, useTheme } from '../theme';
 
@@ -54,6 +55,12 @@ export default function CalendarScreen() {
   else if (src === 'habits') marks = habitMarks(readHabits(), readHabitLog(), readHabitParts(), days, today, pick);
   else if (src === 'goals') marks = goalMarks(readGoals(), today, pick);
   else marks = quitMarks(readQuits(), days, today, pick);
+
+  // Goals: each step's time as a bar across the days it runs (one color per step, one lane per goal).
+  const spans: Span[] = src === 'goals' ? goalSpans(readGoals(), pick) : [];
+  const lanes = spans.reduce((a, x) => Math.max(a, x.lane + 1), 0);
+  const monthSpans = spans.filter((x) => x.to >= days[0] && x.from <= days[days.length - 1]);
+  const daySpans = spans.filter((x) => x.from <= day && x.to >= day);
 
   const choose = (k: CalSource) => {
     if (k === src) return;
@@ -117,18 +124,36 @@ export default function CalendarScreen() {
         </View>
         <Animated.View key={`${src}-${pick ?? ''}-${ym}`} entering={FadeIn.duration(200)} style={{ gap: 4 }}>
           {weeks.map((w, i) => (
-            <View key={i} style={s.row}>
-              {w.map((d, j) => (d ? <Day key={d} d={d} m={marks[d]} color={color} today={today} on={d === day} onPress={() => { tap(); setDay(d); }} /> : <View key={j} style={s.cell} />))}
+            <View key={i}>
+              <View style={s.row}>
+                {w.map((d, j) => (d ? <Day key={d} d={d} m={src === 'goals' && marks[d]?.tone !== 'done' ? undefined : marks[d]} color={color} today={today} on={d === day} onPress={() => { tap(); setDay(d); }} /> : <View key={j} style={s.cell} />))}
+              </View>
+              {lanes ? <WeekBars week={weekDates(w)} spans={spans} lanes={lanes} today={today} /> : null}
             </View>
           ))}
         </Animated.View>
-        <Legend color={color} src={src} />
+        {src !== 'goals' ? <Legend color={color} src={src} /> : null}
       </Card>
+
+      {src === 'goals' && monthSpans.length ? (
+        <>
+          <Label>الخطوات في الشهر ده</Label>
+          <Card style={{ paddingVertical: 4 }}>
+            {monthSpans.map((x, i) => (
+              <StepRow key={`${x.goal}-${x.id}`} x={x} today={today} sep={i > 0} />
+            ))}
+          </Card>
+        </>
+      ) : src === 'goals' && items.length && !spans.length ? (
+        <T style={{ fontSize: 12.5, color: t.mute, paddingHorizontal: 16 }}>حدّد مدة للهدف (من «عدّل الهدف») عشان خطواته تتوزع وتظهر هنا</T>
+      ) : null}
 
       <Label>{`${WEEKDAYS_AR[weekdayOf(day)]} ${+day.slice(8)} ${MONTHS_AR[+day.slice(5, 7) - 1]}`}</Label>
       <Card style={{ paddingVertical: 6 }}>
         {!items.length && src !== 'gym' ? (
           <T style={s.line}>{empty}</T>
+        ) : src === 'goals' && daySpans.length ? (
+          daySpans.map((x, i) => <StepRow key={`${x.goal}-${x.id}`} x={x} today={today} sep={i > 0} />)
         ) : sel?.lines.length ? (
           sel.lines.map((l, i) => (
             <T key={i} style={[s.line, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>{l}</T>
@@ -163,6 +188,71 @@ function Day({ d, m, color, today, on, onPress }: { d: string; m?: DayMark; colo
         )}
       </View>
     </Pressable>
+  );
+}
+
+/** The 7 dates of a calendar row (its empty cells are the days of the months around it). */
+function weekDates(w: (string | null)[]): string[] {
+  const k = w.findIndex(Boolean);
+  const d0 = w[k] as string;
+  return w.map((_, j) => addDays(d0, j - k));
+}
+
+/**
+ * The steps under a week: one thin row per lane (goal), each step a bar in its color across the days it runs. The
+ * bars sit in the same right-to-left row of 7 as the days above, so they line up on both phones and the web.
+ */
+function WeekBars({ week, spans, lanes, today }: { week: string[]; spans: Span[]; lanes: number; today: string }) {
+  const pieces = weekPieces(spans, week);
+  return (
+    <View style={{ gap: 2, marginBottom: 4 }}>
+      {Array.from({ length: lanes }, (_, l) => {
+        const mine = pieces.filter((p) => p.lane === l).sort((a, b) => a.c0 - b.c0);
+        const row: React.ReactNode[] = [];
+        let c = 0;
+        for (const p of mine) {
+          if (p.c0 < c) continue;
+          if (p.c0 > c) row.push(<View key={`gap${c}`} style={{ flex: p.c0 - c }} />);
+          const startsHere = p.span.from >= week[0];
+          const endsHere = p.span.to <= week[6];
+          const late = !p.span.done && p.span.to < today;
+          row.push(
+            <View key={p.span.id} style={{ flex: p.c1 - p.c0 + 1, paddingStart: startsHere ? 2 : 0, paddingEnd: endsHere ? 2 : 0 }}>
+              <View style={[s.bar, { backgroundColor: p.span.color, opacity: p.span.done ? 0.45 : 1, borderTopStartRadius: startsHere ? 5 : 0, borderBottomStartRadius: startsHere ? 5 : 0, borderTopEndRadius: endsHere ? 5 : 0, borderBottomEndRadius: endsHere ? 5 : 0 }, late ? { borderWidth: 1.5, borderColor: '#FF3B30' } : null]}>
+                {startsHere ? <T numberOfLines={1} style={{ alignSelf: 'flex-start', fontSize: 9, lineHeight: 12, color: '#FFFFFF', ...font('numBold') }}>{p.span.done ? `✓${p.span.n}` : String(p.span.n)}</T> : null}
+              </View>
+            </View>,
+          );
+          c = p.c1 + 1;
+        }
+        if (c < 7) row.push(<View key="end" style={{ flex: 7 - c }} />);
+        return (
+          <View key={l} style={{ flexDirection: 'row', height: 14 }}>
+            {row}
+          </View>
+        );
+      })}
+    </View>
+  );
+}
+
+const shortDay = (d: string) => `${+d.slice(8)} ${MONTHS_AR[+d.slice(5, 7) - 1]}`;
+
+/** A step in the list under the calendar: its color and number, title, its days, and how it stands. */
+function StepRow({ x, today, sep }: { x: Span; today: string; sep: boolean }) {
+  const t = useTheme();
+  const status = x.done ? 'خلصت ✓' : x.to < today ? 'متأخرة' : x.from <= today ? 'دلوقتي' : '';
+  return (
+    <View style={[s.step, sep ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
+      <View style={[s.stepNum, { backgroundColor: x.color, opacity: x.done ? 0.5 : 1 }]}>
+        <T style={{ fontSize: 11, color: '#FFFFFF', ...font('numBold') }}>{String(x.n)}</T>
+      </View>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T numberOfLines={1} style={{ fontSize: 14, color: x.done ? t.mute : t.fg, textDecorationLine: x.done ? 'line-through' : 'none' }}>{x.title}</T>
+        <T style={{ fontSize: 12, color: t.mute }}>{`${shortDay(x.from)} ← ${shortDay(x.to)}`}</T>
+      </View>
+      {status ? <T w="semi" style={{ fontSize: 12, color: status === 'متأخرة' ? t.bad : status === 'دلوقتي' ? t.okText : t.mute }}>{status}</T> : null}
+    </View>
   );
 }
 
@@ -201,5 +291,8 @@ const s = StyleSheet.create({
   dot: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
   legend: { flexDirection: 'row', justifyContent: 'center', gap: 14, paddingTop: 4 },
   key: { width: 12, height: 12, borderRadius: 6 },
+  bar: { flex: 1, height: 13, justifyContent: 'center', paddingHorizontal: 4 },
+  step: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 14, paddingVertical: 8 },
+  stepNum: { width: 22, height: 22, borderRadius: 6, alignItems: 'center', justifyContent: 'center' },
   line: { fontSize: 14, lineHeight: 21, paddingHorizontal: 14, paddingVertical: 8 },
 });

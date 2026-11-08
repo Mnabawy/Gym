@@ -142,3 +142,52 @@ export function monthSummary(src: CalSource, marks: Marks, days: readonly string
   const bad = ms.filter((m) => m.tone === 'bad').length;
   return ms.length ? `${clean} يوم نضيف${bad ? ` · ${bad} يوم وقعت` : ''}` : 'مفيش حاجة بتبطّلها في الشهر ده';
 }
+
+/** One color per step on the goals calendar (iOS system colors, cycled). */
+export const STEP_COLORS = ['#007AFF', '#FF9500', '#34C759', '#AF52DE', '#FF2D55', '#30B0C7', '#FFCC00', '#5856D6', '#A2845E', '#FF3B30'] as const;
+
+/** A step's time on the calendar: from the day after the step before it ends (or the goal's start) to its own date. */
+export type Span = { id: string; goal: string; lane: number; n: number; title: string; from: string; to: string; color: string; done: boolean };
+
+/**
+ * Every step of every goal with a time frame (or just `only`) as a span, in road order: step 1 runs from the goal's
+ * start to its date, step 2 from the next day to its date, and so on (dates from `schedule`, yours kept). Each goal
+ * gets its own lane, so goals' steps can overlap on the calendar while one goal's steps sit end to end.
+ */
+export function goalSpans(goals: readonly Goal[], only?: string): Span[] {
+  const out: Span[] = [];
+  let lane = 0;
+  for (const g of goals) {
+    if (only && g.id !== only) continue;
+    const plan = schedule(g);
+    if (!plan) continue;
+    let prev: string | null = null;
+    let n = 0;
+    for (const st of g.stages)
+      for (const t of st.tasks) {
+        const to = plan.task[t.id];
+        if (!to) continue;
+        let from = prev ? addDays(prev, 1) : g.startDate;
+        if (from > to) from = to;
+        out.push({ id: t.id, goal: g.id, lane, n: n + 1, title: t.title, from, to, color: STEP_COLORS[n % STEP_COLORS.length], done: !!t.done });
+        prev = to > (prev ?? '') ? to : prev;
+        n++;
+      }
+    if (n) lane++;
+  }
+  return out;
+}
+
+/** The pieces of each lane inside one week (7 dates): which columns each span covers. */
+export function weekPieces(spans: readonly Span[], week: readonly string[]): { lane: number; c0: number; c1: number; span: Span }[] {
+  const out: { lane: number; c0: number; c1: number; span: Span }[] = [];
+  const first = week[0];
+  const last = week[week.length - 1];
+  for (const sp of spans) {
+    if (sp.to < first || sp.from > last) continue;
+    const c0 = Math.max(0, week.indexOf(sp.from < first ? first : sp.from));
+    const c1 = week.indexOf(sp.to > last ? last : sp.to);
+    out.push({ lane: sp.lane, c0, c1, span: sp });
+  }
+  return out;
+}

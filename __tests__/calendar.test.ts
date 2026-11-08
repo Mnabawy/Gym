@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { daysIn, goalMarks, gymMarks, habitMarks, monthSummary, quitMarks } from '../src/lib/calendar';
+import { daysIn, goalMarks, goalSpans, gymMarks, habitMarks, monthSummary, quitMarks, weekPieces } from '../src/lib/calendar';
 import type { Habit } from '../src/lib/habits';
 import type { Goal } from '../src/lib/goals';
 import type { Quit } from '../src/lib/quit';
@@ -44,5 +44,25 @@ describe('calendar', () => {
     expect(m['2026-11-06']).toMatchObject({ tone: 'clean', lines: ['Q: نضيف · غلبت 1 رغبة'] });
     expect(m['2026-11-07'].tone).toBe('bad');
     expect(m['2026-11-09']).toBeUndefined();
+  });
+});
+
+describe('goal spans', () => {
+  const g = { id: 'g', name: 'G', icon: 'flag', color: '#000000', unit: '$', start: 0, target: 10, startDate: '2026-01-01', due: '2026-04-10', why: '', entries: [], wins: [], reviews: [],
+    stages: [{ id: 's1', title: '1', tasks: [{ id: 'a', title: 'A', done: '2026-01-20' }, { id: 'b', title: 'B', done: null }] }, { id: 's2', title: '2', tasks: [{ id: 'c', title: 'C', done: null }] }] } as Goal;
+  it('lays a goal\'s steps end to end, one color each', () => {
+    const sp = goalSpans([g]);
+    expect(sp.map((x) => [x.n, x.from, x.to, x.lane, x.done])).toEqual([
+      [1, '2026-01-01', '2026-02-03', 0, true],
+      [2, '2026-02-04', '2026-03-08', 0, false],
+      [3, '2026-03-09', '2026-04-10', 0, false],
+    ]);
+    expect(new Set(sp.map((x) => x.color)).size).toBe(3);
+    expect(goalSpans([{ ...g, due: null }])).toEqual([]);
+    expect(goalSpans([g, { ...g, id: 'h' }]).map((x) => x.lane)).toEqual([0, 0, 0, 1, 1, 1]);
+  });
+  it('cuts spans to a week', () => {
+    const week = daysIn('2026-02-01', '2026-02-07');
+    expect(weekPieces(goalSpans([g]), week).map((p) => [p.span.n, p.c0, p.c1])).toEqual([[1, 0, 2], [2, 3, 6]]);
   });
 });
