@@ -41,7 +41,8 @@ describe('calendar', () => {
     const q = { id: 'q', name: 'Q', start: new Date(2026, 10, 5, 9).getTime(), slips: [{ at: new Date(2026, 10, 7, 22).getTime() }], urges: [{ at: new Date(2026, 10, 6, 12).getTime(), resisted: true }] } as unknown as Quit;
     const m = quitMarks([q], daysIn('2026-11-04', '2026-11-09'), T);
     expect(m['2026-11-04']).toBeUndefined();
-    expect(m['2026-11-06']).toMatchObject({ tone: 'clean', lines: ['Q: نضيف · غلبت 1 رغبة'] });
+    expect(m['2026-11-06']).toMatchObject({ tone: 'clean', lines: ['بطّل 1: نضيف · غلبت 1 رغبة'] });
+    expect(JSON.stringify(m)).not.toContain('Q:');
     expect(m['2026-11-07'].tone).toBe('bad');
     expect(m['2026-11-09']).toBeUndefined();
   });

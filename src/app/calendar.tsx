@@ -6,7 +6,7 @@ import Animated, { FadeIn } from 'react-native-reanimated';
 import { Card, Label, Ring, Screen, T } from '../components/ui';
 import { dayFor, MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
-import { CAL_SOURCES, daysIn, goalMarks, goalSpans, weekPieces, type Span, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
+import { CAL_SOURCES, daysIn, quitLabel, goalMarks, goalSpans, weekPieces, type Span, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
 import { readGoals } from '../lib/goalStore';
 import { readHabitLog, readHabitParts, readHabits } from '../lib/habitStore';
 import { dateKey, weekdayOf } from '../lib/logic';
@@ -47,7 +47,7 @@ export default function CalendarScreen() {
 
   // What can be picked inside the source (one habit / goal / quit, or all).
   const items: { id: string; name: string }[] =
-    src === 'habits' ? readHabits().map((h) => ({ id: h.id, name: h.name })) : src === 'goals' ? readGoals().map((g) => ({ id: g.id, name: g.name })) : src === 'quit' ? readQuits().map((q) => ({ id: q.id, name: q.name })) : [];
+    src === 'habits' ? readHabits().map((h) => ({ id: h.id, name: h.name })) : src === 'goals' ? readGoals().map((g) => ({ id: g.id, name: g.name })) : src === 'quit' ? readQuits().map((q, i) => ({ id: q.id, name: quitLabel(i) })) : [];
   const pick = only && items.some((x) => x.id === only) ? only : undefined;
 
   let marks: Marks = {};
