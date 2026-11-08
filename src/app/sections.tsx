@@ -140,6 +140,20 @@ export default function Sections() {
           ))}
         </View>
 
+        {/* One calendar for everything (gym, habits, goals, quitting). */}
+        <Pressable onPress={() => router.push('/calendar')} accessibilityRole="button" style={({ pressed }) => [s.group, s.row, { backgroundColor: pressed ? c.press : c.card, marginTop: 10 }]}>
+          <View style={[s.icon, { backgroundColor: c.fill }]}>
+            <Ionicons name="calendar-outline" size={18} color={c.label} />
+          </View>
+          <View style={s.rowBody}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T style={{ fontSize: 17, lineHeight: 24, color: c.label }}>التقويم</T>
+              <T style={{ fontSize: 13, lineHeight: 18, color: c.secondary }} numberOfLines={1}>الجيم والعادات والأهداف وبطّل على شهر واحد</T>
+            </View>
+            <Ionicons name="chevron-back" size={18} color={c.tertiary} />
+          </View>
+        </Pressable>
+
         <Header c={c} text="الأقسام" />
         <View style={[s.group, { backgroundColor: c.card }]}>
           {rows.map((r, i) => (

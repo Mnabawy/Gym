@@ -15,7 +15,7 @@ export type Pulled = CloudRow & { rev: number };
 export type Dirty = Record<string, { t: number; row?: CloudRow }>;
 
 /** Meta keys that belong to this phone, never synced: the Google link, sync state, backup bookkeeping, small UI state. */
-const LOCAL_META = new Set(['driveUser', 'driveName', 'drivePhoto', 'driveFileId', 'driveAt', 'driveAtMs', 'driveSig', 'driveError', 'welcomeDone', 'lastBackup', 'autoBackupAt', 'autoBackupError', 'verse.last', 'section', 'focusState', 'taskSpace']);
+const LOCAL_META = new Set(['driveUser', 'driveName', 'drivePhoto', 'driveFileId', 'driveAt', 'driveAtMs', 'driveSig', 'driveError', 'welcomeDone', 'lastBackup', 'autoBackupAt', 'autoBackupError', 'verse.last', 'section', 'focusState', 'taskSpace', 'calendar.source']);
 export const SYNC_PREFIX = 'sync.';
 export const isLocalMeta = (k: string) => k.startsWith(SYNC_PREFIX) || LOCAL_META.has(k);
 
