@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, reachDate, reached, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -172,11 +172,21 @@ test('each stage has its own amount, filled in road order', () => {
   expect(parseGoals(JSON.stringify([{ ...g, stages: [{ id: 'z', title: 'z', amount: -5, tasks: [] }] }]))[0].stages[0].amount).toBeUndefined();
 });
 
-test('amounts split evenly, also for goals that go down', () => {
-  expect(spreadMilestones(base).stages.map((s) => s.amount)).toEqual([33000, 33000, 34000]);
-  const down: Goal = { ...base, start: 90, target: 80, entries: [{ id: 'e', date: '2026-01-10', amount: -7 }], stages: base.stages.slice(0, 2) };
-  const sp = spreadMilestones(down);
-  expect(sp.stages.map((s) => s.amount)).toEqual([5, 5]);
-  expect(stageFill(sp, 0)).toEqual({ got: 5, of: 5, left: 0 });
-  expect(stageFill(sp, 1)).toEqual({ got: 2, of: 5, left: 3 });
+test('setting one stage amount takes it off the goal, the rest share what is left', () => {
+  expect(amountOf(base, 0)).toBeNull(); // not split
+  expect(stageDone(base.stages[0], base)).toBe(true); // steps alone, as before
+  const sp = spreadMilestones(base);
+  expect([0, 1, 2].map((i) => amountOf(sp, i))).toEqual([100000 / 3, 100000 / 3, 100000 / 3]);
+  const one: Goal = { ...sp, stages: sp.stages.map((s, i) => (i === 0 ? { ...s, amount: 20000 } : s)) };
+  expect([0, 1, 2].map((i) => amountOf(one, i))).toEqual([20000, 40000, 40000]);
+  expect(unassigned(one)).toBe(0);
+  expect(stageFill(one, 1)).toEqual({ got: 12000, of: 40000, left: 28000 });
+  expect(parseGoals(JSON.stringify([sp]))[0].split).toBe(true);
+  const off = setSplit(one, false);
+  expect(off.split).toBeUndefined();
+  expect(off.stages.some((s) => s.amount !== undefined)).toBe(false);
+  // Goals that go down.
+  const down = spreadMilestones({ ...base, start: 90, target: 80, entries: [{ id: 'e', date: '2026-01-10', amount: -7 }], stages: base.stages.slice(0, 2) });
+  expect(stageFill(down, 0)).toEqual({ got: 5, of: 5, left: 0 });
+  expect(stageFill(down, 1)).toEqual({ got: 2, of: 5, left: 3 });
 });

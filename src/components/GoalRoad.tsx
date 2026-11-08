@@ -6,7 +6,7 @@ import { INPUT, Btn, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
-import { currentStage, fmtAmount, goalId, moveStage, schedule, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { currentStage, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
@@ -126,7 +126,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               <View style={{ flex: 1 }}>
                 <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
                 <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
-                {r.st.amount !== undefined ? <Milestone g={g} t={t} i={r.i} /> : null}
+                {amountOf(g, r.i) !== null ? <Milestone g={g} t={t} i={r.i} /> : null}
                 {plan?.stage[r.st.id] && r.state !== 'done' ? (
                   <T style={{ fontSize: 11.5, color: plan.stage[r.st.id].to < today ? t.bad : t.mute }}>{`${dayShort(plan.stage[r.st.id].from)} ← ${dayShort(plan.stage[r.st.id].to)}`}</T>
                 ) : null}
@@ -296,17 +296,19 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
       const { amount: _old, ...rest } = x;
       return at === undefined ? { ...rest, title: v } : { ...rest, title: v, amount: at };
     };
-    saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? { ...y, title: v } : y)) } : withMark(x))) });
+    saveGoal({ ...g, ...(at !== undefined ? { split: true } : {}), stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? { ...y, title: v } : y)) } : withMark(x))) });
     onClose();
   };
-  // What's left of the goal for no stage, counting what's typed in for this one.
-  const free = unassigned({ ...g, stages: g.stages.map((x) => (x.id === st.id ? { ...x, amount: markVal() } : x)) });
-  const spread = () => {
+  // The goal as it would be with what's typed in: this stage's amount comes off the total, the rest share what's left.
+  const draft: Goal = { ...g, split: g.split || markVal() !== undefined, stages: g.stages.map((x) => (x.id === st.id ? { ...x, amount: markVal() } : x)) };
+  const free = unassigned(draft);
+  const autoIdx = draft.stages.findIndex((x) => x.amount === undefined && x.id !== st.id);
+  const autoShare = draft.split && autoIdx >= 0 ? amountOf(draft, autoIdx) : null;
+  const mine = amountOf(draft, i);
+  const split = (on: boolean) => {
     tap();
-    const next = spreadMilestones(g);
-    saveGoal(next);
-    const mine = next.stages.find((x) => x.id === st.id)?.amount;
-    setMark(mine !== undefined ? String(mine) : '');
+    saveGoal(on ? spreadMilestones(g) : setSplit(g, false));
+    setMark('');
   };
   const remove = () => {
     removeBead(g, st, task);
@@ -331,24 +333,39 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
       )}
       {!task ? (
         <View style={{ gap: 6 }}>
-          <View style={[s.dateRow, { backgroundColor: t.soft }]}>
-            <Ionicons name="flag-outline" size={18} color={t.okText} />
-            <T style={{ fontSize: 14 }}>مبلغ المرحلة</T>
-            <TextInput
-              value={mark}
-              onChangeText={setMark}
-              keyboardType="numeric"
-              placeholder={`مثلاً ${fmtAmount(Math.abs(g.target - g.start) / Math.max(1, g.stages.length), '')}`}
-              placeholderTextColor={t.mute}
-              accessibilityLabel="رقم المرحلة"
-              style={[INPUT, { flex: 1, minWidth: 0, height: 44, textAlign: 'left', color: t.fg, outlineWidth: 0, ...font('num'), fontSize: 15 }]}
-            />
-            {g.unit ? <T style={{ fontSize: 13, color: t.mute }}>{g.unit}</T> : null}
-          </View>
-          <T style={{ fontSize: 12, color: free < -1e-9 ? t.bad : t.mute }}>{free < -1e-9
-            ? `المراحل أكتر من الهدف بـ \u2066${fmtAmount(-free, g.unit)}\u2069`
-            : `اللي بتسجّله بيتخصم من المراحل بالترتيب · باقي من الهدف من غير مرحلة: \u2066${fmtAmount(free, g.unit)}\u2069`}</T>
-          {g.stages.length > 1 ? <Btn label="وزّع الأرقام على كل المراحل بالتساوي" onPress={spread} /> : null}
+          {draft.split ? (
+            <>
+              <View style={[s.dateRow, { backgroundColor: t.soft }]}>
+                <Ionicons name="flag-outline" size={18} color={t.okText} />
+                <T style={{ fontSize: 14 }}>مبلغ المرحلة</T>
+                <TextInput
+                  value={mark}
+                  onChangeText={setMark}
+                  keyboardType="numeric"
+                  placeholder={mine !== null ? fmtAmount(mine, '') : ''}
+                  placeholderTextColor={t.mute}
+                  accessibilityLabel="مبلغ المرحلة"
+                  style={[INPUT, { flex: 1, minWidth: 0, height: 44, textAlign: 'left', color: t.fg, outlineWidth: 0, ...font('num'), fontSize: 15 }]}
+                />
+                {g.unit ? <T style={{ fontSize: 13, color: t.mute }}>{g.unit}</T> : null}
+                <T style={{ fontSize: 12, color: t.mute }}>{markVal() !== undefined ? 'انت حدّدته' : 'تلقائي'}</T>
+              </View>
+              <T style={{ fontSize: 12, color: free < -1e-9 ? t.bad : t.mute }}>{free < -1e-9
+                ? `المراحل أكتر من الهدف بـ \u2066${fmtAmount(-free, g.unit)}\u2069`
+                : free > 1e-9
+                  ? `فاضل \u2066${fmtAmount(free, g.unit)}\u2069 من الهدف مش في أي مرحلة`
+                  : autoShare !== null
+                    ? `بيتخصم من الهدف، والباقي بيتقسم على المراحل اللي مش محدّدة: \u2066${fmtAmount(autoShare, g.unit)}\u2069 لكل واحدة`
+                    : 'كل المراحل محدّدة ومجموعها قد الهدف'}</T>
+              {markVal() !== undefined ? <Btn label="رجّعه تلقائي (يتقسم مع الباقي)" onPress={() => setMark('')} /> : null}
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <Btn label="رجّع الكل بالتساوي" onPress={() => split(true)} style={{ flex: 1 }} />
+                <Btn label="شيل المبالغ" onPress={() => split(false)} style={{ flex: 1 }} />
+              </View>
+            </>
+          ) : (
+            <Btn label="قسّم رقم الهدف على المراحل" onPress={() => split(true)} />
+          )}
         </View>
       ) : null}
       {!task ? (
