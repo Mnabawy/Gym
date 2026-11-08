@@ -134,11 +134,11 @@ function Divider({ color }: { color: string }) {
 }
 
 const s = StyleSheet.create({
-  backdrop: { flex: 1, backgroundColor: 'rgba(8, 14, 20, 0.62)', alignItems: 'center', justifyContent: 'center', padding: 20 },
+  backdrop: { flex: 1, backgroundColor: 'rgba(8, 14, 20, 0.62)', alignItems: 'center', justifyContent: 'center', padding: 16 },
   wrap: { width: '100%', maxWidth: 420 },
-  card: { borderRadius: 28, padding: 10, gap: 10 },
-  frame: { borderWidth: 1, borderRadius: 20, paddingTop: 40, paddingBottom: 20, paddingHorizontal: 20, marginTop: 26, alignItems: 'stretch' },
-  badge: { position: 'absolute', top: -27, alignSelf: 'center', padding: 2, borderRadius: 30 },
+  card: { borderRadius: 12, padding: 10, gap: 10 },
+  frame: { borderWidth: 1, borderRadius: 12, paddingTop: 40, paddingBottom: 20, paddingHorizontal: 16, marginTop: 26, alignItems: 'stretch' },
+  badge: { position: 'absolute', top: -27, alignSelf: 'center', padding: 2, borderRadius: 12 },
   divider: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8, marginTop: 4, marginBottom: 8 },
   rule: { height: 1, width: 44 },
   diamond: { width: 7, height: 7, borderWidth: 1.2, transform: [{ rotate: '45deg' }] },

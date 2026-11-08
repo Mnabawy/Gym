@@ -43,15 +43,8 @@ export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; lab
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
-      style={({ pressed }) => [
-        s.round,
-        t.neon
-          ? { backgroundColor: tint(t.ok, 0.06), borderWidth: 1, borderColor: tint(t.ok, 0.35), boxShadow: glow(t, t.ok, 8) }
-          : { backgroundColor: t.card, boxShadow: t.shadow },
-        { opacity: pressed ? 0.7 : 1 },
-        style,
-      ]}>
-      <Ionicons name={icon} size={22} color={t.neon ? t.ok : t.fg} />
+      style={({ pressed }) => [s.round, { opacity: pressed ? 0.35 : 1 }, style]}>
+      <Ionicons name={icon} size={24} color={t.ok} />
     </Pressable>
   );
 }
@@ -74,13 +67,13 @@ export function Screen({ title, sub, children, footer, onBack, action, dense, as
           <View style={s.titles}>
             {aside ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
-                <T w="bold" style={{ fontSize: 16, lineHeight: 24 }} numberOfLines={1}>{title}</T>
+                <T w="bold" style={{ fontSize: 24, lineHeight: 32 }} numberOfLines={1}>{title}</T>
                 {aside}
               </View>
             ) : (
-              <T w="bold" style={{ fontSize: 16, lineHeight: 24 }} numberOfLines={1}>{title}</T>
+              <T w="bold" style={{ fontSize: 24, lineHeight: 32 }} numberOfLines={1}>{title}</T>
             )}
-            {sub ? <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={2}>{sub}</T> : null}
+            {sub ? <T style={{ color: t.mute, fontSize: 13 }} numberOfLines={2}>{sub}</T> : null}
           </View>
           {action}
         </View>
@@ -94,17 +87,17 @@ export function Screen({ title, sub, children, footer, onBack, action, dense, as
 
 export function Card({ children, style }: { children: React.ReactNode; style?: StyleProp<ViewStyle> }) {
   const t = useTheme();
-  return <View style={[{ backgroundColor: t.card, borderRadius: 16, boxShadow: t.shadow }, t.neon ? { borderWidth: 1, borderColor: t.border } : null, style]}>{children}</View>;
+  return <View style={[{ backgroundColor: t.card, borderRadius: 12 }, style]}>{children}</View>;
 }
 
 /** Small muted heading above a group of content. */
 export function Label({ children, color }: { children: React.ReactNode; color?: string }) {
   const t = useTheme();
   return (
-    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 4 }}>
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 6, paddingHorizontal: 16 }}>
       {color ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color }} /> : null}
       {/* flexGrow: on Android a shrink-wrapped Arabic label can measure a hair too narrow and lose its last word. */}
-      <T w="medium" style={{ color: t.mute, fontSize: 13.5, flexGrow: 1, flexShrink: 1 }}>{children}</T>
+      <T style={{ color: t.mute, fontSize: 13, flexGrow: 1, flexShrink: 1 }}>{children}</T>
     </View>
   );
 }
@@ -116,7 +109,7 @@ export function InfoPopup({ visible, onClose, title, body }: { visible: boolean;
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <View style={s.popBack}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="قفل" />
-        <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)' }]}>
+        <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.18)' }]}>
           <View style={{ alignItems: 'flex-start' }}>{title}</View>
           <T style={{ fontSize: 15, lineHeight: 25 }}>{body}</T>
           <Btn label="تمام" kind="solid" onPress={onClose} />
@@ -133,7 +126,7 @@ export function Sheet({ visible, onClose, title, sub, children }: { visible: boo
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
       <KeyboardAvoidingView behavior="padding" style={s.popBack}>
         <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="قفل" />
-        <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)', maxHeight: '88%' }]}>
+        <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 10px 30px rgba(0, 0, 0, 0.18)', maxHeight: '88%' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
             <View style={{ flex: 1, gap: 2 }}>
               <T w="bold" style={{ fontSize: 16 }}>{title}</T>
@@ -143,7 +136,7 @@ export function Sheet({ visible, onClose, title, sub, children }: { visible: boo
               <Ionicons name="close" size={22} color={t.mute} />
             </Pressable>
           </View>
-          <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator>
+          <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 8, paddingBottom: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator>
             {children}
           </ScrollView>
         </View>
@@ -198,9 +191,9 @@ export function Pill({ label, on, onPress, num, color }: { label: string; on: bo
       accessibilityState={{ selected: on }}
       hitSlop={4}
       onPress={onPress}
-      style={{ minHeight: 38, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: on ? t.ink : t.soft }}>
-      {color ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color, borderWidth: on ? 1 : 0, borderColor: t.onInk }} /> : null}
-      <T w={num ? 'num' : 'medium'} style={{ fontSize: 13, color: on ? t.onInk : t.fg }}>{label}</T>
+      style={{ minHeight: 32, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 999, backgroundColor: on ? t.ok : t.soft }}>
+      {color ? <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: color, borderWidth: on ? 1 : 0, borderColor: t.onOk }} /> : null}
+      <T w={num ? 'num' : 'medium'} style={{ fontSize: 13, color: on ? t.onOk : t.fg }}>{label}</T>
     </Pressable>
   );
 }
@@ -380,12 +373,11 @@ export function Btn({ label, onPress, kind = 'ghost', style }: { label: string; 
       hitSlop={{ top: 2, bottom: 2 }}
       style={({ pressed }) => [
         s.btn,
-        // Neon: ink is near-black there, so outlined buttons use the glowing accent instead.
-        solid ? { backgroundColor: t.ok } : { borderWidth: 1.2, borderColor: t.neon ? tint(t.ok, 0.6) : t.ink },
-        { opacity: pressed ? 0.8 : 1 },
+        // iOS: filled (tint) or tinted (soft tint behind tint text).
+        { backgroundColor: solid ? t.ok : t.okSoft, opacity: pressed ? 0.6 : 1 },
         style,
       ]}>
-      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 14, color: solid ? (t.neon ? t.onOk : '#FFFFFF') : t.neon ? t.ok : t.ink }}>
+      <T w="semi" numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.75} style={{ fontSize: 15, color: solid ? t.onOk : t.okText }}>
         {label}
       </T>
     </Pressable>
@@ -467,7 +459,7 @@ export function SwitchRow({ label, sub, value, onChange, disabled }: { label: st
       <View
         importantForAccessibility="no-hide-descendants"
         accessibilityElementsHidden
-        style={[s.track, { backgroundColor: value ? t.ok : t.line, alignItems: value ? 'flex-end' : 'flex-start' }]}>
+        style={[s.track, { backgroundColor: value ? t.green : t.soft, alignItems: value ? 'flex-end' : 'flex-start' }]}>
         <View style={s.thumb} />
       </View>
     </Pressable>
@@ -491,27 +483,27 @@ export function Row({ label, sub, children }: { label: string; sub?: string; chi
 /** Hairline between rows inside a Card. */
 export function Sep() {
   const t = useTheme();
-  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line, marginHorizontal: 14 }} />;
+  return <View style={{ height: StyleSheet.hairlineWidth, backgroundColor: t.line, marginStart: 16 }} />;
 }
 
 const clamp01 = (v: number) => (Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0);
 
 const s = StyleSheet.create({
-  scroll: { paddingHorizontal: 16, paddingTop: 6, paddingBottom: 140, gap: 12, maxWidth: 620, width: '100%', alignSelf: 'center' },
-  dense: { paddingHorizontal: 12, gap: 8 },
-  head: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingBottom: 2, minHeight: 44 },
+  scroll: { paddingHorizontal: 16, paddingTop: 2, paddingBottom: 120, gap: 8, maxWidth: 620, width: '100%', alignSelf: 'center' },
+  dense: { paddingHorizontal: 12, gap: 6 },
+  head: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingBottom: 2, minHeight: 44 },
   titles: { flex: 1, minWidth: 0, alignItems: 'flex-start' },
   round: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  track: { width: 50, height: 30, borderRadius: 15, padding: 2, justifyContent: 'center' },
-  thumb: { width: 26, height: 26, borderRadius: 13, backgroundColor: '#FFFFFF', boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' },
-  check: { flex: 1, borderRadius: 12, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  popBack: { flex: 1, backgroundColor: 'rgba(8, 14, 20, 0.55)', alignItems: 'center', justifyContent: 'center', padding: 24 },
-  pop: { width: '100%', maxWidth: 380, borderRadius: 22, padding: 18, gap: 12 },
+  track: { width: 51, height: 31, borderRadius: 16, padding: 2, justifyContent: 'center' },
+  thumb: { width: 27, height: 27, borderRadius: 14, backgroundColor: '#FFFFFF', boxShadow: '0px 1px 3px rgba(0, 0, 0, 0.25)' },
+  check: { flex: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
+  popBack: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', alignItems: 'center', justifyContent: 'center', padding: 24 },
+  pop: { width: '100%', maxWidth: 380, borderRadius: 14, padding: 16, gap: 10 },
   btn: { height: 40, paddingHorizontal: 14, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
   stepper: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  stepBtn: { width: 40, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stepBtn: { width: 40, height: 40, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   stepBtnSm: { width: 30, height: 30, borderRadius: 9 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 56, paddingHorizontal: 14, paddingVertical: 10 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, paddingHorizontal: 16, paddingVertical: 8 },
   // Inactive chips are 40pt wide + 2pt hitSlop each side = 44pt touch target; the selected chip takes the rest.
   chips: { flexDirection: 'row', gap: 4, minHeight: 72 }, // fits name + 2 legend lines, so the row doesn't jump between days
   chipOff: { width: 40, borderRadius: 14, alignItems: 'center', justifyContent: 'center', gap: 6 },

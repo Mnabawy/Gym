@@ -24,7 +24,7 @@ export function ClockPicker({ value, onChange }: { value: number; onChange: (m: 
   const angle = mode === 'h' ? (h % 12) * 30 : min * 6;
 
   return (
-    <View style={{ alignItems: 'center', gap: 12 }}>
+    <View style={{ alignItems: 'center', gap: 8 }}>
       <View style={[s.read, { direction: 'ltr' }]}>
         <Pressable onPress={() => setMode('h')} accessibilityRole="button" accessibilityLabel="الساعة" style={[s.seg, { backgroundColor: mode === 'h' ? t.ok : t.soft }]}>
           <T w="numBold" style={{ fontSize: 30, color: mode === 'h' ? t.onOk : t.fg }}>{pad(h)}</T>

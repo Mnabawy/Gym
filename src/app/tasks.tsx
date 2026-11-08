@@ -254,7 +254,7 @@ function WeekStrip({ t, day, today, marks, onPick }: { t: Theme; day: string; to
 
 function Empty({ t, icon, title, sub }: { t: Theme; icon: React.ComponentProps<typeof Ionicons>['name']; title: string; sub: string }) {
   return (
-    <View style={{ alignItems: 'center', gap: 6, paddingVertical: 36 }}>
+    <View style={{ alignItems: 'center', gap: 6, paddingVertical: 27 }}>
       <View style={[s.emptyIcon, { backgroundColor: tint(t.ok, 0.1) }]}>
         <Ionicons name={icon} size={30} color={t.ok} />
       </View>
@@ -376,11 +376,11 @@ const s = StyleSheet.create({
   wArrow: { width: 24, height: 48, alignItems: 'center', justifyContent: 'center' },
   wd: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 12, borderWidth: 1.5, gap: 1 },
   dot: { width: 4, height: 4, borderRadius: 2 },
-  seg: { flexDirection: 'row', padding: 4, borderRadius: 16, gap: 4 },
+  seg: { flexDirection: 'row', padding: 4, borderRadius: 12, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   sec: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, marginTop: 2 },
-  card: { borderRadius: 16, paddingHorizontal: 10, borderWidth: 1 },
+  card: { borderRadius: 12, paddingHorizontal: 10, borderWidth: 1 },
   task: { flexDirection: 'row', gap: 9, paddingVertical: 6, alignItems: 'center' },
   cb: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 0 },
@@ -394,8 +394,8 @@ const s = StyleSheet.create({
   subIn: { flex: 1, minWidth: 0, height: 34, fontSize: 14, textAlign: 'right', outlineWidth: 0 },
   flag: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 6 },
-  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 16, borderWidth: 1, paddingHorizontal: 12 },
+  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12 },
   quickIn: { flex: 1, minWidth: 0, fontSize: 15, textAlign: 'right', outlineWidth: 0, height: 48 },
-  fab: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
-  emptyIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
+  fab: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  emptyIcon: { width: 64, height: 64, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
 });

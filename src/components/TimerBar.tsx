@@ -57,6 +57,6 @@ export function TimerBar() {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginBottom: 8, padding: 8, borderRadius: 18 },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginBottom: 8, padding: 8, borderRadius: 12 },
   btn: { minHeight: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', justifyContent: 'center' },
 });

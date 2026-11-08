@@ -73,7 +73,7 @@ export default function WeekScreen() {
         <Nav icon="chevron-back" label="الأسبوع الجاي" disabled={live} onPress={() => setFrom(addDays(from, 7))} />
       </View>
 
-      <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <Ring value={r.sessions / r.target} size={64} stroke={5}>
           <T w="numBold" style={{ fontSize: 15, color: t.okText }}>{`${r.sessions}/${r.target}`}</T>
         </Ring>

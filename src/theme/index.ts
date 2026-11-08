@@ -4,35 +4,37 @@ import type { Muscle } from '../data/program';
 import { accentTokens } from '../lib/color';
 import { useSettings } from '../lib/settings';
 
-// Style: teal accent (ok), slate-navy for selected/emphasis (ink), soft borderless cards with a light shadow.
+// Style: Apple's own apps (iOS system colors, UIColor semantic colors). Grey grouped background, white cards with no
+// shadow, black text, grey secondary text and one tint (your app color, system blue by default) for what you tap.
 const light = {
-  bg: '#F3F6F9',
-  card: '#FFFFFF',
-  fg: '#1E2833',
-  mute: '#687B90',
-  line: '#E3E9EF',
-  soft: '#EEF2F6',
-  ink: '#3E5A76',
+  bg: '#F2F2F7', // systemGroupedBackground
+  card: '#FFFFFF', // secondarySystemGroupedBackground
+  fg: '#000000', // label
+  mute: '#8A8A8E', // secondaryLabel on white
+  line: '#C6C6C8', // opaqueSeparator
+  soft: '#EEEEF0', // tertiarySystemFill on white
+  ink: '#1C1C1E',
   onInk: '#FFFFFF',
-  ok: '#1BA6A8',
+  ok: '#007AFF', // systemBlue (replaced by settings accent)
   onOk: '#FFFFFF',
-  okText: '#0B7F82',
-  okSoft: '#DCF3F3',
-  warn: '#A35F00',
-  warnSoft: '#FFF0DC',
-  bad: '#C62828', // missing input (a set ticked without weight or reps)
-  shadow: '0px 3px 14px rgba(30, 50, 70, 0.08)',
-  /** Bordered look (the warm pages): thin borders and soft glows instead of shadows. */
+  okText: '#007AFF',
+  okSoft: '#E5F1FF',
+  warn: '#C93400', // systemOrange, darkened for text
+  warnSoft: '#FFF2E0',
+  bad: '#FF3B30', // systemRed — missing input (a set ticked without weight or reps)
+  green: '#34C759', // systemGreen — switches
+  shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
+  /** Bordered look (old warm pages): off everywhere now. */
   neon: false,
   border: 'transparent',
-  /** One color per section (أقسامك): the hub, and the habits and goals pages. */
-  sec: { gym: '#0072B2', habits: '#CC79A7', goals: '#009E73', quit: '#7A5CFA', tasks: '#B93435', focus: '#E0662B' },
-  tag: { heavy: '#3E5A76', fail: '#3E5A76', drop: '#3E5A76' },
-  protein: '#0072B2',
-  carbs: '#E69F00',
-  carbsText: '#A86F00',
-  fat: '#009E73',
-  veg: '#8A939E',
+  /** One color per section (iOS system colors), used sparingly (icons, rings). */
+  sec: { gym: '#007AFF', habits: '#FF2D55', goals: '#34C759', quit: '#5856D6', tasks: '#FF3B30', focus: '#FF9500' },
+  tag: { heavy: '#1C1C1E', fail: '#1C1C1E', drop: '#1C1C1E' },
+  protein: '#007AFF',
+  carbs: '#FF9500',
+  carbsText: '#C93400',
+  fat: '#34C759',
+  veg: '#8E8E93',
   muscle: {
     chest: '#0072B2',
     shoulders: '#3A9FD9',
@@ -46,31 +48,32 @@ const light = {
 };
 
 const dark: typeof light = {
-  bg: '#0E1318',
-  card: '#171E26',
-  fg: '#E6ECF1',
-  mute: '#94A5B6',
-  line: '#25303B',
-  soft: '#1F2832',
-  ink: '#557797',
-  onInk: '#FFFFFF',
-  ok: '#2BC0C2',
-  onOk: '#0E1318',
-  okText: '#4DD2D4',
-  okSoft: '#113437',
-  warn: '#F2B04A',
-  warnSoft: '#3A2C12',
-  bad: '#FF6B6B',
-  shadow: '0px 3px 14px rgba(0, 0, 0, 0.35)',
+  bg: '#000000',
+  card: '#1C1C1E',
+  fg: '#FFFFFF',
+  mute: '#8D8D93',
+  line: '#38383A',
+  soft: '#2C2C2E',
+  ink: '#E5E5EA',
+  onInk: '#000000',
+  ok: '#0A84FF',
+  onOk: '#FFFFFF',
+  okText: '#0A84FF',
+  okSoft: '#0A2A4D',
+  warn: '#FF9F0A',
+  warnSoft: '#3A2A10',
+  bad: '#FF453A',
+  green: '#30D158',
+  shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
   neon: false,
   border: 'transparent',
-  sec: { gym: '#3FA3E0', habits: '#E08CC0', goals: '#2FC496', quit: '#A48BFF', tasks: '#E0575B', focus: '#FF8A50' },
-  tag: { heavy: '#557797', fail: '#557797', drop: '#557797' },
-  protein: '#3FA3E0',
-  carbs: '#F0B23A',
-  carbsText: '#F0B23A',
-  fat: '#2FC496',
-  veg: '#9AA3AE',
+  sec: { gym: '#0A84FF', habits: '#FF375F', goals: '#30D158', quit: '#5E5CE6', tasks: '#FF453A', focus: '#FF9F0A' },
+  tag: { heavy: '#E5E5EA', fail: '#E5E5EA', drop: '#E5E5EA' },
+  protein: '#0A84FF',
+  carbs: '#FF9F0A',
+  carbsText: '#FF9F0A',
+  fat: '#30D158',
+  veg: '#98989D',
   muscle: {
     chest: '#3FA3E0',
     shoulders: '#7CC6F0',
@@ -85,54 +88,9 @@ const dark: typeof light = {
 
 export type Theme = typeof light;
 
-/**
- * Warm: the sections, habits and goals pages. The neon layout (thin borders,
- * glowing rings and dots) in warm colors: cream and ink by day, warm black with a gold accent by night, and a soft
- * blue, pink and green for the gym, habits and goals.
- */
-export const warm: Theme = {
-  ...light,
-  bg: '#F6F3EE',
-  card: '#FFFDF9',
-  fg: '#1F1D1A',
-  mute: '#8C857A',
-  line: '#ECE6DC',
-  soft: '#F0EBE3',
-  ink: '#1F1D1A',
-  onInk: '#F6F3EE',
-  ok: '#1F1D1A',
-  onOk: '#F6F3EE',
-  okText: '#1F1D1A',
-  okSoft: '#EDE7DD',
-  warn: '#A8660F',
-  warnSoft: '#FBEFD5',
-  shadow: '0px 4px 18px rgba(80, 60, 30, 0.07)',
-  neon: true,
-  border: '#E9E2D6',
-  sec: { gym: '#5B7FE0', habits: '#E0609B', goals: '#3E9A68', quit: '#7A5CFA', tasks: '#B93435', focus: '#E0662B' },
-};
-
-export const warmDark: Theme = {
-  ...dark,
-  bg: '#14120F',
-  card: '#1D1A16',
-  fg: '#F3EEE6',
-  mute: '#9B9387',
-  line: '#2C2822',
-  soft: '#26221D',
-  ink: '#F3EEE6',
-  onInk: '#14120F',
-  ok: '#F2C14E',
-  onOk: '#14120F',
-  okText: '#F2C14E',
-  okSoft: '#3A3120',
-  warn: '#F2B04A',
-  warnSoft: '#3A2C12',
-  shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
-  neon: true,
-  border: '#2E2A23',
-  sec: { gym: '#8FA9FF', habits: '#FF8FC0', goals: '#7FD49C', quit: '#B6A2FF', tasks: '#E0575B', focus: '#FF8A50' },
-};
+/** The old warm look (habits, goals, quit, welcome) is the same Apple look now; the names stay for those pages. */
+export const warm: Theme = light;
+export const warmDark: Theme = dark;
 
 /** The warm theme that follows the phone's light or dark setting. */
 export function useWarm(): Theme {
@@ -148,7 +106,9 @@ export function useTheme(): Theme {
   const scheme = useColorScheme();
   const accent = useSettings((s) => s.accent);
   const base = forced ?? (scheme === 'dark' ? dark : light);
-  return useMemo(() => (accent ? { ...base, ...accentTokens(accent, base.bg) } : base), [base, accent]);
+  // System blue is a touch lighter in dark mode, like iOS.
+  const hex = accent === '#007AFF' && base.bg === dark.bg ? '#0A84FF' : accent;
+  return useMemo(() => (hex ? { ...base, ...accentTokens(hex, base.bg) } : base), [base, hex]);
 }
 
 /** Glow around something in `color` — only in the bordered (warm) look. */

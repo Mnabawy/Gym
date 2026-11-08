@@ -57,7 +57,7 @@ function Habits() {
     <Screen title="العادات" dense action={<MenuButton />}>
       {habits.length ? (
         <>
-          <Card style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Card style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
             <Ring value={due.length ? doneToday / due.length : 0} size={52} stroke={5}>
               <T w="numBold" style={{ fontSize: 13, color: t.okText }}>{`${doneToday}/${due.length}`}</T>
             </Ring>
@@ -250,14 +250,14 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 12 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12 },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 9, height: 9, borderRadius: 3 },
   arrow: { width: 40, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  check: { width: 48, height: 48, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  check: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   parts: { flexDirection: 'row', flexWrap: 'wrap', gap: 5, marginTop: 2 },
   part: { borderWidth: 1.2, borderRadius: 999, paddingHorizontal: 9, height: 26, justifyContent: 'center' },
   risk: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 },
-  empty: { alignItems: 'center', gap: 12, paddingTop: 60, paddingHorizontal: 12 },
-  emptyIcon: { width: 84, height: 84, borderRadius: 28, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
+  empty: { alignItems: 'center', gap: 8, paddingTop: 60, paddingHorizontal: 12 },
+  emptyIcon: { width: 84, height: 84, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 4 },
 });

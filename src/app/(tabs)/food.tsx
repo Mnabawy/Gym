@@ -135,7 +135,7 @@ export default function Food() {
 
       <DayChips dense days={chips} value={sel} today={today} onChange={setSel} />
 
-      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Ring value={canLog ? Math.min(1, eaten.kcal / goal.kcal) : 0} size={46} stroke={4}>
           <T w="numBold" style={{ fontSize: 12, color: canLog ? t.okText : t.mute }}>{canLog ? `${Math.round((eaten.kcal / goal.kcal) * 100)}%` : '–'}</T>
         </Ring>
@@ -213,7 +213,7 @@ export default function Food() {
                 </View>
               ))}
             </View>
-            <View style={{ flexDirection: 'row', gap: 12, marginTop: 1 }}>
+            <View style={{ flexDirection: 'row', gap: 8, marginTop: 1 }}>
               <T w="num" style={{ fontSize: 12 }}>{`${Math.round(m.mac.kcal)} سعر`}</T>
               <T w="num" style={{ fontSize: 12, color: t.protein }}>{`${Math.round(m.mac.p)} بروتين`}</T>
               <T w="num" style={{ fontSize: 12, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
@@ -276,7 +276,7 @@ export default function Food() {
         ) : null}
       </Sheet>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
         {[['بروتين', t.protein], ['كارب', t.carbs], ['دهون', t.fat], ['خضار', t.veg]].map(([l, c]) => (
           <View key={l} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
             <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c }} />

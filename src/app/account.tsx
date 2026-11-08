@@ -72,7 +72,7 @@ export default function Account() {
 
   return (
     <Screen title="حسابك" onBack={() => router.back()}>
-      <Card style={{ padding: 18, alignItems: 'center', gap: 10 }}>
+      <Card style={{ padding: 14, alignItems: 'center', gap: 10 }}>
         {photo ? (
           <Image source={{ uri: photo }} style={[s.avatar, { borderColor: tint(t.ok, 0.5) }]} />
         ) : (
@@ -117,7 +117,7 @@ export default function Account() {
           {cloudConfigured ? (
             <>
               <Card style={{ padding: 14, gap: 10 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                   <View style={[s.badge, { backgroundColor: tint(STATE[st.state].color(t), 0.14) }]}>
                     <Ionicons name={STATE[st.state].icon} size={22} color={STATE[st.state].color(t)} />
                   </View>

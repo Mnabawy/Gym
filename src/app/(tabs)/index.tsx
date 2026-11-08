@@ -114,7 +114,7 @@ function WorkoutScreen() {
       ) : null}
       <WorkoutChips dense value={sel} current={cur.id} onChange={pick} />
 
-      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
         <Ring value={total ? done / total : 0} size={46} stroke={4}>
           <T w="numBold" style={{ fontSize: 12, color: t.okText }}>{`${total ? Math.round((done / total) * 100) : 0}%`}</T>
         </Ring>

@@ -21,7 +21,7 @@ export function AccentPicker() {
   };
 
   return (
-    <Card style={{ padding: 14, gap: 12 }}>
+    <Card style={{ padding: 14, gap: 8 }}>
       <T style={{ fontSize: 12.5, color: t.mute, lineHeight: 19 }}>اكتب كود أي لون (زي #2563EB) أو اختار واحد، وهيتطبق على الزراير وعلامات ✓ والدواير في التطبيق كله</T>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
         <View style={[s.preview, { backgroundColor: typed ?? (accent || t.ok), borderColor: t.line }]}>

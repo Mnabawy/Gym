@@ -146,7 +146,7 @@ export function QuitForm({ quit, onClose, onSaved }: { quit?: Quit; onClose: () 
 }
 
 const s = StyleSheet.create({
-  preview: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 16, padding: 10 },
+  preview: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 10 },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 16, minHeight: 42, textAlign: 'right', outlineWidth: 0, padding: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },

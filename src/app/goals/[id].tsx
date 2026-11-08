@@ -314,9 +314,9 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
 
 const s = StyleSheet.create({
   bar: { flexDirection: 'row', gap: 4, height: 50, marginTop: 6 },
-  big: { height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
-  stage: { borderRadius: 22, padding: 14, borderWidth: 2, minHeight: 92, gap: 2 },
-  task: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 54 },
+  big: { height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  stage: { borderRadius: 12, padding: 14, borderWidth: 2, minHeight: 92, gap: 2 },
+  task: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 54 },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   why: { borderStartWidth: 4, borderRadius: 12, padding: 12, gap: 2 },
   nudge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },

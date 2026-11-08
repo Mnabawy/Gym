@@ -41,7 +41,7 @@ export default function Calories() {
   return (
     <Screen title="احتياجك من السعرات" sub="اكتب بياناتك وهنحسبلك السعرات والماكروز" onBack={() => router.back()}>
       <Label>بياناتك</Label>
-      <Card style={{ padding: 14, gap: 14 }}>
+      <Card style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <T w="medium" style={{ flex: 1 }}>النوع</T>
           <Pill label="راجل" on={body.sex === 'male'} onPress={() => setBody({ sex: 'male' })} />
@@ -98,7 +98,7 @@ export default function Calories() {
       </View>
 
       {!e ? (
-        <Card style={{ padding: 18, alignItems: 'center', gap: 4 }}>
+        <Card style={{ padding: 14, alignItems: 'center', gap: 4 }}>
           <T w="semi">{`فاضل: ${missing.join('، ')}`}</T>
           <T style={{ color: t.mute, fontSize: 12.5 }}>أول ما تكمّلهم هيظهر احتياجك هنا</T>
         </Card>
@@ -192,9 +192,9 @@ const s = StyleSheet.create({
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   cell: { flexBasis: '47%', flexGrow: 1, gap: 4 },
   input: { fontFamily: F.num, fontSize: 18, textAlign: 'center', paddingVertical: 10, borderRadius: 12, borderWidth: 1.5, writingDirection: 'ltr', minHeight: 48 },
-  option: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10, minHeight: 56 },
+  option: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, paddingVertical: 10, minHeight: 56 },
   radio: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 10, height: 10, borderRadius: 5 },
-  hero: { borderRadius: 18, padding: 18, alignItems: 'center' },
+  hero: { borderRadius: 12, padding: 14, alignItems: 'center' },
   tile: { flex: 1, minWidth: 0, borderRadius: 14, paddingVertical: 10, paddingHorizontal: 10, gap: 1 },
 });

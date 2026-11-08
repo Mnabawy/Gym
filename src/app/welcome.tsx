@@ -127,7 +127,7 @@ function WelcomeScreen() {
                 ))}
               </View>
 
-              <Animated.View style={[{ gap: 12 }, rise(5)]}>
+              <Animated.View style={[{ gap: 8 }, rise(5)]}>
                 <Pressable
                   onPress={signIn}
                   disabled={busy}
@@ -145,7 +145,7 @@ function WelcomeScreen() {
                   )}
                 </Pressable>
                 {err ? <T style={{ color: t.bad, fontSize: 13, textAlign: 'center' }}>{err}</T> : null}
-                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 18 }}>
+                <View style={{ flexDirection: 'row', justifyContent: 'center', gap: 13 }}>
                   <Pressable onPress={fromFile} accessibilityRole="button" hitSlop={8} style={({ pressed }) => ({ minHeight: 40, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
                     <T w="medium" style={{ fontSize: 14, color: t.ok }}>عندي ملف نسخة</T>
                   </Pressable>
@@ -199,11 +199,11 @@ function GoogleG() {
 }
 
 const s = StyleSheet.create({
-  wrap: { flex: 1, maxWidth: 460, width: '100%', alignSelf: 'center', paddingHorizontal: 22, paddingTop: 24, paddingBottom: 16, justifyContent: 'space-between', gap: 20 },
-  top: { alignItems: 'center', gap: 22, marginTop: 24 },
-  logo: { width: 92, height: 92, borderRadius: 30, borderWidth: 1, backgroundColor: 'rgba(34, 243, 228, 0.08)', alignItems: 'center', justifyContent: 'center' },
-  glass: { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)', borderRadius: 18, padding: 14 },
-  feature: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12 },
+  wrap: { flex: 1, maxWidth: 460, width: '100%', alignSelf: 'center', paddingHorizontal: 18, paddingTop: 24, paddingBottom: 16, justifyContent: 'space-between', gap: 14 },
+  top: { alignItems: 'center', gap: 15, marginTop: 24 },
+  logo: { width: 92, height: 92, borderRadius: 12, borderWidth: 1, backgroundColor: 'rgba(34, 243, 228, 0.08)', alignItems: 'center', justifyContent: 'center' },
+  glass: { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)', borderRadius: 12, padding: 14 },
+  feature: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12 },
   fIcon: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   // Same size as every other button (Btn: 40pt), white like Google's own sign-in button.
   google: { height: 40, borderRadius: 10, backgroundColor: '#FFFFFF', flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 10 },

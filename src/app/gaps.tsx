@@ -61,7 +61,7 @@ export default function Gaps() {
   if (!r.since) {
     return (
       <Screen title="النواقص" sub="إيه اللي ناقصك في البرنامج" onBack={() => router.back()}>
-        <Card style={{ padding: 20, alignItems: 'center', gap: 8 }}>
+        <Card style={{ padding: 16, alignItems: 'center', gap: 8 }}>
           <Ionicons name="analytics-outline" size={36} color={t.mute} />
           <T w="bold" style={{ fontSize: 16 }}>لسه مفيش تسجيل</T>
           <T style={{ color: t.mute, fontSize: 13, textAlign: 'center' }}>سجّل أول تمرين وعلّم ✓ على المجموعات، وهنا هيبان إيه اللي ناقصك.</T>
@@ -93,8 +93,8 @@ export default function Gaps() {
 
   return (
     <Screen title="النواقص" sub={period} onBack={() => router.back()}>
-      <Card style={{ padding: 14, gap: 14 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+      <Card style={{ padding: 14, gap: 10 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Ring value={r.score ?? 0} size={72} stroke={6}>
             <T w="numBold" style={{ fontSize: 16, color: t.okText }}>{r.score == null ? '–' : `${Math.round(r.score * 100)}%`}</T>
           </Ring>
@@ -112,7 +112,7 @@ export default function Gaps() {
 
       <Label>{r.gaps.length ? `أهم النواقص (${r.gaps.length})` : 'النواقص'}</Label>
       {r.gaps.length === 0 ? (
-        <Card style={{ padding: 16, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Card style={{ padding: 13, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ width: 40, height: 40, borderRadius: 20, backgroundColor: t.okSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="checkmark" size={22} color={t.okText} />
           </View>
@@ -188,7 +188,7 @@ export default function Gaps() {
       </Card>
 
       <Pressable onPress={() => router.push('/attendance')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-        <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.okSoft, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name="calendar" size={21} color={t.okText} />
           </View>

@@ -92,7 +92,7 @@ export function QuitCard({ q, now, onOpen, onUrge }: { q: Quit; now: number; onO
   const gold = tg.done;
 
   return (
-    <NightCard color={q.color} style={{ gap: 15 }}>
+    <NightCard color={q.color} style={{ gap: 10 }}>
       <Animated.View style={{ transform: [{ scale }] }}>
         <Pressable
           onPress={onOpen}
@@ -100,7 +100,7 @@ export function QuitCard({ q, now, onOpen, onUrge }: { q: Quit; now: number; onO
           onPressOut={() => spring(1)}
           accessibilityRole="button"
           accessibilityLabel={q.password ? 'عادة محمية' : q.name}
-          style={{ gap: 15 }}>
+          style={{ gap: 10 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
             <View style={[s.badge, { backgroundColor: `${q.color}26`, borderColor: `${q.color}66` }]}>
               <Ionicons name={q.icon as IconName} size={21} color="#FFFFFF" />
@@ -113,7 +113,7 @@ export function QuitCard({ q, now, onOpen, onUrge }: { q: Quit; now: number; onO
             <Ionicons name="chevron-back" size={18} color="rgba(255,255,255,0.4)" />
           </View>
 
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 11 }}>
             <CleanRing q={q} now={now} size={98} />
             <View style={{ flex: 1, gap: 11 }}>
               <View style={{ gap: 6 }}>
@@ -143,10 +143,10 @@ export function QuitCard({ q, now, onOpen, onUrge }: { q: Quit; now: number; onO
 }
 
 const s = StyleSheet.create({
-  card: { borderRadius: 28, overflow: 'hidden', padding: 18, backgroundColor: NIGHT },
+  card: { borderRadius: 12, overflow: 'hidden', padding: 14, backgroundColor: NIGHT },
   box: { flex: 1, alignItems: 'center', paddingVertical: 8, borderRadius: 14, backgroundColor: 'rgba(255,255,255,0.08)' },
   badge: { width: 42, height: 42, borderRadius: 14, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   track: { height: 8, borderRadius: 4, backgroundColor: 'rgba(255,255,255,0.14)', overflow: 'hidden' },
   stat: { flexDirection: 'row', alignItems: 'center', gap: 5, backgroundColor: 'rgba(255,255,255,0.08)', borderRadius: 10, paddingVertical: 5, paddingHorizontal: 9 },
-  urge: { flexDirection: 'row', gap: 8, height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
+  urge: { flexDirection: 'row', gap: 8, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

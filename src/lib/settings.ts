@@ -66,6 +66,8 @@ export type Settings = {
   backupDir: string;
   /** Your app color (#RRGGBB) for buttons, ticks and rings everywhere (the owner's red by default); '' = each theme's own. */
   accent: string;
+  /** Design version the settings were saved under; 2 = the Apple look (old default red became system blue). */
+  look: number;
 };
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -97,7 +99,8 @@ export const DEFAULT_SETTINGS: Settings = {
   stepsSync: false,
   autoBackup: true,
   backupDir: '',
-  accent: '#B93435',
+  accent: '#007AFF',
+  look: 2,
 };
 
 const KEY = 'settings';
@@ -132,6 +135,9 @@ export function parseSettings(raw: string | null): Settings {
   if (!(out.reminderTime >= 0 && out.reminderTime < 24 * 60)) out.reminderTime = DEFAULT_SETTINGS.reminderTime;
   if (!(out.briefTime >= 0 && out.briefTime < 24 * 60)) out.briefTime = DEFAULT_SETTINGS.briefTime;
   out.accent = out.accent === '' ? '' : normHex(out.accent) ?? DEFAULT_SETTINGS.accent;
+  // Moving to the Apple look: the old default red becomes system blue once; a color picked after that stays.
+  if (typeof o.look !== 'number' && out.accent === '#B93435') out.accent = DEFAULT_SETTINGS.accent;
+  out.look = DEFAULT_SETTINGS.look;
   if (typeof o.prayerMethod === 'string' && o.prayerMethod in METHODS) out.prayerMethod = o.prayerMethod as Method;
   return out;
 }

@@ -92,7 +92,7 @@ export default function PrayerScreen() {
   if (!place) {
     return (
       <Screen onBack={() => router.back()} title="مواقيت الصلاة" sub="بتتحسب من مكانك الحالي">
-        <Card style={{ padding: 20, alignItems: 'center', gap: 10 }}>
+        <Card style={{ padding: 16, alignItems: 'center', gap: 10 }}>
           {busy ? <ActivityIndicator color={t.ok} /> : <Ionicons name="location-outline" size={36} color={t.mute} />}
           <T w="bold" style={{ fontSize: 16 }}>{busy ? 'بنحدد مكانك…' : 'محتاجين مكانك'}</T>
           <T style={{ color: t.mute, fontSize: 13, textAlign: 'center', lineHeight: 20 }}>
@@ -171,7 +171,7 @@ export default function PrayerScreen() {
 }
 
 const s = StyleSheet.create({
-  hero: { borderRadius: 20, padding: 18, alignItems: 'center', gap: 2 },
+  hero: { borderRadius: 12, padding: 14, alignItems: 'center', gap: 2 },
   pill: { marginTop: 8, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 4 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, minHeight: 52 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 14, minHeight: 52 },
 });

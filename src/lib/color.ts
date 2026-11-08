@@ -63,4 +63,4 @@ export function accentTokens(hex: string, bg: string): AccentTokens {
 }
 
 /** Ready colors under the color box. */
-export const ACCENT_PRESETS = ['#B93435', '#1BA6A8', '#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#1F1D1A'] as const;
+export const ACCENT_PRESETS = ['#007AFF', '#B93435', '#1BA6A8', '#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#1F1D1A'] as const;

@@ -135,7 +135,7 @@ export default function Shop() {
       ) : (
         <>
           {all.length ? (
-            <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+            <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <Ring value={done / all.length} size={46} stroke={4}>
                 <T w="numBold" style={{ fontSize: 12, color: t.okText }}>{`${Math.round((done / all.length) * 100)}%`}</T>
               </Ring>
@@ -146,7 +146,7 @@ export default function Shop() {
               </View>
             </Card>
           ) : (
-            <Card style={{ padding: 20, alignItems: 'center', gap: 4 }}>
+            <Card style={{ padding: 16, alignItems: 'center', gap: 4 }}>
               <T w="bold" style={{ fontSize: 16 }}>{`مفيش مشتريات في المرة ${k + 1}`}</T>
               <T style={{ color: t.mute, fontSize: 13, textAlign: 'center' }}>اختار لها أصناف من زرار التعديل فوق.</T>
             </Card>

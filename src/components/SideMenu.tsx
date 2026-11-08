@@ -156,12 +156,12 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
 
 const s = StyleSheet.create({
   pill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12 },
-  account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 16, marginBottom: 8 },
+  account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 8 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   back: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },
   panel: { position: 'absolute', top: 0, bottom: 0, end: 0, borderTopStartRadius: 22, borderBottomStartRadius: 22, borderStartWidth: 1, paddingHorizontal: 10, gap: 2, boxShadow: '0px 0px 24px rgba(0, 0, 0, 0.25)' },
   top: { flexDirection: 'row', alignItems: 'center', paddingHorizontal: 8, marginBottom: 8, minHeight: 44 },
   x: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
-  item: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 52, paddingHorizontal: 8, borderRadius: 14 },
+  item: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 52, paddingHorizontal: 8, borderRadius: 14 },
   icon: { width: 36, height: 36, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
 });

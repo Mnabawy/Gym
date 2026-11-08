@@ -64,7 +64,7 @@ export function AppLock() {
 }
 
 const s = StyleSheet.create({
-  cover: { backgroundColor: neon.bg, alignItems: 'center', justifyContent: 'center', gap: 18, zIndex: 1000 },
-  icon: { width: 96, height: 96, borderRadius: 32, borderWidth: 1, borderColor: 'rgba(34, 243, 228, 0.45)', backgroundColor: 'rgba(34, 243, 228, 0.08)', alignItems: 'center', justifyContent: 'center' },
-  btn: { height: 40, minWidth: 160, borderRadius: 10, backgroundColor: neon.ok, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 18 },
+  cover: { backgroundColor: neon.bg, alignItems: 'center', justifyContent: 'center', gap: 13, zIndex: 1000 },
+  icon: { width: 96, height: 96, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(34, 243, 228, 0.45)', backgroundColor: 'rgba(34, 243, 228, 0.08)', alignItems: 'center', justifyContent: 'center' },
+  btn: { height: 40, minWidth: 160, borderRadius: 10, backgroundColor: neon.ok, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 14 },
 });

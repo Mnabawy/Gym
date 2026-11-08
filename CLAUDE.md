@@ -15,11 +15,12 @@ Exercise names stay in English (gym vocabulary).
 - One fixed color per muscle (Okabe–Ito, colorblind-safe) in `src/theme/index.ts`.
 - Technique tags: تقيل (filled), فشل (outlined), دروب (dashed). Copy in `src/data/rules.ts`.
 - Food chip colors: protein blue, carbs orange, fat green, veg grey.
-- App color: settings `accent` (default the owner's red `#B93435`; #RRGGBB typed or a preset, `src/components/AccentPicker.tsx`); `useTheme` swaps in `accentTokens` (`src/lib/color.ts`: text color pushed to 4.5:1 contrast, readable text on buttons) for every theme incl. neon and warm
+- Apple look app-wide: iOS system colors in `src/theme/index.ts` (grouped grey background, white cards, no shadows, hairline separators, system green switches, tinted/filled buttons, plain tint header icons), tight spacing (cards radius 12, page gap 8, rows 44pt). `warm` / `warmDark` are now the same as light/dark.
+- App color: settings `accent` (default system blue `#007AFF`, `#0A84FF` in dark; settings `look` = 2 moved the old default red to blue once; #RRGGBB typed or a preset, `src/components/AccentPicker.tsx`); `useTheme` swaps in `accentTokens` (`src/lib/color.ts`: text color pushed to 4.5:1 contrast, readable text on buttons) for every theme incl. neon and warm
 - Light + dark from one token file. Touch targets ≥ 44pt.
 - Small font app-wide: `T` (`src/components/ui.tsx`) draws every size × `TEXT_SCALE` (0.9). Write sizes at full scale; tight spacing (`Screen dense`) on the workout, food and shopping tabs.
 - One button size: `Btn` (40pt, one line of 14pt text that shrinks to fit) — use it for every text button. `T` caps the phone's font-size setting at ×1.15 (`maxFontSizeMultiplier`).
-- Warm look for the habits and goals pages (`warm` / `warmDark` + `useWarm()` in `src/theme/index.ts`, follows the phone's light/dark): the neon layout (borders, glowing rings and dots) in cream/ink or warm black/gold, section colors `t.sec`
+- Section colors `t.sec` (iOS system colors) only for small marks (icons, rings)
 - The neon workout-tab mode was removed. `t.neon` now only means the bordered warm look (thin borders, `glow()`); the welcome screen and app lock use `warmDark`.
 
 ## Data

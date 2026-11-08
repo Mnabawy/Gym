@@ -33,7 +33,7 @@ function Goals() {
     <Screen title="الأهداف" action={<MenuButton />}>
       {adding ? <GoalForm onClose={() => setAdding(false)} onSaved={(g) => router.push(`/goals/${g.id}`)} /> : null}
       {!goals.length ? (
-        <Card style={{ padding: 20, gap: 12, alignItems: 'center' }}>
+        <Card style={{ padding: 16, gap: 8, alignItems: 'center' }}>
           <View style={[s.big, { backgroundColor: tint(t.sec.goals, 0.14), borderColor: tint(t.sec.goals, 0.6), boxShadow: glow(t, t.sec.goals, 18) }]}>
             <Ionicons name="flag" size={38} color={t.sec.goals} />
           </View>
@@ -56,7 +56,7 @@ function Goals() {
                 accessibilityRole="button"
                 accessibilityLabel={`${g.name}: ${Math.floor(p * 100)}%`}
                 style={({ pressed }) => [s.tile, { backgroundColor: t.card, borderColor: tint(g.color, 0.6), boxShadow: `0px 0px 16px ${tint(g.color, 0.25)}`, transform: [{ scale: pressed ? 0.98 : 1 }] }]}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
                   <View style={[s.icon, { backgroundColor: tint(g.color, 0.14), borderColor: tint(g.color, 0.6), boxShadow: glow(t, g.color, 12) }]}>
                     <Ionicons name={g.icon as IconName} size={26} color={g.color} />
                   </View>
@@ -64,7 +64,7 @@ function Goals() {
                     <T w="bold" style={{ fontSize: 17 }} numberOfLines={2}>{g.name}</T>
                     <T style={{ fontSize: 12.5, color: t.mute }}>{`${fmtAmount(current(g), g.unit)} من ${fmtAmount(g.target, g.unit)}`}</T>
                   </View>
-                  <View style={{ borderRadius: 31, boxShadow: `0px 0px 12px ${tint(g.color, 0.35)}` }}>
+                  <View style={{ borderRadius: 12, boxShadow: `0px 0px 12px ${tint(g.color, 0.35)}` }}>
                     <Ring value={p} size={62} stroke={6} color={g.color} track={tint(g.color, 0.15)}>
                       <T w="numBold" style={{ fontSize: 14, color: g.color }}>{`${Math.floor(p * 100)}%`}</T>
                     </Ring>
@@ -93,9 +93,9 @@ function Goals() {
 }
 
 const s = StyleSheet.create({
-  big: { width: 76, height: 76, borderRadius: 26, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
-  tile: { padding: 16, borderRadius: 24, borderWidth: 1.5, gap: 12 },
-  icon: { width: 52, height: 52, borderRadius: 17, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  big: { width: 76, height: 76, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
+  tile: { padding: 13, borderRadius: 12, borderWidth: 1.5, gap: 8 },
+  icon: { width: 52, height: 52, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 1 },
   next: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, paddingHorizontal: 10, paddingVertical: 8 },
   nudge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 6 },
 });

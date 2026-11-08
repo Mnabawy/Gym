@@ -131,8 +131,8 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
 }
 
 const s = StyleSheet.create({
-  tp: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: 16, minHeight: 64 },
-  preview: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 16, padding: 10 },
+  tp: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, borderRadius: 12, minHeight: 64 },
+  preview: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 10 },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 16, minHeight: 42, textAlign: 'right', outlineWidth: 0, padding: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8, alignItems: 'center' },

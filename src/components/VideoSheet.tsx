@@ -66,8 +66,8 @@ export function VideoSheet({ video, name, visible, onClose }: { video: FormVideo
 
 const s = StyleSheet.create({
   backdrop: { flex: 1, backgroundColor: 'rgba(8, 14, 20, 0.6)' },
-  sheet: { position: 'absolute', bottom: 0, start: 0, end: 0, borderTopStartRadius: 24, borderTopEndRadius: 24, paddingTop: 14, paddingHorizontal: 16, gap: 12, alignItems: 'stretch' },
+  sheet: { position: 'absolute', bottom: 0, start: 0, end: 0, borderTopStartRadius: 24, borderTopEndRadius: 24, paddingTop: 14, paddingHorizontal: 13, gap: 8, alignItems: 'stretch' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   close: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  player: { alignSelf: 'center', borderRadius: 16, overflow: 'hidden', backgroundColor: '#000' },
+  player: { alignSelf: 'center', borderRadius: 12, overflow: 'hidden', backgroundColor: '#000' },
 });

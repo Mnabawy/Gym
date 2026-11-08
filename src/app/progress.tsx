@@ -60,7 +60,7 @@ export default function ProgressScreen() {
   return (
     <Screen title="التقدم" sub="الأسبوع بيبدأ السبت" onBack={() => router.back()}>
       <Pressable onPress={() => router.push('/gaps')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-        <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <Ring value={report.score ?? 0} size={54} stroke={5}>
             <T w="numBold" style={{ fontSize: 13, color: t.okText }}>{report.score == null ? '–' : `${Math.round(report.score * 100)}%`}</T>
           </Ring>
@@ -80,7 +80,7 @@ export default function ProgressScreen() {
       </Pressable>
 
       <Card style={{ padding: 14, gap: 10 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Ring value={week.sessions / 5} size={64} stroke={5}>
             <T w="numBold" style={{ fontSize: 15, color: t.okText }}>{`${week.sessions}/5`}</T>
           </Ring>

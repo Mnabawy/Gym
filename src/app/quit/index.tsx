@@ -60,7 +60,7 @@ function QuitList() {
       {passwordFor ? <PasswordModal quitId={passwordFor} password={passwordInput} onPasswordChange={setPasswordInput} onConfirm={checkPassword} onClose={() => setPasswordFor(null)} /> : null}
 
       {!quits.length ? (
-        <NightCard color={t.sec.quit} style={{ alignItems: 'center', gap: 12, paddingVertical: 28 }}>
+        <NightCard color={t.sec.quit} style={{ alignItems: 'center', gap: 8, paddingVertical: 21 }}>
           <View style={[s.big, { backgroundColor: `${t.sec.quit}33`, borderColor: t.sec.quit }]}>
             <Ionicons name="hand-left" size={36} color="#FFFFFF" />
           </View>
@@ -85,6 +85,6 @@ function QuitList() {
 }
 
 const s = StyleSheet.create({
-  big: { width: 76, height: 76, borderRadius: 26, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  cta: { alignSelf: 'stretch', height: 52, borderRadius: 18, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
+  big: { width: 76, height: 76, borderRadius: 12, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  cta: { alignSelf: 'stretch', height: 52, borderRadius: 12, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginTop: 4 },
 });

@@ -92,7 +92,7 @@ export function GapCard({ gap, report, onPress, open, children }: { gap: Gap; re
   return (
     <Pressable onPress={onPress} disabled={!onPress} accessibilityRole="button" accessibilityState={{ expanded: open }} style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
       <Card style={{ padding: 14, gap: 10 }}>
-        <View style={{ flexDirection: 'row', gap: 12 }}>
+        <View style={{ flexDirection: 'row', gap: 8 }}>
           <View style={{ width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center', backgroundColor: big ? t.warnSoft : t.soft }}>
             <Ionicons name={icon} size={20} color={big ? t.warn : t.ink} />
           </View>

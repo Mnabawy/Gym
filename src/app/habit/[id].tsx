@@ -95,7 +95,7 @@ function HabitScreen() {
             <T style={{ fontSize: 13 }}>{h.cue}</T>
           </View>
         ) : null}
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 22, marginTop: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 15, marginTop: 4 }}>
           <View style={{ alignItems: 'center' }}>
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 4 }}>
               <Ionicons name="flame" size={24} color="#E8590C" style={{ marginBottom: 6 }} />
@@ -142,7 +142,7 @@ function HabitScreen() {
       </Card>
 
       {/* Month calendar: done days in the habit's color, joined into runs; tap a day to fix it */}
-      <Card style={{ padding: 14, gap: 12 }}>
+      <Card style={{ padding: 14, gap: 8 }}>
         <View style={s.nav}>
           <NavBtn t={t} icon="chevron-forward" label="الشهر اللي فات" disabled={!canPrev} onPress={() => go(-1)} />
           <View style={{ flex: 1, alignItems: 'center' }}>
@@ -395,8 +395,8 @@ function NavBtn({ t, icon, label, disabled, onPress }: { t: Theme; icon: 'chevro
 }
 
 const s = StyleSheet.create({
-  hero: { padding: 16, alignItems: 'center', gap: 6 },
-  bigIcon: { width: 64, height: 64, borderRadius: 22, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
+  hero: { padding: 13, alignItems: 'center', gap: 6 },
+  bigIcon: { width: 64, height: 64, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 2 },
   cue: { flexDirection: 'row', alignItems: 'center', gap: 5, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 },
   bar: { height: 12, borderRadius: 6, overflow: 'hidden', flexDirection: 'row' },
   pin: { minWidth: 30, height: 22, paddingHorizontal: 6, borderRadius: 11, alignItems: 'center', justifyContent: 'center' },

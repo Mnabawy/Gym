@@ -65,7 +65,7 @@ function QuitPage() {
       {urge ? <UrgeScreen q={q} onClose={() => setUrge(false)} onSlip={() => { setUrge(false); setSlip(true); }} /> : null}
       {slip ? <SlipSheet q={q} onClose={() => setSlip(false)} /> : null}
 
-      <NightCard color={q.color} style={{ alignItems: 'center', gap: 16, paddingVertical: 24 }}>
+      <NightCard color={q.color} style={{ alignItems: 'center', gap: 11, paddingVertical: 18 }}>
         <CleanRing q={q} now={now} size={220} />
         <T w="semi" style={{ color: 'rgba(255,255,255,0.8)', fontSize: 14 }}>{nextLine(q, now)}</T>
         <View style={[s.goal, { backgroundColor: tg.done ? '#FFD70022' : 'rgba(255,255,255,0.08)' }]}>
@@ -202,10 +202,10 @@ function Tile({ t, icon, color, label, value, sub }: { t: Theme; icon: IconName;
 }
 
 const s = StyleSheet.create({
-  urge: { alignSelf: 'stretch', flexDirection: 'row', gap: 10, height: 58, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  urge: { alignSelf: 'stretch', flexDirection: 'row', gap: 10, height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   slipLink: { minHeight: 36, justifyContent: 'center', paddingHorizontal: 12 },
   goal: { flexDirection: 'row', alignItems: 'center', gap: 7, borderRadius: 999, paddingHorizontal: 14, paddingVertical: 8 },
-  medal: { width: 74, height: 74, borderRadius: 22, alignItems: 'center', justifyContent: 'center', gap: 4 },
+  medal: { width: 74, height: 74, borderRadius: 12, alignItems: 'center', justifyContent: 'center', gap: 4 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
   risky: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 10, paddingHorizontal: 10, paddingVertical: 8 },
   dot: { width: 8, height: 8, borderRadius: 4 },

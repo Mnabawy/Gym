@@ -106,14 +106,14 @@ export default function Attendance() {
         ))}
       </View>
 
-      <Card style={{ padding: 14, gap: 12 }}>
+      <Card style={{ padding: 14, gap: 8 }}>
         <View style={s.nav}>
           <NavBtn icon="chevron-forward" label="الشهر اللي فات" disabled={!canPrev} onPress={() => go(-1)} />
           <T w="bold" style={{ fontSize: 17, flex: 1, textAlign: 'center' }}>{`${MONTHS_AR[view.m]} ${view.y}`}</T>
           <NavBtn icon="chevron-back" label="الشهر الجاي" disabled={!canNext} onPress={() => go(1)} />
         </View>
 
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
           <Ring value={st.rate ?? 0} size={64} stroke={5} color={muscle ? t.muscle[muscle] : undefined}>
             <T w="numBold" style={{ fontSize: 15, color: t.okText }}>{st.rate == null ? '–' : `${Math.round(st.rate * 100)}%`}</T>
           </Ring>

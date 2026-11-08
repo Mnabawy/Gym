@@ -178,12 +178,12 @@ export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, o
 }
 
 const s = StyleSheet.create({
-  urge: { flex: 1, backgroundColor: '#14101F', paddingHorizontal: 20, gap: 12 },
+  urge: { flex: 1, backgroundColor: '#14101F', paddingHorizontal: 16, gap: 8 },
   x: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
   halo: { position: 'absolute', width: 270, height: 270, borderRadius: 135 },
   ball: { width: 200, height: 200, borderRadius: 100, alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 16, padding: 12, gap: 2 },
-  btn: { height: 56, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  card: { backgroundColor: 'rgba(255,255,255,0.07)', borderRadius: 12, padding: 12, gap: 2 },
+  btn: { height: 56, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { minHeight: 36, borderRadius: 18, paddingHorizontal: 14, justifyContent: 'center' },
   input: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 14.5, textAlign: 'right', outlineWidth: 0 },

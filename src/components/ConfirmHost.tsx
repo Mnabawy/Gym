@@ -31,6 +31,6 @@ export function ConfirmHost() {
 }
 
 const s = StyleSheet.create({
-  back: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 28 },
-  pop: { width: '100%', maxWidth: 420, borderRadius: 20, padding: 18, gap: 12 },
+  back: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 22 },
+  pop: { width: '100%', maxWidth: 420, borderRadius: 12, padding: 14, gap: 8 },
 });

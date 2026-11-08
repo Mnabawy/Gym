@@ -63,7 +63,9 @@ describe('settings store', () => {
 
 test('the saved color is checked', () => {
   expect(parseSettings(JSON.stringify({ accent: '#2563eb' })).accent).toBe('#2563EB');
-  expect(parseSettings(JSON.stringify({ accent: 'blue' })).accent).toBe('#B93435');
+  expect(parseSettings(JSON.stringify({ accent: 'blue' })).accent).toBe('#007AFF');
+  expect(parseSettings(JSON.stringify({ accent: '#B93435' })).accent).toBe('#007AFF');
+  expect(parseSettings(JSON.stringify({ accent: '#B93435', look: 2 })).accent).toBe('#B93435');
   expect(parseSettings(JSON.stringify({ accent: '' })).accent).toBe('');
-  expect(parseSettings(null).accent).toBe('#B93435');
+  expect(parseSettings(null).accent).toBe('#007AFF');
 });
