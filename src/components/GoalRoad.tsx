@@ -120,7 +120,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           body = (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
               <View style={{ flex: 1 }}>
-                <T w="bold" style={{ fontSize: 16.5, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
+                <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
                 <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
               </View>
               <Ionicons name={r.open ? 'chevron-up' : 'chevron-down'} size={16} color={t.mute} />
@@ -148,7 +148,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               {done ? <Ionicons name="checkmark" size={13} color={t.bg} /> : null}
             </View>
           );
-          body = <T style={{ fontSize: 14.5, lineHeight: 22, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{r.task.title}</T>;
+          body = <T style={{ fontSize: 14, lineHeight: 20, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{r.task.title}</T>;
           onPress = () => {
             tap();
             ease();
@@ -183,11 +183,11 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         const rail = (
           <>
             <View style={s.rail}>
-              <View style={[s.line, { height: big ? 10 : 12, backgroundColor: above ?? 'transparent' }]} />
+              <View style={[s.line, { height: big ? 6 : 8, backgroundColor: above ?? 'transparent' }]} />
               {bead}
               <View style={[s.line, { flex: 1, minHeight: 10, backgroundColor: below ?? 'transparent' }]} />
             </View>
-            <View style={{ flex: 1, paddingTop: 10, paddingBottom: big ? 16 : 10, minHeight: big ? 64 : 44 }}>{body}</View>
+            <View style={{ flex: 1, paddingTop: 6, paddingBottom: big ? 10 : 6, minHeight: big ? 50 : 40 }}>{body}</View>
           </>
         );
         // While you type in a "+" bead the row is a plain view (its ✓ and ✕ are buttons of their own).
@@ -252,7 +252,7 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', gap: 10 },
   rail: { width: RAIL, alignItems: 'center' },
   line: { width: 2.5, borderRadius: 2 },
-  big: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  big: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
   small: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   input: { flex: 1, minWidth: 0, height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, textAlign: 'right', outlineWidth: 0 },
   ok: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },

@@ -186,13 +186,11 @@ export default function WeightScreen() {
             return (
               <React.Fragment key={p.k}>
                 {i ? <Sep /> : null}
-                <Swipe end={[{ icon: 'create-outline', label: 'قيس', color: ACTION.grey, onPress: openMeasure }]}>
                   <View style={[s.row, { backgroundColor: t.card }]}>
                     <T style={{ flex: 1, fontSize: 13.5 }}>{p.label}</T>
                     {c?.change != null ? <T w="num" style={{ fontSize: 12, color: t.mute }}>{`${iso(signed(c.change))} من ${dayLabel(c.since)}`}</T> : null}
                     <T w="numBold" style={{ fontSize: 14, minWidth: 48, textAlign: 'center' }}>{c ? iso(fmt(c.last)) : '–'}</T>
                   </View>
-                </Swipe>
               </React.Fragment>
             );
           })

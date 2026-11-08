@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Item } from '../components/Motion';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
-import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Ring, Screen, Sheet, Stepper, T } from '../components/ui';
@@ -87,21 +86,16 @@ function Focus() {
             <T style={{ flex: 1, fontSize: 14.5, color: t.mute }}>من غير مهمة</T>
             {!s.task ? <Ionicons name="checkmark" size={18} color={t.ok} /> : null}
           </Pressable>
-          {/* The sheet is a Modal: its rows' swipe gestures need their own root there on Android. */}
-          <GestureHandlerRootView>
           {tasks.map((x) => {
             const pick = () => { tap(); setFocus({ task: x.title }); setPicking(false); };
             return (
-              <Swipe key={x.id} start={[{ icon: 'checkmark-circle', label: 'اختار', color: ACTION.green, onPress: pick }]}>
-                <Pressable onPress={pick} style={[s_.pick, { borderColor: t.line, backgroundColor: t.card }]} accessibilityRole="button">
+                <Pressable key={x.id} onPress={pick} style={[s_.pick, { borderColor: t.line, backgroundColor: t.card }]} accessibilityRole="button">
                   <Ionicons name="ellipse-outline" size={16} color={t.mute} />
                   <T style={{ flex: 1, fontSize: 14.5 }} numberOfLines={1}>{x.title}</T>
                   {s.task === x.title ? <Ionicons name="checkmark" size={18} color={t.ok} /> : null}
                 </Pressable>
-              </Swipe>
             );
           })}
-          </GestureHandlerRootView>
           {!tasks.length ? <T style={{ color: t.mute, fontSize: 13 }}>مفيش مهام مفتوحة في مهامي</T> : null}
         </Sheet>
       ) : null}

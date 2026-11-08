@@ -76,10 +76,10 @@ function GoalPage() {
         </Sheet>
       ) : null}
 
-      <View style={{ gap: 2, marginTop: 4 }}>
-        <T style={{ fontSize: 14, color: t.mute }}>{g.name}</T>
-        <T w="numBold" style={{ fontSize: 62, lineHeight: 74, letterSpacing: -1.5, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
-        <T style={{ fontSize: 13.5, color: t.mute }}>{there ? 'وصلت للهدف 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}${pc.eta ? ` · هتوصل ${monthLabel(pc.eta)}` : ''}`}</T>
+      <View style={{ gap: 0 }}>
+        <T w="semi" style={{ fontSize: 15 }}>{g.name}</T>
+        <T w="numBold" style={{ fontSize: 38, lineHeight: 48, letterSpacing: -0.5, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
+        <T style={{ fontSize: 12.5, color: t.mute }}>{there ? 'وصلت للهدف 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}${pc.eta ? ` · هتوصل ${monthLabel(pc.eta)}` : ''}`}</T>
       </View>
 
       {/* The whole way as one bar: the part you've done in ink, the rest striped, with the quarter marks under it. */}
@@ -92,26 +92,26 @@ function GoalPage() {
             </View>
           ) : null}
         </View>
-        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 6 }}>
+        <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 4 }}>
           {[0, 0.25, 0.5, 0.75, 1].map((m) => (
             <T key={m} w={p >= m ? 'numBold' : 'numRegular'} style={{ fontSize: 11.5, color: p >= m ? t.fg : t.mute }}>{short(g.start + (g.target - g.start) * m, g.unit)}</T>
           ))}
         </View>
       </View>
 
-      <View style={{ flexDirection: 'row', gap: 10 }}>
+      <View style={{ flexDirection: 'row', gap: 8 }}>
         <Pressable onPress={() => setLogging(true)} accessibilityRole="button" style={({ pressed }) => [s.big, { flex: 1, backgroundColor: t.fg, opacity: pressed ? 0.85 : 1 }]}>
-          <T w="bold" style={{ fontSize: 16.5, color: t.bg }}>+ سجّل تقدّم</T>
+          <T w="semi" style={{ fontSize: 15, color: t.bg }}>+ سجّل تقدّم</T>
         </Pressable>
-        <Pressable onPress={() => setWinning(true)} accessibilityRole="button" accessibilityLabel="إنجاز جديد" style={({ pressed }) => [s.big, { width: 58, backgroundColor: t.card, opacity: pressed ? 0.7 : 1 }]}>
-          <Ionicons name="trophy" size={24} color="#E0A030" />
+        <Pressable onPress={() => setWinning(true)} accessibilityRole="button" accessibilityLabel="إنجاز جديد" style={({ pressed }) => [s.big, { width: 44, backgroundColor: t.card, opacity: pressed ? 0.7 : 1 }]}>
+          <Ionicons name="trophy" size={20} color="#E0A030" />
         </Pressable>
       </View>
 
       {g.why ? (
         <View style={[s.why, { borderColor: t.fg, backgroundColor: t.card }]}>
           <T style={{ fontSize: 12, color: t.mute }}>ليه بدأت</T>
-          <T w="semi" style={{ fontSize: 14.5, lineHeight: 23 }}>{g.why}</T>
+          <T style={{ fontSize: 14, lineHeight: 21 }}>{g.why}</T>
         </View>
       ) : null}
 
@@ -124,11 +124,11 @@ function GoalPage() {
         </View>
       ) : null}
 
-      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 6 }}>
-        <T w="bold" style={{ fontSize: 19, flex: 1 }}>الطريق</T>
+      <View style={{ flexDirection: 'row', alignItems: 'baseline', marginTop: 4 }}>
+        <T w="bold" style={{ fontSize: 16, flex: 1 }}>الطريق</T>
         <T style={{ fontSize: 13, color: t.mute }}>{cur >= 0 ? `مرحلة ${cur + 1} من ${g.stages.length}` : g.stages.length ? 'كل المراحل خلصت ✓' : ''}</T>
       </View>
-      <T style={{ fontSize: 12, color: t.mute, marginTop: -6 }}>دوس على النقطة لما تخلّص · + تضيف · دوسة طويلة تعدّل أو تمسح</T>
+      <T style={{ fontSize: 11.5, color: t.mute, marginTop: -6 }}>دوس على النقطة لما تخلّص · + تضيف · دوسة طويلة تعدّل أو تمسح</T>
       <Card style={{ paddingHorizontal: 8, paddingVertical: 6, overflow: 'hidden' }}>
         <GoalRoad g={g} t={t} today={today} />
       </Card>
@@ -318,13 +318,13 @@ function ReviewForm({ g, t, onDone }: { g: Goal; t: Theme; onDone?: () => void }
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', gap: 4, height: 50, marginTop: 6 },
-  big: { height: 58, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
-  stage: { borderRadius: 12, padding: 14, borderWidth: 2, minHeight: 92, gap: 2 },
-  task: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 54 },
+  bar: { flexDirection: 'row', gap: 3, height: 24, marginTop: 4 },
+  big: { height: 44, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  stage: { borderRadius: 12, padding: 10, borderWidth: 1.5, minHeight: 64, gap: 2 },
+  task: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   box: { width: 26, height: 26, borderRadius: 8, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
-  why: { borderStartWidth: 4, borderRadius: 12, padding: 12, gap: 2 },
-  nudge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 12, padding: 12 },
+  why: { borderStartWidth: 3, borderRadius: 10, padding: 10, gap: 2 },
+  nudge: { flexDirection: 'row', alignItems: 'center', gap: 8, borderRadius: 10, padding: 10 },
   link: { minHeight: 44, justifyContent: 'center', paddingHorizontal: 4 },
   dot: { width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   winIcon: { width: 30, height: 30, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },

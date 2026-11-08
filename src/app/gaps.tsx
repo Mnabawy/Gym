@@ -6,7 +6,6 @@ import { ALL_EXERCISES, MUSCLE_AR, type Muscle } from '../data/program';
 import { Card, Label, Ring, Screen, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { GapCard, gapExercise, gapKey, periodAr } from '../components/GapCard';
-import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
 import { MUSCLES, type Gap, type Report, type Trend, type TrendInfo } from '../lib/gaps';
 import { countAr, TIMES } from '../lib/logic';
 import { useReport } from '../lib/useReport';
@@ -47,10 +46,6 @@ function trendSub(i: TrendInfo): string {
       return 'لسه ما اتسجلش';
   }
 }
-
-/** Swipe shortcuts: open a page, or show / hide an exercise's chart in place. */
-const openAct = (onPress: () => void): SwipeAction => ({ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress });
-const fold = (isOpen: boolean, onPress: () => void): SwipeAction => ({ icon: isOpen ? 'chevron-up' : 'stats-chart', label: isOpen ? 'اقفل' : 'الرسم', color: ACTION.blue, onPress });
 
 export default function Gaps() {
   const t = useTheme();
@@ -127,13 +122,10 @@ export default function Gaps() {
         gaps.map((g) => {
           const k = gapKey(g);
           const ex = gapExercise(g);
-          const press = onGap(g);
           return (
-            <Swipe key={k} style={s.clip} start={press ? [ex ? fold(open === k, press) : openAct(press)] : undefined}>
-              <GapCard gap={g} report={r} onPress={press} open={ex ? open === k : undefined}>
-                {ex ? chartFor(ex) : null}
-              </GapCard>
-            </Swipe>
+            <GapCard key={k} gap={g} report={r} onPress={onGap(g)} open={ex ? open === k : undefined}>
+              {ex ? chartFor(ex) : null}
+            </GapCard>
           );
         })
       )}
@@ -151,7 +143,7 @@ export default function Gaps() {
       <Heatmap r={r} />
 
       <Label>التمارين</Label>
-      <Card style={{ padding: 14, gap: 10, overflow: 'hidden' }}>
+      <Card style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: 'row', height: 10, gap: 2, borderRadius: 5, overflow: 'hidden' }}>
           {TREND_ORDER.filter((k) => counts[k]).map((k) => (
             <View key={k} style={{ flex: counts[k], backgroundColor: trendColor(t, k) }} />
@@ -171,8 +163,7 @@ export default function Gaps() {
           const k = `ex:${e.id}`;
           return (
             <View key={e.id} style={{ borderTopWidth: 1, borderTopColor: t.line }}>
-              <Swipe start={[fold(open === k, () => toggle(k))]}>
-              <Pressable onPress={() => toggle(k)} accessibilityRole="button" accessibilityState={{ expanded: open === k }} style={[s.exRow, { backgroundColor: t.card }]}>
+              <Pressable onPress={() => toggle(k)} accessibilityRole="button" accessibilityState={{ expanded: open === k }} style={s.exRow}>
                 <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: t.muscle[e.muscle] }} />
                 <View style={{ flex: 1, gap: 1 }}>
                   <T w="num" style={{ fontSize: 14.5 }}>{e.name}</T>
@@ -183,7 +174,6 @@ export default function Gaps() {
                   <T w="semi" style={{ fontSize: 12, color: trendText(t, info.trend) }}>{TREND[info.trend].label}</T>
                 </View>
               </Pressable>
-              </Swipe>
               {open === k ? <View style={{ paddingBottom: 10 }}>{chartFor(e.id)}</View> : null}
             </View>
           );
@@ -197,7 +187,6 @@ export default function Gaps() {
         />
       </Card>
 
-      <Swipe style={s.clip} start={[openAct(() => router.push('/attendance'))]}>
       <Pressable onPress={() => router.push('/attendance')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
         <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={{ width: 44, height: 44, borderRadius: 22, backgroundColor: t.okSoft, alignItems: 'center', justifyContent: 'center' }}>
@@ -210,7 +199,6 @@ export default function Gaps() {
           <Ionicons name="chevron-back" size={20} color={t.mute} />
         </Card>
       </Pressable>
-      </Swipe>
 
       <T style={{ color: t.mute, fontSize: 12, lineHeight: 19, paddingHorizontal: 4 }}>
         {`الهدف هو مجموعات البرنامج نفسه. أقل من 4 مجموعات للعضلة في الأسبوع غالبًا مش كفاية تكبّرها، و5–10 أكفأ رينج (تحليل Pelland وزملاؤه 2025). التمرين «واقف» لو مفيش رقم جديد من 3 مرات، و«نازل» لو آخر مرتين أقل ${isoPct(0.05)} أو أكتر من أحسن رقم.`}
@@ -298,7 +286,6 @@ function Heatmap({ r }: { r: Report }) {
 }
 
 const s = StyleSheet.create({
-  clip: { borderRadius: 12, overflow: 'hidden' },
   hRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
   hName: { width: 96 },
   hCell: { flex: 1 },

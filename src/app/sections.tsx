@@ -4,8 +4,6 @@ import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-n
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { T } from '../components/ui';
-import { ACTION, Swipe } from '../components/Swipe';
-import { showUndo } from '../lib/undo';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { dayFor, MONTHS_AR, PLAN_WEEKDAYS, WEEKDAYS_AR } from '../data/program';
 import { MEAL_ORDER, MEAL_TIME } from '../data/nutrition';
@@ -85,11 +83,6 @@ export default function Sections() {
   // Goals
   const goal = readGoals()[0];
   const next = goal ? nextTask(goal) : null;
-  const tick = () => {
-    if (!goal || !next) return;
-    saveGoal(toggleTask(goal, next.task.id, today));
-    showUndo(`✓ ${next.task.title}`, () => saveGoal(goal));
-  };
 
   // Quitting: the one with the longest clean run right now.
   const now = useNow(60000);
@@ -150,12 +143,12 @@ export default function Sections() {
         <Header c={c} text="الأقسام" />
         <View style={[s.group, { backgroundColor: c.card }]}>
           {rows.map((r, i) => (
-            <Item key={r.key} index={i}><Swipe start={[{ icon: 'open-outline', label: 'افتح', color: ACTION.blue, onPress: () => go(r.key) }]}><Pressable
+            <Item key={r.key} index={i}><Pressable
               onPress={() => go(r.key)}
               accessibilityRole="button"
               accessibilityLabel={`${r.title}${r.value ? `، ${r.value}` : ''}، ${r.line}`}
               accessibilityState={{ selected: r.key === here }}
-              style={({ pressed }) => [s.row, { backgroundColor: pressed ? c.press : c.card }]}>
+              style={({ pressed }) => [s.row, { backgroundColor: pressed ? c.press : 'transparent' }]}>
               <View style={[s.icon, { backgroundColor: c.fill }]}>
                 <Ionicons name={r.icon} size={18} color={c.label} />
               </View>
@@ -171,20 +164,18 @@ export default function Sections() {
                   <Ionicons name="chevron-back" size={18} color={c.tertiary} />
                 )}
               </View>
-            </Pressable></Swipe></Item>
+            </Pressable></Item>
           ))}
         </View>
 
         {goal && next ? (
           <>
             <Header c={c} text="خطوتك الجاية" />
-            <View style={[s.group, { backgroundColor: c.card }]}>
-            <Swipe start={[{ icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: tick }]}>
-            <View style={[s.row, { backgroundColor: c.card }]}>
+            <View style={[s.group, s.row, { backgroundColor: c.card }]}>
               <Pressable
                 onPress={() => {
                   tap();
-                  tick();
+                  saveGoal(toggleTask(goal, next.task.id, today));
                 }}
                 hitSlop={10}
                 accessibilityRole="checkbox"
@@ -202,8 +193,6 @@ export default function Sections() {
                 </View>
                 <Ionicons name="chevron-back" size={18} color={c.tertiary} />
               </Pressable>
-            </View>
-            </Swipe>
             </View>
           </>
         ) : null}
