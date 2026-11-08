@@ -22,7 +22,7 @@ const light = {
   warnSoft: '#FFF0DC',
   bad: '#C62828', // missing input (a set ticked without weight or reps)
   shadow: '0px 3px 14px rgba(30, 50, 70, 0.08)',
-  /** Neon theme only: thin borders and glows instead of soft shadows. */
+  /** Bordered look (the warm pages): thin borders and soft glows instead of shadows. */
   neon: false,
   border: 'transparent',
   /** One color per section (أقسامك): the hub, and the habits and goals pages. */
@@ -86,44 +86,6 @@ const dark: typeof light = {
 export type Theme = typeof light;
 
 /**
- * Neon: near-black surfaces, thin cyan-tinted borders, glowing accents. Used by the workout tab only
- * (docs/mockups/workout-neon.html). Muscle hues follow the Okabe–Ito order, brightened to read on black.
- */
-export const neon: Theme = {
-  ...dark,
-  bg: '#05070C',
-  card: '#0C111C',
-  fg: '#E9F1FF',
-  mute: '#7D8AA3',
-  line: '#17202F',
-  soft: '#121A2A',
-  ink: '#0F1828',
-  onInk: '#E9F1FF',
-  ok: '#22F3E4',
-  onOk: '#001614',
-  okText: '#22F3E4',
-  okSoft: '#0E2A2E',
-  warn: '#FFB020',
-  warnSoft: '#2A2210',
-  bad: '#FF4D6D',
-  shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
-  neon: true,
-  border: '#1A2638',
-  sec: { gym: '#3FB6FF', habits: '#FF6AD5', goals: '#3BFFB0', quit: '#B18CFF', tasks: '#FF5C6C' },
-  tag: { heavy: '#FF7A1A', fail: '#FF3DCB', drop: '#B18CFF' },
-  muscle: {
-    chest: '#3FB6FF',
-    shoulders: '#7FD8FF',
-    triceps: '#FF6AD5',
-    back: '#FF7A1A',
-    biceps: '#FFC53D',
-    quads: '#3BFFB0',
-    hams: '#E6FF3B',
-    calves: '#AAB4C3',
-  },
-};
-
-/**
  * Warm: the sections, habits and goals pages. The neon layout (thin borders,
  * glowing rings and dots) in warm colors: cream and ink by day, warm black with a gold accent by night, and a soft
  * blue, pink and green for the gym, habits and goals.
@@ -177,7 +139,7 @@ export function useWarm(): Theme {
   return useColorScheme() === 'dark' ? warmDark : warm;
 }
 
-/** Screens can force a theme for everything inside them (the workout tab uses `neon`). */
+/** Screens can force a theme for everything inside them (the warm pages, the welcome screen). */
 const Forced = createContext<Theme | null>(null);
 export const ThemeProvider = Forced.Provider;
 
@@ -189,7 +151,7 @@ export function useTheme(): Theme {
   return useMemo(() => (accent ? { ...base, ...accentTokens(accent, base.bg) } : base), [base, accent]);
 }
 
-/** Glow around something in `color` — only in the neon theme. */
+/** Glow around something in `color` — only in the bordered (warm) look. */
 export const glow = (t: Theme, color: string, r = 10): string | undefined => (t.neon ? `0px 0px ${r}px ${tint(color, 0.6)}` : undefined);
 
 export const F = {

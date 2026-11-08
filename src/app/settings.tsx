@@ -376,8 +376,6 @@ export default function SettingsScreen() {
         />
         {stepsMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{stepsMsg}</T> : null}
         <Sep />
-        <SwitchRow label="وضع النيون في صفحة التمرين" sub="خلفية غامقة وألوان بتنور" value={st.neonMode} onChange={(v) => st.setQuiet({ neonMode: v })} />
-        <Sep />
         <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />
       </Card>
 

@@ -13,7 +13,7 @@ import { linkGoogle } from '../lib/google';
 import { native, useReducedMotion } from '../lib/motion';
 import { applyBackup, WELCOME_KEY } from '../lib/restore';
 import { storage } from '../lib/storage';
-import { neon, ThemeProvider, tint, useTheme } from '../theme';
+import { warmDark, ThemeProvider, tint, useTheme } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -24,13 +24,13 @@ const FEATURES: { icon: IconName; title: string; sub: string; color: string }[] 
 ];
 
 /**
- * First launch (phone), always in the dark neon look: one-tap Google sign-in — no password — and your data follows you.
+ * First launch (phone), always in the dark warm look: one-tap Google sign-in — no password — and your data follows you.
  * Signing in turns on Supabase sync, which brings back everything on the server and merges it with what's here.
  * Or a backup file, or skip.
  */
 export default function Welcome() {
   return (
-    <ThemeProvider value={neon}>
+    <ThemeProvider value={warmDark}>
       <WelcomeScreen />
     </ThemeProvider>
   );

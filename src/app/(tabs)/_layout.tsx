@@ -2,13 +2,11 @@ import { Redirect, Tabs } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Platform, Text, type ColorValue } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useSettings } from '../../lib/settings';
 import { GOOGLE_USER, googleSupported } from '../../lib/google';
 import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
 import { lastSection, SECTION_PATH } from '../../lib/section';
-import { accentTokens } from '../../lib/color';
-import { F, neon, useTheme } from '../../theme';
+import { F, useTheme } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -35,9 +33,6 @@ function TabLabel({ color, children }: { color: ColorValue; children: string }) 
 export default function TabsLayout() {
   const t = useTheme();
   const inset = useSafeAreaInsets();
-  const neonOn = useSettings((s) => s.neonMode);
-  const accent = useSettings((s) => s.accent);
-  const neonOk = accent ? accentTokens(accent, neon.bg).ok : neon.ok;
   // Android draws edge to edge: the bar must clear the system navigation bar itself. Phones with the gesture bar hidden
   // report no bottom inset at all, and their rounded screen corners then cut the outer labels, so Android keeps 14pt.
   // 64pt leaves the icon and an 18pt label line their full height; a shorter bar squeezes the label and clips the Arabic text.
@@ -57,17 +52,7 @@ export default function TabsLayout() {
         tabBarLabel: TabLabel,
         tabBarItemStyle: { paddingHorizontal: 0 },
       }}>
-      {/* With neon mode on, the workout tab is neon (see its screen) and its bar matches while it's open. */}
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'التمرين',
-          tabBarIcon: icon('barbell'),
-          ...(neonOn
-            ? { tabBarStyle: { ...bar, backgroundColor: neon.card, borderTopColor: neon.border }, tabBarActiveTintColor: neonOk, tabBarInactiveTintColor: neon.mute }
-            : {}),
-        }}
-      />
+      <Tabs.Screen name="index" options={{ title: 'التمرين', tabBarIcon: icon('barbell') }} />
       <Tabs.Screen name="food" options={{ title: 'الأكل', tabBarIcon: icon('restaurant') }} />
       <Tabs.Screen name="shop" options={{ title: 'المشتريات', tabBarIcon: icon('cart') }} />
     </Tabs>

@@ -38,7 +38,6 @@ export type Settings = {
   /** Last known location for prayer times (refreshed from the phone's location). */
   place: Place | null;
   /** Neon look on the workout tab (dark, glowing accents). */
-  neonMode: boolean;
   /** Items you put on another trip (shopping tab edit mode): "tripCount:itemId" → trip index. */
   shopMoves: Record<string, number>;
   /** Weight of the bar on barbell exercises, for the plate calculator (src/lib/plates.ts). */
@@ -86,7 +85,6 @@ export const DEFAULT_SETTINGS: Settings = {
   prayerMethod: 'egyptian',
   place: null,
   shopMoves: {},
-  neonMode: true,
   barKg: 20,
   reminder: false,
   reminderTime: 19 * 60,
@@ -145,7 +143,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'neonMode' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock' | 'stepsSync' | 'accent'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock' | 'stepsSync' | 'accent'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;

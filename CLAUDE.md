@@ -21,7 +21,7 @@ Exercise names stay in English (gym vocabulary).
 - Small font app-wide: `T` (`src/components/ui.tsx`) draws every size × `TEXT_SCALE` (0.9). Write sizes at full scale; tight spacing (`Screen dense`) on the workout, food and shopping tabs.
 - One button size: `Btn` (40pt, one line of 14pt text that shrinks to fit) — use it for every text button. `T` caps the phone's font-size setting at ×1.15 (`maxFontSizeMultiplier`).
 - Warm look for the sections hub, habits and goals pages (`warm` / `warmDark` + `useWarm()` in `src/theme/index.ts`, follows the phone's light/dark): the neon layout (borders, glowing rings and dots) in cream/ink or warm black/gold, section colors `t.sec`
-- Neon look for the workout tab only (`neon` theme + `ThemeProvider` in `src/theme/index.ts`, design in `docs/mockups/workout-neon.html`), switched by `neonMode` in settings. Components read `t.neon` / `glow()` for borders and glows.
+- The neon workout-tab mode was removed. `t.neon` now only means the bordered warm look (thin borders, `glow()`); the welcome screen and app lock use `warmDark`.
 
 ## Data
 - `src/data/program.ts` — the 5-day program from the PDF (`PDF_PROGRAM`). The exercises can be edited in the app (`/program`, from settings: add, delete, reorder, rename, reps, technique, replace; `src/lib/programEdit.ts`, meta `program`); `applyProgram` puts that edit into `PROGRAM` / `ALL_EXERCISES` / `DEFAULT_SETS` in place, then `applyPlan` writes the settings' sets overrides and rest, so every screen reads the same plan. The five program days themselves are fixed (their ids are stored with logged sets). Renaming keeps an exercise's id (and history); replacing makes a new id

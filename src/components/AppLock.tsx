@@ -3,7 +3,7 @@ import { AppState, Modal, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { LOCK_AFTER_MS, lockSupported, unlock } from '../lib/lock';
 import { useSettings } from '../lib/settings';
-import { neon } from '../theme';
+import { warmDark as neon } from '../theme';
 import { T } from './ui';
 
 /**

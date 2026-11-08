@@ -1,12 +1,11 @@
-import React, { useCallback, useState } from 'react';
+import React, { useState } from 'react';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { dayFor, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
 import { ExerciseRow } from '../../components/ExerciseRow';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
-import { router, useFocusEffect } from 'expo-router';
-import { setStatusBarStyle } from 'expo-status-bar';
+import { router } from 'expo-router';
 import { Btn, Card, HeaderBtn, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { CardioCard } from '../../components/CardioCard';
@@ -22,24 +21,10 @@ import { addDays, daysBetween } from '../../lib/gaps';
 import { SWAPS_KEY, swappedSet } from '../../lib/journal';
 import { readStrings } from '../../lib/meta';
 import { sessionSummary } from '../../lib/summary';
-import { neon, ThemeProvider, useTheme } from '../../theme';
+import { useTheme } from '../../theme';
 
-/** The workout tab can use the neon theme (settings → وضع النيون; docs/mockups/workout-neon.html); the rest of the app keeps its own. */
 export default function Workout() {
-  const on = useSettings((s) => s.neonMode);
-  // Dark screen: light status bar while this tab is open, back to automatic when you leave it.
-  useFocusEffect(
-    useCallback(() => {
-      if (!on) return;
-      setStatusBarStyle('light');
-      return () => setStatusBarStyle('auto');
-    }, [on]),
-  );
-  return (
-    <ThemeProvider value={on ? neon : null}>
-      <WorkoutScreen />
-    </ThemeProvider>
-  );
+  return <WorkoutScreen />;
 }
 
 /** How far back you can log a day you forgot. */
