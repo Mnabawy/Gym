@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { ActivityIndicator, Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+import { ActivityIndicator, Animated, Easing, Image, Pressable, StyleSheet, View } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { setStatusBarStyle } from 'expo-status-bar';
@@ -101,12 +101,12 @@ function WelcomeScreen() {
         <View style={s.wrap}>
           <View style={s.top}>
             <Animated.View style={[s.logo, rise(0), { borderColor: tint(t.ok, 0.45), boxShadow: `0px 0px 40px ${tint(t.ok, 0.45)}` }]}>
-              <Ionicons name="barbell" size={46} color={t.ok} />
+              <Image source={require('../../assets/splash-icon.png')} style={{ width: 64, height: 64 }} />
             </Animated.View>
             <Animated.View style={[{ gap: 8, alignItems: 'center' }, rise(1)]}>
               <T w="bold" style={{ fontSize: 31, lineHeight: 44, textAlign: 'center' }}>
-                {'تمرينك وأكلك\n'}
-                <T w="bold" style={{ fontSize: 31, lineHeight: 44, color: t.ok }}>في مكان واحد</T>
+                {'Brainy\n'}
+                <T w="bold" style={{ fontSize: 24, lineHeight: 36, color: t.ok }}>تمرينك وعاداتك وأهدافك في مكان واحد</T>
               </T>
               <T style={{ color: t.mute, fontSize: 15, textAlign: 'center', lineHeight: 24 }}>ادخل مرة واحدة، والتطبيق يفتكر كل حاجة</T>
             </Animated.View>
