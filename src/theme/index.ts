@@ -26,7 +26,7 @@ const light = {
   neon: false,
   border: 'transparent',
   /** One color per section (أقسامك): the hub, and the habits and goals pages. */
-  sec: { gym: '#0072B2', habits: '#CC79A7', goals: '#009E73', quit: '#7A5CFA' },
+  sec: { gym: '#0072B2', habits: '#CC79A7', goals: '#009E73', quit: '#7A5CFA', tasks: '#B93435' },
   tag: { heavy: '#3E5A76', fail: '#3E5A76', drop: '#3E5A76' },
   protein: '#0072B2',
   carbs: '#E69F00',
@@ -64,7 +64,7 @@ const dark: typeof light = {
   shadow: '0px 3px 14px rgba(0, 0, 0, 0.35)',
   neon: false,
   border: 'transparent',
-  sec: { gym: '#3FA3E0', habits: '#E08CC0', goals: '#2FC496', quit: '#A48BFF' },
+  sec: { gym: '#3FA3E0', habits: '#E08CC0', goals: '#2FC496', quit: '#A48BFF', tasks: '#E0575B' },
   tag: { heavy: '#557797', fail: '#557797', drop: '#557797' },
   protein: '#3FA3E0',
   carbs: '#F0B23A',
@@ -109,7 +109,7 @@ export const neon: Theme = {
   shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
   neon: true,
   border: '#1A2638',
-  sec: { gym: '#3FB6FF', habits: '#FF6AD5', goals: '#3BFFB0', quit: '#B18CFF' },
+  sec: { gym: '#3FB6FF', habits: '#FF6AD5', goals: '#3BFFB0', quit: '#B18CFF', tasks: '#FF5C6C' },
   tag: { heavy: '#FF7A1A', fail: '#FF3DCB', drop: '#B18CFF' },
   muscle: {
     chest: '#3FB6FF',
@@ -147,7 +147,7 @@ export const warm: Theme = {
   shadow: '0px 4px 18px rgba(80, 60, 30, 0.07)',
   neon: true,
   border: '#E9E2D6',
-  sec: { gym: '#5B7FE0', habits: '#E0609B', goals: '#3E9A68', quit: '#7A5CFA' },
+  sec: { gym: '#5B7FE0', habits: '#E0609B', goals: '#3E9A68', quit: '#7A5CFA', tasks: '#B93435' },
 };
 
 export const warmDark: Theme = {
@@ -169,7 +169,7 @@ export const warmDark: Theme = {
   shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
   neon: true,
   border: '#2E2A23',
-  sec: { gym: '#8FA9FF', habits: '#FF8FC0', goals: '#7FD49C', quit: '#B6A2FF' },
+  sec: { gym: '#8FA9FF', habits: '#FF8FC0', goals: '#7FD49C', quit: '#B6A2FF', tasks: '#E0575B' },
 };
 
 /** The warm theme that follows the phone's light or dark setting. */

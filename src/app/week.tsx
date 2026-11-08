@@ -15,6 +15,7 @@ import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { readGoals } from '../lib/goalStore';
 import { readQuits } from '../lib/quitStore';
+import { readTasks } from '../lib/taskStore';
 import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
@@ -54,6 +55,7 @@ export default function WeekScreen() {
     steps: parseSteps(storage.getMeta(STEPS_KEY)),
     goals: readGoals(),
     quits: readQuits(),
+    tasks: readTasks(),
   });
   const live = from === thisWeek;
   // Only for a finished week: a week in progress would always look like a drop.
@@ -160,6 +162,15 @@ export default function WeekScreen() {
                 <T style={{ fontSize: 12, color: t.mute }}>{g.gained || g.tasks ? `الأسبوع ده: ${g.gained ? iso(`${g.gained > 0 ? '+' : ''}${fmtAmount(g.gained, g.unit)}`) : ''}${g.gained && g.tasks ? ' · ' : ''}${g.tasks ? `${g.tasks} خطوات خلصت` : ''}` : 'مفيش حركة الأسبوع ده'}</T>
               </View>
             ))}
+          </Card>
+        </>
+      ) : null}
+
+      {r.tasksDone ? (
+        <>
+          <Label>مهامي</Label>
+          <Card style={{ padding: 14 }}>
+            <T style={{ fontSize: 13.5 }}>{`✓ خلّصت ${r.tasksDone} ${r.tasksDone === 1 ? 'مهمة' : 'مهام'} الأسبوع ده`}</T>
           </Card>
         </>
       ) : null}

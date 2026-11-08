@@ -73,3 +73,10 @@ test('quits: clean time without the habit name', () => {
   expect(b).toContain('💪 10 يوم نضيف');
   expect(b).not.toContain('سر');
 });
+
+test("tasks: the day's count, the top two, and what's overdue today", () => {
+  const t = (id: string, o: object) => ({ id, title: id, due: TODAY, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: TODAY, ...o });
+  const tasks = [t('أ', { priority: 2 }), t('ب', { priority: 1 }), t('ج', {}), t('قديمة', { due: '2026-11-01' })];
+  expect(morningBrief(TODAY, { ...base, tasks: tasks as never }).body).toContain('📝 مهامك: 3 (ب، أ…) · 1 متأخرة');
+  expect(morningBrief('2026-11-05', { ...base, tasks: tasks as never }).body).not.toContain('📝');
+});

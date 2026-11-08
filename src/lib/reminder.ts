@@ -11,6 +11,8 @@ import { storage } from './storage';
 import { morningBrief, type BriefInput } from './brief';
 import { readGoals } from './goalStore';
 import { readQuits } from './quitStore';
+import { readTasks } from './taskStore';
+import { timeAr } from './tasks';
 import { clean, DAY_MS, milestone } from './quit';
 import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
@@ -25,6 +27,7 @@ const KIND = 'workout-reminder';
 const BRIEF = 'morning-brief';
 const HABIT = 'habit-reminder';
 const QUIT = 'quit-milestone';
+const TASK = 'task-reminder';
 
 /** Asks for notification permission (when turning the reminder on). */
 export async function allowReminders(): Promise<boolean> {
@@ -57,6 +60,7 @@ function briefInput(today: string): BriefInput {
     habits: readHabits(),
     goals: readGoals(),
     quits: readQuits(),
+    tasks: readTasks(),
   };
 }
 
@@ -69,12 +73,25 @@ export function syncReminders(): Promise<void> {
     try {
       for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
         const k = n.content.data?.kind;
-        if (k === KIND || k === BRIEF || k === HABIT || k === QUIT) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+        if (k === KIND || k === BRIEF || k === HABIT || k === QUIT || k === TASK) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
       // Each quit's next milestone, as a quiet "well done" without the habit's name.
       if ((await Notifications.getPermissionsAsync()).granted) {
         const nowMs = Date.now();
+        // Tasks with a reminder: at their day and time (the next 30 of them).
+        const due = readTasks()
+          .filter((x) => x.remind && !x.done && x.due && x.time != null)
+          .map((x) => ({ x, at: new Date(`${x.due}T${String(Math.floor(x.time! / 60)).padStart(2, '0')}:${String(x.time! % 60).padStart(2, '0')}:00`) }))
+          .filter((y) => y.at.getTime() > nowMs)
+          .sort((a, b) => a.at.getTime() - b.at.getTime())
+          .slice(0, 30);
+        for (const { x, at } of due) {
+          await Notifications.scheduleNotificationAsync({
+            content: { title: x.title, body: `مهامي · ${timeAr(x.time!)}${x.subs.length ? ` · ${x.subs.length} خطوات` : ''}`, sound: true, data: { kind: TASK } },
+            trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: 'reminder' },
+          });
+        }
         for (const q of readQuits()) {
           const c = clean(q, nowMs);
           const m = milestone(c.ms);

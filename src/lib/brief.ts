@@ -12,6 +12,7 @@ import type { WeighIn } from './weight';
 import { isDue, type Habit } from './habits';
 import { nextTask, reviewDue, type Goal } from './goals';
 import { clean, runLabel, type Quit } from './quit';
+import { todayView, type Task } from './tasks';
 
 export type BriefInput = {
   /** Today (the day the app schedules from). */
@@ -34,6 +35,8 @@ export type BriefInput = {
   goals?: readonly Goal[];
   /** Bad habits you're quitting: one line each, never with the habit's name (the notification shows on the lock screen). */
   quits?: readonly Quit[];
+  /** Your tasks (مهامي): that day's count, the most important ones, and what's overdue. */
+  tasks?: readonly Task[];
 };
 
 /** Food items that need taking out of the freezer the morning before. */
@@ -70,6 +73,13 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
     const n = nextTask(g);
     if (n) lines.push(`🎯 ${g.name}: ${n.task.title}`);
     if (reviewDue(g, date)) lines.push(`📝 مراجعة الأسبوع لـ ${g.name}: دقيقتين`);
+  }
+  if (x.tasks?.length) {
+    const v = todayView(x.tasks, date);
+    const open = [...v.day, ...v.evening].sort((a, b) => a.priority - b.priority);
+    // Overdue only makes sense for today's brief (later days don't know what you'll finish before then).
+    const late = date === x.today ? v.overdue.length : 0;
+    if (open.length || late) lines.push(`📝 مهامك: ${open.length}${open.length ? ` (${open.slice(0, 2).map((t) => t.title).join('، ')}${open.length > 2 ? '…' : ''})` : ''}${late ? ` · ${late} متأخرة` : ''}`);
   }
   // As of 6 in the morning of that day; the brief is built ahead.
   const morning = new Date(`${date}T06:00:00`).getTime();

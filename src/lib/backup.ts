@@ -40,7 +40,7 @@ export type BackupInfo = {
 };
 
 /** Meta keys that hold things you logged — not settings, and not the app's own bookkeeping. */
-export const DATA_KEYS = ['habits', 'habitLog', 'habitParts', 'goals', 'quits', 'weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps'] as const;
+export const DATA_KEYS = ['habits', 'habitLog', 'habitParts', 'goals', 'quits', 'weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps', 'tasks'] as const;
 
 /** Entries in one meta value: array length or object key count (0 for empty or broken). */
 function count(raw: string | undefined): number {

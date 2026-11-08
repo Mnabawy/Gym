@@ -108,7 +108,7 @@ export function MenuButton() {
   );
 }
 
-const SECTION_NAME = { gym: 'الجيم', habits: 'العادات', goals: 'الأهداف', quit: 'بطّل' } as const;
+const SECTION_NAME = { gym: 'الجيم', habits: 'العادات', goals: 'الأهداف', quit: 'بطّل', tasks: 'مهامي' } as const;
 
 /** The section you're in, as a labeled button: tap it to switch sections (أقسامك). */
 function SectionPill() {
