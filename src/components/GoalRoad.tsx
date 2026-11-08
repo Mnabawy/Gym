@@ -6,7 +6,7 @@ import { INPUT, Btn, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
-import { current, currentStage, fmtAmount, goalId, moveStage, reached, schedule, spreadMilestones, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { currentStage, fmtAmount, goalId, moveStage, schedule, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
@@ -126,7 +126,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               <View style={{ flex: 1 }}>
                 <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
                 <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
-                {r.st.at !== undefined ? <Milestone g={g} t={t} i={r.i} at={r.st.at} /> : null}
+                {r.st.amount !== undefined ? <Milestone g={g} t={t} i={r.i} /> : null}
                 {plan?.stage[r.st.id] && r.state !== 'done' ? (
                   <T style={{ fontSize: 11.5, color: plan.stage[r.st.id].to < today ? t.bad : t.mute }}>{`${dayShort(plan.stage[r.st.id].from)} ← ${dayShort(plan.stage[r.st.id].to)}`}</T>
                 ) : null}
@@ -238,24 +238,24 @@ function removeBead(g: Goal, st: Stage, task?: Task) {
 }
 
 /**
- * A stage's milestone on the goal's number: the target, how much is left, and a thin bar filled from the
- * stage before's milestone (or the goal's start) to this one. ✓ once the number got there.
+ * A stage's own amount: how much of it is filled (what you logged, after the stages before it took theirs), what's
+ * left, and a thin bar. ✓ once it's all filled.
  */
-function Milestone({ g, t, i, at }: { g: Goal; t: Theme; i: number; at: number }) {
-  const now = current(g);
-  const done = reached(g, at, now);
-  const from = g.stages.slice(0, i).reduce<number>((a, x) => (x.at !== undefined ? x.at : a), g.start);
-  const share = from === at ? (done ? 1 : 0) : Math.max(0, Math.min(1, (now - from) / (at - from)));
+function Milestone({ g, t, i }: { g: Goal; t: Theme; i: number }) {
+  const f = stageFill(g, i);
+  if (!f) return null;
+  const done = f.left <= 1e-9;
+  const m = (n: number) => `\u2066${fmtAmount(n, g.unit)}\u2069`;
   return (
     <View style={{ gap: 3, marginTop: 2 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
         <Ionicons name={done ? 'flag' : 'flag-outline'} size={12} color={done ? t.green : t.okText} />
-        <T w="numBold" style={{ fontSize: 12.5, color: done ? t.green : t.fg }}>{`\u2066${fmtAmount(at, g.unit)}\u2069`}</T>
-        <T style={{ fontSize: 12, color: t.mute }}>{done ? 'وصلت ✓' : `فاضل \u2066${fmtAmount(Math.abs(at - now), g.unit)}\u2069`}</T>
+        <T w="numBold" style={{ fontSize: 12.5, color: done ? t.green : t.fg }}>{done ? m(f.of) : `${m(f.got)} من ${m(f.of)}`}</T>
+        <T style={{ fontSize: 12, color: t.mute }}>{done ? 'اتملت ✓' : `فاضل ${m(f.left)}`}</T>
       </View>
       {!done ? (
         <View style={{ height: 4, borderRadius: 2, backgroundColor: tint(t.fg, 0.08), overflow: 'hidden', maxWidth: 180 }}>
-          <View style={{ width: `${share * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.okText }} />
+          <View style={{ width: `${(f.got / f.of) * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.okText }} />
         </View>
       ) : null}
     </View>
@@ -266,7 +266,7 @@ function Milestone({ g, t, i, at }: { g: Goal; t: Theme; i: number; at: number }
 function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void }) {
   const [name, setName] = useState(task ? task.title : st.title);
   const [picking, setPicking] = useState(false);
-  const [mark, setMark] = useState(st.at !== undefined ? String(st.at) : '');
+  const [mark, setMark] = useState(st.amount !== undefined ? String(st.amount) : '');
   const i = g.stages.findIndex((x) => x.id === st.id);
   const plan = schedule(g);
   const own = task ? task.due : st.until;
@@ -283,27 +283,29 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
     saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? put(y, 'due') : y)) } : put(x, 'until'))) });
     setPicking(false);
   };
-  /** The milestone typed in: a number, or empty to take it off. */
+  /** The stage's amount typed in: a number above 0, or empty to take it off. */
   const markVal = () => {
-    const n = Number(mark.replace(/[,،\s]/g, '').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d))));
-    return mark.trim() && Number.isFinite(n) ? n : undefined;
+    const n = Math.abs(Number(mark.replace(/[,،\s]/g, '').replace(/[٠-٩]/g, (d) => String('٠١٢٣٤٥٦٧٨٩'.indexOf(d)))));
+    return mark.trim() && Number.isFinite(n) && n > 0 ? n : undefined;
   };
   const save = () => {
     const v = name.trim();
     if (!v) return;
     const at = markVal();
     const withMark = (x: Stage): Stage => {
-      const { at: _old, ...rest } = x;
-      return at === undefined ? { ...rest, title: v } : { ...rest, title: v, at };
+      const { amount: _old, ...rest } = x;
+      return at === undefined ? { ...rest, title: v } : { ...rest, title: v, amount: at };
     };
     saveGoal({ ...g, stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? { ...y, title: v } : y)) } : withMark(x))) });
     onClose();
   };
+  // What's left of the goal for no stage, counting what's typed in for this one.
+  const free = unassigned({ ...g, stages: g.stages.map((x) => (x.id === st.id ? { ...x, amount: markVal() } : x)) });
   const spread = () => {
     tap();
     const next = spreadMilestones(g);
     saveGoal(next);
-    const mine = next.stages.find((x) => x.id === st.id)?.at;
+    const mine = next.stages.find((x) => x.id === st.id)?.amount;
     setMark(mine !== undefined ? String(mine) : '');
   };
   const remove = () => {
@@ -331,19 +333,21 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
         <View style={{ gap: 6 }}>
           <View style={[s.dateRow, { backgroundColor: t.soft }]}>
             <Ionicons name="flag-outline" size={18} color={t.okText} />
-            <T style={{ fontSize: 14 }}>توصل لكام؟</T>
+            <T style={{ fontSize: 14 }}>مبلغ المرحلة</T>
             <TextInput
               value={mark}
               onChangeText={setMark}
               keyboardType="numeric"
-              placeholder={`مثلاً ${fmtAmount(g.start + (g.target - g.start) * ((i + 1) / Math.max(1, g.stages.length)), '')}`}
+              placeholder={`مثلاً ${fmtAmount(Math.abs(g.target - g.start) / Math.max(1, g.stages.length), '')}`}
               placeholderTextColor={t.mute}
               accessibilityLabel="رقم المرحلة"
               style={[INPUT, { flex: 1, minWidth: 0, height: 44, textAlign: 'left', color: t.fg, outlineWidth: 0, ...font('num'), fontSize: 15 }]}
             />
             {g.unit ? <T style={{ fontSize: 13, color: t.mute }}>{g.unit}</T> : null}
           </View>
-          <T style={{ fontSize: 12, color: t.mute }}>{`المرحلة تخلص لما رقمك يوصل له وخطواتها تخلص · من \u2066${fmtAmount(g.start, g.unit)}\u2069 لـ \u2066${fmtAmount(g.target, g.unit)}\u2069`}</T>
+          <T style={{ fontSize: 12, color: free < -1e-9 ? t.bad : t.mute }}>{free < -1e-9
+            ? `المراحل أكتر من الهدف بـ \u2066${fmtAmount(-free, g.unit)}\u2069`
+            : `اللي بتسجّله بيتخصم من المراحل بالترتيب · باقي من الهدف من غير مرحلة: \u2066${fmtAmount(free, g.unit)}\u2069`}</T>
           {g.stages.length > 1 ? <Btn label="وزّع الأرقام على كل المراحل بالتساوي" onPress={spread} /> : null}
         </View>
       ) : null}

@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, reachDate, reached, spreadMilestones, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, reachDate, reached, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -144,34 +144,39 @@ describe('schedule (steps spread over the time frame)', () => {
   });
 });
 
-test('stage milestones on the number', () => {
-  // s1's steps are done but its milestone (25K) was reached only on 2026-03-01.
-  const g: Goal = { ...base, stages: base.stages.map((s, i) => (i === 0 ? { ...s, at: 25000 } : i === 1 ? { ...s, at: 50000 } : s)) };
-  expect(reached(g, 25000)).toBe(true);
-  expect(reachDate(g, 25000)).toBe('2026-03-01');
-  expect(reachDate(g, 50000)).toBeNull();
+test('each stage has its own amount, filled in road order', () => {
+  // 32K logged: s1 (20K) is full, s2 (30K) has the other 12K, s3 (50K) nothing yet.
+  const g: Goal = { ...base, stages: base.stages.map((s, i) => ({ ...s, amount: [20000, 30000, 50000][i] })) };
+  expect(stageEnd(g, 0)).toBe(20000);
+  expect(stageEnd(g, 1)).toBe(50000);
+  expect(stageFill(g, 0)).toEqual({ got: 20000, of: 20000, left: 0 });
+  expect(stageFill(g, 1)).toEqual({ got: 12000, of: 30000, left: 18000 });
+  expect(stageFill(g, 2)).toEqual({ got: 0, of: 50000, left: 50000 });
+  expect(unassigned(g)).toBe(0);
+  expect(reachDate(g, 20000)).toBe('2026-03-01');
   expect(stageDone(g.stages[0], g)).toBe(true);
   expect(autoWins(g).find((w) => w.id === 'ss1')?.date).toBe('2026-03-01');
-  // Steps done but the number isn't there yet: the stage stays open.
+  // Steps done but the amount isn't filled: the stage stays open.
   const ticked = toggleTask(toggleTask(g, 't3', '2026-03-02'), 't4', '2026-03-03');
   expect(stageDone(ticked.stages[1], ticked)).toBe(false);
   expect(currentStage(ticked)).toBe(1);
-  // A milestone above where you are keeps a done stage open.
-  const high: Goal = { ...g, stages: g.stages.map((s, i) => (i === 0 ? { ...s, at: 40000 } : s)) };
-  expect(currentStage(high)).toBe(0);
-  // A stage with only a milestone (no steps) is done by the number.
-  const bare: Goal = { ...g, stages: [{ id: 'x', title: 'x', at: 30000, tasks: [] }] };
-  expect(currentStage(bare)).toBe(-1);
-  expect(milestones(g).map((m) => [m.at, m.done])).toEqual([[25000, true], [50000, false]]);
-  expect(parseGoals(JSON.stringify([g]))[0].stages[0].at).toBe(25000);
-  expect(parseGoals(JSON.stringify([{ ...g, stages: [{ id: 'z', title: 'z', at: 'x', tasks: [] }] }]))[0].stages[0].at).toBeUndefined();
+  // A first stage bigger than what you have keeps it open even with its steps done.
+  const big: Goal = { ...g, stages: g.stages.map((s, i) => (i === 0 ? { ...s, amount: 40000 } : s)) };
+  expect(currentStage(big)).toBe(0);
+  expect(unassigned(big)).toBe(-20000);
+  // A stage with only an amount (no steps) is done by the number.
+  expect(currentStage({ ...g, stages: [{ id: 'x', title: 'x', amount: 30000, tasks: [] }] })).toBe(-1);
+  expect(milestones(g).map((m) => [m.at, m.done])).toEqual([[20000, true], [50000, false], [100000, false]]);
+  expect(reached(g, 32000)).toBe(true);
+  expect(parseGoals(JSON.stringify([g]))[0].stages[0].amount).toBe(20000);
+  expect(parseGoals(JSON.stringify([{ ...g, stages: [{ id: 'z', title: 'z', amount: -5, tasks: [] }] }]))[0].stages[0].amount).toBeUndefined();
 });
 
-test('milestones spread evenly, also for goals that go down', () => {
-  expect(spreadMilestones(base).stages.map((s) => s.at)).toEqual([33000, 67000, 100000]);
-  const down: Goal = { ...base, start: 90, target: 80, entries: [{ id: 'e', date: '2026-01-10', amount: -5 }], stages: base.stages.slice(0, 2) };
+test('amounts split evenly, also for goals that go down', () => {
+  expect(spreadMilestones(base).stages.map((s) => s.amount)).toEqual([33000, 33000, 34000]);
+  const down: Goal = { ...base, start: 90, target: 80, entries: [{ id: 'e', date: '2026-01-10', amount: -7 }], stages: base.stages.slice(0, 2) };
   const sp = spreadMilestones(down);
-  expect(sp.stages.map((s) => s.at)).toEqual([85, 80]);
-  expect(reached(sp, 85)).toBe(true);
-  expect(reached(sp, 80)).toBe(false);
+  expect(sp.stages.map((s) => s.amount)).toEqual([5, 5]);
+  expect(stageFill(sp, 0)).toEqual({ got: 5, of: 5, left: 0 });
+  expect(stageFill(sp, 1)).toEqual({ got: 2, of: 5, left: 3 });
 });
