@@ -25,6 +25,7 @@ export function QuitForm({ quit, onClose, onSaved }: { quit?: Quit; onClose: () 
     const targetDays = quit?.targetDays ?? HABIT_TYPES[type].targetDays;
     return {
       name: quit?.name ?? '',
+      alias: quit?.alias ?? '',
       icon: quit?.icon ?? QUIT_ICONS[0],
       color: quit?.color ?? QUIT_COLORS[0],
       since: 0,
@@ -47,6 +48,7 @@ export function QuitForm({ quit, onClose, onSaved }: { quit?: Quit; onClose: () 
     const q: Quit = {
       ...(quit ?? { id: quitId(now), start: now - f.since * DAY_MS, slips: [], urges: [] }),
       name: f.name.trim(),
+      alias: f.alias.trim() || undefined,
       icon: f.icon,
       color: f.color,
       why: f.why.trim(),
@@ -88,6 +90,11 @@ export function QuitForm({ quit, onClose, onSaved }: { quit?: Quit; onClose: () 
           <Ionicons name={f.icon as IconName} size={22} color="#FFFFFF" />
         </View>
         <TextInput value={f.name} onChangeText={(v) => set({ name: v })} placeholder="مثلًا: السجاير، السوشيال بالليل" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="العادة" textAlign="right" style={[INPUT, s.name, { color: t.fg, ...font('semi') }]} />
+      </View>
+      <View style={{ gap: 4 }}>
+        <T w="medium" style={{ fontSize: 13.5 }}>اسم مستعار (اختياري)</T>
+        <TextInput value={f.alias} onChangeText={(v) => set({ alias: v })} placeholder="مثلًا: المشروع، رقم ٧" placeholderTextColor={t.mute} maxLength={30} accessibilityLabel="اسم مستعار" textAlign="right" style={[INPUT, s.alias, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+        <T style={{ fontSize: 12, color: t.mute }}>بيظهر بداله في التقويم وتقرير الأسبوع، والاسم الحقيقي يفضل هنا بس</T>
       </View>
 
       {!quit ? (
@@ -149,6 +156,7 @@ const s = StyleSheet.create({
   preview: { flexDirection: 'row', alignItems: 'center', gap: 10, borderWidth: 1, borderRadius: 12, padding: 10 },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   name: { flex: 1, fontSize: 16, minHeight: 42, textAlign: 'right', outlineWidth: 0, padding: 0 },
+  alias: { minHeight: 44, borderRadius: 10, paddingHorizontal: 12, fontSize: 15, textAlign: 'right', outlineWidth: 0 },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   input: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 14.5, textAlign: 'right', outlineWidth: 0 },
   choice: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center', borderWidth: 2 },

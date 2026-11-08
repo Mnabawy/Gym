@@ -112,7 +112,7 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
     focus: minutesBetween(x.focus ?? [], from, end),
     quits: quitsWeek(x.quits ?? [], from, to, today).map((w) => {
       const q = x.quits!.find((y) => y.id === w.id)!;
-      return { ...w, name: q.name, color: q.color };
+      return { ...w, name: q.alias || q.name, color: q.color };
     }),
     cardio: cardioWeek(x.cardio ?? {}, from, x.weightKg ?? 0),
     steps: stepsWeek(x.steps ?? {}, from, today),

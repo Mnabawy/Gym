@@ -56,6 +56,8 @@ export type Urge = { at: number; resisted: boolean; trigger?: Trigger };
 export type Quit = {
   id: string;
   name: string;
+  /** A code name shown instead of the real name outside the quit pages (calendar, weekly report). */
+  alias?: string;
   icon: string;
   color: string;
   /** When you stopped (ms). */
@@ -107,6 +109,7 @@ export function parseQuits(raw: string | null): Quit[] {
     out.push({
       id: o.id,
       name: str(o.name).trim(),
+      ...(str(o.alias).trim() ? { alias: str(o.alias).trim().slice(0, 30) } : {}),
       icon: str(o.icon) || QUIT_ICONS[0],
       color: /^#[0-9a-f]{6}$/i.test(str(o.color)) ? str(o.color) : QUIT_COLORS[0],
       start: num(o.start),

@@ -93,8 +93,8 @@ export function goalMarks(goals: readonly Goal[], today: string, only?: string):
   return out;
 }
 
-/** What the calendar calls a quit instead of its name. */
-export const quitLabel = (i: number) => `بطّل ${i + 1}`;
+/** What the calendar calls a quit instead of its name: its code name, or «بطّل 1», «بطّل 2»… */
+export const quitLabel = (q: Pick<Quit, 'alias'> | undefined, i: number) => q?.alias || `بطّل ${i + 1}`;
 
 const dayOf = (ms: number) => {
   const d = new Date(ms);
@@ -103,7 +103,7 @@ const dayOf = (ms: number) => {
 
 /**
  * Quitting: every day since you stopped is `clean` unless you slipped that day (`bad`); urges you beat are noted.
- * Never named (like the notifications): with several, each is «بطّل 1», «بطّل 2»… (`quitLabel`).
+ * Never named (like the notifications): each shows its code name (`alias`) or «بطّل 1», «بطّل 2»… (`quitLabel`).
  */
 export function quitMarks(quits: readonly Quit[], days: readonly string[], today: string, only?: string): Marks {
   const out: Marks = {};
@@ -116,7 +116,7 @@ export function quitMarks(quits: readonly Quit[], days: readonly string[], today
     for (const q of list) {
       if (d < dayOf(q.start)) continue;
       any = true;
-      const pre = only ? '' : `${quitLabel(quits.indexOf(q))}: `;
+      const pre = only ? '' : `${quitLabel(q, quits.indexOf(q))}: `;
       const slips = q.slips.filter((x) => dayOf(x.at) === d).length;
       const beat = q.urges.filter((x) => x.resisted && dayOf(x.at) === d).length;
       if (slips) {

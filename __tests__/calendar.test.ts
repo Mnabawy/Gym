@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { daysIn, goalMarks, goalSpans, gymMarks, habitMarks, monthSummary, quitMarks, weekPieces } from '../src/lib/calendar';
+import { daysIn, goalMarks, goalSpans, gymMarks, habitMarks, monthSummary, quitLabel, quitMarks, weekPieces } from '../src/lib/calendar';
 import type { Habit } from '../src/lib/habits';
 import type { Goal } from '../src/lib/goals';
 import type { Quit } from '../src/lib/quit';
@@ -43,6 +43,8 @@ describe('calendar', () => {
     expect(m['2026-11-04']).toBeUndefined();
     expect(m['2026-11-06']).toMatchObject({ tone: 'clean', lines: ['بطّل 1: نضيف · غلبت 1 رغبة'] });
     expect(JSON.stringify(m)).not.toContain('Q:');
+    expect(quitMarks([{ ...q, alias: 'المشروع' }], ['2026-11-06'], T)['2026-11-06'].lines[0]).toBe('المشروع: نضيف · غلبت 1 رغبة');
+    expect(quitLabel(undefined, 1)).toBe('بطّل 2');
     expect(m['2026-11-07'].tone).toBe('bad');
     expect(m['2026-11-09']).toBeUndefined();
   });

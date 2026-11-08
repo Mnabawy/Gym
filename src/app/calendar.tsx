@@ -47,7 +47,7 @@ export default function CalendarScreen() {
 
   // What can be picked inside the source (one habit / goal / quit, or all).
   const items: { id: string; name: string }[] =
-    src === 'habits' ? readHabits().map((h) => ({ id: h.id, name: h.name })) : src === 'goals' ? readGoals().map((g) => ({ id: g.id, name: g.name })) : src === 'quit' ? readQuits().map((q, i) => ({ id: q.id, name: quitLabel(i) })) : [];
+    src === 'habits' ? readHabits().map((h) => ({ id: h.id, name: h.name })) : src === 'goals' ? readGoals().map((g) => ({ id: g.id, name: g.name })) : src === 'quit' ? readQuits().map((q, i) => ({ id: q.id, name: quitLabel(q, i) })) : [];
   const pick = only && items.some((x) => x.id === only) ? only : undefined;
 
   let marks: Marks = {};
