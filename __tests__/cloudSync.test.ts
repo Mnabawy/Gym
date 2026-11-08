@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { applyRows, diffRows, isLocalMeta, localRows, mealRow, pushItems, setRow, type Dirty, type Pulled, type Target } from '../src/lib/cloudSync';
+import { applyRows, diffRows, isLocalMeta, itemChanges, splitKey, localRows, mealRow, pushItems, setRow, type Dirty, type Pulled, type Target } from '../src/lib/cloudSync';
 import type { SetRow } from '../src/lib/storage.types';
 
 const set = (o: Partial<SetRow> = {}): SetRow => ({ date: '2026-11-01', weekday: 1, exId: 'bench', idx: 0, kg: 60, reps: 8, done: 1, rir: null, at: null, ...o });
@@ -107,4 +107,57 @@ test('restoring a file: new rows go up, rows that are gone go up as deletes', ()
   expect(by['meta:a'].data).toBe('9');
   expect(by['meta:b']).toMatchObject({ deleted: true, data: null });
   expect(mealRow('d', 'm', true, 1).key).toBe('d|m');
+});
+
+describe('the to-do list goes one task per row', () => {
+  const a = { id: 'a', title: 'A' };
+  const b = { id: 'b', title: 'B' };
+  const L = (...x: object[]) => JSON.stringify(x);
+
+  test('only the tasks that changed become rows; removed ones go as deletes', () => {
+    const rows = itemChanges('tasks', L(a, b), L({ ...a, title: 'A2' }, { id: 'c', title: 'C' }), 5);
+    expect(rows.map((r) => [r.key, r.deleted])).toEqual([['tasks/a', false], ['tasks/c', false], ['tasks/b', true]]);
+    expect(rows[0].data).toEqual({ id: 'a', title: 'A2' });
+    expect(splitKey('tasks/a')).toEqual({ key: 'tasks', id: 'a' });
+    expect(splitKey('habits/a')).toBeNull();
+  });
+
+  test('pulled task rows edit, add and remove inside the list, leaving the others', () => {
+    const f = fakeTarget();
+    f.meta.tasks = L(a, b);
+    const rows: Pulled[] = [
+      { kind: 'meta', key: 'tasks/a', data: { id: 'a', title: 'A2' }, deleted: false, updated_at: 9, rev: 1 },
+      { kind: 'meta', key: 'tasks/c', data: { id: 'c', title: 'C' }, deleted: false, updated_at: 9, rev: 2 },
+      { kind: 'meta', key: 'tasks/b', data: null, deleted: true, updated_at: 9, rev: 3 },
+    ];
+    expect(applyRows(rows, {}, f.t)).toEqual({ changed: true, meta: ['tasks'] });
+    expect(JSON.parse(f.meta.tasks)).toEqual([{ id: 'a', title: 'A2' }, { id: 'c', title: 'C' }]);
+    // Same again: nothing changes.
+    expect(applyRows(rows, {}, f.t).changed).toBe(false);
+  });
+
+  test('two phones editing different tasks both keep their edits', () => {
+    const f = fakeTarget();
+    f.meta.tasks = L({ ...a, title: 'mine' }, b);
+    const d: Dirty = { 'meta:tasks/a': { t: 20, row: { kind: 'meta', key: 'tasks/a', data: { id: 'a', title: 'mine' }, deleted: false, updated_at: 20 } } };
+    applyRows([
+      { kind: 'meta', key: 'tasks/a', data: { id: 'a', title: 'older' }, deleted: false, updated_at: 10, rev: 1 },
+      { kind: 'meta', key: 'tasks/b', data: { id: 'b', title: 'theirs' }, deleted: false, updated_at: 10, rev: 2 },
+    ], d, f.t);
+    expect(JSON.parse(f.meta.tasks)).toEqual([{ id: 'a', title: 'mine' }, { id: 'b', title: 'theirs' }]);
+    expect(pushItems(d, (k) => f.meta[k] ?? null).map((x) => x.row.key)).toEqual(['tasks/a']);
+  });
+
+  test('a whole list from an older version only adds missing tasks; local rows and diffs are per task', () => {
+    const f = fakeTarget();
+    f.meta.tasks = L(a);
+    applyRows([{ kind: 'meta', key: 'tasks', data: L({ id: 'a', title: 'old' }, b), deleted: false, updated_at: 1, rev: 1 }], {}, f.t);
+    expect(JSON.parse(f.meta.tasks)).toEqual([a, b]);
+    const dump = (tasks: string) => ({ sets: [], meals: [], shop: [], meta: { tasks } });
+    expect(localRows(dump(L(a, b)), 1).map((r) => r.key)).toEqual(['tasks/a', 'tasks/b']);
+    const diff = diffRows(dump(L(a, b)), dump(L(a)), 2);
+    expect(diff.map((r) => [r.key, r.deleted])).toEqual([['tasks/a', false], ['tasks/b', true]]);
+    // An old whole-list entry in the log sends every task.
+    expect(pushItems({ 'meta:tasks': { t: 3 } }, () => L(a, b)).map((x) => x.row.key)).toEqual(['tasks/a', 'tasks/b']);
+  });
 });

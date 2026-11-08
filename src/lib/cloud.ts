@@ -6,7 +6,7 @@
 // phone goes up. Photos aren't synced. Setup (project, table, Google provider): docs/supabase-setup.md.
 import { useDataVersion } from './bus';
 import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
-import { applyRows, localRows, pushItems, rowId, type Pulled } from './cloudSync';
+import { applyRows, entry, localRows, pushItems, rowId, type Pulled } from './cloudSync';
 import { GOOGLE_USER, googleIdToken } from './google';
 import { useSettings } from './settings';
 import { storage } from './storage';
@@ -105,7 +105,7 @@ async function syncOnce() {
       const d = dirty();
       for (const r of localRows(storage.dump(), Date.now())) {
         const id = rowId(r.kind, r.key);
-        if (!seen.has(id) && !d[id]) d[id] = r.kind === 'meta' ? { t: r.updated_at } : { t: r.updated_at, row: r };
+        if (!seen.has(id) && !d[id]) d[id] = entry(r);
       }
       saveDirty();
       setMeta(CURSOR, String(cursor));

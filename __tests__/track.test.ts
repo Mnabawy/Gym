@@ -68,3 +68,23 @@ test('sync keys stay out of backups and survive a restore; turning off clears th
   setTracking(false);
   expect(dirty()).toEqual({});
 });
+
+test('the to-do list is noted one task at a time, also through a restore', () => {
+  const s = track(memory());
+  setTracking(false);
+  setTracking(true);
+  s.setMeta('tasks', JSON.stringify([{ id: 'a', t: 1 }, { id: 'b', t: 1 }]));
+  expect(Object.keys(dirty()).sort()).toEqual(['meta:tasks/a', 'meta:tasks/b']);
+  setTracking(false);
+  setTracking(true);
+  s.setMeta('tasks', JSON.stringify([{ id: 'a', t: 2 }]));
+  expect(Object.keys(dirty()).sort()).toEqual(['meta:tasks/a', 'meta:tasks/b']);
+  expect(dirty()['meta:tasks/a'].row?.data).toEqual({ id: 'a', t: 2 });
+  expect(dirty()['meta:tasks/b'].row?.deleted).toBe(true);
+  setTracking(false);
+  setTracking(true);
+  s.restore({ sets: [], meals: [], shop: [], meta: { tasks: JSON.stringify([{ id: 'c' }]) } });
+  expect(dirty()['meta:tasks/c'].row?.data).toEqual({ id: 'c' });
+  expect(dirty()['meta:tasks/a'].row?.deleted).toBe(true);
+  expect(dirty()['meta:tasks']).toBeUndefined();
+});
