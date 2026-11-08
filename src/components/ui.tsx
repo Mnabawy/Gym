@@ -59,7 +59,8 @@ export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; lab
 /** `action` sits at the end of the header (left in RTL), opposite the back button. */
 /** `dense`: tighter gaps and side padding (the workout tab). */
 /** Page with a header: back button (if any) and the title at the start (right), the page's buttons at the end (left). */
-export function Screen({ title, sub, children, footer, onBack, action, dense }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; dense?: boolean }) {
+/** `aside`: small extra shown on the same line right after the title (e.g. the to-do page's date and count). */
+export function Screen({ title, sub, children, footer, onBack, action, dense, aside }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; dense?: boolean; aside?: React.ReactNode }) {
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
@@ -71,7 +72,14 @@ export function Screen({ title, sub, children, footer, onBack, action, dense }: 
           {/* RTL: back sits at the start (right) and points right. */}
           {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} /> : null}
           <View style={s.titles}>
-            <T w="bold" style={{ fontSize: 16, lineHeight: 24 }} numberOfLines={1}>{title}</T>
+            {aside ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: '100%' }}>
+                <T w="bold" style={{ fontSize: 16, lineHeight: 24 }} numberOfLines={1}>{title}</T>
+                {aside}
+              </View>
+            ) : (
+              <T w="bold" style={{ fontSize: 16, lineHeight: 24 }} numberOfLines={1}>{title}</T>
+            )}
             {sub ? <T style={{ color: t.mute, fontSize: 11.5 }} numberOfLines={2}>{sub}</T> : null}
           </View>
           {action}

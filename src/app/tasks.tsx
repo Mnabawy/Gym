@@ -104,6 +104,16 @@ function Tasks() {
     <Screen
       dense
       title="مهامي"
+      aside={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
+          <T style={{ color: t.mute, fontSize: 12.5, flexShrink: 1 }} numberOfLines={1}>{sub[tab]}</T>
+          {tab === 'today' && todayAll ? (
+            <View style={[s.count, { backgroundColor: tint(t.ok, 0.14) }]}>
+              <T w="numBold" style={{ fontSize: 11.5, color: t.okText }}>{`${tv.done.length}/${todayAll}`}</T>
+            </View>
+          ) : null}
+        </View>
+      }
       action={<MenuButton />}
       footer={
         <View style={[s.bar, { paddingBottom: kb ? 8 : Math.max(inset.bottom, 10) + 4, backgroundColor: t.bg }]}>
@@ -163,16 +173,6 @@ function Tasks() {
           );
         })}
       </View>
-
-      <View style={s.top}>
-        <T style={{ color: t.mute, fontSize: 13, flex: 1 }} numberOfLines={1}>{sub[tab]}</T>
-        {tab === 'today' && todayAll ? <T w="semi" style={{ fontSize: 13, color: t.mute }}>{`خلصت ${tv.done.length} من ${todayAll}`}</T> : null}
-      </View>
-      {tab === 'today' && todayAll ? (
-        <View style={[s.track, { backgroundColor: t.soft }]}>
-          <View style={[s.fill, { width: `${Math.round((tv.done.length / todayAll) * 100)}%`, backgroundColor: t.ok }]} />
-        </View>
-      ) : null}
 
       {tab === 'today' ? (
         todayAll ? (
@@ -370,9 +370,7 @@ const s = StyleSheet.create({
   tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
   tab: { flex: 1, alignItems: 'center', paddingTop: 4, gap: 5 },
   under: { height: 3, width: '60%', borderRadius: 2 },
-  top: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 4 },
-  track: { height: 4, borderRadius: 2, overflow: 'hidden', marginTop: -4 },
-  fill: { height: '100%', borderRadius: 3 },
+  count: { borderRadius: 9, paddingHorizontal: 7, height: 20, justifyContent: 'center' },
   secDot: { width: 7, height: 7, borderRadius: 4 },
   monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 28, marginTop: 2 },
   wArrow: { width: 24, height: 48, alignItems: 'center', justifyContent: 'center' },
