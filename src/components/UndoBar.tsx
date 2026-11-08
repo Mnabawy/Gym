@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Animated, Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -20,7 +20,7 @@ export function UndoBar() {
   const seq = useUndo((s) => s.seq);
   const run = useUndo((s) => s.run);
   const dismiss = useUndo((s) => s.dismiss);
-  const y = useRef(new Animated.Value(80)).current;
+  const [y] = useState(() => new Animated.Value(80));
 
   useEffect(() => {
     if (!message) return;

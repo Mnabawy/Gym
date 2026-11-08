@@ -6,11 +6,10 @@ import { Btn, Screen, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { QuitForm } from '../../components/QuitForm';
 import { NightCard, QuitCard } from '../../components/QuitHero';
-import { UrgeScreen, SlipSheet } from '../../components/QuitSheets';
+import { PasswordModal, SlipSheet, UrgeScreen } from '../../components/QuitSheets';
 import { useDataVersion } from '../../lib/bus';
 import { readQuits } from '../../lib/quitStore';
 import { type Quit } from '../../lib/quit';
-import { PasswordModal } from '../../components/QuitSheets';
 import { useNow } from '../../lib/useNow';
 import { ThemeProvider, useTheme, useWarm } from '../../theme';
 
