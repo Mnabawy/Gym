@@ -144,7 +144,12 @@ export default function Account() {
                 <T style={{ color: t.mute, fontSize: 12, lineHeight: 18 }}>بيتحفظ لوحده بعد أي تغيير. ولو دخلت بنفس الحساب على أي موبايل، كل حاجة بترجع (ما عدا صور التقدّم).</T>
               </Card>
             </>
-          ) : null}
+          ) : (
+            <Card style={{ padding: 14, gap: 4 }}>
+              <T w="bold" style={{ fontSize: 15 }}>الحفظ على حسابك مش متظبط في النسخة دي</T>
+              <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>النسخة اتبنت من غير ملف .env، فبياناتك على الموبايل بس. ابنيها تاني بعد آخر تحديث (npm run update -- --build).</T>
+            </Card>
+          )}
 
           {!leaving ? (
             <Btn label="تسجيل الخروج" onPress={() => setLeaving(true)} />
