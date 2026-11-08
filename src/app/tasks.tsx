@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { LayoutAnimation, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ring, Screen, T } from '../components/ui';
+import { Ring, Screen, T, useKeyboardShown } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
@@ -39,6 +39,7 @@ function Tasks() {
   const t = useTheme();
   useDataVersion((s) => s.v);
   const inset = useSafeAreaInsets();
+  const kb = useKeyboardShown();
   const today = dateKey();
   const list = readTasks();
   const [tab, setTab] = useState<Tab>('today');
@@ -96,7 +97,7 @@ function Tasks() {
       title="مهامي"
       action={<MenuButton />}
       footer={
-        <View style={[s.bar, { paddingBottom: Math.max(inset.bottom, 10) + 4, backgroundColor: t.bg }]}>
+        <View style={[s.bar, { paddingBottom: kb ? 8 : Math.max(inset.bottom, 10) + 4, backgroundColor: t.bg }]}>
           <View style={[s.quick, { backgroundColor: t.card, borderColor: t.border }]}>
             <Ionicons name="add-circle-outline" size={22} color={t.mute} />
             <TextInput

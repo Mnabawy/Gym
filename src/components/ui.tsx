@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Animated, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Animated, Keyboard, KeyboardAvoidingView, LayoutAnimation, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextProps, View, type StyleProp, type ViewStyle } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Circle } from 'react-native-svg';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -7,6 +7,20 @@ import { F, glow, tint, useTheme } from '../theme';
 import { usePop, useTween } from '../lib/motion';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
+
+/** Whether the keyboard is up (Android and iOS), e.g. to drop a footer's bottom inset while it is. */
+export function useKeyboardShown(): boolean {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    const a = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow', () => setOn(true));
+    const b = Keyboard.addListener(Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide', () => setOn(false));
+    return () => {
+      a.remove();
+      b.remove();
+    };
+  }, []);
+  return on;
+}
 
 /** App-wide text size: screens write sizes at full scale and every T draws them this much smaller (the user wants a small font everywhere). */
 export const TEXT_SCALE = 0.9;
@@ -49,7 +63,10 @@ export function Screen({ title, sub, children, footer, onBack, action, dense }: 
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
-      <ScrollView contentContainerStyle={[s.scroll, dense ? s.dense : null]} keyboardShouldPersistTaps="handled">
+      {/* The app draws edge to edge, so Android doesn't shrink the screen for the keyboard: this lifts the page and its
+          footer (e.g. the to-do quick-add bar) above it, on both phones. */}
+      <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
+      <ScrollView contentContainerStyle={[s.scroll, dense ? s.dense : null]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         <View style={s.head}>
           {/* RTL: back sits at the start (right) and points right. */}
           {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} /> : null}
@@ -62,6 +79,7 @@ export function Screen({ title, sub, children, footer, onBack, action, dense }: 
         {children}
       </ScrollView>
       {footer}
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
@@ -88,13 +106,14 @@ export function InfoPopup({ visible, onClose, title, body }: { visible: boolean;
   const t = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={s.popBack} onPress={onClose} accessibilityLabel="قفل">
-        <Pressable accessibilityViewIsModal onPress={() => {}} style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)' }]}>
+      <View style={s.popBack}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="قفل" />
+        <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)' }]}>
           <View style={{ alignItems: 'flex-start' }}>{title}</View>
           <T style={{ fontSize: 15, lineHeight: 25 }}>{body}</T>
           <Btn label="تمام" kind="solid" onPress={onClose} />
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 }
@@ -104,8 +123,9 @@ export function Sheet({ visible, onClose, title, sub, children }: { visible: boo
   const t = useTheme();
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent onRequestClose={onClose}>
-      <Pressable style={s.popBack} onPress={onClose} accessibilityLabel="قفل">
-        <Pressable accessibilityViewIsModal onPress={() => {}} style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)', maxHeight: '85%' }]}>
+      <KeyboardAvoidingView behavior="padding" style={s.popBack}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} accessibilityLabel="قفل" />
+        <View accessibilityViewIsModal style={[s.pop, { backgroundColor: t.card, boxShadow: '0px 12px 36px rgba(0, 0, 0, 0.25)', maxHeight: '88%' }]}>
           <View style={{ flexDirection: 'row', alignItems: 'flex-start', gap: 8 }}>
             <View style={{ flex: 1, gap: 2 }}>
               <T w="bold" style={{ fontSize: 16 }}>{title}</T>
@@ -115,11 +135,11 @@ export function Sheet({ visible, onClose, title, sub, children }: { visible: boo
               <Ionicons name="close" size={22} color={t.mute} />
             </Pressable>
           </View>
-          <ScrollView style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 10 }} keyboardShouldPersistTaps="handled">
+          <ScrollView style={{ flexGrow: 0, flexShrink: 1 }} contentContainerStyle={{ gap: 10, paddingBottom: 4 }} keyboardShouldPersistTaps="handled" nestedScrollEnabled showsVerticalScrollIndicator>
             {children}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
