@@ -1,9 +1,23 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4C6A88"/><stop offset="1" stop-color="#2A3F55"/></linearGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><circle cx="512" cy="512" r="340" fill="none" stroke="rgba(255,255,255,0.14)" stroke-width="64"/>
-<circle cx="512" cy="512" r="340" fill="none" stroke="#2BC0C2" stroke-width="64" stroke-linecap="round" stroke-dasharray="1560 2200" transform="rotate(-90 512 512)"/>
-<g fill="#FFFFFF" transform="rotate(-30 512 512)">
-  <rect x="270" y="491" width="484" height="42" rx="21"/>
-  <rect x="352" y="372" width="60" height="280" rx="26"/>
-  <rect x="612" y="372" width="60" height="280" rx="26"/>
-  <rect x="300" y="422" width="48" height="180" rx="22"/>
-  <rect x="676" y="422" width="48" height="180" rx="22"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024" width="1024" height="1024"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3A2E8C"/><stop offset="1" stop-color="#1A163F"/></linearGradient>
+<radialGradient id="h" cx="0.5" cy="0.45" r="0.5"><stop offset="0" stop-color="#7C6CFF" stop-opacity="0.45"/><stop offset="1" stop-color="#7C6CFF" stop-opacity="0"/></radialGradient></defs><rect width="1024" height="1024" fill="url(#g)"/><circle cx="512" cy="480" r="440" fill="url(#h)"/>
+<g>
+  <g fill="#FFFFFF">
+    <ellipse cx="512" cy="505" rx="236" ry="178"/>
+    <circle cx="398" cy="332" r="112"/><circle cx="626" cy="332" r="112"/>
+    <circle cx="296" cy="428" r="104"/><circle cx="728" cy="428" r="104"/>
+    <circle cx="288" cy="560" r="96"/><circle cx="736" cy="560" r="96"/>
+    <circle cx="372" cy="648" r="92"/><circle cx="652" cy="648" r="92"/>
+    <circle cx="466" cy="660" r="84"/><circle cx="558" cy="660" r="84"/>
+    <rect x="462" y="690" width="100" height="120" rx="46"/>
+  </g>
+  <g fill="none" stroke="#231D5C" stroke-width="30" stroke-linecap="round">
+    <path d="M512 262 C 500 340, 524 420, 512 520 C 500 600, 524 680, 512 720"/>
+    <path d="M330 420 C 380 400, 420 440, 410 500"/>
+    <path d="M694 420 C 644 400, 604 440, 614 500"/>
+    <path d="M330 590 C 380 560, 430 600, 440 650"/>
+    <path d="M694 590 C 644 560, 594 600, 584 650"/>
+    <path d="M400 320 C 430 360, 470 350, 480 400"/>
+    <path d="M624 320 C 594 360, 554 350, 544 400"/>
+  </g>
+  <path fill="#2BC0C2" d="M740 180 L 700 290 L 752 290 L 724 380 L 820 250 L 766 250 L 800 180 Z"/>
 </g></svg>
