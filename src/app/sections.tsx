@@ -126,9 +126,32 @@ export default function Sections() {
       </View>
       <ScrollView contentContainerStyle={s.scroll}>
         <T w="semi" style={{ fontSize: 13, color: c.secondary, marginStart: 4 }}>{`${WEEKDAYS_AR[weekdayOf(today)]}، ${+today.slice(8)} ${MONTHS_AR[+today.slice(5, 7) - 1]}`}</T>
-        <T w="bold" style={{ fontSize: 34, lineHeight: 46, color: c.label, marginStart: 4, marginBottom: 14 }}>أقسامك</T>
+        <T w="bold" style={{ fontSize: 34, lineHeight: 46, color: c.label, marginStart: 4, marginBottom: 10 }}>أقسامك</T>
 
-        <View style={[s.group, s.stats, { backgroundColor: c.card }]}>
+        {/* The sections as small cards, three to a row, at the top. */}
+        <View style={s.grid}>
+          {rows.map((r, i) => {
+            const cur = r.key === here;
+            return (
+              <Item key={r.key} index={i} style={s.cell}>
+                <Pressable
+                  onPress={() => go(r.key)}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${r.title}${r.value ? `، ${r.value}` : ''}، ${r.line}`}
+                  accessibilityState={{ selected: cur }}
+                  style={({ pressed }) => [s.tile, { backgroundColor: pressed ? c.press : c.card, borderColor: cur ? c.tint : 'transparent' }]}>
+                  <View style={[s.tileIcon, { backgroundColor: cur ? c.tint : c.fill }]}>
+                    <Ionicons name={r.icon} size={20} color={cur ? '#FFFFFF' : c.label} />
+                  </View>
+                  <T w="semi" style={{ fontSize: 14, color: c.label }} numberOfLines={1}>{r.title}</T>
+                  <T w="numRegular" style={{ fontSize: 12, color: c.secondary }} numberOfLines={1}>{r.value || '\u00A0'}</T>
+                </Pressable>
+              </Item>
+            );
+          })}
+        </View>
+
+        <View style={[s.group, s.stats, { backgroundColor: c.card, marginTop: 14 }]}>
           {stats.map((x, i) => (
             <React.Fragment key={x.label}>
               {i > 0 ? <View style={{ width: hair, alignSelf: 'stretch', backgroundColor: c.sep }} /> : null}
@@ -153,34 +176,6 @@ export default function Sections() {
             <Ionicons name="chevron-back" size={18} color={c.tertiary} />
           </View>
         </Pressable>
-
-        <Header c={c} text="الأقسام" />
-        <View style={[s.group, { backgroundColor: c.card }]}>
-          {rows.map((r, i) => (
-            <Item key={r.key} index={i}><Pressable
-              onPress={() => go(r.key)}
-              accessibilityRole="button"
-              accessibilityLabel={`${r.title}${r.value ? `، ${r.value}` : ''}، ${r.line}`}
-              accessibilityState={{ selected: r.key === here }}
-              style={({ pressed }) => [s.row, { backgroundColor: pressed ? c.press : 'transparent' }]}>
-              <View style={[s.icon, { backgroundColor: c.fill }]}>
-                <Ionicons name={r.icon} size={18} color={c.label} />
-              </View>
-              <View style={[s.rowBody, i < rows.length - 1 && { borderBottomWidth: hair, borderBottomColor: c.sep }]}>
-                <View style={{ flex: 1, minWidth: 0 }}>
-                  <T style={{ fontSize: 17, lineHeight: 24, color: c.label }}>{r.title}</T>
-                  <T style={{ fontSize: 13, lineHeight: 18, color: c.secondary }} numberOfLines={1}>{r.line}</T>
-                </View>
-                {r.value ? <T w="numRegular" style={{ fontSize: 17, color: c.secondary }}>{r.value}</T> : null}
-                {r.key === here ? (
-                  <Ionicons name="checkmark" size={20} color={c.tint} />
-                ) : (
-                  <Ionicons name="chevron-back" size={18} color={c.tertiary} />
-                )}
-              </View>
-            </Pressable></Item>
-          ))}
-        </View>
 
         {goal && next ? (
           <>
@@ -238,5 +233,9 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', paddingStart: 16, minHeight: 60 },
   icon: { width: 30, height: 30, borderRadius: 7, alignItems: 'center', justifyContent: 'center', marginEnd: 12 },
   rowBody: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, alignSelf: 'stretch', paddingVertical: 10, paddingEnd: 14 },
+  grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 8 },
+  cell: { width: '31.5%' },
+  tile: { alignItems: 'center', justifyContent: 'center', gap: 3, height: 100, paddingHorizontal: 6, borderRadius: 12, borderWidth: 1.5 },
+  tileIcon: { width: 38, height: 38, borderRadius: 10, alignItems: 'center', justifyContent: 'center', marginBottom: 3 },
   tick: { width: 24, height: 24, borderRadius: 12, borderWidth: 1.5, marginEnd: 14 },
 });
