@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Item } from './Motion';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { INPUT, Btn, Sheet, T } from './ui';
+import { INPUT, Btn, Ring, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
@@ -117,32 +117,48 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
         let end: SwipeAction[] = [];
 
         if (r.kind === 'stage') {
+          // One measure of the stage that every ticked step moves: the share of its steps done, as a ring on the bead
+          // and a bar under the title; its amount (when the goal is split) and end date ride along as plain text.
           const n = r.st.tasks.filter((x) => x.done).length;
-          bead = (
-            <View style={[s.big, r.state === 'done' ? { backgroundColor: t.fg } : r.state === 'now' ? { backgroundColor: t.card, borderWidth: 2.5, borderColor: t.fg, boxShadow: `0px 0px 0px 5px ${tint(t.fg, 0.08)}` } : { backgroundColor: t.bg, borderWidth: 1.5, borderColor: tint(t.fg, 0.2) }]}>
-              {r.state === 'done' ? <Ionicons name="checkmark" size={18} color={t.bg} /> : <T w="numBold" style={{ fontSize: 14, color: r.state === 'now' ? t.fg : t.mute }}>{String(r.i + 1)}</T>}
-            </View>
-          );
+          const len = r.st.tasks.length;
+          const fill = stageFill(g, r.i);
+          const share = len ? n / len : fill ? fill.got / fill.of : 0;
+          const win = plan?.stage[r.st.id];
+          const late = !!win && r.state !== 'done' && win.to < today;
+          const ink = r.state === 'later' ? t.mute : t.fg;
+          bead =
+            r.state === 'done' ? (
+              <View style={[s.big, { backgroundColor: t.fg }]}>
+                <Ionicons name="checkmark" size={18} color={t.bg} />
+              </View>
+            ) : (
+              <View style={[s.big, { backgroundColor: r.state === 'now' ? t.card : t.bg }]}>
+                <Ring value={share} size={30} stroke={r.state === 'now' ? 3 : 2} color={ink} track={tint(t.fg, r.state === 'now' ? 0.12 : 0.1)}>
+                  <T w="numBold" style={{ fontSize: 13, color: ink }}>{String(r.i + 1)}</T>
+                </Ring>
+              </View>
+            );
+          const meta = r.state === 'done' ? 'خلصت ✓' : [len ? `${n}/${len} خطوات` : 'لسه فاضية', fill ? `${shortAmt(fill.got)} من ${shortAmt(fill.of)}` : ''].filter(Boolean).join(' · ');
           body = (
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <View style={{ flex: 1 }}>
-                <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
-                <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
-                {amountOf(g, r.i) !== null ? <Milestone g={g} t={t} i={r.i} /> : null}
-                {r.st.note?.trim() ? (
-                  r.open ? (
-                    <View style={[s.note, { backgroundColor: tint(t.fg, 0.04) }]}>
-                      <NoteView t={t} text={r.st.note} size={13} />
-                    </View>
-                  ) : (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
-                      <Ionicons name="document-text-outline" size={12} color={t.mute} />
-                      <T style={{ fontSize: 11.5, color: t.mute }}>فيها تفاصيل</T>
-                    </View>
-                  )
+              <View style={{ flex: 1, gap: 3 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                  <T w="semi" style={{ fontSize: 15, color: ink, flexShrink: 1 }}>{r.st.title}</T>
+                  {r.st.note?.trim() && !r.open ? <Ionicons name="document-text-outline" size={13} color={t.mute} /> : null}
+                </View>
+                {r.state !== 'done' && (len || fill) ? (
+                  <View style={[s.stageBar, { backgroundColor: tint(t.fg, 0.08) }]}>
+                    <View style={{ width: `${share * 100}%`, height: 4, borderRadius: 2, backgroundColor: r.state === 'now' ? t.okText : tint(t.fg, 0.35) }} />
+                  </View>
                 ) : null}
-                {plan?.stage[r.st.id] && r.state !== 'done' ? (
-                  <T style={{ fontSize: 11.5, color: plan.stage[r.st.id].to < today ? t.bad : t.mute }}>{`${dayShort(plan.stage[r.st.id].from)} ← ${dayShort(plan.stage[r.st.id].to)}`}</T>
+                <T style={{ fontSize: 12, color: t.mute }}>
+                  {meta}
+                  {win && r.state !== 'done' ? <T style={{ fontSize: 12, color: late ? t.bad : t.mute }}>{` · ${late ? 'متأخرة، ' : ''}لحد ${dayShort(win.to)}`}</T> : null}
+                </T>
+                {r.st.note?.trim() && r.open ? (
+                  <View style={[s.note, { backgroundColor: tint(t.fg, 0.04) }]}>
+                    <NoteView t={t} text={r.st.note} size={13} />
+                  </View>
                 ) : null}
               </View>
               <Ionicons name={r.open ? 'chevron-up' : 'chevron-down'} size={16} color={t.mute} />
@@ -172,7 +188,10 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               {done ? <Ionicons name="checkmark" size={13} color={t.bg} /> : null}
             </View>
           );
-          const when = plan?.task[r.task.id];
+          // Dates only where they help: the next open step, one you set yourself, and late ones.
+          const nextOpen = g.stages[currentStage(g)]?.tasks.find((x) => !x.done)?.id;
+          const planned = plan?.task[r.task.id];
+          const when = planned && (r.task.id === nextOpen || r.task.due || planned < today) ? planned : undefined;
           const note = r.task.note?.trim() ? r.task.note : '';
           const open = !!shown[r.task.id];
           const tid = r.task.id;
@@ -263,6 +282,11 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
 
 const MONTHS_SHORT = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
 /** "12 ديسمبر" (the year only when it isn't this year). */
+/** 30000 → «30 ألف»: short enough for a stage's line, and reads right in Arabic. */
+const shortAmt = (n: number) => {
+  const r = (x: number) => String(Math.round(x * 10) / 10);
+  return Math.abs(n) >= 1e6 ? `${r(n / 1e6)} مليون` : Math.abs(n) >= 1000 ? `${r(n / 1000)} ألف` : String(Math.round(n));
+};
 const dayShort = (d: string) => `${+d.slice(8)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]}${d.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? ` ${d.slice(0, 4)}` : ''}`;
 
 /** Deletes a stage (with its tasks) or one task, with undo. */
@@ -284,31 +308,6 @@ function copyStep(g: Goal, task: Task) {
 function removeBead(g: Goal, st: Stage, task?: Task) {
   saveGoal({ ...g, stages: task ? g.stages.map((x) => (x.id === st.id ? { ...x, tasks: x.tasks.filter((y) => y.id !== task.id) } : x)) : g.stages.filter((x) => x.id !== st.id) });
   showUndo(task ? 'اتمسحت خطوة' : 'اتمسحت مرحلة', () => saveGoal(g));
-}
-
-/**
- * A stage's own amount: how much of it is filled (what you logged, after the stages before it took theirs), what's
- * left, and a thin bar. ✓ once it's all filled.
- */
-function Milestone({ g, t, i }: { g: Goal; t: Theme; i: number }) {
-  const f = stageFill(g, i);
-  if (!f) return null;
-  const done = f.left <= 1e-9;
-  const m = (n: number) => `\u2066${fmtAmount(n, g.unit)}\u2069`;
-  return (
-    <View style={{ gap: 3, marginTop: 2 }}>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5, flexWrap: 'wrap' }}>
-        <Ionicons name={done ? 'flag' : 'flag-outline'} size={12} color={done ? t.green : t.okText} />
-        <T w="numBold" style={{ fontSize: 12.5, color: done ? t.green : t.fg }}>{done ? m(f.of) : `${m(f.got)} من ${m(f.of)}`}</T>
-        <T style={{ fontSize: 12, color: t.mute }}>{done ? 'اتملت ✓' : `فاضل ${m(f.left)}`}</T>
-      </View>
-      {!done ? (
-        <View style={{ height: 4, borderRadius: 2, backgroundColor: tint(t.fg, 0.08), overflow: 'hidden', maxWidth: 180 }}>
-          <View style={{ width: `${(f.got / f.of) * 100}%`, height: 4, borderRadius: 2, backgroundColor: t.okText }} />
-        </View>
-      ) : null}
-    </View>
-  );
 }
 
 /** Long-press on a bead: rename it, move a stage, or delete it. */
@@ -450,6 +449,7 @@ const s = StyleSheet.create({
   rail: { width: RAIL, alignItems: 'center' },
   line: { width: 4, borderRadius: 2 },
   big: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
+  stageBar: { height: 4, borderRadius: 2, overflow: 'hidden', maxWidth: 220 },
   small: { width: 22, height: 22, borderRadius: 11, alignItems: 'center', justifyContent: 'center', marginVertical: 1 },
   input: { flex: 1, minWidth: 0, height: 44, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12, textAlign: 'right', outlineWidth: 0 },
   ok: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
