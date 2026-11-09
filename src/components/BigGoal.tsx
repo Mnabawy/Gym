@@ -4,8 +4,9 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, HeaderBtn, Screen, Sheet, T } from './ui';
+import { Btn, Screen, Sheet, T } from './ui';
 import { GoalForm } from './GoalForm';
+import { GoalHeader } from './GoalHeader';
 import { activeKids, current, FOCUS_MAX, fmtAmount, kidsOf, needsYou, nextTask, parentOf, progress, share, stalled, STALL_DAYS, sumsUp, umbrellaProgress, umbrellaValue, WEIGHTS, type Goal } from '../lib/goals';
 import { readGoals, saveGoal } from '../lib/goalStore';
 import { tap } from '../lib/timer';
@@ -29,17 +30,12 @@ export function BigGoalPage({ u, today, onLog }: { u: Goal; today: string; onLog
   const loose = goals.filter((g) => !g.umbrella && !parentOf(goals, g));
 
   return (
-    <Screen title="الأهداف" onBack={() => router.back()} action={<HeaderBtn icon="ellipsis-horizontal" label="عدّل الهدف" onPress={() => setEditing(true)} />}>
+    <Screen title={u.name} header={<GoalHeader g={u} onMore={() => setEditing(true)} />}>
       {editing ? <GoalForm goal={u} onClose={() => setEditing(false)} /> : null}
       {adding ? <GoalForm parent={u.id} onClose={() => setAdding(false)} /> : null}
       {linking ? <LinkSheet t={t} u={u} loose={loose} onClose={() => setLinking(false)} /> : null}
 
       <View style={{ gap: 2 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-          <Ionicons name={u.icon as IconName} size={16} color={u.color} />
-          <T w="semi" style={{ fontSize: 12.5, color: u.color }}>هدف كبير</T>
-        </View>
-        <T w="bold" style={{ fontSize: 20 }}>{u.name}</T>
         <T w="numBold" style={{ fontSize: 36, lineHeight: 46, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>
           {sum || !kids.length ? fmtAmount(value, u.unit) : `${Math.floor(p * 100)}%`}
         </T>
@@ -50,7 +46,6 @@ export function BigGoalPage({ u, today, onLog }: { u: Goal; today: string; onLog
       <View style={[s.bar, { backgroundColor: tint(u.color, 0.15) }]}>
         <View style={{ width: `${p * 100}%`, height: 10, borderRadius: 5, backgroundColor: u.color }} />
       </View>
-      {u.why ? <T style={{ fontSize: 13, color: t.mute, lineHeight: 20 }}>{`ليه: ${u.why}`}</T> : null}
 
       {/* Where to start today: the goal that most needs you, and its next step. */}
       {focus ? (

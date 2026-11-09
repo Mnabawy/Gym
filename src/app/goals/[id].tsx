@@ -5,7 +5,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { INPUT, Btn, Card, HeaderBtn, Label, Pill, Screen, Sheet, T } from '../../components/ui';
 import { GoalForm } from '../../components/GoalForm';
 import { GoalRoad } from '../../components/GoalRoad';
-import { BigGoalPage, ParentLink } from '../../components/BigGoal';
+import { BigGoalPage } from '../../components/BigGoal';
+import { GoalHeader } from '../../components/GoalHeader';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
@@ -84,7 +85,7 @@ function GoalPage() {
   const there = pc.remaining === 0;
 
   return (
-    <Screen title="الأهداف" onBack={() => router.back()} action={<HeaderBtn icon="ellipsis-horizontal" label="عدّل الهدف" onPress={() => setEditing(true)} />}>
+    <Screen title={g.name} header={<GoalHeader g={g} onMore={() => setEditing(true)} />}>
       {editing ? <GoalForm goal={g} onClose={() => setEditing(false)} /> : null}
       {logging ? <LogSheet g={g} onClose={() => setLogging(false)} /> : null}
       {winning ? <WinSheet g={g} onClose={() => setWinning(false)} /> : null}
@@ -94,9 +95,7 @@ function GoalPage() {
         </Sheet>
       ) : null}
 
-      <ParentLink g={g} />
       <View style={{ gap: 0 }}>
-        <T w="semi" style={{ fontSize: 15 }}>{g.name}</T>
         <T w="numBold" style={{ fontSize: 38, lineHeight: 48, letterSpacing: -0.5, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
         <T style={{ fontSize: 12.5, color: t.mute }}>{there ? 'وصلت للهدف 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}${pc.eta ? ` · هتوصل ${monthLabel(pc.eta)}` : ''}`}</T>
       </View>
