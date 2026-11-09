@@ -93,11 +93,13 @@ function ReminderSync() {
   const days = useSettings((s) => s.reminderDays);
   const brief = useSettings((s) => s.brief);
   const briefTime = useSettings((s) => s.briefTime);
+  const dumpRemind = useSettings((s) => s.dumpRemind);
+  const dumpTime = useSettings((s) => s.dumpTime);
   const v = useDataVersion((s) => s.v);
   useEffect(() => {
     const id = setTimeout(() => syncReminders(), 2000);
     return () => clearTimeout(id);
-  }, [on, time, days, brief, briefTime, v]);
+  }, [on, time, days, brief, briefTime, dumpRemind, dumpTime, v]);
   return null;
 }
 

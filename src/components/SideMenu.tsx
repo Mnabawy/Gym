@@ -12,7 +12,7 @@ import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type Item = { icon: IconName; label: string; path: '/progress' | '/week' | '/weight' | '/attendance' | '/prayer' | '/calories' | '/settings' };
+type Item = { icon: IconName; label: string; path: '/dump' | '/progress' | '/week' | '/weight' | '/attendance' | '/prayer' | '/calories' | '/settings' };
 
 /**
  * The section button (the section you're in, tap to switch: الجيم، العادات، الأهداف، بطّل) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
@@ -30,6 +30,7 @@ export function MenuButton() {
   const panel = Math.min(300, Math.round(width * 0.8));
 
   const items: Item[] = [
+    { icon: 'cloud-download-outline', label: 'فضّي دماغك', path: '/dump' },
     { icon: 'stats-chart-outline', label: 'التقدم', path: '/progress' },
     { icon: 'document-text-outline', label: 'تقرير الأسبوع', path: '/week' },
     { icon: 'scale-outline', label: 'وزنك والقياسات', path: '/weight' },

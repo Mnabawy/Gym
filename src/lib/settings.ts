@@ -52,6 +52,9 @@ export type Settings = {
   brief: boolean;
   /** Minutes after midnight. */
   briefTime: number;
+  /** A nightly nudge to empty your head (فضّي دماغك, src/lib/dump.ts) at `dumpTime` (minutes after midnight). */
+  dumpRemind: boolean;
+  dumpTime: number;
   /** Fingerprint / face lock when the app opens (src/lib/lock.ts). */
   appLock: boolean;
   /** Last day of a light week (deload): until then every exercise has half its sets. '' = none. */
@@ -94,6 +97,8 @@ export const DEFAULT_SETTINGS: Settings = {
   askRir: true,
   brief: false,
   briefTime: 6 * 60,
+  dumpRemind: false,
+  dumpTime: 22 * 60 + 30,
   appLock: false,
   deloadUntil: '',
   stepsSync: false,
@@ -134,6 +139,7 @@ export function parseSettings(raw: string | null): Settings {
   if (Array.isArray(o.reminderDays)) out.reminderDays = [...new Set(o.reminderDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
   if (!(out.reminderTime >= 0 && out.reminderTime < 24 * 60)) out.reminderTime = DEFAULT_SETTINGS.reminderTime;
   if (!(out.briefTime >= 0 && out.briefTime < 24 * 60)) out.briefTime = DEFAULT_SETTINGS.briefTime;
+  if (!(out.dumpTime >= 0 && out.dumpTime < 24 * 60)) out.dumpTime = DEFAULT_SETTINGS.dumpTime;
   out.accent = out.accent === '' ? '' : normHex(out.accent) ?? DEFAULT_SETTINGS.accent;
   // Moving to the Apple look: the old default red becomes system blue once; a color picked after that stays.
   if (typeof o.look !== 'number' && out.accent === '#B93435') out.accent = DEFAULT_SETTINGS.accent;
@@ -149,7 +155,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'appLock' | 'stepsSync' | 'accent'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'dumpRemind' | 'dumpTime' | 'appLock' | 'stepsSync' | 'accent'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;

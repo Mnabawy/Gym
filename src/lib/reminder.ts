@@ -26,6 +26,7 @@ import { addDays } from './gaps';
 const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
 const BRIEF = 'morning-brief';
+const DUMP = 'brain-dump';
 const HABIT = 'habit-reminder';
 const QUIT = 'quit-milestone';
 const TASK = 'task-reminder';
@@ -74,7 +75,7 @@ export function syncReminders(): Promise<void> {
     try {
       for (const n of await Notifications.getAllScheduledNotificationsAsync()) {
         const k = n.content.data?.kind;
-        if (k === KIND || k === BRIEF || k === HABIT || k === QUIT || k === TASK) await Notifications.cancelScheduledNotificationAsync(n.identifier);
+        if (k === KIND || k === BRIEF || k === HABIT || k === QUIT || k === TASK || k === DUMP) await Notifications.cancelScheduledNotificationAsync(n.identifier);
       }
       const st = useSettings.getState();
       // Each quit's next milestone, as a quiet "well done" without the habit's name.
@@ -92,6 +93,15 @@ export function syncReminders(): Promise<void> {
             content: { title: x.title, body: `مهامي · ${timeAr(x.time!)}${x.subs.length ? ` · ${x.subs.length} خطوات` : ''}`, sound: true, data: { kind: TASK } },
             trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: at, channelId: 'reminder' },
           });
+        }
+        // فضّي دماغك before bed: every night at its time, opening the page on tap.
+        if (st.dumpRemind) {
+          for (const date of reminderTimes(new Date(), st.dumpTime, [0, 1, 2, 3, 4, 5, 6], false)) {
+            await Notifications.scheduleNotificationAsync({
+              content: { title: 'فضّي دماغك 🧠', body: 'خمس دقايق: اكتب كل اللي في دماغك وحدد لبكرة، وتنام أهدى', sound: true, data: { kind: DUMP, url: '/dump' } },
+              trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date, channelId: 'reminder' },
+            });
+          }
         }
         for (const q of readQuits()) {
           const c = clean(q, nowMs);

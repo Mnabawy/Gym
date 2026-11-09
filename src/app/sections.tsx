@@ -17,6 +17,7 @@ import { dateKey, weekdayOf } from '../lib/logic';
 import { currentWorkout, isTrainingDay } from '../lib/schedule';
 import { lastSection, openSection, type Section } from '../lib/section';
 import { storage } from '../lib/storage';
+import { DUMP_KEY, dumpView, parseDump } from '../lib/dump';
 import { addDays, daysBetween, weekStart } from '../lib/gaps';
 import { tap } from '../lib/timer';
 import { readQuits } from '../lib/quitStore';
@@ -114,6 +115,7 @@ export default function Sections() {
     { label: 'التمرين', value: trained.has(today) ? '✓' : training ? 'لسه' : 'راحة' },
   ];
 
+  const dumpLeft = dumpView(parseDump(storage.getMeta(DUMP_KEY)), today).unsorted.length;
   const verse = SHORT[Math.abs(daysBetween('2026-01-01', today)) % SHORT.length];
   const hair = StyleSheet.hairlineWidth;
 
@@ -172,6 +174,20 @@ export default function Sections() {
             <View style={{ flex: 1, minWidth: 0 }}>
               <T style={{ fontSize: 17, lineHeight: 24, color: c.label }}>التقويم</T>
               <T style={{ fontSize: 13, lineHeight: 18, color: c.secondary }} numberOfLines={1}>الجيم والعادات والأهداف وبطّل على شهر واحد</T>
+            </View>
+            <Ionicons name="chevron-back" size={18} color={c.tertiary} />
+          </View>
+        </Pressable>
+
+        {/* فضّي دماغك: write everything down, then sort it (src/app/dump.tsx). */}
+        <Pressable onPress={() => router.push('/dump')} accessibilityRole="button" style={({ pressed }) => [s.group, s.row, { backgroundColor: pressed ? c.press : c.card, marginTop: 10 }]}>
+          <View style={[s.icon, { backgroundColor: c.fill }]}>
+            <Ionicons name="cloud-download-outline" size={18} color={c.label} />
+          </View>
+          <View style={s.rowBody}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T style={{ fontSize: 17, lineHeight: 24, color: c.label }}>فضّي دماغك</T>
+              <T style={{ fontSize: 13, lineHeight: 18, color: c.secondary }} numberOfLines={1}>{dumpLeft ? `${dumpLeft} لسه محتاجين ترتيب` : 'اكتب كل اللي شاغلك ورتّبه'}</T>
             </View>
             <Ionicons name="chevron-back" size={18} color={c.tertiary} />
           </View>
