@@ -4,7 +4,7 @@
 // `start` actions sit under the start edge (right in RTL) and show when you drag the row toward the left; `end`
 // actions sit under the end edge (left). Letting go past half the panel keeps it open; a long, full swipe runs the
 // side's first action, like Mail. One row is open at a time; tapping the row closes it.
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { I18nManager, Platform, Pressable, StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
 import { GestureDetector, usePanGesture, useTapGesture } from 'react-native-gesture-handler';
 import Animated, { useAnimatedReaction, useAnimatedStyle, useSharedValue, withSpring, withTiming } from 'react-native-reanimated';
@@ -26,8 +26,9 @@ export type SwipeAction = {
 /** iOS system colors for actions (the same in light and dark, white text on top). */
 export const ACTION = { red: '#FF3B30', green: '#34C759', orange: '#FF9500', blue: '#007AFF', purple: '#5856D6', grey: '#8E8E93', indigo: '#5E5CE6', teal: '#30B0C7' };
 
-const W = 72; // one action's width
+const W = 72; // one action's width (narrower when a side has more than fit in MAX_OPEN of the row)
 const FULL = 0.6; // share of the row's width past which letting go runs the first action
+const MAX_OPEN = 0.82; // an open panel never covers more than this share of the row, so part of the row stays to tap back
 const SPRING = { damping: 24, stiffness: 300, mass: 0.8 };
 
 // The page is RTL (forced on the phones; the web page is RTL too even though I18nManager says LTR there): the start
@@ -55,15 +56,21 @@ export function Swipe({ start, end, children, style, enabled = true }: { start?:
   const on = enabled && nStart + nEnd > 0;
   const x = useSharedValue(0); // the row's translateX
   const from = useSharedValue(0);
-  const width = useSharedValue(0);
   const opened = useSharedValue(0); // 0 closed, else the open translateX
   const full = useRef(false);
+  const [rowW, setRowW] = useState(0);
 
-  // Physical limits: start panel on one side, end panel on the other.
-  const startW = nStart * W;
-  const endW = nEnd * W;
+  // Physical limits: start panel on one side, end panel on the other. Actions shrink so a panel fits in MAX_OPEN of
+  // the row; a side whose panel is wider than half the row has no full swipe (it'd run the action at its open spot).
+  const aw = (n: number) => (rowW > 0 && n > 0 ? Math.min(W, Math.floor((rowW * MAX_OPEN) / n)) : W);
+  const wStart = aw(nStart);
+  const wEnd = aw(nEnd);
+  const startW = nStart * wStart;
+  const endW = nEnd * wEnd;
   const minX = START_SIGN < 0 ? -startW : -endW; // most negative allowed when not full-swiping
   const maxX = START_SIGN < 0 ? endW : startW;
+  const fullNeg = rowW > 0 && -minX <= rowW * 0.5 ? rowW * FULL : Infinity;
+  const fullPos = rowW > 0 && maxX <= rowW * 0.5 ? rowW * FULL : Infinity;
   const negActs = START_SIGN < 0 ? start : end; // actions shown when the row moves left (x < 0)
   const posActs = START_SIGN < 0 ? end : start;
 
@@ -99,18 +106,17 @@ export function Swipe({ start, end, children, style, enabled = true }: { start?:
       const lo = negActs?.length ? -Infinity : 0;
       const hi = posActs?.length ? Infinity : 0;
       v = Math.max(lo, Math.min(hi, v));
-      // Rubber band past the panel, so a full swipe takes a deliberate pull.
-      if (v < minX) v = minX + (v - minX) * 0.7;
-      if (v > maxX) v = maxX + (v - maxX) * 0.7;
+      // Rubber band past the panel, so a full swipe takes a deliberate pull (a stiff one when the side has none).
+      if (v < minX) v = minX + (v - minX) * (fullNeg === Infinity ? 0.2 : 0.7);
+      if (v > maxX) v = maxX + (v - maxX) * (fullPos === Infinity ? 0.2 : 0.7);
       x.value = v;
     },
     onDeactivate: (e) => {
       'worklet';
       const v = x.value;
-      const w = width.value || 1;
       const fling = e.velocityX;
       if (v < 0 && negActs?.length) {
-        if (-v > w * FULL) {
+        if (-v > fullNeg) {
           x.value = withTiming(0, { duration: 220 });
           opened.value = 0;
           scheduleOnRN(run, 'neg');
@@ -123,7 +129,7 @@ export function Swipe({ start, end, children, style, enabled = true }: { start?:
           opened.value = 0;
         }
       } else if (v > 0 && posActs?.length) {
-        if (v > w * FULL) {
+        if (v > fullPos) {
           x.value = withTiming(0, { duration: 220 });
           opened.value = 0;
           scheduleOnRN(run, 'pos');
@@ -154,7 +160,7 @@ export function Swipe({ start, end, children, style, enabled = true }: { start?:
   });
 
   useAnimatedReaction(
-    () => width.value > 0 && Math.abs(x.value) > width.value * FULL,
+    () => (x.value < 0 ? -x.value > fullNeg : x.value > fullPos),
     (now, prev) => {
       if (prev !== null && now !== prev) scheduleOnRN(onFull, now);
     },
@@ -174,12 +180,12 @@ export function Swipe({ start, end, children, style, enabled = true }: { start?:
   };
   // The layout is RTL everywhere (phones and web), so a row's flex-start is the physical right. Each panel covers
   // the row; its strip (as wide as the pull) sits at its physical edge, the first action outermost.
-  const panel = (acts: SwipeAction[] | undefined, side: 'left' | 'right', st: ReturnType<typeof useAnimatedStyle>) =>
+  const panel = (acts: SwipeAction[] | undefined, side: 'left' | 'right', st: ReturnType<typeof useAnimatedStyle>, aw1: number) =>
     acts?.length ? (
       <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { flexDirection: 'row', justifyContent: side === 'right' ? 'flex-start' : 'flex-end' }]}>
         <Animated.View style={[s.strip, { justifyContent: side === 'right' ? 'flex-start' : 'flex-end' }, st]}>
           {(side === 'right' ? acts : [...acts].reverse()).map((a) => (
-            <Pressable key={a.label} onPress={act(a)} accessibilityRole="button" accessibilityLabel={a.label} style={({ pressed }) => [s.act, { backgroundColor: a.color, opacity: pressed ? 0.75 : 1 }, a === acts[0] ? { flexGrow: 1, minWidth: W } : { width: W }]}>
+            <Pressable key={a.label} onPress={act(a)} accessibilityRole="button" accessibilityLabel={a.label} style={({ pressed }) => [s.act, { backgroundColor: a.color, opacity: pressed ? 0.75 : 1 }, a === acts[0] ? { flexGrow: 1, minWidth: aw1 } : { width: aw1 }]}>
               <Ionicons name={a.icon} size={19} color="#FFFFFF" />
               <T w="medium" style={{ fontSize: 11.5, lineHeight: 15, color: '#FFFFFF' }} numberOfLines={1} adjustsFontSizeToFit>{a.label}</T>
             </Pressable>
@@ -189,9 +195,9 @@ export function Swipe({ start, end, children, style, enabled = true }: { start?:
     ) : null;
 
   return (
-    <View style={[s.wrap, style]} onLayout={(e) => width.set(e.nativeEvent.layout.width)}>
-      {panel(posActs, 'left', posPanel)}
-      {panel(negActs, 'right', negPanel)}
+    <View style={[s.wrap, style]} onLayout={(e) => setRowW(e.nativeEvent.layout.width)}>
+      {panel(posActs, 'left', posPanel, START_SIGN < 0 ? wEnd : wStart)}
+      {panel(negActs, 'right', negPanel, START_SIGN < 0 ? wStart : wEnd)}
       <GestureDetector gesture={pan} touchAction="pan-y">
         <Animated.View style={row}>
           <GestureDetector gesture={tapClose} touchAction="pan-y">
