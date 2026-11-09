@@ -41,10 +41,10 @@ export const spaceOf = (t: Task): Space => t.space ?? 'personal';
 export const inSpace = (list: readonly Task[], s: Space): Task[] => list.filter((t) => spaceOf(t) === s);
 
 export const PRIORITY = {
-  1: { label: 'مهم جدًا', color: '#D93B3B' },
-  2: { label: 'مهم', color: '#E8902A' },
-  3: { label: 'عادي', color: '#3B7BE0' },
-  4: { label: 'بعدين', color: '#B4ADA2' },
+  1: { label: 'مهم جدًا', color: '#FF3B30' },
+  2: { label: 'مهم', color: '#FF9500' },
+  3: { label: 'عادي', color: '#007AFF' },
+  4: { label: 'بعدين', color: '#8E8E93' },
 } as const;
 export const REPEAT_AR: Record<Repeat, string> = { daily: 'كل يوم', weekdays: 'أيام الشغل', weekly: 'كل أسبوع', monthly: 'كل شهر' };
 export const TAG_COLORS = ['#3B7BE0', '#3E9A68', '#7A5CFA', '#E0609B', '#D55E00', '#1BA6A8', '#B9A200'];

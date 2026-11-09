@@ -13,7 +13,7 @@ import { useDataVersion } from '../lib/bus';
 import { storage } from '../lib/storage';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
-import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, tagColor, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
+import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
 import { deleteTask, pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
@@ -101,13 +101,13 @@ function Tasks() {
           <T w="num" style={{ fontSize: 12, color: o.color ?? t.mute }}>{String(items.length)}</T>
           {o.fold ? <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={14} color={t.mute} /> : null}
         </Pressable> : null}
-        {o.fold && !showDone ? null : <View style={[s.card, { backgroundColor: t.card, borderColor: t.border }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
+        {o.fold && !showDone ? null : <View style={[s.card, { backgroundColor: t.card }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
       </View>
     ) : null;
 
   const dayLabel = (d: string) => `${WEEKDAYS_AR[weekdayOf(d)]} ${+d.slice(8)} ${MONTHS_AR[+d.slice(5, 7) - 1]}`;
   const sub: Record<Tab, string> = {
-    today: dayLabel(today),
+    today: todayAll ? `${dayLabel(today)} · خلصت ${tv.done.length} من ${todayAll}` : dayLabel(today),
     calendar: day === today ? `النهارده · ${dayLabel(day)}` : dayLabel(day),
     all: c.open ? `${c.open} مهمة مفتوحة` : 'مفيش حاجة مفتوحة',
   };
@@ -119,14 +119,7 @@ function Tasks() {
       title="مهامي"
       sub={sub[tab]}
       aside={
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 }}>
-          <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
-          {tab === 'today' && todayAll ? (
-            <View style={[s.count, { backgroundColor: tint(t.ok, 0.14) }]}>
-              <T w="numBold" style={{ fontSize: 11.5, color: t.okText }}>{`${tv.done.length}/${todayAll}`}</T>
-            </View>
-          ) : null}
-        </View>
+        <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
       }
       action={<MenuButton />}
       footer={
@@ -159,7 +152,7 @@ function Tasks() {
             }}
             accessibilityRole="button"
             accessibilityLabel="مهمة جديدة بالتفاصيل"
-            style={({ pressed }) => [s.fab, { backgroundColor: t.ok, boxShadow: `0px 8px 22px ${tint(t.ok, 0.4)}`, transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
+            style={({ pressed }) => [s.fab, { backgroundColor: t.ok, transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
             <Ionicons name="add" size={30} color={t.onOk} />
           </Pressable>
         </View>
@@ -283,7 +276,8 @@ function Empty({ t, icon, title, sub }: { t: Theme; icon: React.ComponentProps<t
  * subtasks: the button at the end opens them under the task, to tick, remove or add one without opening the form.
  */
 function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSubs }: { t: Theme; x: Task; today: string; last: boolean; showDate: boolean; onToggle: () => void; onOpen: () => void; subsOpen: boolean; onSubs: () => void }) {
-  const c = PRIORITY[x.priority].color;
+  // The ring takes the priority's color; a plain task takes the app's color, «بعدين» stays grey.
+  const c = x.priority === 3 ? t.ok : x.priority === 4 ? t.mute : PRIORITY[x.priority].color;
   const done = !!x.done;
   const meta: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; color?: string }[] = [];
   if (showDate && x.due) meta.push({ icon: 'calendar-outline', text: dueAr(x.due, today), color: x.due < today && !done ? LATE : undefined });
@@ -316,14 +310,16 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
         { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove },
         ...(done ? [] : [{ icon: 'arrow-redo' as const, label: 'بكرة', color: ACTION.orange, onPress: tomorrow }]),
         { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: onOpen },
+        ...(done ? [] : [{ icon: 'git-branch-outline' as const, label: 'فرعية', color: ACTION.blue, onPress: onSubs }]),
         { icon: other === 'work' ? 'briefcase-outline' : 'person-outline', label: `لـ${SPACES[other]}`, color: ACTION.indigo, onPress: move },
       ]}>
-    <View style={{ borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth, borderColor: t.line, backgroundColor: t.card }}>
+    <View style={{ backgroundColor: t.card }}>
     <View style={s.task}>
-      <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.mute : c, backgroundColor: done ? t.mute : tint(c, 0.1) }]}>
+      <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.ok : c, backgroundColor: done ? t.ok : 'transparent' }]}>
         {done ? <Pop value="done"><Ionicons name="checkmark" size={16} color={t.bg} /></Pop> : null}
       </Pressable>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 3 })}>
+      <View style={[s.body, { borderBottomWidth: last || subsOpen ? 0 : StyleSheet.hairlineWidth, borderColor: t.line }]}>
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 1 })}>
         <T style={{ fontSize: 15, lineHeight: 21, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
         {(meta.length || x.tag) && !done ? (
           <View style={s.meta}>
@@ -333,7 +329,7 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
                 {m.text ? <T style={{ fontSize: 12, color: m.color ?? t.mute }}>{m.text}</T> : null}
               </View>
             ))}
-            {x.tag ? <T w="semi" style={{ fontSize: 12, color: tagColor(x.tag) }}>{`# ${x.tag}`}</T> : null}
+            {x.tag ? <T style={{ fontSize: 12, color: t.okText }}>{`#${x.tag}`}</T> : null}
           </View>
         ) : null}
       </Pressable>
@@ -342,12 +338,8 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
           <T w="numBold" style={{ fontSize: 12, color: subsOpen ? t.okText : t.mute }}>{`${subsDone}/${x.subs.length}`}</T>
           <Ionicons name={subsOpen ? 'chevron-up' : 'chevron-down'} size={14} color={subsOpen ? t.okText : t.mute} />
         </Pressable>
-      ) : !done ? (
-        <Pressable onPress={onSubs} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف مهمة فرعية" style={({ pressed }) => [s.subAddBtn, { opacity: pressed ? 0.6 : 1 }]}>
-          <Ionicons name="git-branch-outline" size={17} color={t.mute} />
-        </Pressable>
       ) : null}
-      {x.priority <= 2 && !done ? <View style={[s.flag, { backgroundColor: c }]} /> : null}
+      </View>
     </View>
     {subsOpen && !done ? <SubList t={t} x={x} /> : null}
     </View>
@@ -410,7 +402,6 @@ const s = StyleSheet.create({
   tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
   tab: { flex: 1, alignItems: 'center', paddingTop: 4, gap: 5 },
   under: { height: 3, width: '60%', borderRadius: 2 },
-  count: { borderRadius: 9, paddingHorizontal: 7, height: 20, justifyContent: 'center' },
   secDot: { width: 7, height: 7, borderRadius: 4 },
   monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 28, marginTop: 2 },
   wArrow: { width: 24, height: 48, alignItems: 'center', justifyContent: 'center' },
@@ -420,22 +411,21 @@ const s = StyleSheet.create({
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   sec: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, marginTop: 2 },
-  card: { borderRadius: 12, paddingHorizontal: 10, borderWidth: 1 },
-  task: { flexDirection: 'row', gap: 9, paddingVertical: 6, alignItems: 'center' },
-  cb: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
+  card: { borderRadius: 12, paddingStart: 14, overflow: 'hidden' },
+  task: { flexDirection: 'row', gap: 10, alignItems: 'center' },
+  body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, paddingEnd: 10, minHeight: 44 },
+  cb: { width: 21, height: 21, borderRadius: 11, borderWidth: 1.6, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 0 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   subBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 24, borderRadius: 12, paddingHorizontal: 7 },
-  subAddBtn: { width: 28, height: 24, alignItems: 'center', justifyContent: 'center' },
   subs: { marginStart: 30, borderStartWidth: 2, paddingStart: 8, paddingBottom: 6, gap: 0 },
   subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },
   subCb: { width: 18, height: 18, borderRadius: 5, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   subX: { width: 26, height: 30, alignItems: 'center', justifyContent: 'center' },
   subIn: { flex: 1, minWidth: 0, height: 34, fontSize: 14, textAlign: 'right', outlineWidth: 0 },
-  flag: { width: 3, alignSelf: 'stretch', borderRadius: 2, marginVertical: 2 },
   bar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 6 },
-  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderRadius: 12, borderWidth: 1, paddingHorizontal: 12 },
-  quickIn: { flex: 1, minWidth: 0, fontSize: 15, textAlign: 'right', outlineWidth: 0, height: 48 },
-  fab: { width: 48, height: 48, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderRadius: 12, paddingHorizontal: 12 },
+  quickIn: { flex: 1, minWidth: 0, fontSize: 15, textAlign: 'right', outlineWidth: 0, height: 44 },
+  fab: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 64, height: 64, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
 });

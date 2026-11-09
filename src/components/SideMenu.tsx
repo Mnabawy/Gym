@@ -115,16 +115,15 @@ const SECTION_NAME = { gym: 'الجيم', habits: 'العادات', goals: 'ال
 function SectionPill() {
   const t = useTheme();
   const here = lastSection();
-  const color = t.sec[here];
   return (
     <Pressable
       onPress={() => router.push('/sections')}
+      hitSlop={8}
       accessibilityRole="button"
       accessibilityLabel={`انت في ${SECTION_NAME[here]}. دوس عشان تغيّر القسم`}
-      style={({ pressed }) => [s.pill, { backgroundColor: tint(color, 0.14), borderColor: tint(color, 0.45), opacity: pressed ? 0.7 : 1 }]}>
-      <Ionicons name="apps" size={16} color={color} />
-      <T w="semi" style={{ fontSize: 13.5, color: t.fg }} numberOfLines={1}>{SECTION_NAME[here]}</T>
-      <Ionicons name="chevron-down" size={14} color={t.mute} />
+      style={({ pressed }) => [s.pill, { backgroundColor: tint(t.ok, 0.1), opacity: pressed ? 0.6 : 1 }]}>
+      <Ionicons name="apps" size={14} color={t.okText} />
+      <T w="semi" style={{ fontSize: 13, color: t.okText }} numberOfLines={1}>{SECTION_NAME[here]}</T>
     </Pressable>
   );
 }
@@ -155,7 +154,7 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
 }
 
 const s = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 6, height: 40, borderRadius: 20, borderWidth: 1, paddingHorizontal: 12 },
+  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 30, borderRadius: 15, paddingHorizontal: 10, alignSelf: 'center' },
   account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 8 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   back: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },
