@@ -94,14 +94,14 @@ function Tasks() {
   const row = (x: Task, last: boolean, showDate: boolean) => <Item key={x.id}><TaskRow t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} /></Item>;
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
-      <View key={key} style={{ gap: 3 }}>
+      <View key={key} style={{ gap: 8 }}>
         {label ? <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} style={s.sec}>
           {o.color ? <View style={[s.secDot, { backgroundColor: o.color }]} /> : null}
           <T w="semi" style={{ fontSize: 13.5, color: o.color ?? t.mute }}>{label}</T>
           <T w="num" style={{ fontSize: 12, color: o.color ?? t.mute }}>{String(items.length)}</T>
           {o.fold ? <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={14} color={t.mute} /> : null}
         </Pressable> : null}
-        {o.fold && !showDone ? null : <View style={[s.card, { backgroundColor: t.card }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
+        {o.fold && !showDone ? null : <View style={{ gap: 8 }}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
       </View>
     ) : null;
 
@@ -312,14 +312,15 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
         { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: onOpen },
         ...(done ? [] : [{ icon: 'git-branch-outline' as const, label: 'فرعية', color: ACTION.blue, onPress: onSubs }]),
         { icon: other === 'work' ? 'briefcase-outline' : 'person-outline', label: `لـ${SPACES[other]}`, color: ACTION.indigo, onPress: move },
-      ]}>
+      ]}
+      style={s.rowCard}>
     <View style={{ backgroundColor: t.card }}>
     <View style={s.task}>
       <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.ok : c, backgroundColor: done ? t.ok : 'transparent' }]}>
         {done ? <Pop value="done"><Ionicons name="checkmark" size={16} color={t.bg} /></Pop> : null}
       </Pressable>
-      <View style={[s.body, { borderBottomWidth: last || subsOpen ? 0 : StyleSheet.hairlineWidth, borderColor: t.line }]}>
-      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 1 })}>
+      <View style={s.body}>
+      <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 3 })}>
         <T style={{ fontSize: 15, lineHeight: 21, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
         {(meta.length || x.tag) && !done ? (
           <View style={s.meta}>
@@ -412,9 +413,10 @@ const s = StyleSheet.create({
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   sec: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, marginTop: 2 },
   card: { borderRadius: 12, paddingStart: 14, overflow: 'hidden' },
-  task: { flexDirection: 'row', gap: 10, alignItems: 'center' },
-  body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 7, paddingEnd: 10, minHeight: 44 },
-  cb: { width: 21, height: 21, borderRadius: 11, borderWidth: 1.6, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
+  task: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14 },
+  rowCard: { borderRadius: 12, overflow: 'hidden' },
+  body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, minHeight: 56 },
+  cb: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.6, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 0 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   subBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 24, borderRadius: 12, paddingHorizontal: 7 },
