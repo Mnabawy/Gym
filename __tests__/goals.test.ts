@@ -220,3 +220,11 @@ test('big goals add up the goals under them, or average them by weight', () => {
   expect(back[1].parent).toBe('u');
   expect(back[1].weight).toBe(3);
 });
+
+test('steps and stages keep their details', () => {
+  const g: Goal = { ...base, stages: [{ ...base.stages[0], note: 'خطة\n• أ\n• ب', tasks: [{ id: 'k', title: 'خطوة', done: null, note: '• تفصيلة' }, { id: 'k2', title: 'تانية', done: null, note: '   ' }] }] };
+  const back = parseGoals(JSON.stringify([g]))[0];
+  expect(back.stages[0].note).toBe('خطة\n• أ\n• ب');
+  expect(back.stages[0].tasks[0].note).toBe('• تفصيلة');
+  expect(back.stages[0].tasks[1].note).toBeUndefined();
+});

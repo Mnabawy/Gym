@@ -12,8 +12,8 @@ export const IDLE_DAYS = 7;
 /** Shares of the way that count as a win. */
 export const MILESTONES = [0.1, 0.25, 0.5, 0.75, 1] as const;
 
-/** `due`: a date you set for this step yourself; without it the step gets one from `schedule`. */
-export type Task = { id: string; title: string; done: string | null; due?: string };
+/** `due`: a date you set for this step yourself; without it the step gets one from `schedule`. `note`: its details (text and/or "• " bullets, src/lib/notes.ts). */
+export type Task = { id: string; title: string; done: string | null; due?: string; note?: string };
 /**
  * `until`: the date you set for the stage to be finished by; without it `schedule` works it out.
  * `amount`: the stage's share of the goal's number you set yourself (e.g. 20,000 of 100,000); with the goal split
@@ -94,7 +94,7 @@ export function parseGoals(raw: string | null): Goal[] {
         ...(isDate(s.until) ? { until: s.until } : {}),
         ...(num(s.amount) !== null && (s.amount as number) > 0 ? { amount: s.amount as number } : {}),
         tasks: arr(s.tasks).filter(obj).filter((t) => typeof t.id === 'string' && str(t.title).trim())
-          .map((t) => ({ id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null, ...(isDate(t.due) ? { due: t.due } : {}) })),
+          .map((t) => ({ id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null, ...(isDate(t.due) ? { due: t.due } : {}), ...(str(t.note).trim() ? { note: str(t.note) } : {}) })),
       })),
       entries: arr(g.entries).filter(obj).filter((e) => typeof e.id === 'string' && isDate(e.date) && num(e.amount) !== null)
         .map((e) => ({ id: e.id as string, date: e.date as string, amount: e.amount as number, ...(str(e.note) ? { note: str(e.note) } : {}) }))

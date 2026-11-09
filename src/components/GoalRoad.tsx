@@ -6,6 +6,7 @@ import { INPUT, Btn, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
+import { NoteEditor, NoteView } from './NoteEditor';
 import { currentStage, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/logic';
@@ -38,7 +39,8 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
   const [opened, setOpened] = useState<Record<string, boolean>>({});
   const [adding, setAdding] = useState<string | null>(null);
   const [text, setText] = useState('');
-  const [edit, setEdit] = useState<{ st: Stage; task?: Task } | null>(null);
+  const [edit, setEdit] = useState<{ st: Stage; task?: Task; notes?: boolean } | null>(null);
+  const [shown, setShown] = useState<Record<string, boolean>>({});
 
   const isOpen = (st: Stage, i: number) => opened[st.id] ?? i === cur;
   const rows: Row[] = [];
@@ -99,7 +101,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
 
   return (
     <View style={{ paddingVertical: 4 }}>
-      {edit ? <EditSheet g={g} t={t} st={edit.st} task={edit.task} onClose={() => setEdit(null)} /> : null}
+      {edit ? <EditSheet g={g} t={t} st={edit.st} task={edit.task} notesFirst={edit.notes} onClose={() => setEdit(null)} /> : null}
       {rows.map((r, idx) => {
         const above = idx === 0 ? null : idx <= lastDone ? t.fg : tint(t.fg, 0.14);
         const below = idx === rows.length - 1 ? null : idx < lastDone ? t.fg : tint(t.fg, 0.14);
@@ -127,6 +129,18 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
                 <T w="semi" style={{ fontSize: 15, color: r.state === 'later' ? t.mute : t.fg }}>{r.st.title}</T>
                 <T style={{ fontSize: 12, color: t.mute }}>{r.state === 'done' ? 'خلصت ✓' : r.state === 'now' ? `دلوقتي · ${n} من ${r.st.tasks.length}` : r.st.tasks.length ? `${r.st.tasks.length} خطوات` : 'لسه فاضية'}</T>
                 {amountOf(g, r.i) !== null ? <Milestone g={g} t={t} i={r.i} /> : null}
+                {r.st.note?.trim() ? (
+                  r.open ? (
+                    <View style={[s.note, { backgroundColor: tint(t.fg, 0.04) }]}>
+                      <NoteView t={t} text={r.st.note} size={13} />
+                    </View>
+                  ) : (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2 }}>
+                      <Ionicons name="document-text-outline" size={12} color={t.mute} />
+                      <T style={{ fontSize: 11.5, color: t.mute }}>فيها تفاصيل</T>
+                    </View>
+                  )
+                ) : null}
                 {plan?.stage[r.st.id] && r.state !== 'done' ? (
                   <T style={{ fontSize: 11.5, color: plan.stage[r.st.id].to < today ? t.bad : t.mute }}>{`${dayShort(plan.stage[r.st.id].from)} ← ${dayShort(plan.stage[r.st.id].to)}`}</T>
                 ) : null}
@@ -148,6 +162,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           end = [
             { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeBead(g, r.st) },
             { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEdit({ st: r.st }) },
+            { icon: 'document-text-outline', label: 'تفاصيل', color: ACTION.indigo, onPress: () => setEdit({ st: r.st, notes: true }) },
           ];
         } else if (r.kind === 'task') {
           const done = !!r.task.done;
@@ -157,11 +172,27 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
             </View>
           );
           const when = plan?.task[r.task.id];
+          const note = r.task.note?.trim() ? r.task.note : '';
+          const open = !!shown[r.task.id];
+          const tid = r.task.id;
           body = (
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              <T style={{ flex: 1, fontSize: 14, lineHeight: 20, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{r.task.title}</T>
-              {when && !done ? (
-                <T style={{ fontSize: 11.5, color: when < today ? t.bad : r.task.due ? t.okText : t.mute, ...font('num') }}>{dayShort(when)}</T>
+            <View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <T style={{ flex: 1, fontSize: 14, lineHeight: 20, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{r.task.title}</T>
+                {when && !done ? (
+                  <T style={{ fontSize: 11.5, color: when < today ? t.bad : r.task.due ? t.okText : t.mute, ...font('num') }}>{dayShort(when)}</T>
+                ) : null}
+                {/* The step's details open in place (a tap on the row ticks it). */}
+                {note ? (
+                  <Pressable onPress={() => { ease(); setShown({ ...shown, [tid]: !open }); }} hitSlop={8} accessibilityRole="button" accessibilityState={{ expanded: open }} accessibilityLabel="تفاصيل الخطوة" style={s.noteBtn}>
+                    <Ionicons name={open ? 'document-text' : 'document-text-outline'} size={16} color={open ? t.okText : t.mute} />
+                  </Pressable>
+                ) : null}
+              </View>
+              {note && open ? (
+                <View style={[s.note, { backgroundColor: tint(t.fg, 0.04), marginTop: 4 }]}>
+                  <NoteView t={t} text={note} size={12.5} />
+                </View>
               ) : null}
             </View>
           );
@@ -177,6 +208,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           end = [
             { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeBead(g, r.st, r.task) },
             { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEdit({ st: r.st, task: r.task }) },
+            { icon: 'document-text-outline', label: 'تفاصيل', color: ACTION.indigo, onPress: () => setEdit({ st: r.st, task: r.task, notes: true }) },
           ];
         } else {
           const k = r.kind === 'addStage' ? 'stage' : r.st.id;
@@ -263,8 +295,9 @@ function Milestone({ g, t, i }: { g: Goal; t: Theme; i: number }) {
 }
 
 /** Long-press on a bead: rename it, move a stage, or delete it. */
-function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void }) {
+function EditSheet({ g, t, st, task, onClose, notesFirst }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void; notesFirst?: boolean }) {
   const [name, setName] = useState(task ? task.title : st.title);
+  const [note, setNote] = useState((task ? task.note : st.note) ?? '');
   const [picking, setPicking] = useState(false);
   const [mark, setMark] = useState(st.amount !== undefined ? String(st.amount) : '');
   const i = g.stages.findIndex((x) => x.id === st.id);
@@ -293,10 +326,15 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
     if (!v) return;
     const at = markVal();
     const withMark = (x: Stage): Stage => {
-      const { amount: _old, ...rest } = x;
-      return at === undefined ? { ...rest, title: v } : { ...rest, title: v, amount: at };
+      const { amount: _old, note: _n, ...rest } = x;
+      const body = note.trim() ? { note: note.replace(/\s+$/, '') } : {};
+      return at === undefined ? { ...rest, ...body, title: v } : { ...rest, ...body, title: v, amount: at };
     };
-    saveGoal({ ...g, ...(at !== undefined ? { split: true } : {}), stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? { ...y, title: v } : y)) } : withMark(x))) });
+    const withNote = (y: Task): Task => {
+      const { note: _n, ...rest } = y;
+      return note.trim() ? { ...rest, title: v, note: note.replace(/\s+$/, '') } : { ...rest, title: v };
+    };
+    saveGoal({ ...g, ...(at !== undefined && !task ? { split: true } : {}), stages: g.stages.map((x) => (x.id !== st.id ? x : task ? { ...x, tasks: x.tasks.map((y) => (y.id === task.id ? withNote(y) : y)) } : withMark(x))) });
     onClose();
   };
   // The goal as it would be with what's typed in: this stage's amount comes off the total, the rest share what's left.
@@ -316,7 +354,11 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
   };
   return (
     <Sheet visible onClose={onClose} title={task ? 'الخطوة' : 'المرحلة'} sub={task ? st.title : `${st.tasks.length} خطوات`}>
-      <TextInput value={name} onChangeText={setName} autoFocus maxLength={80} onSubmitEditing={save} accessibilityLabel="الاسم" style={[INPUT, s.input, { flex: 0, color: t.fg, backgroundColor: t.soft, borderColor: 'transparent', ...font('body') }]} />
+      <TextInput value={name} onChangeText={setName} autoFocus={!notesFirst} maxLength={80} onSubmitEditing={save} accessibilityLabel="الاسم" style={[INPUT, s.input, { flex: 0, color: t.fg, backgroundColor: t.soft, borderColor: 'transparent', ...font('body') }]} />
+      <View style={{ gap: 6 }}>
+        <T w="semi" style={{ fontSize: 13, color: t.mute }}>{task ? 'تفاصيل الخطوة' : 'تفاصيل المرحلة'}</T>
+        <NoteEditor t={t} value={note} onChange={setNote} placeholder={`اكتب اللي محتاج تفتكره عن ${task ? 'الخطوة' : 'المرحلة'} دي…\nأو دوس «نقاط» وابدأ لستة`} />
+      </View>
       {plan && when ? (
         <View style={{ gap: 6 }}>
           <Pressable onPress={() => setPicking(!picking)} accessibilityRole="button" accessibilityState={{ expanded: picking }} style={[s.dateRow, { backgroundColor: t.soft }]}>
@@ -383,6 +425,8 @@ function EditSheet({ g, t, st, task, onClose }: { g: Goal; t: Theme; st: Stage; 
 }
 
 const s = StyleSheet.create({
+  note: { borderRadius: 10, padding: 10, marginTop: 6 },
+  noteBtn: { width: 28, height: 28, alignItems: 'center', justifyContent: 'center' },
   dateRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 10, paddingHorizontal: 12 },
   row: { flexDirection: 'row', gap: 10 },
   rail: { width: RAIL, alignItems: 'center' },
