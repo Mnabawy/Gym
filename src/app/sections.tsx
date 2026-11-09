@@ -81,7 +81,7 @@ export default function Sections() {
   const streak = Math.max(0, ...habits.map((h) => habitStats(h, log, today).streak));
 
   // Goals
-  const goal = readGoals()[0];
+  const goal = readGoals().find((g) => !g.umbrella && nextTask(g)) ?? readGoals().find((g) => !g.umbrella);
   const next = goal ? nextTask(goal) : null;
 
   // Quitting: the one with the longest clean run right now.

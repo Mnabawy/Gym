@@ -14,7 +14,9 @@ export function saveGoal(g: Goal) {
   useDataVersion.getState().bump();
 }
 
+/** Deleting a big goal keeps the goals under it, as goals of their own. */
 export function deleteGoal(id: string) {
-  storage.setMeta(GOALS_KEY, JSON.stringify(readGoals().filter((g) => g.id !== id)));
+  const list = readGoals().filter((g) => g.id !== id).map((g) => (g.parent === id ? (({ parent: _p, weight: _w, ...rest }) => rest)(g) : g));
+  storage.setMeta(GOALS_KEY, JSON.stringify(list));
   useDataVersion.getState().bump();
 }

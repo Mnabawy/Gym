@@ -41,6 +41,11 @@ export type Goal = {
   stages: Stage[];
   /** The goal's number is split over the stages (see `amountOf`). */
   split?: boolean;
+  /** A big goal (هدف كبير) that holds other goals instead of stages; see "Big goals" below. */
+  umbrella?: boolean;
+  /** The big goal this one sits under, and how much it counts there (1 عادي, 2 مهم, 3 الأهم). */
+  parent?: string;
+  weight?: number;
   entries: Entry[];
   wins: Win[];
   reviews: Review[];
@@ -100,6 +105,9 @@ export function parseGoals(raw: string | null): Goal[] {
         .map((r) => ({ date: r.date as string, did: str(r.did), blocked: str(r.blocked), next: str(r.next) }))
         .sort((a, b) => (a.date < b.date ? -1 : 1)),
       ...(g.split === true ? { split: true } : {}),
+      ...(g.umbrella === true ? { umbrella: true } : {}),
+      ...(g.umbrella !== true && typeof g.parent === 'string' && g.parent && g.parent !== g.id ? { parent: g.parent } : {}),
+      ...(g.weight === 2 || g.weight === 3 ? { weight: g.weight } : {}),
     });
   }
   return out;
@@ -381,4 +389,59 @@ export function schedule(g: Goal): Schedule | null {
     }
   }
   return out;
+}
+
+// ---- Big goals (هدف كبير): a goal that holds other goals ----
+// A goal hierarchy (Duckworth, "Grit" 2016, after Gollwitzer / Carver & Scheier): a top goal that gives the meaning, a
+// few mid-level goals that serve it, and the daily steps under those. Kept to two levels on purpose: a big goal holds
+// goals, a goal holds stages and steps. When the goals under it count the same thing as the big goal (all money),
+// their gains add up to its number; otherwise it shows the weighted share of the way they've each gone.
+// FOCUS_MAX: more than a few goals running at once spreads the effort thin (Locke & Latham 2002 on goal conflict;
+// the "3 goals" rule many planners use), so the app warns from the fourth one on, without blocking it.
+
+export const FOCUS_MAX = 3;
+/** Days with nothing logged before a goal under a big one counts as stalled (واقف). */
+export const STALL_DAYS = 14;
+export const WEIGHTS: Record<number, string> = { 1: 'عادي', 2: 'مهم', 3: 'الأهم' };
+
+/** The goals under a big goal, in their saved order. */
+export const kidsOf = (goals: readonly Goal[], id: string) => goals.filter((k) => k.parent === id && !k.umbrella);
+/** A goal's big goal, if the one it points to still exists. */
+export const parentOf = (goals: readonly Goal[], g: Goal) => (g.parent ? goals.find((u) => u.id === g.parent && u.umbrella) ?? null : null);
+
+/** Whether a big goal's number is the sum of its goals' gains (they all count what it counts). */
+export const sumsUp = (u: Goal, kids: readonly Goal[]) => kids.length > 0 && kids.every((k) => k.unit === u.unit);
+
+/** Where a big goal stands on its own number: its own logged progress plus what each goal under it gained. */
+export const umbrellaValue = (u: Goal, kids: readonly Goal[]) => current(u) + kids.reduce((a, k) => a + (current(k) - k.start), 0);
+
+/**
+ * How far a big goal is (0–1): by its number when its goals add up to it, else the share of the way they've gone,
+ * each counted by its weight. No goals under it yet: its own logged progress.
+ */
+export function umbrellaProgress(u: Goal, kids: readonly Goal[]): number {
+  if (!kids.length) return progress(u);
+  if (sumsUp(u, kids)) return progress(u, umbrellaValue(u, kids));
+  const w = kids.reduce((a, k) => a + (k.weight ?? 1), 0);
+  return kids.reduce((a, k) => a + progress(k) * (k.weight ?? 1), 0) / w;
+}
+
+/** How much one goal adds to its big goal (0–1 of the big goal's way). */
+export function share(u: Goal, kids: readonly Goal[], k: Goal): number {
+  if (sumsUp(u, kids)) return Math.max(0, (current(k) - k.start) / (u.target - u.start));
+  const w = kids.reduce((a, x) => a + (x.weight ?? 1), 0);
+  return (progress(k) * (k.weight ?? 1)) / w;
+}
+
+/** The goals under a big one that are still running (not at their target). */
+export const activeKids = (kids: readonly Goal[]) => kids.filter((k) => progress(k) < 1);
+
+/** A goal under a big one with nothing logged or ticked for STALL_DAYS. */
+export const stalled = (k: Goal, today: string) => progress(k) < 1 && idleDays(k, today) >= STALL_DAYS;
+
+/** The goal that most needs you today: a stalled one first, then the one furthest behind (by weight). */
+export function needsYou(kids: readonly Goal[], today: string): Goal | null {
+  const open = activeKids(kids);
+  if (!open.length) return null;
+  return [...open].sort((a, b) => Number(stalled(b, today)) - Number(stalled(a, today)) || (b.weight ?? 1) - (a.weight ?? 1) || progress(a) - progress(b))[0];
 }

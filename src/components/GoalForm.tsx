@@ -3,8 +3,8 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { INPUT, Btn, Pill, Sheet, Stepper, T } from './ui';
 import { GOAL_TEMPLATES, fromTemplate, type GoalTemplate } from '../data/goalTemplates';
-import { current, GOAL_COLORS, GOAL_ICONS, goalId, type Goal } from '../lib/goals';
-import { saveGoal } from '../lib/goalStore';
+import { activeKids, current, FOCUS_MAX, GOAL_COLORS, GOAL_ICONS, goalId, kidsOf, WEIGHTS, type Goal } from '../lib/goals';
+import { readGoals, saveGoal } from '../lib/goalStore';
 import { daysBetween } from '../lib/gaps';
 import { dateKey, parseNum } from '../lib/logic';
 import { tint, useTheme, font } from '../theme';
@@ -24,25 +24,29 @@ const plusMonths = (from: string, n: number) => {
  */
 const stamp = () => Date.now();
 
-export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () => void; onSaved?: (g: Goal) => void }) {
+export function GoalForm({ goal, onClose, onSaved, parent }: { goal?: Goal; onClose: () => void; onSaved?: (g: Goal) => void; parent?: string }) {
   const t = useTheme();
   const today = dateKey();
   const [tp, setTp] = useState<GoalTemplate | null>(null);
+  const all = readGoals();
+  const bigs = all.filter((u) => u.umbrella && u.id !== goal?.id);
+  const parentGoal = parent ? bigs.find((u) => u.id === parent) : undefined;
+  const isBig = goal ? !!goal.umbrella : tp?.key === 'big';
   const [f, setF] = useState(() =>
     goal
-      ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), now: String(current(goal)), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why }
+      ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), now: String(current(goal)), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why, parent: goal.parent ?? '', weight: goal.weight ?? 1 }
       : null,
   );
 
   const pick = (x: GoalTemplate) => {
     setTp(x);
-    setF({ name: x.name, icon: x.icon, color: x.color, unit: x.unit, start: '0', now: '', target: String(x.target), months: x.key === 'money' ? 60 : x.key === 'skill' ? 12 : 0, why: '' });
+    setF({ name: x.name, icon: x.icon, color: x.color, unit: x.key !== 'big' && parentGoal ? parentGoal.unit : x.unit, start: '0', now: '', target: String(x.target), months: x.key === 'money' || x.key === 'big' ? 60 : x.key === 'skill' ? 12 : 0, why: '', parent: x.key === 'big' ? '' : parent ?? '', weight: 1 });
   };
 
   if (!f) {
     return (
       <Sheet visible onClose={onClose} title="هدف جديد" sub="اختار نوعه، وهقترحلك طريق تمشي فيه تقدر تعدّل فيه براحتك">
-        {GOAL_TEMPLATES.map((x) => (
+        {GOAL_TEMPLATES.filter((x) => !(parent && x.key === 'big')).map((x) => (
           <Pressable key={x.key} onPress={() => pick(x)} accessibilityRole="button" accessibilityLabel={x.label} style={({ pressed }) => [s.tp, { backgroundColor: tint(x.color, pressed ? 0.2 : 0.1) }]}>
             <View style={[s.icon, { backgroundColor: x.color }]}>
               <Ionicons name={x.icon as IconName} size={22} color="#FFFFFF" />
@@ -68,7 +72,8 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
   const save = () => {
     if (!ok) return;
     const base = goal ?? fromTemplate(tp ?? GOAL_TEMPLATES[GOAL_TEMPLATES.length - 1], today);
-    const g: Goal = { ...base, name: f.name.trim(), icon: f.icon, color: f.color, unit: f.unit.trim(), start, target, due: f.months ? plusMonths(base.startDate, f.months) : null, why: f.why.trim() };
+    const { parent: _p, weight: _w, ...plain } = base;
+    const g: Goal = { ...plain, name: f.name.trim(), icon: f.icon, color: f.color, unit: f.unit.trim(), start, target, due: f.months ? plusMonths(base.startDate, f.months) : null, why: f.why.trim(), ...(!isBig && f.parent ? { parent: f.parent, ...(f.weight > 1 ? { weight: f.weight } : {}) } : {}) };
     const gap = now - current(g);
     if (gap) g.entries = [...g.entries, { id: goalId(stamp()), date: today < g.startDate ? g.startDate : today, amount: gap, note: 'من «انت فين»' }];
     saveGoal(g);
@@ -106,6 +111,7 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
           </View>
         ))}
       </View>
+      {isBig ? <T style={{ fontSize: 12, color: t.mute, lineHeight: 18 }}>الأهداف اللي تحته لو بتعدّ نفس الحاجة (نفس الوحدة) بتتجمع في رقمه، ولو مختلفة بيتحسب متوسط نسبتهم</T> : null}
       {f.start.trim() && f.target.trim() && !ok && f.name.trim() ? <T style={{ fontSize: 12, color: t.warn }}>{Number.isFinite(now) ? 'البداية والهدف لازم يبقوا رقمين مختلفين' : 'اكتب رقم في «انت فين» أو سيبها فاضية'}</T> : null}
 
       <T w="medium">في قد إيه؟</T>
@@ -113,6 +119,33 @@ export function GoalForm({ goal, onClose, onSaved }: { goal?: Goal; onClose: () 
 
       <T w="medium">ليه عايز توصل؟ · اختياري</T>
       <TextInput value={f.why} onChangeText={(v) => set({ why: v })} placeholder="السبب اللي هيخليك تكمّل لما تزهق" placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel="ليه" style={[INPUT, s.field, { height: 70, paddingTop: 10, textAlignVertical: 'top', color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+
+      {!isBig && bigs.length ? (
+        <>
+          <T w="medium">تحت هدف كبير؟</T>
+          <View style={s.grid}>
+            <Pill label="لوحده" on={!f.parent} onPress={() => set({ parent: '' })} />
+            {bigs.map((u) => <Pill key={u.id} label={u.name} on={f.parent === u.id} onPress={() => set({ parent: u.id })} />)}
+          </View>
+          {f.parent ? (
+            <>
+              <View style={s.grid}>
+                {[1, 2, 3].map((w) => <Pill key={w} label={WEIGHTS[w]} on={f.weight === w} onPress={() => set({ weight: w })} />)}
+              </View>
+              {(() => {
+                const u = bigs.find((x) => x.id === f.parent);
+                const running = u ? activeKids(kidsOf(all, u.id).filter((k) => k.id !== goal?.id)).length : 0;
+                return (
+                  <>
+                    {u && f.unit.trim() !== u.unit ? <T style={{ fontSize: 12, color: t.mute }}>{`وحدته غير «${u.name}» (${u.unit || 'من غير وحدة'})، فهيتحسب بنسبته مش برقمه`}</T> : null}
+                    {running >= FOCUS_MAX ? <T style={{ fontSize: 12, color: t.warn }}>{`تحت «${u?.name}» ${running} أهداف شغالة. الأحسن تخلّص واحد الأول، التركيز على ${FOCUS_MAX} بيوصّل أسرع`}</T> : null}
+                  </>
+                );
+              })()}
+            </>
+          ) : null}
+        </>
+      ) : null}
 
       <T w="medium">الأيقونة</T>
       <View style={s.grid}>

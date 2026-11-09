@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -189,4 +189,34 @@ test('setting one stage amount takes it off the goal, the rest share what is lef
   const down = spreadMilestones({ ...base, start: 90, target: 80, entries: [{ id: 'e', date: '2026-01-10', amount: -7 }], stages: base.stages.slice(0, 2) });
   expect(stageFill(down, 0)).toEqual({ got: 5, of: 5, left: 0 });
   expect(stageFill(down, 1)).toEqual({ got: 2, of: 5, left: 3 });
+});
+
+test('big goals add up the goals under them, or average them by weight', () => {
+  const u: Goal = { ...base, id: 'u', name: 'مليون', umbrella: true, unit: '$', start: 0, target: 1000000, stages: [], entries: [], wins: [], reviews: [] };
+  const a: Goal = { ...base, id: 'a', parent: 'u', unit: '$', start: 0, target: 100000, entries: [{ id: 'e1', date: '2026-02-01', amount: 50000 }] };
+  const b: Goal = { ...base, id: 'b', parent: 'u', unit: '$', start: 10000, target: 60000, entries: [{ id: 'e2', date: '2026-02-01', amount: 25000 }] };
+  const loose: Goal = { ...base, id: 'c' };
+  const goals = [u, a, b, loose];
+  expect(kidsOf(goals, 'u').map((k) => k.id)).toEqual(['a', 'b']);
+  expect(parentOf(goals, a)?.id).toBe('u');
+  expect(parentOf(goals, loose)).toBeNull();
+  // Same unit: 50,000 + 25,000 gained → 75,000 of 1,000,000.
+  expect(sumsUp(u, [a, b])).toBe(true);
+  expect(umbrellaValue(u, [a, b])).toBe(75000);
+  expect(umbrellaProgress(u, [a, b])).toBeCloseTo(0.075);
+  expect(share(u, [a, b], b)).toBeCloseTo(0.025);
+  // Mixed units: weighted average of each one's share of the way (a 50%, h 25% at weight 3).
+  const h: Goal = { ...base, id: 'h', parent: 'u', unit: 'ساعة', start: 0, target: 100, weight: 3, entries: [{ id: 'e3', date: '2026-02-01', amount: 25 }] };
+  expect(sumsUp(u, [a, h])).toBe(false);
+  expect(umbrellaProgress(u, [a, h])).toBeCloseTo((0.5 + 0.25 * 3) / 4);
+  // The one that most needs you: stalled first, then the heavier one.
+  expect(stalled(a, '2026-03-01')).toBe(true);
+  expect(needsYou([a, h], '2026-02-05')?.id).toBe('h');
+  expect(activeKids([a, { ...h, entries: [{ id: 'x', date: '2026-02-01', amount: 100 }] }]).map((k) => k.id)).toEqual(['a']);
+  // Parsing keeps the links; a big goal can't sit under another.
+  const back = parseGoals(JSON.stringify([{ ...u, parent: 'z' }, h]));
+  expect(back[0].umbrella).toBe(true);
+  expect(back[0].parent).toBeUndefined();
+  expect(back[1].parent).toBe('u');
+  expect(back[1].weight).toBe(3);
 });

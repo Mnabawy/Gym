@@ -19,6 +19,18 @@ export type GoalTemplate = {
 
 export const GOAL_TEMPLATES: GoalTemplate[] = [
   {
+    key: 'big',
+    label: 'هدف كبير',
+    sub: 'يجمع كذا هدف تحته، زي أول مليون',
+    icon: 'trophy',
+    color: '#7A5CFA',
+    name: 'أول مليون جنيه',
+    unit: 'ج.م',
+    target: 1000000,
+    why: '',
+    stages: [],
+  },
+  {
     key: 'money',
     label: 'فلوس',
     sub: 'مثلًا توصل لـ $100,000',
@@ -95,5 +107,5 @@ export function fromTemplate(tp: GoalTemplate, today: string, now: number = Date
   let n = 0;
   const id = () => goalId(now, ++n);
   const stages: Stage[] = tp.stages.map((s) => ({ id: id(), title: s.title, ...(s.note ? { note: s.note } : {}), tasks: s.tasks.map((t) => ({ id: id(), title: t, done: null })) }));
-  return { id: goalId(now), name: tp.name, icon: tp.icon, color: tp.color, unit: tp.unit, start: 0, target: tp.target, startDate: today, due: null, why: tp.why, stages, entries: [], wins: [], reviews: [] };
+  return { id: goalId(now), name: tp.name, icon: tp.icon, color: tp.color, unit: tp.unit, start: 0, target: tp.target, startDate: today, due: null, why: tp.why, stages, entries: [], wins: [], reviews: [], ...(tp.key === 'big' ? { umbrella: true } : {}) };
 }

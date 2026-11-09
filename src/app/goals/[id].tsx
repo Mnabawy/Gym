@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { INPUT, Btn, Card, HeaderBtn, Label, Pill, Screen, Sheet, T } from '../../components/ui';
 import { GoalForm } from '../../components/GoalForm';
 import { GoalRoad } from '../../components/GoalRoad';
+import { BigGoalPage, ParentLink } from '../../components/BigGoal';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
@@ -54,6 +55,15 @@ function GoalPage() {
     );
   }
 
+  if (g.umbrella) {
+    return (
+      <>
+        {logging ? <LogSheet g={g} onClose={() => setLogging(false)} /> : null}
+        <BigGoalPage u={g} today={today} onLog={() => setLogging(true)} />
+      </>
+    );
+  }
+
   const fmt = (n: number) => fmtAmount(n, g.unit);
   const p = progress(g);
   // Ticks on the bar at your stages' milestones (in order of the number), the target last.
@@ -84,6 +94,7 @@ function GoalPage() {
         </Sheet>
       ) : null}
 
+      <ParentLink g={g} />
       <View style={{ gap: 0 }}>
         <T w="semi" style={{ fontSize: 15 }}>{g.name}</T>
         <T w="numBold" style={{ fontSize: 38, lineHeight: 48, letterSpacing: -0.5, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>

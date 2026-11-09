@@ -69,7 +69,7 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   lines.push(`💧 ${Math.round(waterGoalMl(x.waterL, training) / 100) / 10} لتر مية`);
   const habits = (x.habits ?? []).filter((h) => isDue(h, date));
   if (habits.length) lines.push(`✅ عاداتك: ${habits.map((h) => (h.cue ? `${h.name} (${h.cue})` : h.name)).join('، ')}`);
-  for (const g of x.goals ?? []) {
+  for (const g of (x.goals ?? []).filter((y) => !y.umbrella)) {
     const n = nextTask(g);
     if (n) lines.push(`🎯 ${g.name}: ${n.task.title}`);
     if (reviewDue(g, date)) lines.push(`📝 مراجعة الأسبوع لـ ${g.name}: دقيقتين`);
