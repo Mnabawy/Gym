@@ -61,7 +61,7 @@ export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; lab
 /** `dense`: tighter gaps and side padding (the workout tab). */
 /** Page with a header: back button (if any) and the title at the start (right), the page's buttons at the end (left). */
 /** `aside`: small extra shown on the same line right after the title (e.g. the to-do page's date and count). */
-export function Screen({ title, sub, children, footer, onBack, action, dense, aside }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; dense?: boolean; aside?: React.ReactNode }) {
+export function Screen({ title, sub, children, footer, onBack, action, dense, aside, header }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; dense?: boolean; aside?: React.ReactNode; header?: React.ReactNode }) {
   const t = useTheme();
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
@@ -69,7 +69,8 @@ export function Screen({ title, sub, children, footer, onBack, action, dense, as
           footer (e.g. the to-do quick-add bar) above it, on both phones. */}
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={[s.scroll, dense ? s.dense : null]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
-        <View style={s.head}>
+        {/* A page can draw its own header instead (the to-do page). */}
+        {header ?? <View style={s.head}>
           {/* RTL: back sits at the start (right) and points right. */}
           {onBack ? <HeaderBtn icon="chevron-forward" label="رجوع" onPress={onBack} /> : null}
           <View style={s.titles}>
@@ -84,7 +85,7 @@ export function Screen({ title, sub, children, footer, onBack, action, dense, as
             {sub ? <T style={{ color: t.mute, fontSize: 13 }} numberOfLines={2}>{sub}</T> : null}
           </View>
           {action}
-        </View>
+        </View>}
         <Fade style={{ gap: dense ? 6 : 8 }}>{children}</Fade>
       </ScrollView>
       {footer}

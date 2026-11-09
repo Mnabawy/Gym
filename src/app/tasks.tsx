@@ -4,7 +4,7 @@ import { ACTION, Swipe } from '../components/Swipe';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { INPUT, MiniSwitch, Screen, T, useKeyboardShown } from '../components/ui';
+import { INPUT, MiniSwitch, Ring, Screen, T, useKeyboardShown } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
@@ -101,13 +101,13 @@ function Tasks() {
           <T w="num" style={{ fontSize: 12, color: o.color ?? t.mute }}>{String(items.length)}</T>
           {o.fold ? <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={14} color={t.mute} /> : null}
         </Pressable> : null}
-        {o.fold && !showDone ? null : <View style={{ gap: 8 }}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
+        {o.fold && !showDone ? null : <View style={[s.card, { backgroundColor: t.card }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
       </View>
     ) : null;
 
   const dayLabel = (d: string) => `${WEEKDAYS_AR[weekdayOf(d)]} ${+d.slice(8)} ${MONTHS_AR[+d.slice(5, 7) - 1]}`;
   const sub: Record<Tab, string> = {
-    today: todayAll ? `${dayLabel(today)} · خلصت ${tv.done.length} من ${todayAll}` : dayLabel(today),
+    today: dayLabel(today),
     calendar: day === today ? `النهارده · ${dayLabel(day)}` : dayLabel(day),
     all: c.open ? `${c.open} مهمة مفتوحة` : 'مفيش حاجة مفتوحة',
   };
@@ -118,10 +118,45 @@ function Tasks() {
       dense
       title="مهامي"
       sub={sub[tab]}
-      aside={
-        <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
+      header={
+        <View style={s.header}>
+          {/* Bar: خاص / شغل on one side, sections and the menu on the other. */}
+          <View style={s.navBar}>
+            <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
+            <MenuButton plain />
+          </View>
+          {/* Large title with the day under it, and today's ring at the end. */}
+          <View style={s.bigRow}>
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <T w="bold" style={{ fontSize: 32, lineHeight: 40 }} numberOfLines={1}>مهامي</T>
+              <T style={{ fontSize: 13.5, color: t.mute }} numberOfLines={1}>{sub[tab]}</T>
+            </View>
+            {todayAll ? (
+              <Ring value={tv.done.length / todayAll} size={46} stroke={4.5} color={t.ok} track={tint(t.fg, 0.08)}>
+                <T w="numBold" style={{ fontSize: 12 }}>{`${tv.done.length}/${todayAll}`}</T>
+              </Ring>
+            ) : null}
+          </View>
+          {/* النهارده / التقويم / الكل as one iOS segmented control. */}
+          <View style={[s.segBar, { backgroundColor: tint(t.fg, 0.06) }]}>
+            {(
+              [
+                ['today', 'النهارده', c.today],
+                ['calendar', 'التقويم', null],
+                ['all', 'الكل', c.open],
+              ] as [Tab, string, number | null][]
+            ).map(([k, l, n]) => {
+              const on = tab === k;
+              return (
+                <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.card } : null]}>
+                  <T w={on ? 'semi' : 'medium'} style={{ fontSize: 13.5, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
+                  {n ? <T w="numBold" style={{ fontSize: 11.5, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
       }
-      action={<MenuButton />}
       footer={
         <View style={[s.bar, { paddingBottom: kb ? 8 : Math.max(inset.bottom, 10) + 4, backgroundColor: t.bg }]}>
           <View style={[s.quick, { backgroundColor: t.card, borderColor: t.border }]}>
@@ -160,26 +195,6 @@ function Tasks() {
       {editing ? <TaskSheet task={editing} onClose={() => setEditing(null)} /> : null}
       {adding ? <TaskSheet initial={adding.title} day={target} space={space} onClose={() => setAdding(null)} /> : null}
 
-      <View style={[s.tabs, { borderColor: t.line }]}>
-        {(
-          [
-            ['today', 'النهارده', c.today],
-            ['calendar', 'التقويم', null],
-            ['all', 'الكل', c.open],
-          ] as [Tab, string, number | null][]
-        ).map(([k, l, n]) => {
-          const on = tab === k;
-          return (
-            <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={s.tab}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-                <T w={on ? 'bold' : 'semi'} style={{ fontSize: 15, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
-                {n ? <T w="numBold" style={{ fontSize: 12, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
-              </View>
-              <View style={[s.under, { backgroundColor: on ? t.ok : 'transparent' }]} />
-            </Pressable>
-          );
-        })}
-      </View>
 
       {tab === 'today' ? (
         todayAll ? (
@@ -312,14 +327,13 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
         { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: onOpen },
         ...(done ? [] : [{ icon: 'git-branch-outline' as const, label: 'فرعية', color: ACTION.blue, onPress: onSubs }]),
         { icon: other === 'work' ? 'briefcase-outline' : 'person-outline', label: `لـ${SPACES[other]}`, color: ACTION.indigo, onPress: move },
-      ]}
-      style={s.rowCard}>
+      ]}>
     <View style={{ backgroundColor: t.card }}>
     <View style={s.task}>
       <Pressable onPress={onToggle} hitSlop={12} accessibilityRole="checkbox" accessibilityState={{ checked: done }} accessibilityLabel={x.title} style={[s.cb, { borderColor: done ? t.ok : c, backgroundColor: done ? t.ok : 'transparent' }]}>
         {done ? <Pop value="done"><Ionicons name="checkmark" size={16} color={t.bg} /></Pop> : null}
       </Pressable>
-      <View style={s.body}>
+      <View style={[s.body, { borderBottomWidth: last || subsOpen ? 0 : StyleSheet.hairlineWidth, borderColor: t.line }]}>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 3 })}>
         <T style={{ fontSize: 15, lineHeight: 21, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
         {(meta.length || x.tag) && !done ? (
@@ -400,9 +414,11 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 }
 
 const s = StyleSheet.create({
-  tabs: { flexDirection: 'row', borderBottomWidth: 1, marginTop: -4 },
-  tab: { flex: 1, alignItems: 'center', paddingTop: 4, gap: 5 },
-  under: { height: 3, width: '60%', borderRadius: 2 },
+  header: { gap: 10, marginBottom: 4 },
+  navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
+  bigRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  segBar: { flexDirection: 'row', padding: 2, borderRadius: 9, gap: 2 },
+  segItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 32, borderRadius: 7 },
   secDot: { width: 7, height: 7, borderRadius: 4 },
   monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 28, marginTop: 2 },
   wArrow: { width: 24, height: 48, alignItems: 'center', justifyContent: 'center' },
@@ -412,10 +428,9 @@ const s = StyleSheet.create({
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   sec: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, marginTop: 2 },
-  card: { borderRadius: 12, paddingStart: 14, overflow: 'hidden' },
+  card: { borderRadius: 12, overflow: 'hidden' },
   task: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14 },
-  rowCard: { borderRadius: 12, overflow: 'hidden' },
-  body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 12, minHeight: 56 },
+  body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, minHeight: 52 },
   cb: { width: 22, height: 22, borderRadius: 11, borderWidth: 1.6, alignItems: 'center', justifyContent: 'center', marginTop: 0 },
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', columnGap: 8, rowGap: 0 },
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },

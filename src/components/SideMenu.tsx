@@ -19,7 +19,8 @@ type Item = { icon: IconName; label: string; path: '/progress' | '/week' | '/wei
  * The section button (the section you're in, tap to switch: الجيم، العادات، الأهداف، بطّل) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
  * over a fading backdrop; its items slide in one after another. Tapping an item closes the menu, then opens the page.
  */
-export function MenuButton() {
+/** ☰ with the section switch next to it; `plain` draws the switch as a grid icon instead of the pill. */
+export function MenuButton({ plain }: { plain?: boolean } = {}) {
   const t = useTheme();
   const reduce = useReducedMotion();
   const inset = useSafeAreaInsets();
@@ -58,7 +59,7 @@ export function MenuButton() {
   return (
     <>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        <SectionPill />
+        {plain ? <HeaderBtn icon="apps-outline" label="أقسامك" onPress={() => router.push('/sections')} /> : <SectionPill />}
         <HeaderBtn icon="menu" label="القايمة" onPress={() => setOpen(true)} />
       </View>
       <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onShow={() => run(1)} onRequestClose={() => close()}>
