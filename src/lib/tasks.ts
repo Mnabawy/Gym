@@ -221,3 +221,34 @@ export function timeAr(m: number): string {
   const part = h < 12 ? 'الصبح' : h < 15 ? 'الضهر' : h < 18 ? 'العصر' : 'بالليل';
   return `${h12}${mi ? `:${String(mi).padStart(2, '0')}` : ''} ${part}`;
 }
+
+// ---- Deleted tasks (المحذوفة): kept 30 days so a delete can be taken back later, not only from the undo bar ----
+
+export const TRASH_KEY = 'taskTrash';
+export type Trashed = { task: Task; at: string };
+
+export function parseTrash(raw: string | null): Trashed[] {
+  try {
+    const v = JSON.parse(raw ?? '[]');
+    if (!Array.isArray(v)) return [];
+    return v.flatMap((x) => {
+      if (!x || typeof x !== 'object' || typeof x.at !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x.at)) return [];
+      const [task] = parseTasks(JSON.stringify([x.task]));
+      return task ? [{ task, at: x.at }] : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+/** Puts a deleted task first in the trash (replacing an older copy of it). */
+export const toTrash = (trash: readonly Trashed[], task: Task, at: string): Trashed[] => [{ task, at }, ...trash.filter((x) => x.task.id !== task.id)];
+
+/** Drops what was deleted more than 30 days before `today` and anything that's back in the list (undo, restore). */
+export function pruneTrash(trash: readonly Trashed[], tasks: readonly Task[], today: string): Trashed[] {
+  const cut = new Date(`${today}T12:00:00`);
+  cut.setDate(cut.getDate() - 30);
+  const k = cut.toISOString().slice(0, 10);
+  const live = new Set(tasks.map((t) => t.id));
+  return trash.filter((x) => x.at >= k && !live.has(x.task.id));
+}

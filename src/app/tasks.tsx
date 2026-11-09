@@ -4,7 +4,7 @@ import { ACTION, Swipe } from '../components/Swipe';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { INPUT, MiniSwitch, Ring, Screen, T, useKeyboardShown } from '../components/ui';
+import { Btn, INPUT, MiniSwitch, Ring, Screen, Sheet, T, useKeyboardShown } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
@@ -14,7 +14,7 @@ import { storage } from '../lib/storage';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
-import { deleteTask, pruneDone, readTasks, saveTask, writeTasks } from '../lib/taskStore';
+import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../theme';
@@ -65,6 +65,7 @@ function Tasks() {
   const [quick, setQuick] = useState('');
   const [openSubs, setOpenSubs] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
+  const [trashOpen, setTrashOpen] = useState(false);
   const [month, setMonth] = useState(false);
   const quickRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   useEffect(() => pruneDone(dateKey()), []);
@@ -91,6 +92,7 @@ function Tasks() {
   const c = counts(list, today);
   const tv = todayView(list, today);
   const todayAll = tv.overdue.length + tv.day.length + tv.done.length;
+  const trash = readTrash().filter((x) => spaceOf(x.task) === space);
   const row = (x: Task, last: boolean, showDate: boolean) => <Item key={x.id}><TaskRow t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} /></Item>;
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
@@ -123,7 +125,7 @@ function Tasks() {
           {/* Bar: خاص / شغل on one side, sections and the menu on the other. */}
           <View style={s.navBar}>
             <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
-            <MenuButton plain />
+            <MenuButton />
           </View>
           {/* النهارده / التقويم / الكل as one iOS segmented control, today's ring next to it. */}
           <View style={s.bigRow}>
@@ -235,8 +237,61 @@ function Tasks() {
           <Empty t={t} icon="checkmark-done-outline" title="مفيش حاجة مفتوحة" sub="كل مهامك خلصت" />
         )
       ) : null}
+      {tab === 'all' ? (
+        <Pressable onPress={() => setTrashOpen(true)} accessibilityRole="button" style={({ pressed }) => [s.trashRow, { backgroundColor: t.card, opacity: pressed ? 0.6 : 1 }]}>
+          <Ionicons name="trash-outline" size={18} color={t.bad} />
+          <T style={{ flex: 1, fontSize: 15 }}>المحذوفة</T>
+          <T w="num" style={{ fontSize: 13, color: t.mute }}>{trash.length ? String(trash.length) : 'فاضية'}</T>
+          <Ionicons name="chevron-back" size={16} color={t.mute} />
+        </Pressable>
+      ) : null}
+      {trashOpen ? <TrashSheet t={t} space={space} onClose={() => setTrashOpen(false)} /> : null}
       <View style={{ height: 8 }} />
     </Screen>
+  );
+}
+
+/** المحذوفة: tasks deleted in the last 30 days (this list only), to put back or delete for good. */
+function TrashSheet({ t, space, onClose }: { t: Theme; space: Space; onClose: () => void }) {
+  useDataVersion((v) => v.v);
+  const [sure, setSure] = useState(false);
+  const today = dateKey();
+  const items = readTrash().filter((x) => spaceOf(x.task) === space);
+  return (
+    <Sheet visible onClose={onClose} title="المحذوفة" sub="بتفضل هنا 30 يوم وبعدين تتمسح لوحدها">
+      {items.length ? (
+        <View style={[s.card, { backgroundColor: t.soft }]}>
+          {items.map((x, i) => (
+            <Item key={x.task.id}>
+              <View style={[s.trashItem, { borderBottomWidth: i === items.length - 1 ? 0 : StyleSheet.hairlineWidth, borderColor: t.line }]}>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <T style={{ fontSize: 15 }} numberOfLines={2}>{x.task.title}</T>
+                  <T style={{ fontSize: 12, color: t.mute }}>{`اتمسحت ${x.at === today ? 'النهارده' : dueAr(x.at, today)}`}</T>
+                </View>
+                <Pressable onPress={() => { tap(); ease(); restoreTask(x.task.id); }} hitSlop={6} accessibilityRole="button" accessibilityLabel={`رجّع ${x.task.title}`} style={({ pressed }) => [s.trashBtn, { backgroundColor: tint(t.ok, 0.12), opacity: pressed ? 0.6 : 1 }]}>
+                  <T w="semi" style={{ fontSize: 13, color: t.okText }}>رجّعها</T>
+                </Pressable>
+                <Pressable onPress={() => { ease(); purgeTask(x.task.id); }} hitSlop={6} accessibilityRole="button" accessibilityLabel={`امسح ${x.task.title} خالص`} style={s.trashX}>
+                  <Ionicons name="trash-outline" size={18} color={t.bad} />
+                </Pressable>
+              </View>
+            </Item>
+          ))}
+        </View>
+      ) : (
+        <T style={{ fontSize: 14, color: t.mute, textAlign: 'center', paddingVertical: 16 }}>مفيش مهام محذوفة</T>
+      )}
+      {items.length ? (
+        sure ? (
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <Btn label="لأ" onPress={() => setSure(false)} style={{ flex: 1 }} />
+            <Btn label={`امسح ${items.length} خالص`} kind="dangerSolid" onPress={() => { emptyTrash(); setSure(false); }} style={{ flex: 1 }} />
+          </View>
+        ) : (
+          <Btn label="فضّي المحذوفة" kind="danger" onPress={() => setSure(true)} />
+        )
+      ) : null}
+    </Sheet>
   );
 }
 
@@ -410,6 +465,10 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 
 const s = StyleSheet.create({
   header: { gap: 10, marginBottom: 4 },
+  trashRow: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, borderRadius: 12, paddingHorizontal: 14, marginTop: 8 },
+  trashItem: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12 },
+  trashBtn: { height: 32, borderRadius: 16, paddingHorizontal: 12, justifyContent: 'center' },
+  trashX: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
   bigRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   segBar: { flexDirection: 'row', padding: 2, borderRadius: 9, gap: 2 },

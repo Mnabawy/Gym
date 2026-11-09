@@ -8,7 +8,6 @@ import { useSettings } from '../lib/settings';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported } from '../lib/google';
 import { syncStatus } from '../lib/cloud';
 import { storage } from '../lib/storage';
-import { lastSection } from '../lib/section';
 import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
@@ -19,8 +18,8 @@ type Item = { icon: IconName; label: string; path: '/progress' | '/week' | '/wei
  * The section button (the section you're in, tap to switch: الجيم، العادات، الأهداف، بطّل) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
  * over a fading backdrop; its items slide in one after another. Tapping an item closes the menu, then opens the page.
  */
-/** ☰ with the section switch next to it; `plain` draws the switch as a grid icon instead of the pill. */
-export function MenuButton({ plain }: { plain?: boolean } = {}) {
+/** The same on every page: the sections grid (أقسامك) and ☰ (the side menu), plain tint icons. */
+export function MenuButton() {
   const t = useTheme();
   const reduce = useReducedMotion();
   const inset = useSafeAreaInsets();
@@ -59,7 +58,7 @@ export function MenuButton({ plain }: { plain?: boolean } = {}) {
   return (
     <>
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        {plain ? <HeaderBtn icon="apps-outline" label="أقسامك" onPress={() => router.push('/sections')} /> : <SectionPill />}
+        <HeaderBtn icon="apps-outline" label="أقسامك" onPress={() => router.push('/sections')} />
         <HeaderBtn icon="menu" label="القايمة" onPress={() => setOpen(true)} />
       </View>
       <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onShow={() => run(1)} onRequestClose={() => close()}>
@@ -110,24 +109,6 @@ export function MenuButton({ plain }: { plain?: boolean } = {}) {
   );
 }
 
-const SECTION_NAME = { gym: 'الجيم', habits: 'العادات', goals: 'الأهداف', quit: 'بطّل', tasks: 'مهامي', focus: 'بومودورو' } as const;
-
-/** The section you're in, as a labeled button: tap it to switch sections (أقسامك). */
-function SectionPill() {
-  const t = useTheme();
-  const here = lastSection();
-  return (
-    <Pressable
-      onPress={() => router.push('/sections')}
-      hitSlop={8}
-      accessibilityRole="button"
-      accessibilityLabel={`انت في ${SECTION_NAME[here]}. دوس عشان تغيّر القسم`}
-      style={({ pressed }) => [s.pill, { backgroundColor: tint(t.ok, 0.1), opacity: pressed ? 0.6 : 1 }]}>
-      <Ionicons name="apps" size={14} color={t.okText} />
-      <T w="semi" style={{ fontSize: 13, color: t.okText }} numberOfLines={1}>{SECTION_NAME[here]}</T>
-    </Pressable>
-  );
-}
 
 /** Your Google account at the top of the menu (name, photo, email), or a sign-in row. */
 function Account({ onPress }: { onPress: (to: '/account') => void }) {
@@ -155,7 +136,6 @@ function Account({ onPress }: { onPress: (to: '/account') => void }) {
 }
 
 const s = StyleSheet.create({
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 30, borderRadius: 15, paddingHorizontal: 10, alignSelf: 'center' },
   account: { flexDirection: 'row', alignItems: 'center', gap: 10, padding: 10, borderRadius: 12, marginBottom: 8 },
   avatar: { width: 40, height: 40, borderRadius: 20 },
   back: { backgroundColor: 'rgba(0, 0, 0, 0.45)' },

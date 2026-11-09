@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { addMonths, addSub, removeSub, toggleSub, allView, counts, dayTasks, doneBetween, doneOn, dueCounts, from12, monthGrid, nextDue, parseTasks, tagColor, timeAr, to12, todayView, toggleTask, type Task } from '../src/lib/tasks';
-import { inSpace, spaceOf } from '../src/lib/tasks';
+import { inSpace, parseTrash, pruneTrash, spaceOf, toTrash } from '../src/lib/tasks';
 
 // Sunday 8 Nov 2026
 const T = '2026-11-08';
@@ -116,4 +116,18 @@ describe('spaces (خاص / شغل)', () => {
     const after = toggleTask(t, 'r', '2026-11-08', 'r2');
     expect(after.every((x) => spaceOf(x) === 'work')).toBe(true);
   });
+});
+
+test('deleted tasks stay in the trash for 30 days, until put back', () => {
+  const a = { id: 'a', title: 'A', due: null, time: null, priority: 3, tag: '', note: '', subs: [], repeat: null, remind: false, done: null, created: '2026-11-01' } as unknown as Task;
+  const b = { ...a, id: 'b', title: 'B' } as Task;
+  let trash = toTrash([], a, '2026-10-01');
+  trash = toTrash(trash, b, '2026-11-09');
+  trash = toTrash(trash, b, '2026-11-09');
+  expect(trash.map((x) => x.task.id)).toEqual(['b', 'a']);
+  expect(parseTrash(JSON.stringify(trash)).map((x) => x.at)).toEqual(['2026-11-09', '2026-10-01']);
+  expect(parseTrash('nope')).toEqual([]);
+  // a is older than 30 days; b is back in the list (undo) — both drop.
+  expect(pruneTrash(trash, [], '2026-11-09').map((x) => x.task.id)).toEqual(['b']);
+  expect(pruneTrash(trash, [b], '2026-11-09')).toEqual([]);
 });
