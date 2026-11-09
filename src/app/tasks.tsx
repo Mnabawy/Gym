@@ -125,20 +125,9 @@ function Tasks() {
             <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
             <MenuButton plain />
           </View>
-          {/* Large title with the day under it, and today's ring at the end. */}
+          {/* النهارده / التقويم / الكل as one iOS segmented control, today's ring next to it. */}
           <View style={s.bigRow}>
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <T w="bold" style={{ fontSize: 32, lineHeight: 40 }} numberOfLines={1}>مهامي</T>
-              <T style={{ fontSize: 13.5, color: t.mute }} numberOfLines={1}>{sub[tab]}</T>
-            </View>
-            {todayAll ? (
-              <Ring value={tv.done.length / todayAll} size={46} stroke={4.5} color={t.ok} track={tint(t.fg, 0.08)}>
-                <T w="numBold" style={{ fontSize: 12 }}>{`${tv.done.length}/${todayAll}`}</T>
-              </Ring>
-            ) : null}
-          </View>
-          {/* النهارده / التقويم / الكل as one iOS segmented control. */}
-          <View style={[s.segBar, { backgroundColor: tint(t.fg, 0.06) }]}>
+          <View style={[s.segBar, { flex: 1, backgroundColor: tint(t.fg, 0.06) }]}>
             {(
               [
                 ['today', 'النهارده', c.today],
@@ -154,6 +143,12 @@ function Tasks() {
                 </Pressable>
               );
             })}
+          </View>
+            {todayAll ? (
+              <Ring value={tv.done.length / todayAll} size={38} stroke={3.5} color={t.ok} track={tint(t.fg, 0.08)}>
+                <T w="numBold" style={{ fontSize: 10.5 }}>{`${tv.done.length}/${todayAll}`}</T>
+              </Ring>
+            ) : null}
           </View>
         </View>
       }
@@ -416,7 +411,7 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
 const s = StyleSheet.create({
   header: { gap: 10, marginBottom: 4 },
   navBar: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', minHeight: 44 },
-  bigRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  bigRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   segBar: { flexDirection: 'row', padding: 2, borderRadius: 9, gap: 2 },
   segItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 32, borderRadius: 7 },
   secDot: { width: 7, height: 7, borderRadius: 4 },
