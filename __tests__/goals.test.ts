@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateTask } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -227,4 +227,12 @@ test('steps and stages keep their details', () => {
   expect(back.stages[0].note).toBe('خطة\n• أ\n• ب');
   expect(back.stages[0].tasks[0].note).toBe('• تفصيلة');
   expect(back.stages[0].tasks[1].note).toBeUndefined();
+});
+
+test('a step can be duplicated right under it', () => {
+  const g: Goal = { ...base, stages: [{ id: 's', title: 'S', tasks: [{ id: 'a', title: 'A', done: '2026-02-01', due: '2026-03-01', note: '• x' }, { id: 'b', title: 'B', done: null }] }] };
+  const d = duplicateTask(g, 'a', 'c');
+  expect(d.stages[0].tasks.map((x) => x.id)).toEqual(['a', 'c', 'b']);
+  expect(d.stages[0].tasks[1]).toEqual({ id: 'c', title: 'A', done: null, note: '• x' });
+  expect(duplicateTask(g, 'zz', 'c')).toEqual(g);
 });

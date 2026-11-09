@@ -298,6 +298,20 @@ export function addReview(g: Goal, r: Review): Goal {
 }
 
 /** Moves a stage up (−1) or down (+1). */
+/** A copy of a step right under it, open and with its details; its own date isn't copied (the schedule gives it one). */
+export function duplicateTask(g: Goal, taskId: string, newId: string): Goal {
+  return {
+    ...g,
+    stages: g.stages.map((st) => {
+      const i = st.tasks.findIndex((x) => x.id === taskId);
+      if (i < 0) return st;
+      const { due: _d, ...src } = st.tasks[i];
+      const copy: Task = { ...src, id: newId, done: null };
+      return { ...st, tasks: [...st.tasks.slice(0, i + 1), copy, ...st.tasks.slice(i + 1)] };
+    }),
+  };
+}
+
 export function moveStage(g: Goal, id: string, by: -1 | 1): Goal {
   const i = g.stages.findIndex((s) => s.id === id);
   const j = i + by;

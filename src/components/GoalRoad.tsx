@@ -7,7 +7,7 @@ import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
 import { NoteEditor, NoteView } from './NoteEditor';
-import { currentStage, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { currentStage, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
@@ -208,6 +208,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           end = [
             { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeBead(g, r.st, r.task) },
             { icon: 'create-outline', label: 'عدّل', color: ACTION.grey, onPress: () => setEdit({ st: r.st, task: r.task }) },
+            { icon: 'copy-outline', label: 'كرّر', color: ACTION.blue, onPress: () => copyStep(g, r.task) },
             { icon: 'document-text-outline', label: 'تفاصيل', color: ACTION.indigo, onPress: () => setEdit({ st: r.st, task: r.task, notes: true }) },
           ];
         } else {
@@ -264,6 +265,13 @@ const MONTHS_SHORT = ['يناير', 'فبراير', 'مارس', 'أبريل', '�
 const dayShort = (d: string) => `${+d.slice(8)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]}${d.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? ` ${d.slice(0, 4)}` : ''}`;
 
 /** Deletes a stage (with its tasks) or one task, with undo. */
+/** Duplicate a step right under it (undoable). */
+function copyStep(g: Goal, task: Task) {
+  tap();
+  saveGoal(duplicateTask(g, task.id, goalId(Date.now())));
+  showUndo('اتعملت نسخة من الخطوة', () => saveGoal(g));
+}
+
 function removeBead(g: Goal, st: Stage, task?: Task) {
   saveGoal({ ...g, stages: task ? g.stages.map((x) => (x.id === st.id ? { ...x, tasks: x.tasks.filter((y) => y.id !== task.id) } : x)) : g.stages.filter((x) => x.id !== st.id) });
   showUndo(task ? 'اتمسحت خطوة' : 'اتمسحت مرحلة', () => saveGoal(g));
@@ -416,6 +424,7 @@ function EditSheet({ g, t, st, task, onClose, notesFirst }: { g: Goal; t: Theme;
           <Btn label="↓ نزّلها" onPress={() => { saveGoal(moveStage(g, st.id, 1)); onClose(); }} style={{ flex: 1, opacity: i < g.stages.length - 1 ? 1 : 0.4 }} />
         </View>
       ) : null}
+      {task ? <Btn label="كرّر الخطوة" onPress={() => { copyStep(g, task); onClose(); }} /> : null}
       <View style={{ flexDirection: 'row', gap: 8 }}>
         <Btn kind="danger" label={task ? 'امسح الخطوة' : 'امسح المرحلة'} onPress={remove} style={{ flex: 1 }} />
         <Btn label="احفظ" kind="solid" onPress={save} style={{ flex: 1 }} />
