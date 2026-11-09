@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateTask } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateStage, duplicateTask } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -235,4 +235,12 @@ test('a step can be duplicated right under it', () => {
   expect(d.stages[0].tasks.map((x) => x.id)).toEqual(['a', 'c', 'b']);
   expect(d.stages[0].tasks[1]).toEqual({ id: 'c', title: 'A', done: null, note: '• x' });
   expect(duplicateTask(g, 'zz', 'c')).toEqual(g);
+});
+
+test('a stage can be duplicated with its steps, all open', () => {
+  const g: Goal = { ...base, stages: [{ id: 's', title: 'S', note: 'n', until: '2026-05-01', amount: 100, tasks: [{ id: 'a', title: 'A', done: '2026-02-01', due: '2026-03-01' }] }, { id: 's2', title: 'S2', tasks: [] }] };
+  const d = duplicateStage(g, 's', (n) => `x${n}`);
+  expect(d.stages.map((x) => x.id)).toEqual(['s', 'x0', 's2']);
+  expect(d.stages[1]).toEqual({ id: 'x0', title: 'S', note: 'n', tasks: [{ id: 'x1', title: 'A', done: null }] });
+  expect(duplicateStage(g, 'zz', (n) => `x${n}`)).toBe(g);
 });

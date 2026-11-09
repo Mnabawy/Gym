@@ -312,6 +312,18 @@ export function duplicateTask(g: Goal, taskId: string, newId: string): Goal {
   };
 }
 
+/**
+ * A copy of a stage right under it: same title, details and steps, all open; its own end date and amount aren't
+ * copied (the schedule and the split give it theirs). `newId(n)` makes the ids (0 = the stage, 1… = its steps).
+ */
+export function duplicateStage(g: Goal, stageId: string, newId: (n: number) => string): Goal {
+  const i = g.stages.findIndex((x) => x.id === stageId);
+  if (i < 0) return g;
+  const { until: _u, amount: _a, ...src } = g.stages[i];
+  const copy: Stage = { ...src, id: newId(0), tasks: src.tasks.map(({ due: _d, ...x }, k) => ({ ...x, id: newId(k + 1), done: null })) };
+  return { ...g, stages: [...g.stages.slice(0, i + 1), copy, ...g.stages.slice(i + 1)] };
+}
+
 export function moveStage(g: Goal, id: string, by: -1 | 1): Goal {
   const i = g.stages.findIndex((s) => s.id === id);
   const j = i + by;
