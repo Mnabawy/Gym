@@ -75,11 +75,11 @@ export default function CalendarScreen() {
   return (
     <Screen title="التقويم" sub={monthSummary(src, marks, days, today)} onBack={() => (router.canGoBack() ? router.back() : router.replace('/sections'))}>
       {/* What the calendar shows. */}
-      <View style={[s.seg, { backgroundColor: t.soft }]} accessibilityRole="tablist">
+      <View style={[s.seg, { backgroundColor: t.segBar }]} accessibilityRole="tablist">
         {CAL_SOURCES.map((x) => {
           const on = x.key === src;
           return (
-            <Pressable key={x.key} onPress={() => choose(x.key)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={x.label} style={[s.segBtn, on ? { backgroundColor: t.card, boxShadow: '0px 1px 3px rgba(0,0,0,0.12)' } : null]}>
+            <Pressable key={x.key} onPress={() => choose(x.key)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={x.label} style={[s.segBtn, on ? { backgroundColor: t.segOn, boxShadow: '0px 1px 3px rgba(0,0,0,0.12)' } : null]}>
               <Ionicons name={x.icon as IconName} size={15} color={on ? t.fg : t.mute} />
               <T w={on ? 'semi' : 'medium'} numberOfLines={1} style={{ fontSize: 13, color: on ? t.fg : t.mute }}>{x.label}</T>
             </Pressable>

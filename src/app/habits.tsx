@@ -8,8 +8,7 @@ import { MenuButton } from '../components/SideMenu';
 import { HabitForm } from '../components/HabitForm';
 import { ACTION, Swipe } from '../components/Swipe';
 import { useDataVersion } from '../lib/bus';
-import { addDays } from '../lib/gaps';
-import { dayState, groupHabits, habitStats, isDue, logKey, partsDone, pausedNow, togglePause, type DayState, type Habit, type Log, type PartsLog } from '../lib/habits';
+import { groupHabits, habitStats, isDue, logKey, partsDone, pausedNow, togglePause, type Habit, type Log, type PartsLog } from '../lib/habits';
 import { addHabits, moveHabit, readHabitLog, readHabitParts, readHabits, saveHabit, setMark, setPart } from '../lib/habitStore';
 import { showUndo } from '../lib/undo';
 import { ADHKAR_KEY, adhkarKey, adhkarOf, adhkarProgress, listFor, parseAdhkarLog } from '../lib/adhkar';
@@ -69,7 +68,7 @@ function Habits() {
             </Ring>
             <View style={{ flex: 1, gap: 2 }}>
               <T w="bold" style={{ fontSize: 16 }}>{!due.length ? 'مفيش عادات عليك النهارده' : doneToday === due.length ? 'كمّلت عادات النهارده ✓' : `فاضل ${due.length - doneToday} النهارده`}</T>
-              <T style={{ color: t.mute, fontSize: 12 }}>دوس ✓ لما تعملها · دوسة طويلة = معذور النهارده</T>
+              <T style={{ color: t.mute, fontSize: 12 }}>دوس على العادة لما تعملها · دوسة طويلة = معذور</T>
             </View>
           </Card>
 
@@ -146,16 +145,6 @@ function Habits() {
   );
 }
 
-const DOT: Record<DayState, (t: Theme, c: string) => object> = {
-  done: (_t, c) => ({ backgroundColor: c }),
-  skip: (_t, c) => ({ borderWidth: 1.5, borderColor: c, borderStyle: 'dashed' }),
-  missed: (t) => ({ backgroundColor: tint(t.bad, 0.35) }),
-  today: (t) => ({ borderWidth: 1.5, borderColor: t.fg }),
-  off: (t) => ({ backgroundColor: t.soft }),
-  before: (t) => ({ backgroundColor: t.soft, opacity: 0.4 }),
-  future: (t) => ({ backgroundColor: t.soft }),
-  paused: (t) => ({ backgroundColor: t.soft, opacity: 0.5 }),
-};
 
 function Arrow({ t, name, label, disabled, onPress }: { t: Theme; name: IconName; label: string; disabled: boolean; onPress: () => void }) {
   return (
@@ -172,7 +161,6 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
   const mark = log[logKey(h.id, today)];
   const on = mark === 'done';
   const pop = usePop(on, 0.8);
-  const week = Array.from({ length: 7 }, (_, i) => addDays(today, i - 6));
   const toggle = () => {
     tap();
     setMark(h.id, today, on ? undefined : 'done');
@@ -202,37 +190,42 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
       ]}>
     {/* The screen's color under the row, so a dimmed (see-through) row never shows the actions under it. */}
     <View style={{ backgroundColor: t.bg, borderRadius: 12 }}>
-    {/* The card opens the habit; on the web it isn't marked a button, since a button can't hold the buttons inside it. */}
-    <Pressable onPress={open} accessibilityRole={Platform.OS === 'web' ? undefined : 'button'} accessibilityLabel={`${h.name}، افتح النتايج`} style={({ pressed }) => ({ opacity: pressed ? 0.85 : dim ? 0.75 : 1 })}>
-      <Card style={[s.row, on ? { borderWidth: 1, borderColor: tint(h.color, 0.5) } : null]}>
-        <View style={[s.icon, { backgroundColor: tint(h.color, 0.15) }]}>
-          <Ionicons name={h.icon as IconName} size={20} color={h.color} />
-        </View>
-        <View style={{ flex: 1, minWidth: 0, gap: 4 }}>
-          <T w="semi" style={{ fontSize: 15 }} numberOfLines={1}>{h.name}</T>
-          {h.cue ? (
-            <T style={{ fontSize: 11.5, color: t.mute, marginTop: -3 }} numberOfLines={1}>{h.cue}</T>
-          ) : null}
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            {st.streak ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-                <Ionicons name="flame" size={13} color="#E8590C" />
-                <T w="numBold" style={{ fontSize: 12 }}>{st.streak}</T>
-              </View>
-            ) : null}
-            {/* Last 7 days, oldest first (in RTL: right → left, like the text). */}
-            <View style={{ flexDirection: 'row', gap: 3 }}>
-              {week.map((d) => (
-                <View key={d} style={[s.dot, DOT[dayState(h, log, d, today)](t, h.color)]} />
-              ))}
+      {/* One tap anywhere on the row ticks it (the thing you do every day); a long press = معذور النهارده; the
+          arrow at the end opens its page. On the web the row isn't a button, since a button can't hold buttons. */}
+      <Pressable
+        onPress={paused ? open : toggle}
+        onLongPress={paused ? undefined : excuse}
+        delayLongPress={450}
+        accessibilityRole={Platform.OS === 'web' ? undefined : 'checkbox'}
+        accessibilityState={{ checked: on }}
+        accessibilityLabel={`${h.name}${on ? '، عملتها' : mark === 'skip' ? '، معذور النهارده' : ''}`}
+        accessibilityHint="دوس تعلّم عليها · دوسة طويلة: معذور النهارده"
+        style={({ pressed }) => ({ opacity: pressed ? 0.8 : dim ? 0.6 : 1 })}>
+        <Card style={[s.row, on ? { backgroundColor: tint(h.color, 0.1) } : null]}>
+          <View style={s.main}>
+            {/* The tick: the habit's icon until it's done, then a filled check in its color. */}
+            <Animated.View style={[s.tick, { transform: [{ scale: pop }] }, paused ? { backgroundColor: t.soft } : on ? { backgroundColor: h.color } : mark === 'skip' ? { borderWidth: 1.5, borderStyle: 'dashed', borderColor: h.color } : { backgroundColor: tint(h.color, 0.15) }]}>
+              <Ionicons name={paused ? 'pause' : on ? 'checkmark' : mark === 'skip' ? 'remove' : (h.icon as IconName)} size={on ? 24 : 20} color={paused ? t.mute : on ? '#FFFFFF' : h.color} />
+            </Animated.View>
+            <View style={{ flex: 1, minWidth: 0, gap: 1 }}>
+              <T w="semi" style={{ fontSize: 15.5, color: on ? t.mute : t.fg }} numberOfLines={1}>{h.name}</T>
+              <T style={{ fontSize: 12, color: t.mute }} numberOfLines={1}>
+                {[
+                  paused ? 'متوقفة مؤقتاً' : mark === 'skip' ? 'معذور النهارده' : st.streak ? `🔥 ${st.streak} يوم` : '',
+                  h.parts?.length && !on ? `${done.length}/${h.parts.length}` : '',
+                  h.cue ?? '',
+                ].filter(Boolean).join(' · ') || (on ? 'عملتها النهارده ✓' : 'لسه')}
+              </T>
             </View>
-            {h.parts?.length && !on ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${done.length}/${h.parts.length}`}</T> : null}
-            {st.done ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }} accessibilityLabel={`قوة العادة ${Math.round(st.strength * 100)}%`}>
-                <Ionicons name="pulse" size={12} color={h.color} />
-                <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${Math.round(st.strength * 100)}%`}</T>
-              </View>
+            {h.app && canOpenApps && !paused ? (
+              // Opens the habit's app (e.g. the Quran app for the wird).
+              <Pressable onPress={() => { tap(); void openApp(h.app!); }} hitSlop={4} accessibilityRole="button" accessibilityLabel={`افتح التطبيق بتاع ${h.name}`} style={({ pressed }) => [s.side, { backgroundColor: tint(h.color, 0.14), opacity: pressed ? 0.6 : 1 }]}>
+                <Ionicons name="open-outline" size={18} color={h.color} />
+              </Pressable>
             ) : null}
+            <Pressable onPress={open} hitSlop={6} accessibilityRole="button" accessibilityLabel={`${h.name}: افتح النتايج`} style={({ pressed }) => [s.side, { opacity: pressed ? 0.5 : 1 }]}>
+              <Ionicons name="chevron-back" size={18} color={t.mute} />
+            </Pressable>
           </View>
           {h.parts?.length && !paused && !dim ? (
             <View style={s.parts}>
@@ -257,7 +250,7 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
                     accessibilityHint={ad ? 'افتح الأذكار · دوسة طويلة تعلّم عليها' : undefined}
                     style={[s.part, ad ? s.partWide : null, pOn ? { backgroundColor: h.color, borderColor: h.color } : { borderColor: tint(h.color, 0.4) }]}>
                     {pOn ? <Ionicons name="checkmark" size={13} color="#FFFFFF" /> : null}
-                    <T w="semi" style={{ fontSize: 11.5, color: pOn ? '#FFFFFF' : t.fg }} numberOfLines={1}>{p.name}</T>
+                    <T w="semi" style={{ fontSize: 12, color: pOn ? '#FFFFFF' : t.fg }} numberOfLines={1}>{p.name}</T>
                     {ap?.done ? <T style={{ fontSize: 11, color: t.mute, ...font('num') }} numberOfLines={1}>{`\u2066${ap.done}/${ap.total}\u2069`}</T> : null}
                     {ad && !pOn ? <Ionicons name="chevron-back" size={12} color={t.mute} /> : null}
                   </Pressable>
@@ -265,30 +258,8 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
               })}
             </View>
           ) : null}
-        </View>
-        {h.app && canOpenApps && !paused ? (
-          // Opens the habit's app (e.g. the Quran app for the wird).
-          <Pressable onPress={() => { tap(); void openApp(h.app!); }} hitSlop={4} accessibilityRole="button" accessibilityLabel={`افتح التطبيق بتاع ${h.name}`} style={({ pressed }) => [s.check, { backgroundColor: tint(h.color, 0.14), opacity: pressed ? 0.6 : 1 }]}>
-            <Ionicons name="open-outline" size={20} color={h.color} />
-          </Pressable>
-        ) : null}
-        {paused ? (
-          <View style={[s.check, { backgroundColor: t.soft }]}>
-            <Ionicons name="pause" size={20} color={t.mute} />
-          </View>
-        ) : mark === 'skip' ? (
-          <Pressable onPress={excuse} onLongPress={excuse} hitSlop={4} accessibilityRole="button" accessibilityLabel={`${h.name}: معذور النهارده، دوس ترجعها`} style={[s.check, { borderWidth: 1.5, borderStyle: 'dashed', borderColor: h.color }]}>
-            <T w="semi" style={{ fontSize: 10.5, color: h.color }}>معذور</T>
-          </Pressable>
-        ) : (
-          <Pressable onPress={toggle} onLongPress={excuse} delayLongPress={450} hitSlop={4} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={`عملت ${h.name}`} accessibilityHint="دوسة طويلة: معذور النهارده">
-            <Animated.View style={[s.check, { transform: [{ scale: pop }] }, on ? { backgroundColor: h.color } : { backgroundColor: t.soft }]}>
-              <Ionicons name="checkmark" size={24} color={on ? '#FFFFFF' : t.mute} />
-            </Animated.View>
-          </Pressable>
-        )}
-      </Card>
-    </Pressable>
+        </Card>
+      </Pressable>
     </View>
     </Swipe>
     {editing ? <HabitForm visible habit={h} onClose={() => setEditing(false)} /> : null}
@@ -297,7 +268,10 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 10, paddingHorizontal: 12 },
+  row: { paddingVertical: 10, paddingHorizontal: 12, gap: 8 },
+  main: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  tick: { width: 40, height: 40, borderRadius: 20, alignItems: 'center', justifyContent: 'center' },
+  side: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
   swipe: { borderRadius: 12, overflow: 'hidden' },
   icon: { width: 42, height: 42, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   dot: { width: 9, height: 9, borderRadius: 3 },

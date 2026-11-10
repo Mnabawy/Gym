@@ -101,11 +101,11 @@ function Focus() {
       ) : null}
 
       <View style={s_.row}>
-        <View style={[s_.seg, { backgroundColor: t.soft }]}>
+        <View style={[s_.seg, { backgroundColor: t.segBar }]}>
           {(Object.keys(KINDS) as Kind[]).map((k) => {
             const sel = s.kind === k;
             return (
-              <Pressable key={k} onPress={() => { tap(); setFocus({ kind: k }); }} accessibilityRole="tab" accessibilityState={{ selected: sel }} style={[s_.segBtn, sel ? { backgroundColor: t.card, boxShadow: '0px 1px 6px rgba(0,0,0,0.08)' } : null]}>
+              <Pressable key={k} onPress={() => { tap(); setFocus({ kind: k }); }} accessibilityRole="tab" accessibilityState={{ selected: sel }} style={[s_.segBtn, sel ? { backgroundColor: t.segOn, boxShadow: '0px 1px 6px rgba(0,0,0,0.08)' } : null]}>
                 <Ionicons name={k === 'work' ? 'briefcase-outline' : 'book-outline'} size={14} color={sel ? t.fg : t.mute} />
                 <T w="semi" style={{ fontSize: 13, color: sel ? t.fg : t.mute }}>{KINDS[k]}</T>
               </Pressable>

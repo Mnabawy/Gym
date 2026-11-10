@@ -507,7 +507,7 @@ export function MiniSwitch<K extends string>({ options, value, onChange, label }
       accessibilityState={{ checked: second }}
       accessibilityLabel={`${label}: ${cur}`}
       accessibilityHint={`دوس تبدّل بين ${options[0][1]} و${options[1][1]}`}
-      style={[s.mini, { backgroundColor: t.soft }]}>
+      style={[s.mini, { backgroundColor: t.segBar }]}>
       {options.map(([k, l]) => (
         <MiniHalf key={k} label={l} on={value === k} />
       ))}
@@ -520,7 +520,7 @@ function MiniHalf({ label, on }: { label: string; on: boolean }) {
   const v = useTween(on ? 1 : 0, 180, true);
   return (
     <View style={s.miniHalf}>
-      <Animated.View style={[StyleSheet.absoluteFill, s.miniKnob, { backgroundColor: t.card, opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]} />
+      <Animated.View style={[StyleSheet.absoluteFill, s.miniKnob, { backgroundColor: t.segOn, opacity: v, transform: [{ scale: v.interpolate({ inputRange: [0, 1], outputRange: [0.92, 1] }) }] }]} />
       <T w={on ? 'semi' : 'medium'} numberOfLines={1} style={{ fontSize: 12.5, color: on ? t.fg : t.mute }}>{label}</T>
     </View>
   );

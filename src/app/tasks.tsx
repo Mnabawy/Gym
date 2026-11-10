@@ -129,7 +129,7 @@ function Tasks() {
           </View>
           {/* النهارده / التقويم / الكل as one iOS segmented control, today's ring next to it. */}
           <View style={s.bigRow}>
-          <View style={[s.segBar, { flex: 1, backgroundColor: tint(t.fg, 0.06) }]}>
+          <View style={[s.segBar, { flex: 1, backgroundColor: t.segBar }]}>
             {(
               [
                 ['today', 'النهارده', c.today],
@@ -139,7 +139,7 @@ function Tasks() {
             ).map(([k, l, n]) => {
               const on = tab === k;
               return (
-                <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.card } : null]}>
+                <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.segOn } : null]}>
                   <T w={on ? 'semi' : 'medium'} style={{ fontSize: 13.5, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
                   {n ? <T w="numBold" style={{ fontSize: 11.5, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
                 </Pressable>

@@ -27,6 +27,9 @@ const light = {
   /** Bordered look (old warm pages): off everywhere now. */
   neon: false,
   border: 'transparent',
+  /** iOS segmented control: the track and the selected segment (white on grey in light, grey on near-black in dark). */
+  segBar: 'rgba(118, 118, 128, 0.12)',
+  segOn: '#FFFFFF',
   /** One color per section (iOS system colors), used sparingly (icons, rings). */
   sec: { gym: '#007AFF', habits: '#FF2D55', goals: '#34C759', quit: '#5856D6', tasks: '#FF3B30', focus: '#FF9500' },
   tag: { heavy: '#1C1C1E', fail: '#1C1C1E', drop: '#1C1C1E' },
@@ -67,6 +70,8 @@ const dark: typeof light = {
   shadow: '0px 0px 0px rgba(0, 0, 0, 0)',
   neon: false,
   border: 'transparent',
+  segBar: 'rgba(118, 118, 128, 0.24)',
+  segOn: '#636366',
   sec: { gym: '#0A84FF', habits: '#FF375F', goals: '#30D158', quit: '#5E5CE6', tasks: '#FF453A', focus: '#FF9F0A' },
   tag: { heavy: '#E5E5EA', fail: '#E5E5EA', drop: '#E5E5EA' },
   protein: '#0A84FF',
