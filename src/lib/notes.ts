@@ -56,6 +56,8 @@ export function continueBullets(prev: string, next: string): string {
   if (next.length !== prev.length + 1) return next;
   let i = 0;
   while (i < prev.length && prev[i] === next[i]) i++;
+  // Enter right before a line break: the new break is the first of the two, at the end of the line you were on.
+  while (i > 0 && next[i - 1] === '\n' && next[i] === '\n') i--;
   if (next[i] !== '\n') return next;
   const { start } = lineAt(next, i);
   const line = next.slice(start, i);

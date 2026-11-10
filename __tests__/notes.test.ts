@@ -24,3 +24,8 @@ test('notes: Enter continues a list, Enter on an empty bullet ends it', () => {
   expect(continueBullets('نص', 'نص\n')).toBe('نص\n');
   expect(continueBullets('• أ', '• أب')).toBe('• أب');
 });
+
+test('Enter at the end of a bullet in the middle of a list starts a bullet, and ends the list on an empty one', () => {
+  expect(continueBullets('• a\n• b', '• a\n\n• b')).toBe('• a\n• \n• b');
+  expect(continueBullets('• a\n• \n• b', '• a\n• \n\n• b')).toBe('• a\n\n• b');
+});

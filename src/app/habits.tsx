@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Item } from '../components/Motion';
-import { Animated, Pressable, StyleSheet, View } from 'react-native';
+import { Animated, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, Card, Ring, Screen, T } from '../components/ui';
@@ -202,7 +202,8 @@ function HabitRow({ h, log, parts, today, t, dim, paused }: { h: Habit; log: Log
       ]}>
     {/* The screen's color under the row, so a dimmed (see-through) row never shows the actions under it. */}
     <View style={{ backgroundColor: t.bg, borderRadius: 12 }}>
-    <Pressable onPress={open} accessibilityRole="button" accessibilityLabel={`${h.name}، افتح النتايج`} style={({ pressed }) => ({ opacity: pressed ? 0.85 : dim ? 0.75 : 1 })}>
+    {/* The card opens the habit; on the web it isn't marked a button, since a button can't hold the buttons inside it. */}
+    <Pressable onPress={open} accessibilityRole={Platform.OS === 'web' ? undefined : 'button'} accessibilityLabel={`${h.name}، افتح النتايج`} style={({ pressed }) => ({ opacity: pressed ? 0.85 : dim ? 0.75 : 1 })}>
       <Card style={[s.row, on ? { borderWidth: 1, borderColor: tint(h.color, 0.5) } : null]}>
         <View style={[s.icon, { backgroundColor: tint(h.color, 0.15) }]}>
           <Ionicons name={h.icon as IconName} size={20} color={h.color} />

@@ -16,7 +16,7 @@ import { dateKey } from '../lib/logic';
 import { allowReminders } from '../lib/reminder';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
-import { saveTask } from '../lib/taskStore';
+import { readTasks, saveTask, writeTasks } from '../lib/taskStore';
 import { taskId, timeAr, type Space } from '../lib/tasks';
 import { tap } from '../lib/timer';
 import { showUndo } from '../lib/undo';
@@ -65,10 +65,15 @@ function Dump() {
   const toTask = (x: DumpItem, due: string | null) => {
     tap();
     const before = read();
-    saveTask({ id: taskId(stamp()), title: x.text, due, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, ...(space === 'work' ? { space } : {}) });
+    const id = taskId(stamp());
+    saveTask({ id, title: x.text, due, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, ...(space === 'work' ? { space } : {}) });
     write(removeItem(before, x.id));
     setTaskFor(null);
-    showUndo(`راحت مهامي · ${due === today ? 'النهارده' : due ? 'بكرة' : 'من غير ميعاد'}`, () => write(before));
+    // Undo takes the task back out of مهامي too (not into المحذوفة) and puts the line back here.
+    showUndo(`راحت مهامي · ${due === today ? 'النهارده' : due ? 'بكرة' : 'من غير ميعاد'}`, () => {
+      writeTasks(readTasks().filter((y) => y.id !== id));
+      write(before);
+    });
   };
 
   const sortRow = (x: DumpItem) => (

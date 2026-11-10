@@ -7,7 +7,7 @@ import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
 import { showUndo } from '../lib/undo';
 import { NoteEditor, NoteView } from './NoteEditor';
-import { currentStage, duplicateStage, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { currentStage, duplicateStage, nextTask, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/logic';
 import { tap } from '../lib/timer';
@@ -122,7 +122,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
           const n = r.st.tasks.filter((x) => x.done).length;
           const len = r.st.tasks.length;
           const fill = stageFill(g, r.i);
-          const share = len ? n / len : fill ? fill.got / fill.of : 0;
+          const share = len ? n / len : fill && fill.of > 0 ? fill.got / fill.of : 0;
           const win = plan?.stage[r.st.id];
           const late = !!win && r.state !== 'done' && win.to < today;
           const ink = r.state === 'later' ? t.mute : t.fg;
@@ -189,7 +189,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
             </View>
           );
           // Dates only where they help: the next open step, one you set yourself, and late ones.
-          const nextOpen = g.stages[currentStage(g)]?.tasks.find((x) => !x.done)?.id;
+          const nextOpen = nextTask(g)?.task.id;
           const planned = plan?.task[r.task.id];
           const when = planned && (r.task.id === nextOpen || r.task.due || planned < today) ? planned : undefined;
           const note = r.task.note?.trim() ? r.task.note : '';
@@ -311,7 +311,10 @@ function removeBead(g: Goal, st: Stage, task?: Task) {
 }
 
 /** Long-press on a bead: rename it, move a stage, or delete it. */
-function EditSheet({ g, t, st, task, onClose, notesFirst }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void; notesFirst?: boolean }) {
+function EditSheet({ g, t, st: st0, task: task0, onClose, notesFirst }: { g: Goal; t: Theme; st: Stage; task?: Task; onClose: () => void; notesFirst?: boolean }) {
+  // The sheet stays open while it saves (dates), so read the stage and step fresh from the goal each time.
+  const st = g.stages.find((x) => x.id === st0.id) ?? st0;
+  const task = task0 ? st.tasks.find((x) => x.id === task0.id) ?? task0 : undefined;
   const [name, setName] = useState(task ? task.title : st.title);
   const [note, setNote] = useState((task ? task.note : st.note) ?? '');
   const [picking, setPicking] = useState(false);

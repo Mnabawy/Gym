@@ -34,6 +34,8 @@ export const SPLIT_META: Readonly<Record<string, 'list' | 'ordered' | 'map'>> = 
   habits: 'ordered',
   habitLog: 'map',
   habitParts: 'map',
+  taskTrash: 'list',
+  dump: 'ordered',
 };
 export const isSplit = (k: string) => Object.prototype.hasOwnProperty.call(SPLIT_META, k);
 const SEP = '/';

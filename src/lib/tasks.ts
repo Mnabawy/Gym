@@ -225,7 +225,8 @@ export function timeAr(m: number): string {
 // ---- Deleted tasks (المحذوفة): kept 30 days so a delete can be taken back later, not only from the undo bar ----
 
 export const TRASH_KEY = 'taskTrash';
-export type Trashed = { task: Task; at: string };
+/** `id` = the task's id (so cloud sync can keep one row per deleted task). */
+export type Trashed = { id: string; task: Task; at: string };
 
 export function parseTrash(raw: string | null): Trashed[] {
   try {
@@ -234,7 +235,7 @@ export function parseTrash(raw: string | null): Trashed[] {
     return v.flatMap((x) => {
       if (!x || typeof x !== 'object' || typeof x.at !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x.at)) return [];
       const [task] = parseTasks(JSON.stringify([x.task]));
-      return task ? [{ task, at: x.at }] : [];
+      return task ? [{ id: task.id, task, at: x.at }] : [];
     });
   } catch {
     return [];
@@ -242,7 +243,7 @@ export function parseTrash(raw: string | null): Trashed[] {
 }
 
 /** Puts a deleted task first in the trash (replacing an older copy of it). */
-export const toTrash = (trash: readonly Trashed[], task: Task, at: string): Trashed[] => [{ task, at }, ...trash.filter((x) => x.task.id !== task.id)];
+export const toTrash = (trash: readonly Trashed[], task: Task, at: string): Trashed[] => [{ id: task.id, task, at }, ...trash.filter((x) => x.task.id !== task.id)];
 
 /** Drops what was deleted more than 30 days before `today` and anything that's back in the list (undo, restore). */
 export function pruneTrash(trash: readonly Trashed[], tasks: readonly Task[], today: string): Trashed[] {
