@@ -207,12 +207,18 @@ export const milestones = (g: Goal) => g.stages.flatMap((s, i) => {
 });
 
 /** The next thing to do: the first open task of the stage you're on. */
+/**
+ * The next step to do: the first open one in the stage you're on, or, when that stage only waits for its amount (all
+ * its steps ticked), the first open one after it.
+ */
 export function nextTask(g: Goal): { stage: Stage; task: Task } | null {
   const i = currentStage(g);
   if (i < 0) return null;
-  const stage = g.stages[i];
-  const task = stage.tasks.find((t) => !t.done);
-  return task ? { stage, task } : null;
+  for (const stage of g.stages.slice(i)) {
+    const task = stage.tasks.find((t) => !t.done);
+    if (task) return { stage, task };
+  }
+  return null;
 }
 
 export type Pace = {
@@ -346,17 +352,25 @@ export type GoalWeek = { id: string; name: string; color: string; unit: string; 
 /** Each goal's week (from–to): what you added, how many tasks you finished, and how far it is now. */
 export function goalsWeek(goals: readonly Goal[], from: string, to: string): GoalWeek[] {
   const inWeek = (d: string | null) => !!d && d >= from && d <= to;
+  const asOf = (g: Goal): Goal => ({ ...g, entries: g.entries.filter((e) => e.date <= to) });
+  const gainedIn = (g: Goal) => g.entries.filter((e) => inWeek(e.date)).reduce((a, e) => a + e.amount, 0);
+  const ticked = (g: Goal) => g.stages.reduce((a, s) => a + s.tasks.filter((t) => inWeek(t.done)).length, 0);
   return goals
     .filter((g) => g.startDate <= to)
-    .map((g) => ({
-      id: g.id,
-      name: g.name,
-      color: g.color,
-      unit: g.unit,
-      gained: g.entries.filter((e) => inWeek(e.date)).reduce((a, e) => a + e.amount, 0),
-      tasks: g.stages.reduce((a, s) => a + s.tasks.filter((t) => inWeek(t.done)).length, 0),
-      share: progress(g, g.start + g.entries.filter((e) => e.date <= to).reduce((a, e) => a + e.amount, 0)),
-    }));
+    .map((g) => {
+      // A big goal's week is its goals' week: their steps, their gains (when they count what it counts) and its share.
+      const kids = g.umbrella ? kidsOf(goals, g.id) : [];
+      const sum = g.umbrella && sumsUp(g, kids);
+      return {
+        id: g.id,
+        name: g.name,
+        color: g.color,
+        unit: g.unit,
+        gained: gainedIn(g) + (sum ? kids.reduce((a, k) => a + gainedIn(k), 0) : 0),
+        tasks: ticked(g) + kids.reduce((a, k) => a + ticked(k), 0),
+        share: g.umbrella ? umbrellaProgress(asOf(g), kids.map(asOf)) : progress(asOf(g)),
+      };
+    });
 }
 
 /** Puts a step (from the weekly review) first among the open tasks of the stage you're on, or in a new stage once all are done. */

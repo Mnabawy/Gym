@@ -244,3 +244,18 @@ test('a stage can be duplicated with its steps, all open', () => {
   expect(d.stages[1]).toEqual({ id: 'x0', title: 'S', note: 'n', tasks: [{ id: 'x1', title: 'A', done: null }] });
   expect(duplicateStage(g, 'zz', (n) => `x${n}`)).toBe(g);
 });
+
+test('the next step skips a stage that only waits for its amount', () => {
+  const g: Goal = { ...base, split: true, entries: [], stages: [{ id: 's1', title: 'A', tasks: [{ id: 'a', title: 'A', done: '2026-02-01' }] }, { id: 's2', title: 'B', tasks: [{ id: 'b', title: 'B', done: null }] }] };
+  expect(currentStage(g)).toBe(0);
+  expect(nextTask(g)?.task.id).toBe('b');
+});
+
+test("a big goal's week counts the goals under it", () => {
+  const u: Goal = { ...base, id: 'u', umbrella: true, unit: '$', start: 0, target: 1000, stages: [], entries: [] };
+  const k: Goal = { ...base, id: 'k', parent: 'u', unit: '$', start: 0, target: 500, entries: [{ id: 'e', date: '2026-02-03', amount: 100 }], stages: [{ id: 's', title: 's', tasks: [{ id: 't', title: 't', done: '2026-02-04' }] }] };
+  const w = goalsWeek([u, k], '2026-02-01', '2026-02-07').find((x) => x.id === 'u')!;
+  expect(w.gained).toBe(100);
+  expect(w.tasks).toBe(1);
+  expect(w.share).toBeCloseTo(0.1);
+});
