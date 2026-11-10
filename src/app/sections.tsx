@@ -5,7 +5,7 @@ import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { T } from '../components/ui';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { dayFor, MONTHS_AR, PLAN_WEEKDAYS, WEEKDAYS_AR } from '../data/program';
+import { dayFor, PLAN_WEEKDAYS } from '../data/program';
 import { MEAL_ORDER, MEAL_TIME } from '../data/nutrition';
 import { VERSES } from '../data/verses';
 import { useDataVersion } from '../lib/bus';
@@ -13,7 +13,7 @@ import { readGoals, saveGoal } from '../lib/goalStore';
 import { nextTask, progress, toggleTask } from '../lib/goals';
 import { habitStats, isDue, logKey } from '../lib/habits';
 import { readHabitLog, readHabits } from '../lib/habitStore';
-import { dateKey, weekdayOf } from '../lib/logic';
+import { dateKey } from '../lib/logic';
 import { currentWorkout, isTrainingDay } from '../lib/schedule';
 import { lastSection, openSection, type Section } from '../lib/section';
 import { storage } from '../lib/storage';
@@ -60,7 +60,6 @@ export default function Sections() {
   const today = dateKey();
   const here = lastSection();
   const go = (s: Section) => (s === here && router.canGoBack() ? router.back() : openSection(s));
-  const close = () => (router.canGoBack() ? router.back() : openSection(here));
 
   // Gym
   const trainedDays = storage.trainedDays();
@@ -122,13 +121,12 @@ export default function Sections() {
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={s.bar}>
-        <Pressable onPress={close} hitSlop={8} accessibilityRole="button" accessibilityLabel="اقفل" style={({ pressed }) => [s.barBtn, { opacity: pressed ? 0.4 : 1 }]}>
-          <T w="semi" style={{ fontSize: 17, color: c.tint }}>تم</T>
+        {/* Prayer times live here now (not in the side menu); back / swipe closes the page. */}
+        <Pressable onPress={() => router.push('/prayer')} hitSlop={8} accessibilityRole="button" accessibilityLabel="مواقيت الصلاة" style={({ pressed }) => [s.barBtn, { opacity: pressed ? 0.4 : 1 }]}>
+          <Ionicons name="moon-outline" size={23} color={c.tint} />
         </Pressable>
       </View>
       <ScrollView contentContainerStyle={s.scroll}>
-        <T w="semi" style={{ fontSize: 13, color: c.secondary, marginStart: 4 }}>{`${WEEKDAYS_AR[weekdayOf(today)]}، ${+today.slice(8)} ${MONTHS_AR[+today.slice(5, 7) - 1]}`}</T>
-        <T w="bold" style={{ fontSize: 34, lineHeight: 46, color: c.label, marginStart: 4, marginBottom: 10 }}>أقسامك</T>
 
         {/* The sections as small cards, three to a row, at the top. */}
         <View style={s.grid}>

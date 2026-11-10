@@ -4,7 +4,6 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '../lib/motion';
-import { useSettings } from '../lib/settings';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported } from '../lib/google';
 import { syncStatus } from '../lib/cloud';
 import { storage } from '../lib/storage';
@@ -12,7 +11,7 @@ import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type Item = { icon: IconName; label: string; path: '/dump' | '/progress' | '/week' | '/weight' | '/attendance' | '/prayer' | '/calories' | '/settings' };
+type Item = { icon: IconName; label: string; path: '/dump' | '/progress' | '/week' | '/weight' | '/attendance' | '/calories' | '/settings' };
 
 /**
  * The section button (the section you're in, tap to switch: الجيم، العادات، الأهداف، بطّل) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
@@ -24,7 +23,6 @@ export function MenuButton() {
   const reduce = useReducedMotion();
   const inset = useSafeAreaInsets();
   const { width } = useWindowDimensions();
-  const prayer = useSettings((s) => s.prayer);
   const [open, setOpen] = useState(false);
   const [p] = useState(() => new Animated.Value(0));
   const panel = Math.min(300, Math.round(width * 0.8));
@@ -35,7 +33,6 @@ export function MenuButton() {
     { icon: 'document-text-outline', label: 'تقرير الأسبوع', path: '/week' },
     { icon: 'scale-outline', label: 'وزنك والقياسات', path: '/weight' },
     { icon: 'barbell-outline', label: 'حضور الجيم', path: '/attendance' },
-    ...(prayer ? [{ icon: 'moon-outline', label: 'مواقيت الصلاة', path: '/prayer' } as Item] : []),
     { icon: 'calculator-outline', label: 'حساب السعرات', path: '/calories' },
     { icon: 'settings-outline', label: 'الإعدادات', path: '/settings' },
   ];
