@@ -35,6 +35,14 @@ npm run typecheck
 npx expo lint
 ```
 
+## مهام جاية
+- [ ] **إدخال البيانات بالذكاء الاصطناعي (مجاني):** تكتب أو تتكلم جملة عادية، والـ AI يطلّع منها البيانات ويحطها في القسم الصح.
+  - الموديل: Gemini Flash-Lite (المجاني) بـ Function Calling، وGroq احتياطي لما الحد يخلص.
+  - كل قسم يبقى tool (`log_set`، `log_meal`، `check_shopping_item`…) والتصنيفات والأسماء `enum` من بيانات التطبيق، علشان متتألّفش أسماء جديدة.
+  - المفتاح يفضل في Supabase Edge Function، ومايتحطش جوه التطبيق.
+  - الصوت: speech-to-text بتاع الموبايل (`expo-speech-recognition`).
+  - كارت مراجعة يظهر قبل الحفظ، تأكد أو تعدّل منه.
+
 ## تعديل البرنامج
 - التمارين في `src/data/program.ts`
 - الأكل في `src/data/nutrition.ts`
