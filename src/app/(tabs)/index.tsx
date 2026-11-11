@@ -9,7 +9,6 @@ import { TimerBar } from '../../components/TimerBar';
 import { router } from 'expo-router';
 import { Btn, Card, HeaderBtn, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
-import { CardioCard } from '../../components/CardioCard';
 import { dateKey, formatClock, weekdayOf } from '../../lib/logic';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
@@ -155,7 +154,6 @@ function WorkoutScreen() {
           </Item>
         ))}
       </Card>
-      <CardioCard date={date} />
       {live && weekdayOf(today) === 5 ? (
         <Pressable onPress={() => router.push('/week')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
           <Card style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>

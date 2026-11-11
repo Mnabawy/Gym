@@ -22,7 +22,7 @@ import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
 import { readHabitLog, readHabits } from '../lib/habitStore';
-import { CARDIO_KEY, parseCardio, parseSteps, STEPS_GOAL, STEPS_KEY, WHO_MIN } from '../lib/cardio';
+import { CARDIO_KEY, parseCardio, parseSteps, STEPS_KEY } from '../lib/cardio';
 import { useTheme } from '../theme';
 
 /** Weekly target sets per muscle (same as the progress page). */
@@ -115,22 +115,6 @@ export default function WeekScreen() {
         )}
       </Card>
 
-      <Label>الكارديو والمشي</Label>
-      <Card style={{ padding: 14, gap: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'baseline' }}>
-          <T w="medium" style={{ flex: 1 }}>{`نشاط متوسط · الهدف ${WHO_MIN} دقيقة`}</T>
-          <T w="numBold" style={{ fontSize: 15, color: r.cardio.who >= WHO_MIN ? t.okText : t.fg }}>{`${r.cardio.who}/${WHO_MIN}`}</T>
-        </View>
-        <Progress value={r.cardio.who / WHO_MIN} color={t.ok} height={8} />
-        <T style={{ color: t.mute, fontSize: 12.5 }}>
-          {r.cardio.sessions
-            ? [`${r.cardio.sessions} مرة`, `${r.cardio.minutes} دقيقة`, r.cardio.km ? `${r.cardio.km} كم` : null, r.cardio.steps ? `${r.cardio.steps.toLocaleString('en-US')} خطوة` : null, r.cardio.kcal ? `≈${r.cardio.kcal} سعر` : null].filter(Boolean).join(' · ')
-            : 'ما سجلتش كارديو الأسبوع ده. سجّله من تاب التمرين'}
-        </T>
-        {r.steps.any ? (
-          <T style={{ fontSize: 12.5 }}>{`👣 متوسط الخطوات ${r.steps.avg.toLocaleString('en-US')} في اليوم · وصلت ${STEPS_GOAL.toLocaleString('en-US')} في ${r.steps.atGoal} من ${r.steps.days} أيام`}</T>
-        ) : null}
-      </Card>
 
       {r.habits.length ? (
         <>

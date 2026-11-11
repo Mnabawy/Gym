@@ -14,6 +14,8 @@ import { storage } from '../lib/storage';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
+import { router } from 'expo-router';
+import { setFocus } from '../lib/focusStore';
 import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, writeTasks } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
@@ -370,7 +372,11 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
   };
   return (
     <Swipe
-      start={[done ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: onToggle } : { icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: onToggle }]}
+      // «ركّز» = a Pomodoro block on this task (the timer has no section of its own any more).
+      start={done
+        ? [{ icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: onToggle }]
+        : [{ icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: onToggle },
+           { icon: 'timer-outline', label: 'ركّز', color: ACTION.teal, onPress: () => { setFocus({ task: x.title }); router.push('/focus'); } }]}
       end={[
         { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: remove },
         ...(done ? [] : [{ icon: 'arrow-redo' as const, label: 'بكرة', color: ACTION.orange, onPress: tomorrow }]),

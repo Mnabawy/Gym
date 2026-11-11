@@ -24,7 +24,6 @@ import type { Dump } from '../lib/storage.types';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { applyBackup } from '../lib/restore';
 import { canLock, lockSupported, unlock } from '../lib/lock';
-import { connectSteps, stepsSupported, syncSteps } from '../lib/steps';
 import { GOOGLE_USER, googleSupported } from '../lib/google';
 import { syncStatus } from '../lib/cloud';
 import { AccentPicker } from '../components/AccentPicker';
@@ -59,7 +58,6 @@ export default function SettingsScreen() {
   const [denied, setDenied] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
-  const [stepsMsg, setStepsMsg] = useState<string | null>(null);
   const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
   const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
 
@@ -358,23 +356,6 @@ export default function SettingsScreen() {
           }}
         />
         {lockMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{lockMsg}</T> : null}
-        <Sep />
-        <SwitchRow
-          label="الخطوات من الموبايل"
-          sub={stepsSupported ? 'بيقرأ خطواتك من Health Connect ويحطها في تاب التمرين وتقرير الأسبوع' : 'على أندرويد بس'}
-          value={st.stepsSync}
-          disabled={!stepsSupported}
-          onChange={async (v) => {
-            setStepsMsg(null);
-            if (!v) return st.setQuiet({ stepsSync: false });
-            const r = await connectSteps().catch(() => 'unavailable' as const);
-            if (r === 'ok') {
-              st.setQuiet({ stepsSync: true });
-              syncSteps();
-            } else setStepsMsg(r === 'update' ? 'حدّث تطبيق Health Connect من Google Play الأول' : r === 'denied' ? 'لازم تسمح بقراية الخطوات' : 'Health Connect مش موجود على الموبايل ده. نزّله من Google Play');
-          }}
-        />
-        {stepsMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{stepsMsg}</T> : null}
         <Sep />
         <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />
       </Card>

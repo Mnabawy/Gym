@@ -1,5 +1,5 @@
-// The app's sections (أقسامك): الجيم (the tabs), العادات, الأهداف, بطّل, مهامي, بومودورو. The app opens on the last one you were in
-// (meta `section`); the sections page (/sections) switches between them.
+// The app's sections: الجيم (the tabs), العادات, الأهداف, بطّل, مهامي. The app opens on the home page (/sections), which
+// switches between them; meta `section` = the one you were in last. Pomodoro is no longer a section (a stored 'focus' opens مهامي).
 import { router } from 'expo-router';
 import { storage } from './storage';
 
@@ -9,7 +9,8 @@ export const SECTION_PATH = { gym: '/', habits: '/habits', goals: '/goals', quit
 
 export const lastSection = (): Section => {
   const s = storage.getMeta(SECTION_KEY);
-  return s === 'habits' || s === 'goals' || s === 'quit' || s === 'tasks' || s === 'focus' ? s : 'gym';
+  if (s === 'focus') return 'tasks';
+  return s === 'habits' || s === 'goals' || s === 'quit' || s === 'tasks' ? s : 'gym';
 };
 
 /** Opens a section in place of the one you're in (so back doesn't bounce between sections). */
@@ -19,3 +20,10 @@ export function openSection(s: Section) {
   router.replace(SECTION_PATH[s]);
 }
 
+
+// The home page (/sections) is what the app opens on: it's shown once per launch, then the tabs open the gym.
+let seen = false;
+export const hubWasSeen = () => seen;
+export const hubSeen = () => {
+  seen = true;
+};

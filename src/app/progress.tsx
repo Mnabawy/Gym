@@ -1,13 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { View } from 'react-native';
 import { router } from 'expo-router';
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { ALL_EXERCISES, MUSCLE_AR, PROGRAM, WEEKDAYS_AR, type Muscle } from '../data/program';
 import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
-import { gapText } from '../components/GapCard';
-import { useReport } from '../lib/useReport';
-import { bestE1rm, countAr, dateKey } from '../lib/logic';
+import { bestE1rm, dateKey } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
 import { dayKey, SWAPS_KEY } from '../lib/journal';
@@ -49,8 +46,6 @@ export default function ProgressScreen() {
   })();
 
 
-  const report = useReport();
-  const top = report.gaps[0];
 
   const hist = storage.history(sel).filter((h) => h.sets.some((s) => s.kg && s.reps));
   // Days you swapped this exercise for another one stay in the list (marked) but out of the chart.
@@ -59,25 +54,6 @@ export default function ProgressScreen() {
 
   return (
     <Screen title="التقدم" sub="الأسبوع بيبدأ السبت" onBack={() => router.back()}>
-      <Pressable onPress={() => router.push('/gaps')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
-        <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <Ring value={report.score ?? 0} size={54} stroke={5}>
-            <T w="numBold" style={{ fontSize: 13, color: t.okText }}>{report.score == null ? '–' : `${Math.round(report.score * 100)}%`}</T>
-          </Ring>
-          <View style={{ flex: 1, gap: 2 }}>
-            <T w="bold" style={{ fontSize: 16 }}>إيه اللي ناقصك؟</T>
-            <T style={{ color: t.mute, fontSize: 12.5 }}>
-              {!report.since ? 'هيبان هنا بعد أول تمرين تسجّله' : report.gaps.length ? `${countAr(report.gaps.length, ['حاجة واحدة', 'حاجتين', 'حاجات', 'حاجة'])} ${report.gaps.length === 2 ? 'محتاجين' : 'محتاجة'} تركيز` : 'مفيش حاجة ناقصة، كمّل كده'}
-            </T>
-            {top ? (
-              <T w="medium" style={{ fontSize: 13, color: top.level === 2 ? t.warn : t.fg }} numberOfLines={1}>
-                {gapText(top, report).title}
-              </T>
-            ) : null}
-          </View>
-          <Ionicons name="chevron-back" size={20} color={t.mute} />
-        </Card>
-      </Pressable>
 
       <Card style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>

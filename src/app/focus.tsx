@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Item } from '../components/Motion';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Ring, Screen, Sheet, Stepper, T } from '../components/ui';
-import { MenuButton } from '../components/SideMenu';
 import { ACTION, Swipe } from '../components/Swipe';
 import { showUndo } from '../lib/undo';
 import { useDataVersion } from '../lib/bus';
@@ -70,8 +70,8 @@ function Focus() {
   return (
     <Screen
       dense
-      title="بومودورو"
-      action={<MenuButton />}
+      title="ركّز"
+      onBack={() => (router.canGoBack() ? router.back() : router.replace('/tasks'))}
       aside={
         todayMin ? (
           <View style={[s_.chip, { backgroundColor: tint(t.sec.focus, 0.14) }]}>

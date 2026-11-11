@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { GOOGLE_USER, googleSupported } from '../../lib/google';
 import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
-import { lastSection, SECTION_PATH } from '../../lib/section';
+import { hubWasSeen, lastSection, SECTION_PATH } from '../../lib/section';
 import { useTheme, font } from '../../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -40,7 +40,8 @@ export default function TabsLayout() {
   const bar = { height: 64 + bottom, paddingTop: 4, paddingBottom: bottom };
   // First launch on the phone: the sign-in screen, until you sign in or skip it.
   if (googleSupported && !storage.getMeta(WELCOME_KEY) && !storage.getMeta(GOOGLE_USER)) return <Redirect href="/welcome" />;
-  // The app opens on the section you were in last (الجيم, العادات or الأهداف); switching sections saves it first.
+  // The app opens on its home page (the sections as cards); after that this layout is the gym.
+  if (!hubWasSeen()) return <Redirect href="/sections" />;
   if (lastSection() !== 'gym') return <Redirect href={SECTION_PATH[lastSection()]} />;
   return (
     <Tabs
