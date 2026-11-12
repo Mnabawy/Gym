@@ -3,14 +3,16 @@ import { Item } from '../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Card, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, Label, Ring, Screen, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { GoalForm } from '../../components/GoalForm';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { LogSheet } from './[id]';
 import { useDataVersion } from '../../lib/bus';
-import { deleteGoal, readGoals } from '../../lib/goalStore';
-import { activeKids, current, FOCUS_MAX, fmtAmount, IDLE_DAYS, idleDays, kidsOf, needsYou, nextTask, parentOf, progress, reviewDue, stalled, sumsUp, umbrellaProgress, umbrellaValue, type Goal } from '../../lib/goals';
+import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
+import { activeKids, bringBack, current, FOCUS_MAX, fmtAmount, IDLE_DAYS, idleDays, kidsOf, needsYou, nextTask, parentOf, progress, putLater, reviewDue, stalled, sumsUp, umbrellaProgress, umbrellaValue, type Goal } from '../../lib/goals';
+import { showUndo } from '../../lib/undo';
+import { MONTHS_AR } from '../../data/program';
 import { confirm } from '../../lib/confirm';
 import { dateKey } from '../../lib/logic';
 import { glow, ThemeProvider, tint, useTheme, useWarm } from '../../theme';
@@ -34,6 +36,16 @@ function Goals() {
   const goals = readGoals();
   const [adding, setAdding] = useState(false);
   const [logging, setLogging] = useState<Goal | null>(null);
+  const later = goals.filter((g) => g.later && !g.umbrella);
+  // Put off for later (بعدين) or bring back, with undo.
+  const toLater = (g: Goal) => {
+    saveGoal(putLater(g, today));
+    showUndo(`«${g.name}» اتأجّل لبعدين`, () => saveGoal(g));
+  };
+  const back = (g: Goal) => {
+    saveGoal(bringBack(g, today));
+    showUndo(`«${g.name}» رجع`, () => saveGoal(g));
+  };
   const remove = async (g: Goal) => {
     if (await confirm({ title: 'تمسح الهدف ده؟', body: g.umbrella ? 'هيتشال هو بس، والأهداف اللي تحته هتفضل لوحدها.' : 'هيتشال هو وكل اللي اتسجل فيه.', confirmLabel: 'امسح', danger: true })) deleteGoal(g.id);
   };
@@ -57,10 +69,33 @@ function Goals() {
         <>
           {/* Big goals first, each with the goals under it; then the goals on their own. */}
           {goals.filter((g) => g.umbrella).map((u) => <BigTile key={u.id} u={u} kids={kidsOf(goals, u.id)} today={today} onRemove={() => void remove(u)} />)}
-          {goals.filter((g) => !g.umbrella && !parentOf(goals, g)).map((g) => (
-            <Item key={g.id}><GoalTile g={g} today={today} onLog={() => setLogging(g)} onRemove={() => void remove(g)} /></Item>
+          {goals.filter((g) => !g.umbrella && !g.later && !parentOf(goals, g)).map((g) => (
+            <Item key={g.id}><GoalTile g={g} today={today} onLog={() => setLogging(g)} onLater={() => toLater(g)} onRemove={() => void remove(g)} /></Item>
           ))}
           <Btn label="+ هدف جديد" onPress={() => setAdding(true)} />
+          {/* Put off for later: kept with everything they have, out of the running count and the brief. */}
+          {later.length ? (
+            <>
+              <Label>{`بعدين · ${later.length}`}</Label>
+              <Card style={{ paddingVertical: 2, overflow: 'hidden' }}>
+                {later.map((g, i) => (
+                  <Item key={g.id}>
+                    <Swipe start={[{ icon: 'play-circle-outline', label: 'رجّعه', color: ACTION.green, onPress: () => back(g) }]}>
+                      <Pressable onPress={() => router.push(`/goals/${g.id}`)} accessibilityRole="button" accessibilityLabel={`${g.name}، متأجّل`} style={({ pressed }) => [s.later, { backgroundColor: t.card, borderTopWidth: i ? StyleSheet.hairlineWidth : 0, borderColor: t.line, opacity: pressed ? 0.6 : 1 }]}>
+                        <Ionicons name={g.icon as IconName} size={18} color={t.mute} />
+                        <View style={{ flex: 1, minWidth: 0 }}>
+                          <T style={{ fontSize: 14.5 }} numberOfLines={1}>{g.name}</T>
+                          <T style={{ fontSize: 12, color: t.mute }}>{`متأجّل من ${+g.later!.slice(8)} ${MONTHS_AR[+g.later!.slice(5, 7) - 1]} · ${Math.floor(progress(g) * 100)}%`}</T>
+                        </View>
+                        <Ionicons name="chevron-back" size={16} color={t.mute} />
+                      </Pressable>
+                    </Swipe>
+                  </Item>
+                ))}
+              </Card>
+              <T style={{ fontSize: 11.5, color: t.mute, paddingHorizontal: 4 }}>اسحب الهدف علشان ترجّعه. اللي فيه محفوظ زي ما هو</T>
+            </>
+          ) : null}
         </>
       )}
     </Screen>
@@ -68,7 +103,7 @@ function Goals() {
 }
 
 /** One goal: icon, name, where you are, its ring, the next step and a nudge when it's idle or the review is due. */
-function GoalTile({ g, today, onLog, onRemove }: { g: Goal; today: string; onLog: () => void; onRemove: () => void }) {
+function GoalTile({ g, today, onLog, onLater, onRemove }: { g: Goal; today: string; onLog: () => void; onLater: () => void; onRemove: () => void }) {
   const t = useTheme();
             const p = progress(g);
   const next = nextTask(g);
@@ -79,7 +114,7 @@ function GoalTile({ g, today, onLog, onRemove }: { g: Goal; today: string; onLog
       start={[{ icon: 'add-circle-outline', label: 'سجّل', color: ACTION.green, onPress: onLog }]}
       end={[
         { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: onRemove },
-        { icon: 'open-outline', label: 'افتح', color: ACTION.grey, onPress: () => router.push(`/goals/${g.id}`) },
+        { icon: 'time-outline', label: 'بعدين', color: ACTION.orange, onPress: onLater },
       ]}><Pressable
       onPress={() => router.push(`/goals/${g.id}`)}
       accessibilityRole="button"
@@ -149,7 +184,7 @@ function BigTile({ u, kids, today, onRemove }: { u: Goal; kids: Goal[]; today: s
           </Pressable>
           {kids.length ? (
             <View style={[s.kids, { borderColor: t.line }]}>
-              {kids.map((k) => {
+              {kids.filter((k) => !k.later).map((k) => {
                 const kp = progress(k);
                 const st = stalled(k, today);
                 return (
@@ -173,6 +208,7 @@ function BigTile({ u, kids, today, onRemove }: { u: Goal; kids: Goal[]; today: s
           ) : (
             <T style={{ fontSize: 12.5, color: t.mute }}>مفيش أهداف تحته لسه. افتحه وضيف الأهداف اللي هتوصّلك له</T>
           )}
+          {kids.some((k) => k.later) ? <T style={{ fontSize: 12, color: t.mute }}>{`${kids.filter((k) => k.later).length} تحته متأجّلين لبعدين`}</T> : null}
           {running > FOCUS_MAX ? <T style={{ fontSize: 12, color: t.warn }}>{`${running} أهداف شغالة في نفس الوقت. ركّز على ${FOCUS_MAX} وأجّل الباقي`}</T> : null}
         </View>
       </Swipe>
@@ -190,4 +226,5 @@ const s = StyleSheet.create({
   kid: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   kidBar: { height: 4, borderRadius: 2, overflow: 'hidden' },
   nudge: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 5 },
+  later: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 12 },
 });

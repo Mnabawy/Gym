@@ -3,7 +3,8 @@ import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { INPUT, Btn, Pill, Sheet, Stepper, T } from './ui';
 import { GOAL_TEMPLATES, fromTemplate, type GoalTemplate } from '../data/goalTemplates';
-import { activeKids, current, FOCUS_MAX, GOAL_COLORS, GOAL_ICONS, goalId, kidsOf, WEIGHTS, type Goal } from '../lib/goals';
+import { activeKids, current, FOCUS_MAX, GOAL_COLORS, GOAL_ICONS, goalId, kidsOf, putLater, WEIGHTS, type Goal } from '../lib/goals';
+import { showUndo } from '../lib/undo';
 import { readGoals, saveGoal } from '../lib/goalStore';
 import { daysBetween } from '../lib/gaps';
 import { dateKey, parseNum } from '../lib/logic';
@@ -34,13 +35,13 @@ export function GoalForm({ goal, onClose, onSaved, parent }: { goal?: Goal; onCl
   const isBig = goal ? !!goal.umbrella : tp?.key === 'big';
   const [f, setF] = useState(() =>
     goal
-      ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), now: String(current(goal)), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why, parent: goal.parent ?? '', weight: goal.weight ?? 1 }
+      ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), now: String(current(goal)), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why, obstacle: goal.obstacle ?? '', plan: goal.plan ?? '', parent: goal.parent ?? '', weight: goal.weight ?? 1 }
       : null,
   );
 
   const pick = (x: GoalTemplate) => {
     setTp(x);
-    setF({ name: x.name, icon: x.icon, color: x.color, unit: x.key !== 'big' && parentGoal ? parentGoal.unit : x.unit, start: '0', now: '', target: String(x.target), months: x.key === 'money' || x.key === 'big' ? 60 : x.key === 'skill' ? 12 : 0, why: '', parent: x.key === 'big' ? '' : parent ?? '', weight: 1 });
+    setF({ name: x.name, icon: x.icon, color: x.color, unit: x.key !== 'big' && parentGoal ? parentGoal.unit : x.unit, start: '0', now: '', target: String(x.target), months: x.key === 'money' || x.key === 'big' ? 60 : x.key === 'skill' ? 12 : 0, why: '', obstacle: '', plan: '', parent: x.key === 'big' ? '' : parent ?? '', weight: 1 });
   };
 
   if (!f) {
@@ -72,8 +73,13 @@ export function GoalForm({ goal, onClose, onSaved, parent }: { goal?: Goal; onCl
   const save = () => {
     if (!ok) return;
     const base = goal ?? fromTemplate(tp ?? GOAL_TEMPLATES[GOAL_TEMPLATES.length - 1], today);
-    const { parent: _p, weight: _w, ...plain } = base;
-    const g: Goal = { ...plain, name: f.name.trim(), icon: f.icon, color: f.color, unit: f.unit.trim(), start, target, due: f.months ? plusMonths(base.startDate, f.months) : null, why: f.why.trim(), ...(!isBig && f.parent ? { parent: f.parent, ...(f.weight > 1 ? { weight: f.weight } : {}) } : {}) };
+    const { parent: _p, weight: _w, obstacle: _o, plan: _pl, ...plain } = base;
+    const g: Goal = {
+      ...plain, name: f.name.trim(), icon: f.icon, color: f.color, unit: f.unit.trim(), start, target, due: f.months ? plusMonths(base.startDate, f.months) : null, why: f.why.trim(),
+      ...(!isBig && f.parent ? { parent: f.parent, ...(f.weight > 1 ? { weight: f.weight } : {}) } : {}),
+      ...(!isBig && f.obstacle.trim() ? { obstacle: f.obstacle.trim() } : {}),
+      ...(!isBig && f.plan.trim() ? { plan: f.plan.trim() } : {}),
+    };
     const gap = now - current(g);
     if (gap) g.entries = [...g.entries, { id: goalId(stamp()), date: today < g.startDate ? g.startDate : today, amount: gap, note: 'من «انت فين»' }];
     saveGoal(g);
@@ -119,6 +125,17 @@ export function GoalForm({ goal, onClose, onSaved, parent }: { goal?: Goal; onCl
 
       <T w="medium">ليه عايز توصل؟ · اختياري</T>
       <TextInput value={f.why} onChangeText={(v) => set({ why: v })} placeholder="السبب اللي هيخليك تكمّل لما تزهق" placeholderTextColor={t.mute} multiline maxLength={200} accessibilityLabel="ليه" style={[INPUT, s.field, { height: 70, paddingTop: 10, textAlignVertical: 'top', color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+
+      {/* If-then plan (WOOP): naming the obstacle and what you'll do about it beats just wanting it (see goals.ts). */}
+      {!isBig ? (
+        <>
+          <T w="medium">إيه اللي ممكن يوقفك؟ · اختياري</T>
+          <TextInput value={f.obstacle} onChangeText={(v) => set({ obstacle: v })} placeholder="مثلًا: أرجع من الشغل تعبان ومليش نفس" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="العقبة" style={[INPUT, s.field, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+          <T w="medium">لو حصل، هتعمل إيه؟</T>
+          <TextInput value={f.plan} onChangeText={(v) => set({ plan: v })} placeholder="مثلًا: أصغر خطوة في 10 دقايق بس" placeholderTextColor={t.mute} maxLength={120} accessibilityLabel="الخطة" style={[INPUT, s.field, { color: t.fg, backgroundColor: t.soft, ...font('body') }]} />
+          {f.obstacle.trim() && !f.plan.trim() ? <T style={{ fontSize: 12, color: t.mute }}>اكتب الخطة كمان: العقبة لوحدها من غير «هعمل إيه» مش بتفرق</T> : null}
+        </>
+      ) : null}
 
       {!isBig && bigs.length ? (
         <>
@@ -170,6 +187,17 @@ export function GoalForm({ goal, onClose, onSaved, parent }: { goal?: Goal; onCl
         {!goal ? <Btn label="رجوع" onPress={() => setF(null)} style={{ flex: 1 }} /> : null}
         <Btn label={goal ? 'احفظ' : 'ابدأ'} kind="solid" onPress={save} style={{ flex: 2, opacity: ok ? 1 : 0.5 }} />
       </View>
+      {/* Put it off for later: out of the running count, the brief and the nudges; everything in it is kept. */}
+      {goal && !goal.umbrella && !goal.later ? (
+        <Btn
+          label="أجّله لبعدين"
+          onPress={() => {
+            saveGoal(putLater(goal, today));
+            showUndo(`«${goal.name}» اتأجّل لبعدين`, () => saveGoal(goal));
+            onClose();
+          }}
+        />
+      ) : null}
     </Sheet>
   );
 }

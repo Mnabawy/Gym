@@ -11,7 +11,7 @@ import { ACTION, Swipe } from '../../components/Swipe';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
-import { addNextStep, addReview, allWins, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, milestones, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
+import { addNextStep, addReview, allWins, bringBack, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, milestones, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
 import { addDays, daysBetween } from '../../lib/gaps';
 import { dateKey, parseNum } from '../../lib/logic';
 import { confirm } from '../../lib/confirm';
@@ -95,6 +95,14 @@ function GoalPage() {
         </Sheet>
       ) : null}
 
+      {g.later ? (
+        <View style={[s.nudge, { backgroundColor: t.soft }]}>
+          <Ionicons name="time-outline" size={18} color={t.mute} />
+          <T style={{ flex: 1, fontSize: 13, color: t.mute, lineHeight: 20 }}>{`متأجّل لبعدين من ${dayLabel(g.later)}. مش في العدّ ولا في رسالة الصبح، وكل اللي فيه محفوظ.`}</T>
+          <Btn label="رجّعه" kind="solid" onPress={() => { saveGoal(bringBack(g, today)); showUndo(`«${g.name}» رجع`, () => saveGoal(g)); }} />
+        </View>
+      ) : null}
+
       <View style={{ gap: 0 }}>
         <T w="numBold" style={{ fontSize: 38, lineHeight: 48, letterSpacing: -0.5, alignSelf: 'flex-start', maxWidth: '100%' }} numberOfLines={1} adjustsFontSizeToFit>{fmt(now)}</T>
         <T style={{ fontSize: 12.5, color: t.mute }}>{there ? 'وصلت للهدف 🎉' : `فاضل ${fmt(Math.abs(pc.remaining))}${pc.eta ? ` · هتوصل ${monthLabel(pc.eta)}` : ''}`}</T>
@@ -141,7 +149,20 @@ function GoalPage() {
         </View>
       ) : null}
 
-      {idle >= IDLE_DAYS && !there ? (
+      {/* Your if-then plan (WOOP): what's likely to stop you and what you'll do then. */}
+      {g.obstacle && g.plan ? (
+        <View style={[s.why, { borderColor: g.color, backgroundColor: t.card, gap: 4 }]}>
+          <T style={{ fontSize: 12, color: t.mute }}>خطتك لو اتزنقت</T>
+          <T style={{ fontSize: 14, lineHeight: 21 }}>
+            <T w="semi" style={{ fontSize: 14 }}>لو </T>{g.obstacle}
+          </T>
+          <T style={{ fontSize: 14, lineHeight: 21 }}>
+            <T w="semi" style={{ fontSize: 14, color: g.color }}>هعمل </T>{g.plan}
+          </T>
+        </View>
+      ) : null}
+
+      {idle >= IDLE_DAYS && !there && !g.later ? (
         <View style={[s.nudge, { backgroundColor: t.warnSoft }]}>
           <Ionicons name="alert-circle" size={18} color={t.warn} />
           <T style={{ flex: 1, fontSize: 13, color: t.warn, lineHeight: 20 }}>

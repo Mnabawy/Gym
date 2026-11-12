@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateStage, duplicateTask } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateStage, duplicateTask , bringBack, ifThen, putLater } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -258,4 +258,37 @@ test("a big goal's week counts the goals under it", () => {
   expect(w.gained).toBe(100);
   expect(w.tasks).toBe(1);
   expect(w.share).toBeCloseTo(0.1);
+});
+
+test('later (بعدين): out of the running count and the nudges, everything kept, back without looking stalled', () => {
+  const a: Goal = { ...base, id: 'a', parent: 'u', unit: '$', start: 0, target: 100000, entries: [{ id: 'e1', date: '2026-02-01', amount: 50000 }] };
+  const h: Goal = { ...base, id: 'h', parent: 'u', unit: 'ساعة', start: 0, target: 100, weight: 3, entries: [] };
+  const off = putLater(h, '2026-03-01');
+  expect(off.later).toBe('2026-03-01');
+  expect(off.entries).toEqual(h.entries); // nothing lost
+  expect(activeKids([a, off]).map((k) => k.id)).toEqual(['a']);
+  expect(stalled(off, '2026-06-01')).toBe(false);
+  expect(needsYou([a, off], '2026-02-05')?.id).toBe('a'); // the heavier one is put off, so it isn't picked
+  // A big goal can't be put off.
+  const u: Goal = { ...base, id: 'u', umbrella: true, stages: [] };
+  expect(putLater(u, '2026-03-01').later).toBeUndefined();
+  // Brought back: running again, and the day counts as activity.
+  const on = bringBack(off, '2026-06-01');
+  expect(on.later).toBeUndefined();
+  expect(on.back).toBe('2026-06-01');
+  expect(idleDays(on, '2026-06-03')).toBe(2);
+  expect(stalled(on, '2026-06-03')).toBe(false);
+  // Parsing keeps both; a big goal never carries «later».
+  const [p1, p2] = parseGoals(JSON.stringify([off, { ...u, later: '2026-03-01' }]));
+  expect(p1.later).toBe('2026-03-01');
+  expect(p2.later).toBeUndefined();
+  expect(parseGoals(JSON.stringify([{ ...off, later: 'soon' }]))[0].later).toBeUndefined();
+});
+
+test('if-then plan: kept trimmed, shown only when both halves are there', () => {
+  const g = parseGoals(JSON.stringify([{ ...base, obstacle: '  أرجع تعبان ', plan: 'أصغر خطوة في 10 دقايق' }]))[0];
+  expect(g.obstacle).toBe('أرجع تعبان');
+  expect(ifThen(g)).toBe('لو أرجع تعبان، هعمل أصغر خطوة في 10 دقايق');
+  expect(ifThen({ ...g, plan: undefined })).toBeNull();
+  expect(parseGoals(JSON.stringify([{ ...base, obstacle: '   ' }]))[0].obstacle).toBeUndefined();
 });

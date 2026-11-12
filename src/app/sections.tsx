@@ -58,9 +58,9 @@ export default function Sections() {
 
   // Goals: the big goal if there is one, else the first goal.
   const goals = readGoals();
-  const goal = goals.find((g) => g.umbrella) ?? goals[0];
+  const goal = goals.find((g) => g.umbrella) ?? goals.find((g) => !g.later) ?? goals[0];
   const goalShare = goal ? (goal.umbrella ? umbrellaProgress(goal, kidsOf(goals, goal.id)) : progress(goal)) : 0;
-  const step = goals.filter((g) => !g.umbrella).map(nextTask).find(Boolean);
+  const step = goals.filter((g) => !g.umbrella && !g.later).map(nextTask).find(Boolean);
 
   // Quitting: the one with the longest clean run right now.
   const now = useNow(60000);

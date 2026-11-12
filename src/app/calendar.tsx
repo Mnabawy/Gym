@@ -47,17 +47,17 @@ export default function CalendarScreen() {
 
   // What can be picked inside the source (one habit / goal / quit, or all).
   const items: { id: string; name: string }[] =
-    src === 'habits' ? readHabits().map((h) => ({ id: h.id, name: h.name })) : src === 'goals' ? readGoals().map((g) => ({ id: g.id, name: g.name })) : src === 'quit' ? readQuits().map((q, i) => ({ id: q.id, name: quitLabel(q, i) })) : [];
+    src === 'habits' ? readHabits().map((h) => ({ id: h.id, name: h.name })) : src === 'goals' ? readGoals().filter((g) => !g.later).map((g) => ({ id: g.id, name: g.name })) : src === 'quit' ? readQuits().map((q, i) => ({ id: q.id, name: quitLabel(q, i) })) : [];
   const pick = only && items.some((x) => x.id === only) ? only : undefined;
 
   let marks: Marks = {};
   if (src === 'gym') marks = gymMarks(storage.trainedDays(), dayTitle);
   else if (src === 'habits') marks = habitMarks(readHabits(), readHabitLog(), readHabitParts(), days, today, pick);
-  else if (src === 'goals') marks = goalMarks(readGoals(), today, pick);
+  else if (src === 'goals') marks = goalMarks(readGoals().filter((g) => !g.later), today, pick);
   else marks = quitMarks(readQuits(), days, today, pick);
 
   // Goals: each step's time as a bar across the days it runs (one color per step, one lane per goal).
-  const spans: Span[] = src === 'goals' ? goalSpans(readGoals(), pick) : [];
+  const spans: Span[] = src === 'goals' ? goalSpans(readGoals().filter((g) => !g.later), pick) : [];
   const lanes = spans.reduce((a, x) => Math.max(a, x.lane + 1), 0);
   const monthSpans = spans.filter((x) => x.to >= days[0] && x.from <= days[days.length - 1]);
   const daySpans = spans.filter((x) => x.from <= day && x.to >= day);

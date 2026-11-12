@@ -63,13 +63,14 @@ export function BigGoalPage({ u, today, onLog }: { u: Goal; today: string; onLog
       <T w="semi" style={{ fontSize: 13, color: t.mute, marginTop: 6 }}>{kids.length ? `الأهداف اللي تحته · ${running} شغالة` : 'الأهداف اللي تحته'}</T>
       {kids.length ? (
         <View style={[s.card, { backgroundColor: t.card }]}>
-          {kids.map((k, i) => {
+          {/* Goals put off for later sit at the end, faded. */}
+          {[...kids.filter((k) => !k.later), ...kids.filter((k) => k.later)].map((k, i) => {
             const kp = progress(k);
             const st = stalled(k, today);
             const nx = nextTask(k);
             const add = share(u, kids, k);
             return (
-              <Pressable key={k.id} onPress={() => router.push(`/goals/${k.id}`)} accessibilityRole="button" style={({ pressed }) => [s.kid, { borderBottomWidth: i < kids.length - 1 ? StyleSheet.hairlineWidth : 0, borderColor: t.line, opacity: pressed ? 0.6 : 1 }]}>
+              <Pressable key={k.id} onPress={() => router.push(`/goals/${k.id}`)} accessibilityRole="button" style={({ pressed }) => [s.kid, { borderBottomWidth: i < kids.length - 1 ? StyleSheet.hairlineWidth : 0, borderColor: t.line, opacity: pressed ? 0.6 : k.later ? 0.55 : 1 }]}>
                 <View style={[s.kidIcon, { backgroundColor: tint(k.color, 0.14) }]}>
                   <Ionicons name={k.icon as IconName} size={17} color={k.color} />
                 </View>
@@ -78,6 +79,7 @@ export function BigGoalPage({ u, today, onLog }: { u: Goal; today: string; onLog
                     <T w="semi" style={{ fontSize: 14.5, flexShrink: 1 }} numberOfLines={1}>{k.name}</T>
                     {(k.weight ?? 1) > 1 ? <T style={{ fontSize: 11, color: t.mute }}>{WEIGHTS[k.weight ?? 1]}</T> : null}
                     {st ? <T w="semi" style={{ fontSize: 11, color: t.bad }}>{`واقف ${STALL_DAYS}+ يوم`}</T> : null}
+                    {k.later ? <T w="semi" style={{ fontSize: 11, color: t.mute }}>بعدين</T> : null}
                   </View>
                   <View style={[s.kidBar, { backgroundColor: tint(k.color, 0.15) }]}>
                     <View style={{ width: `${kp * 100}%`, height: 5, borderRadius: 3, backgroundColor: k.color }} />

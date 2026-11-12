@@ -46,6 +46,13 @@ export type Goal = {
   /** The big goal this one sits under, and how much it counts there (1 عادي, 2 مهم, 3 الأهم). */
   parent?: string;
   weight?: number;
+  /** Put off for later (بعدين) on this day: out of the running count, the brief and the nudges until brought back. */
+  later?: string;
+  /** The day it was brought back from later (counts as activity, so it isn't stalled the moment it's back). */
+  back?: string;
+  /** If-then plan (WOOP / implementation intention): what's likely to stop you, and what you'll do then. */
+  obstacle?: string;
+  plan?: string;
   entries: Entry[];
   wins: Win[];
   reviews: Review[];
@@ -108,6 +115,10 @@ export function parseGoals(raw: string | null): Goal[] {
       ...(g.umbrella === true ? { umbrella: true } : {}),
       ...(g.umbrella !== true && typeof g.parent === 'string' && g.parent && g.parent !== g.id ? { parent: g.parent } : {}),
       ...(g.weight === 2 || g.weight === 3 ? { weight: g.weight } : {}),
+      ...(g.umbrella !== true && isDate(g.later) ? { later: g.later } : {}),
+      ...(isDate(g.back) ? { back: g.back } : {}),
+      ...(str(g.obstacle).trim() ? { obstacle: str(g.obstacle).trim() } : {}),
+      ...(str(g.plan).trim() ? { plan: str(g.plan).trim() } : {}),
     });
   }
   return out;
@@ -285,6 +296,7 @@ export function lastActivity(g: Goal): string {
   g.stages.forEach((s) => s.tasks.forEach((t) => see(t.done)));
   g.reviews.forEach((r) => see(r.date));
   g.wins.forEach((w) => see(w.date));
+  see(g.back);
   return d;
 }
 
@@ -473,11 +485,31 @@ export function share(u: Goal, kids: readonly Goal[], k: Goal): number {
   return (progress(k) * (k.weight ?? 1)) / w;
 }
 
-/** The goals under a big one that are still running (not at their target). */
-export const activeKids = (kids: readonly Goal[]) => kids.filter((k) => progress(k) < 1);
+/** The goals under a big one that are still running (not at their target, not put off for later). */
+export const activeKids = (kids: readonly Goal[]) => kids.filter((k) => progress(k) < 1 && !k.later);
 
-/** A goal under a big one with nothing logged or ticked for STALL_DAYS. */
-export const stalled = (k: Goal, today: string) => progress(k) < 1 && idleDays(k, today) >= STALL_DAYS;
+/** A goal under a big one with nothing logged or ticked for STALL_DAYS (a goal put off for later never is). */
+export const stalled = (k: Goal, today: string) => progress(k) < 1 && !k.later && idleDays(k, today) >= STALL_DAYS;
+
+// ---- Later (بعدين) and the if-then plan ----
+// Putting a goal off is a choice, not a failure: committing to a few goals shields them from the rest (goal shielding,
+// Shah, Friedman & Kruglanski 2002, JPSP 83(6)), and pausing or letting go of a goal is part of handling many goals
+// (multiple goals regulation, Kim et al., Educational Psychologist). A goal put off for later keeps everything it has,
+// but leaves the running count, the morning brief and the nudges until you bring it back.
+// The if-then plan is WOOP (Oettingen): name the obstacle, then plan "if it happens, I'll …" — an implementation
+// intention (Gollwitzer & Sheeran 2006: d = 0.65 over 94 tests; a 2024 synthesis of 642 tests puts the bias-corrected
+// effect lower, d ≈ 0.15–0.35, still positive); mental contrasting with such a plan: g = 0.34 over 24 trials
+// (Wang, Wang & Gai 2021, Frontiers in Psychology). It shows on the goal page and in the brief when the goal is idle.
+
+/** Put a goal off for later (not a big goal). */
+export const putLater = (g: Goal, today: string): Goal => (g.umbrella ? g : { ...g, later: today });
+/** Bring a goal back from later; the day counts as activity so it isn't stalled straight away. */
+export function bringBack(g: Goal, today: string): Goal {
+  const { later: _l, ...rest } = g;
+  return { ...rest, back: today };
+}
+/** The if-then plan as one line, when both halves are written. */
+export const ifThen = (g: Goal) => (g.obstacle && g.plan ? `لو ${g.obstacle}، هعمل ${g.plan}` : null);
 
 /** The goal that most needs you today: a stalled one first, then the one furthest behind (by weight). */
 export function needsYou(kids: readonly Goal[], today: string): Goal | null {

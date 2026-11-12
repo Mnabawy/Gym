@@ -10,7 +10,7 @@ import { projected, type Current } from './schedule';
 import { movesFor, splitShopping, tripDays } from './shop';
 import type { WeighIn } from './weight';
 import { isDue, type Habit } from './habits';
-import { nextTask, reviewDue, type Goal } from './goals';
+import { IDLE_DAYS, idleDays, ifThen, nextTask, reviewDue, type Goal } from './goals';
 import { clean, runLabel, type Quit } from './quit';
 import { todayView, type Task } from './tasks';
 
@@ -69,9 +69,13 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   lines.push(`💧 ${Math.round(waterGoalMl(x.waterL, training) / 100) / 10} لتر مية`);
   const habits = (x.habits ?? []).filter((h) => isDue(h, date));
   if (habits.length) lines.push(`✅ عاداتك: ${habits.map((h) => (h.cue ? `${h.name} (${h.cue})` : h.name)).join('، ')}`);
-  for (const g of (x.goals ?? []).filter((y) => !y.umbrella)) {
+  // Goals put off for later (بعدين) stay out of the brief.
+  for (const g of (x.goals ?? []).filter((y) => !y.umbrella && !y.later)) {
     const n = nextTask(g);
     if (n) lines.push(`🎯 ${g.name}: ${n.task.title}`);
+    // Stuck for a while: your own if-then plan for this goal.
+    const plan = ifThen(g);
+    if (plan && idleDays(g, date) >= IDLE_DAYS) lines.push(`🛡 ${plan}`);
     if (reviewDue(g, date)) lines.push(`📝 مراجعة الأسبوع لـ ${g.name}: دقيقتين`);
   }
   if (x.tasks?.length) {

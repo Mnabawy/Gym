@@ -61,6 +61,20 @@ test("each goal's next step", () => {
   expect(b).toContain(`🎯 ${goal.name}: ${goal.stages[0].tasks[0].title}`);
 });
 
+test('a goal put off for later stays out of the brief', () => {
+  const goal = fromTemplate(GOAL_TEMPLATES.find((x) => x.key === 'money')!, '2026-10-20', 1);
+  const b = morningBrief(TODAY, { ...base, goals: [{ ...goal, later: '2026-11-01' }] }).body;
+  expect(b).not.toContain('🎯');
+  expect(b).not.toContain(`مراجعة الأسبوع لـ ${goal.name}`);
+});
+
+test("an idle goal brings up your if-then plan", () => {
+  const goal = { ...fromTemplate(GOAL_TEMPLATES.find((x) => x.key === 'money')!, '2026-10-20', 1), obstacle: 'أرجع تعبان', plan: 'أصغر خطوة في 10 دقايق' };
+  expect(morningBrief(TODAY, { ...base, goals: [goal] }).body).toContain('🛡 لو أرجع تعبان، هعمل أصغر خطوة في 10 دقايق');
+  // Moving (started today): no plan line.
+  expect(morningBrief(TODAY, { ...base, goals: [{ ...goal, startDate: TODAY }] }).body).not.toContain('🛡');
+});
+
 test('a goal whose weekly review is due', () => {
   const goal = { ...fromTemplate(GOAL_TEMPLATES.find((x) => x.key === 'money')!, '2026-10-20', 1) };
   expect(morningBrief(TODAY, { ...base, goals: [goal] }).body).toContain(`📝 مراجعة الأسبوع لـ ${goal.name}`);
