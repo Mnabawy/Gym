@@ -83,3 +83,10 @@ export function taskFollows(tasks: readonly Task[], goal: string, step: string, 
   });
   return changed ? next : null;
 }
+
+/** How many open steps are planned on each day (dots on the period calendar). */
+export function plannedCounts(goals: readonly Goal[]): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const p of stepsBetween(goals, '0000-01-01', '9999-12-31')) out[p.date] = (out[p.date] ?? 0) + 1;
+  return out;
+}

@@ -25,16 +25,20 @@ const plusMonths = (from: string, n: number) => {
  */
 const stamp = () => Date.now();
 
-export function GoalForm({ goal, onClose, onSaved, parent }: { goal?: Goal; onClose: () => void; onSaved?: (g: Goal) => void; parent?: string }) {
+/** `big`: a new big goal (هدف كبير / مجال) straight away, without the template list. */
+export function GoalForm({ goal, onClose, onSaved, parent, big }: { goal?: Goal; onClose: () => void; onSaved?: (g: Goal) => void; parent?: string; big?: boolean }) {
   const t = useTheme();
   const today = dateKey();
-  const [tp, setTp] = useState<GoalTemplate | null>(null);
+  const bigTemplate = big && !goal ? GOAL_TEMPLATES.find((x) => x.key === 'big') ?? null : null;
+  const [tp, setTp] = useState<GoalTemplate | null>(bigTemplate);
   const all = readGoals();
   const bigs = all.filter((u) => u.umbrella && u.id !== goal?.id);
   const parentGoal = parent ? bigs.find((u) => u.id === parent) : undefined;
   const isBig = goal ? !!goal.umbrella : tp?.key === 'big';
   const [f, setF] = useState(() =>
-    goal
+    bigTemplate
+      ? { name: bigTemplate.name, icon: bigTemplate.icon, color: bigTemplate.color, unit: bigTemplate.unit, start: '0', now: '', target: String(bigTemplate.target), months: 60, why: '', obstacle: '', plan: '', parent: '', weight: 1 }
+      : goal
       ? { name: goal.name, icon: goal.icon, color: goal.color, unit: goal.unit, start: String(goal.start), now: String(current(goal)), target: String(goal.target), months: goal.due ? Math.max(1, Math.round(daysBetween(goal.startDate, goal.due) / 30.44)) : 0, why: goal.why, obstacle: goal.obstacle ?? '', plan: goal.plan ?? '', parent: goal.parent ?? '', weight: goal.weight ?? 1 }
       : null,
   );

@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { Btn, MiniSwitch, Pill, Sheet, T } from './ui';
-import { MonthCalendar } from './MonthCalendar';
+import { Btn, MiniSwitch, Sheet, T } from './ui';
+import { RangeCalendar } from './MonthCalendar';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { readGoals } from '../lib/goalStore';
-import { stepsBetween, stepsToTasks, taskFor, type PlannedStep } from '../lib/goalTasks';
+import { plannedCounts, stepsBetween, stepsToTasks, taskFor, type PlannedStep } from '../lib/goalTasks';
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { storage } from '../lib/storage';
@@ -17,15 +17,9 @@ import { tap } from '../lib/timer';
 import { tint, useTheme } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type Range = 'week' | 'two' | 'month' | 'custom';
 
 const dayAr = (k: string) => `${WEEKDAYS_AR[weekdayOf(k)]} ${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 const short = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
-/** The last day of the month `k` is in. */
-const monthEnd = (k: string) => {
-  const d = new Date(+k.slice(0, 4), +k.slice(5, 7), 0);
-  return dateKey(d);
-};
 
 /**
  * «خطوات الفترة» on the goals page: pick a stretch of days, see the open steps your running goals planned in it, and
@@ -34,19 +28,17 @@ const monthEnd = (k: string) => {
 export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
   const t = useTheme();
   const today = dateKey();
-  const [range, setRange] = useState<Range>('week');
-  const [from, setFrom] = useState(today);
-  const [to, setTo] = useState(addDays(today, 13));
-  const [picking, setPicking] = useState<'from' | 'to' | null>(null);
+  // The stretch, picked on a real month calendar: first tap = from, second = to. Starts on the coming week.
+  const [from, setFrom] = useState<string | null>(today);
+  const [to, setTo] = useState<string | null>(addDays(today, 6));
   const [space, setSpace] = useState<Space>(() => (storage.getMeta('taskSpace') === 'work' ? 'work' : 'personal'));
   const [off, setOff] = useState<Set<string>>(new Set());
 
-  const span: [string, string] =
-    range === 'week' ? [today, addDays(today, 6)] : range === 'two' ? [today, addDays(today, 13)] : range === 'month' ? [today, monthEnd(today)] : from <= to ? [from, to] : [to, from];
-  // Steps already late (planned before today) come along on «الأسبوع ده» and the others that start today.
   const goals = readGoals();
   const tasks = readTasks();
-  const steps = stepsBetween(goals, range === 'custom' ? span[0] : '0000-01-01', span[1]);
+  const end = to ?? from;
+  // The days picked, plus the steps already late when the stretch starts today or before (they're still owed).
+  const steps = from && end ? [...(from <= today ? stepsBetween(goals, '0000-01-01', addDays(from, -1)) : []), ...stepsBetween(goals, from, end)] : [];
   const key = (p: PlannedStep) => `${p.goal.id}|${p.step.id}`;
   const open = steps.filter((p) => !taskFor(tasks, p.goal.id, p.step.id));
   const picked = open.filter((p) => !off.has(key(p)));
@@ -80,37 +72,10 @@ export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
 
   return (
     <Sheet visible onClose={onClose} title="خطوات الفترة" sub="اختار فترة، وحوّل خطوات أهدافك فيها لمهام في مهامي">
-      <View style={s.row}>
-        <Pill label="الأسبوع ده" on={range === 'week'} onPress={() => setRange('week')} />
-        <Pill label="أسبوعين" on={range === 'two'} onPress={() => setRange('two')} />
-        <Pill label="لآخر الشهر" on={range === 'month'} onPress={() => setRange('month')} />
-        <Pill label="فترة تانية" on={range === 'custom'} onPress={() => setRange('custom')} />
-      </View>
-      {range === 'custom' ? (
-        <>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            {(['from', 'to'] as const).map((k) => (
-              <Pressable key={k} onPress={() => setPicking(picking === k ? null : k)} accessibilityRole="button" accessibilityState={{ expanded: picking === k }} style={[s.date, { backgroundColor: picking === k ? t.okSoft : t.soft }]}>
-                <T style={{ fontSize: 12, color: t.mute }}>{k === 'from' ? 'من' : 'لحد'}</T>
-                <T w="semi" style={{ fontSize: 14.5 }}>{dayAr(k === 'from' ? from : to)}</T>
-              </Pressable>
-            ))}
-          </View>
-          {picking ? (
-            <MonthCalendar
-              value={picking === 'from' ? from : to}
-              today={today}
-              onPick={(d) => {
-                if (picking === 'from') setFrom(d);
-                else setTo(d);
-                setPicking(picking === 'from' ? 'to' : null);
-              }}
-            />
-          ) : null}
-        </>
-      ) : (
-        <T style={{ fontSize: 12.5, color: t.mute }}>{`لحد ${dayAr(span[1])}، ومعاها الخطوات اللي اتأخرت`}</T>
-      )}
+      <RangeCalendar today={today} from={from} to={to} marks={plannedCounts(goals)} onChange={(f, x) => { setFrom(f); setTo(x); setOff(new Set()); }} />
+      <T style={{ fontSize: 12.5, color: t.mute, textAlign: 'center' }}>
+        {!from ? 'دوس على أول يوم' : !to ? `من ${dayAr(from)} · دوس على آخر يوم (أو سيبه يوم واحد)` : `من ${dayAr(from)} لحد ${dayAr(to)}`}
+      </T>
 
       {groups.length ? (
         groups.map(({ goal, items }) => (
@@ -146,7 +111,7 @@ export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
         ))
       ) : (
         <T style={{ fontSize: 13.5, color: t.mute, lineHeight: 21, textAlign: 'center', paddingVertical: 12 }}>
-          مفيش خطوات مخططة في الفترة دي. الخطوات بتاخد مواعيد لما الهدف يبقى ليه ميعاد نهائي، أو لما تحط ميعاد للخطوة بنفسك.
+          {from ? 'مفيش خطوات مخططة في الفترة دي. الخطوات بتاخد مواعيد لما الهدف يبقى ليه ميعاد نهائي، أو لما تحط ميعاد للخطوة بنفسك.' : 'اختار الفترة من التقويم'}
         </T>
       )}
 
@@ -163,8 +128,6 @@ export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
 }
 
 const s = StyleSheet.create({
-  row: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  date: { flex: 1, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, gap: 2, minHeight: 52 },
   card: { borderRadius: 12, borderWidth: StyleSheet.hairlineWidth, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, minHeight: 44 },
   icon: { width: 26, height: 26, borderRadius: 7, alignItems: 'center', justifyContent: 'center' },
