@@ -51,6 +51,7 @@ function Goals() {
   const goals = readGoals();
   const [tab, setTab] = useState<Tab>('today');
   const [adding, setAdding] = useState(false);
+  const [addingBig, setAddingBig] = useState(false);
   const [logging, setLogging] = useState<Goal | null>(null);
   const [steps, setSteps] = useState(false);
 
@@ -88,6 +89,7 @@ function Goals() {
         </View>
       }>
       {adding ? <GoalForm onClose={() => setAdding(false)} onSaved={(g) => router.push(`/goals/${g.id}`)} /> : null}
+      {addingBig ? <GoalForm big onClose={() => setAddingBig(false)} onSaved={(g) => router.push(`/goals/${g.id}`)} /> : null}
       {logging ? <LogSheet g={logging} onClose={() => setLogging(null)} /> : null}
       {steps ? <GoalStepsSheet onClose={() => setSteps(false)} /> : null}
 
@@ -116,7 +118,7 @@ function Goals() {
             })}
           </View>
           {tab === 'today' ? <Today t={t} today={today} goals={goals} running={running} later={later} onBack={back} onSteps={() => setSteps(true)} /> : null}
-          {tab === 'mine' ? <Mine t={t} today={today} goals={goals} running={running} later={later} onLog={setLogging} onLater={toLater} onRemove={(g) => void remove(g)} onSeeLater={() => setTab('later')} onAdd={() => setAdding(true)} /> : null}
+          {tab === 'mine' ? <Mine t={t} today={today} goals={goals} running={running} later={later} onLog={setLogging} onLater={toLater} onRemove={(g) => void remove(g)} onSeeLater={() => setTab('later')} onAdd={() => setAdding(true)} onAddBig={() => setAddingBig(true)} /> : null}
           {tab === 'later' ? <Later t={t} goals={goals} later={later} onBack={back} /> : null}
           {tab === 'done' ? <Done t={t} goals={plain} done={done} /> : null}
         </>
@@ -232,7 +234,7 @@ function NeedRow({ t, first, icon, color, label, aside, asideColor, onPress }: {
 // ---- أهدافي ----
 
 /** Every running goal, under its big goal (each big goal = one area), then the ones on their own. */
-function Mine({ t, today, goals, running, later, onLog, onLater, onRemove, onSeeLater, onAdd }: { t: Theme; today: string; goals: Goal[]; running: Goal[]; later: Goal[]; onLog: (g: Goal) => void; onLater: (g: Goal) => void; onRemove: (g: Goal) => void; onSeeLater: () => void; onAdd: () => void }) {
+function Mine({ t, today, goals, running, later, onLog, onLater, onRemove, onSeeLater, onAdd, onAddBig }: { t: Theme; today: string; goals: Goal[]; running: Goal[]; later: Goal[]; onLog: (g: Goal) => void; onLater: (g: Goal) => void; onRemove: (g: Goal) => void; onSeeLater: () => void; onAdd: () => void; onAddBig: () => void }) {
   const bigs = goals.filter((g) => g.umbrella);
   const alone = running.filter((g) => !parentOf(goals, g));
   const rows = (list: Goal[]) => (
@@ -286,7 +288,10 @@ function Mine({ t, today, goals, running, later, onLog, onLater, onRemove, onSee
         </>
       ) : null}
       {!running.length && !later.length ? <T style={{ fontSize: 13, color: t.mute, textAlign: 'center' }}>كل أهدافك خلصت 🎉 ضيف الهدف الجاي</T> : null}
-      <Btn label="+ هدف جديد" kind="solid" onPress={onAdd} />
+      <View style={{ flexDirection: 'row', gap: 8 }}>
+        <Btn label="+ هدف جديد" kind="solid" onPress={onAdd} style={{ flex: 1 }} />
+        <Btn label="+ هدف كبير (مجال)" onPress={onAddBig} style={{ flex: 1 }} />
+      </View>
     </>
   );
 }
