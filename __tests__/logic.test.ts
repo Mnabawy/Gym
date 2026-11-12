@@ -1,18 +1,21 @@
 /// <reference types="jest" />
-import { PLAN_WEEKDAYS, PROGRAM, dayFor, dayMuscles } from '../src/data/program';
+import { PLAN_WEEKDAYS, PROGRAM, dayFor, dayMuscles, dayTitle } from '../src/data/program';
 import { MEALS, MEAL_ORDER, TARGETS, WEEK_MENU, FOODS } from '../src/data/nutrition';
 import { SHOPPING } from '../src/data/shopping';
 import { addMonths, bestE1rm, countAr, TIMES, SETS, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, increaseTip, weekdayOf } from '../src/lib/logic';
 
 describe('program data matches the PDF', () => {
-  test('training days are Mon, Tue, Wed, Fri, Sat', () => {
-    expect(PROGRAM.map((d) => d.weekday)).toEqual([1, 2, 3, 5, 6]);
+  test('training days are Mon, Tue, Wed, Fri (the two leg days are one since Nov 2026)', () => {
+    expect(PROGRAM.map((d) => d.weekday)).toEqual([1, 2, 3, 5]);
     expect(dayFor(0)).toBeUndefined();
     expect(dayFor(4)).toBeUndefined();
+    expect(dayFor(6)).toBeUndefined();
+    expect(dayTitle(6)).toBe('أمامية الفخد وسمانة'); // old sessions keep their name
+    expect(dayTitle(3)).toBe('رجل وسمانة');
   });
   test('sets per day', () => {
     const sets = PROGRAM.map((d) => d.exercises.reduce((a, e) => a + e.sets, 0));
-    expect(sets).toEqual([17, 18, 17, 19, 14]);
+    expect(sets).toEqual([17, 18, 19, 19]);
   });
   test('rest time follows the tag', () => {
     for (const e of PROGRAM.flatMap((d) => d.exercises)) expect(e.restSec).toBe(e.tag === 'heavy' ? 150 : 90);
@@ -128,7 +131,7 @@ describe('attendance calendar', () => {
   });
   test('month stats', () => {
     const r = monthStats(monthCells(2026, 10), new Set(['2026-11-02']), PLAN_WEEKDAYS, '2026-11-04', '2026-11-02');
-    expect(r).toEqual({ done: 1, missed: 1, left: 19, rate: 0.5 });
+    expect(r).toEqual({ done: 1, missed: 1, left: 15, rate: 0.5 });
     expect(monthStats(monthCells(2026, 10), new Set(), PLAN_WEEKDAYS, '2026-11-04', undefined).rate).toBeNull();
   });
   test('day muscles', () => {

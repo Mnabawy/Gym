@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Card, Label, Ring, Screen, T } from '../components/ui';
-import { dayFor, MONTHS_AR, WEEKDAYS_AR } from '../data/program';
+import { dayFor, dayTitle, MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
 import { CAL_SOURCES, daysIn, quitLabel, goalMarks, goalSpans, weekPieces, type Span, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
 import { readGoals } from '../lib/goalStore';
@@ -51,7 +51,7 @@ export default function CalendarScreen() {
   const pick = only && items.some((x) => x.id === only) ? only : undefined;
 
   let marks: Marks = {};
-  if (src === 'gym') marks = gymMarks(storage.trainedDays(), (w) => dayFor(w)?.titleAr ?? '');
+  if (src === 'gym') marks = gymMarks(storage.trainedDays(), dayTitle);
   else if (src === 'habits') marks = habitMarks(readHabits(), readHabitLog(), readHabitParts(), days, today, pick);
   else if (src === 'goals') marks = goalMarks(readGoals(), today, pick);
   else marks = quitMarks(readQuits(), days, today, pick);

@@ -53,7 +53,7 @@ test('applyProgram replaces a day everywhere, null brings the PDF back', () => {
   applyProgram(null);
   expect(ALL_EXERCISES.length).toBe(Object.values(PDF_PROGRAM).flat().length);
   expect(exerciseById('deadlift')).toBeDefined();
-  expect(PROGRAM.length).toBe(5);
+  expect(PROGRAM.length).toBe(4);
 });
 
 test('past exercises keep a name and muscle after they leave the program', () => {
@@ -65,6 +65,8 @@ test('past exercises keep a name and muscle after they leave the program', () =>
   applyProgram({ 1: [{ id: 'cable-row', name: 'Cable Row', muscle: 'back', sets: 3, repLow: 8, repHigh: 12, tag: null }] });
   expect(exerciseInfo('deadlift', ALL_EXERCISES, {})).toEqual({ name: 'Deadlift', muscle: 'back' });
   expect(exerciseInfo('nope', ALL_EXERCISES, {})).toBeNull();
+  // exercises that left when the two leg days became one keep their names too
+  expect(exerciseInfo('barbell-hip-thrust', ALL_EXERCISES, {})).toEqual({ name: 'Barbell Hip Thrust', muscle: 'hams' });
 });
 
 test('light week: half the sets, rounded up, never under one', () => {

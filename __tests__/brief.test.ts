@@ -8,7 +8,7 @@ const TODAY = '2026-11-04';
 const base: BriefInput = {
   today: TODAY,
   cur: currentWorkout([{ date: '2026-11-02', weekdays: [1], sets: 17 }], TODAY),
-  days: [1, 2, 3, 5, 6],
+  days: [1, 2, 3, 5],
   workoutAt: 19 * 60,
   picks: {},
   waterL: 3,
@@ -37,8 +37,8 @@ test('rest day: no workout, plain water, weigh-in when it has been a week', () =
 });
 
 test('next training day gets the next workout in the sequence', () => {
-  // Fri 6 Nov: Wed is chest, Fri is the next training day → hamstrings
-  expect(morningBrief('2026-11-06', base).title).toContain('خلفية الفخد');
+  // Fri 6 Nov: Wed is chest, Fri is the next training day → legs
+  expect(morningBrief('2026-11-06', base).title).toContain('رجل وسمانة');
   expect(morningBrief('2026-11-06', base).body).toContain('طلّع الفراخ من الفريزر');
 });
 

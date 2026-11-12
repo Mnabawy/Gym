@@ -36,6 +36,7 @@ describe('dates', () => {
     expect(planSets(1)).toBe(17);
     expect(planSets(5, 'shoulders')).toBe(11);
     expect(planSets(4)).toBe(0); // Thursday rest
+    expect(planSets(6)).toBe(0); // Saturday: the old quads day, a rest day since the leg days became one
   });
 });
 
@@ -52,7 +53,7 @@ describe('sessions and due dates', () => {
   test('due dates start at the first session and skip today until you train', () => {
     const rows = day('2026-10-26');
     const c = ctxOf(toSessions(rows), TODAY);
-    expect(dueDates('2026-10-20', TODAY, c)).toEqual(['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-30', '2026-10-31', '2026-11-02', '2026-11-03']);
+    expect(dueDates('2026-10-20', TODAY, c)).toEqual(['2026-10-26', '2026-10-27', '2026-10-28', '2026-10-30', '2026-11-02', '2026-11-03']);
     const c2 = ctxOf(toSessions([...rows, ...day(TODAY)]), TODAY);
     expect(dueDates('2026-10-20', TODAY, c2)).toContain(TODAY);
     expect(dueDates('2026-10-20', TODAY, ctxOf([], TODAY))).toEqual([]);
@@ -73,11 +74,11 @@ describe('lift trends', () => {
 
 describe('gaps report', () => {
   // Started Mon 26 Oct. Missed Fri 30 Oct and Tue 3 Nov. Today (Wed) not trained yet.
-  const rows = [...day('2026-10-26'), ...day('2026-10-27'), ...day('2026-10-28'), ...day('2026-10-31'), ...day('2026-11-02')];
+  const rows = [...day('2026-10-26'), ...day('2026-10-27'), ...day('2026-10-28'), ...day('2026-11-02')];
   const r = analyze(rows, TODAY);
 
-  test('missed sessions: 7 plan days owed (26 Oct → yesterday), 5 trained', () => {
-    expect(r.attendance).toEqual({ due: 7, done: 5 });
+  test('missed sessions: 6 plan days owed (26 Oct → yesterday), 4 trained', () => {
+    expect(r.attendance).toEqual({ due: 6, done: 4 });
   });
   test('muscle volume against the plan', () => {
     expect(r.volume.shoulders).toEqual({ done: 6, planned: 17 });
@@ -86,16 +87,16 @@ describe('gaps report', () => {
   });
   test('gaps are ranked: big ones first', () => {
     expect(r.gaps.map((g) => [g.kind, g.level, 'muscle' in g ? g.muscle : ''])).toEqual([
-      ['day', 2, ''], // 2 of 7 missed ≥ a quarter
+      ['day', 2, ''], // 2 of 6 missed ≥ a quarter
       ['volume', 2, 'triceps'],
       ['volume', 2, 'shoulders'],
       ['volume', 1, 'chest'],
       ['volume', 1, 'biceps'],
     ]);
-    expect(r.gaps[0]).toEqual({ kind: 'day', level: 2, missed: 2, due: 7 });
+    expect(r.gaps[0]).toEqual({ kind: 'day', level: 2, missed: 2, due: 6 });
   });
   test('score = share of planned sets done', () => {
-    expect(r.score).toBeCloseTo(83 / 120);
+    expect(r.score).toBeCloseTo(71 / 108); // back 17 + chest 18 + legs 19 + back 17 of 17 + 18 + 19 + 19 + 17 + 18
     expect(r.tracked).toBe(10);
     expect(r.grid).toHaveLength(6);
     expect(r.grid[5].start).toBe('2026-10-31');
@@ -137,9 +138,9 @@ describe('exercise gaps', () => {
     expect(r.gaps).toContainEqual({ kind: 'day', level: 2, missed: 2, due: 4 });
   });
   test('one missed day in four weeks is a small gap', () => {
-    // Every plan day from Fri 9 Oct (first session) to yesterday — 19 of them — except Tue 20 Oct.
+    // Every plan day (Mon, Tue, Wed, Fri) from Fri 9 Oct (first session) to yesterday — 15 of them — except Tue 20 Oct.
     const rows = block('2026-10-08', '2026-11-03').filter((x) => x.date !== '2026-10-20');
-    expect(analyze(rows, TODAY).gaps.find((g) => g.kind === 'day')).toEqual({ kind: 'day', level: 1, missed: 1, due: 19 });
+    expect(analyze(rows, TODAY).gaps.find((g) => g.kind === 'day')).toEqual({ kind: 'day', level: 1, missed: 1, due: 15 });
   });
   test('stalled and dropping lifts, only when trained recently', () => {
     const mondays = ['2026-10-05', '2026-10-12', '2026-10-19', '2026-10-26', '2026-11-02'];
@@ -167,14 +168,14 @@ describe('light week reminder', () => {
 });
 
 describe('calendar days', () => {
-  const rows = [...day('2026-10-26', { sets: { deadlift: 1, 'lat-pulldown': 1, 'barbell-row': 1 } }), ...day('2026-10-27'), ...day('2026-10-31', { kg: { 'barbell-back-squat': 60 } })];
+  const rows = [...day('2026-10-26', { sets: { deadlift: 1, 'lat-pulldown': 1, 'barbell-row': 1 } }), ...day('2026-10-27')];
   const sess = toSessions(rows);
   const c = ctxOf(sess, TODAY);
   const on = (d: string) => sess.filter((s) => s.date === d);
   test('overall: done, partial, missed, upcoming, rest', () => {
     expect(dayInfo('2026-10-27', on('2026-10-27'), c)).toEqual({ status: 'done', done: 18, planned: 18, partial: false });
     expect(dayInfo('2026-10-26', on('2026-10-26'), c)).toMatchObject({ status: 'done', done: 11, planned: 17, partial: true });
-    expect(dayInfo('2026-10-28', [], c)).toMatchObject({ status: 'missed', planned: 17 });
+    expect(dayInfo('2026-10-28', [], c)).toMatchObject({ status: 'missed', planned: 19 }); // legs
     expect(dayInfo(TODAY, [], c).status).toBe('upcoming');
     expect(dayInfo('2026-10-29', [], c).status).toBe('off'); // Thursday rest
     expect(dayInfo('2026-10-19', [], c).status).toBe('off'); // before the first session

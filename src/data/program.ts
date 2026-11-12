@@ -74,13 +74,14 @@ export const PROGRAM: Day[] = [
   },
   {
     weekday: 3,
-    titleAr: 'خلفية الفخد ومؤخرة',
+    titleAr: 'رجل وسمانة',
     exercises: [
-      ex('Romanian Deadlift', 'hams', 4, 6, 10, 'heavy'),
-      ex('Seated Leg Curl', 'hams', 4, 8, 12, 'fail'),
-      ex('Bulgarian Split Squat', 'hams', 3, 8, 12, null, true),
-      ex('Barbell Hip Thrust', 'hams', 3, 8, 12),
-      ex('Seated Calf Raise', 'calves', 3, 12, 15, 'fail'),
+      ex('Barbell Back Squat', 'quads', 4, 5, 8, 'heavy'),
+      ex('Romanian Deadlift', 'hams', 3, 6, 10, 'heavy'),
+      ex('Leg Press', 'quads', 3, 10, 15),
+      ex('Seated Leg Curl', 'hams', 3, 8, 12, 'fail'),
+      ex('Leg Extension', 'quads', 2, 12, 15, 'drop'),
+      ex('Standing Calf Raise', 'calves', 4, 10, 15, 'fail'),
     ],
   },
   {
@@ -95,19 +96,22 @@ export const PROGRAM: Day[] = [
       ex('Rope Pushdown', 'triceps', 2, 12, 15, 'drop'),
     ],
   },
-  {
-    weekday: 6,
-    titleAr: 'أمامية الفخد وسمانة',
-    exercises: [
-      ex('Barbell Back Squat', 'quads', 4, 5, 8, 'heavy'),
-      ex('Leg Press', 'quads', 3, 10, 15),
-      ex('Leg Extension', 'quads', 3, 12, 15, 'drop'),
-      ex('Standing Calf Raise', 'calves', 4, 10, 15, 'fail'),
-    ],
-  },
 ];
 
 export const dayFor = (weekday: number): Day | undefined => PROGRAM.find((d) => d.weekday === weekday);
+
+/**
+ * Program days and exercises that left the program when it went from 5 days to 4 (Nov 2026: the two leg days became
+ * one, id 3). Logged sets keep their day id and exercise id, so old sessions still show a name.
+ */
+export const RETIRED_DAYS: Readonly<Record<number, string>> = { 6: 'أمامية الفخد وسمانة' };
+export const RETIRED_EXERCISES: readonly { id: string; name: string; muscle: Muscle }[] = [
+  { id: 'bulgarian-split-squat', name: 'Bulgarian Split Squat', muscle: 'hams' },
+  { id: 'barbell-hip-thrust', name: 'Barbell Hip Thrust', muscle: 'hams' },
+  { id: 'seated-calf-raise', name: 'Seated Calf Raise', muscle: 'calves' },
+];
+/** A program day's name, also for a day that left the program (old logged sessions). */
+export const dayTitle = (weekday: number): string => dayFor(weekday)?.titleAr ?? RETIRED_DAYS[weekday] ?? '';
 /** Training weekdays, in program order. */
 export const PLAN_WEEKDAYS = PROGRAM.map((d) => d.weekday);
 

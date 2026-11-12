@@ -3,15 +3,16 @@ import { PROGRAM } from '../src/data/program';
 import { after, currentWorkout, dateInWeek, isTrainingDay, lastOf, projected, reminderTimes, seqAt } from '../src/lib/schedule';
 import type { TrainedDay } from '../src/lib/storage.types';
 
-// Program days by id (the weekday each was written for): 1 ظهر → 2 صدر وبايسبس → 3 خلفية → 5 كتف وترايسبس → 6 أمامية → 1 …
-const BACK = 1, CHEST = 2, HAMS = 3, SHOULDERS = 5, QUADS = 6;
+// Program days by id (the weekday each was written for): 1 ظهر → 2 صدر وبايسبس → 3 رجل → 5 كتف وترايسبس → 1 …
+// 6 was the old quads day (retired when the two leg days became one): logged sessions on it are skipped.
+const BACK = 1, CHEST = 2, LEGS = 3, SHOULDERS = 5, OLD_QUADS = 6;
 const TODAY = '2026-11-04'; // Wednesday
 const s = (date: string, ...weekdays: number[]): TrainedDay => ({ date, weekdays, sets: 10 });
 
 test('sequence follows the program order and wraps', () => {
-  expect(PROGRAM.map((d) => d.weekday)).toEqual([BACK, CHEST, HAMS, SHOULDERS, QUADS]);
-  expect(after(QUADS)).toBe(BACK);
-  expect(seqAt(-1)).toBe(QUADS);
+  expect(PROGRAM.map((d) => d.weekday)).toEqual([BACK, CHEST, LEGS, SHOULDERS]);
+  expect(after(SHOULDERS)).toBe(BACK);
+  expect(seqAt(-1)).toBe(SHOULDERS);
 });
 
 describe('currentWorkout', () => {
@@ -23,11 +24,11 @@ describe('currentWorkout', () => {
     expect(currentWorkout([s('2026-10-20', BACK)], TODAY).id).toBe(CHEST); // two weeks off: still chest
   });
   test('skipping a weekday does not skip a workout', () => {
-    // Back on Monday, nothing Tuesday (its old fixed day was chest) → Wednesday is still chest, not hams.
+    // Back on Monday, nothing Tuesday (its old fixed day was chest) → Wednesday is still chest, not legs.
     expect(currentWorkout([s('2026-11-02', BACK)], TODAY).id).toBe(CHEST);
   });
   test('a workout done on a "wrong" day moves the order with it', () => {
-    expect(currentWorkout([s('2026-11-02', BACK), s('2026-11-03', SHOULDERS)], TODAY).id).toBe(QUADS);
+    expect(currentWorkout([s('2026-11-02', BACK), s('2026-11-03', LEGS)], TODAY).id).toBe(SHOULDERS);
   });
   test("today's session stays on screen until the day ends", () => {
     const c = currentWorkout([s('2026-11-03', BACK), s(TODAY, CHEST)], TODAY);
@@ -38,28 +39,33 @@ describe('currentWorkout', () => {
   });
   test('two workouts on one date → continue after the second', () => {
     expect(lastOf([CHEST, BACK])).toBe(CHEST);
-    expect(lastOf([BACK, QUADS])).toBe(BACK); // quads → back wraps
-    expect(currentWorkout([s('2026-11-03', BACK, CHEST)], TODAY).id).toBe(HAMS);
+    expect(lastOf([BACK, SHOULDERS])).toBe(BACK); // shoulders → back wraps
+    expect(currentWorkout([s('2026-11-03', BACK, CHEST)], TODAY).id).toBe(LEGS);
+  });
+  test('a session on the retired quads day is skipped: the order goes on from the one before it', () => {
+    expect(currentWorkout([s('2026-11-02', SHOULDERS), s('2026-11-03', OLD_QUADS)], TODAY).id).toBe(BACK);
+    expect(lastOf([SHOULDERS, OLD_QUADS])).toBe(SHOULDERS);
   });
 });
 
 describe('projected', () => {
-  test('continues over the plan weekdays (Mon, Tue, Wed, Fri, Sat)', () => {
+  test('continues over the plan weekdays (Mon, Tue, Wed, Fri)', () => {
     const cur = currentWorkout([s('2026-11-03', BACK)], TODAY); // today (Wed) → chest
     expect(projected('2026-11-05', TODAY, cur)).toBe(CHEST); // Thu is a rest day: nothing new
-    expect(projected('2026-11-06', TODAY, cur)).toBe(HAMS); // Fri
-    expect(projected('2026-11-07', TODAY, cur)).toBe(SHOULDERS); // Sat
-    expect(projected('2026-11-09', TODAY, cur)).toBe(QUADS); // Mon
+    expect(projected('2026-11-06', TODAY, cur)).toBe(LEGS); // Fri
+    expect(projected('2026-11-07', TODAY, cur)).toBe(LEGS); // Sat is a rest day now
+    expect(projected('2026-11-09', TODAY, cur)).toBe(SHOULDERS); // Mon
+    expect(projected('2026-11-10', TODAY, cur)).toBe(BACK); // Tue
   });
   test('from a rest day, the next plan day takes the current workout', () => {
     const thu = '2026-11-05';
-    const cur = currentWorkout([s('2026-11-04', HAMS)], thu); // → shoulders
+    const cur = currentWorkout([s('2026-11-04', LEGS)], thu); // → shoulders
     expect(projected('2026-11-06', thu, cur)).toBe(SHOULDERS);
   });
   test('trained on a rest day → the next plan day moves on', () => {
     const thu = '2026-11-05';
     const cur = currentWorkout([s(thu, SHOULDERS)], thu);
-    expect(projected('2026-11-06', thu, cur)).toBe(QUADS);
+    expect(projected('2026-11-06', thu, cur)).toBe(BACK);
   });
 });
 

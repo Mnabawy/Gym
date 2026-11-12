@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
-import { ALL_EXERCISES, dayFor } from '../data/program';
+import { ALL_EXERCISES, dayTitle } from '../data/program';
 import { shareText } from '../lib/backupIO';
 import { CARDIO_KEY, parseCardio } from '../lib/cardio';
 import { bodyCsv, cardioCsv, goalsCsv, habitsCsv, setsCsv } from '../lib/csv';
@@ -35,7 +35,7 @@ export function ExportSheet({ visible, onClose }: { visible: boolean; onClose: (
   return (
     <Sheet visible={visible} onClose={onClose} title="صدّر لـ Excel" sub="ملف CSV يتفتح في Excel أو Google Sheets، تحلّله أو تبعته لمدربك">
       <View style={{ gap: 8 }}>
-        <Btn label="التمارين (كل مجموعة)" kind="solid" onPress={() => go('sets', () => { const p = past(); return setsCsv(storage.allSets(), (id) => exerciseInfo(id, ALL_EXERCISES, p)?.name ?? id, (wd) => dayFor(wd)?.titleAr ?? ''); })} />
+        <Btn label="التمارين (كل مجموعة)" kind="solid" onPress={() => go('sets', () => { const p = past(); return setsCsv(storage.allSets(), (id) => exerciseInfo(id, ALL_EXERCISES, p)?.name ?? id, (wd) => dayTitle(wd)); })} />
         <Btn label="الوزن والقياسات" onPress={() => go('body', () => bodyCsv(parseWeights(storage.getMeta(WEIGHTS_KEY)), parseMeasures(storage.getMeta(MEASURES_KEY))))} />
         <Btn label="الكارديو والمشي" onPress={() => go('cardio', () => cardioCsv(parseCardio(storage.getMeta(CARDIO_KEY)), weight))} />
         <Btn label="العادات" onPress={() => go('habits', () => habitsCsv(readHabits(), readHabitLog(), today))} />

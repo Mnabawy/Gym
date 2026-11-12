@@ -1,7 +1,7 @@
 // Your own program, edited in the app (/program): exercises per program day, saved as JSON under meta key `program`.
 // The five program days themselves stay (their ids are stored with every logged set); what's in them is yours.
 // Pure — unit tested in __tests__/programEdit.test.ts. Applying it: applyProgram (src/data/program.ts) via src/lib/settings.ts.
-import { MUSCLE_AR, PDF_PROGRAM, SETS_MAX, SETS_MIN, slug, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
+import { MUSCLE_AR, PDF_PROGRAM, RETIRED_EXERCISES, SETS_MAX, SETS_MIN, slug, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
 
 export const PROGRAM_KEY = 'program';
 export const REPS_MIN = 1;
@@ -110,6 +110,6 @@ export function exerciseInfo(id: string, current: readonly { id: string; name: s
   const c = current.find((e) => e.id === id);
   if (c) return { name: c.name, muscle: c.muscle };
   if (past[id]) return past[id];
-  const pdf = Object.values(PDF_PROGRAM).flat().find((e) => e.id === id);
+  const pdf = [...Object.values(PDF_PROGRAM).flat(), ...RETIRED_EXERCISES].find((e) => e.id === id);
   return pdf ? { name: pdf.name, muscle: pdf.muscle } : null;
 }

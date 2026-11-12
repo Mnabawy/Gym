@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Item } from '../../components/Motion';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { dayFor, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
+import { dayFor, dayTitle, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
 import { ExerciseRow } from '../../components/ExerciseRow';
 import { WorkoutChips } from '../../components/WorkoutChips';
 import { TimerBar } from '../../components/TimerBar';
@@ -100,7 +100,7 @@ function WorkoutScreen() {
               accessibilityState={{ selected: on }}
               style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44, borderRadius: 12, paddingHorizontal: 12, backgroundColor: on ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 })}>
               <T w="semi" style={{ flex: 1, fontSize: 14 }}>{dayName(k, today)}</T>
-              <T style={{ fontSize: 12, color: logged ? t.okText : t.mute }}>{logged ? `${logged.weekdays.map((w) => dayFor(w)?.titleAr).filter(Boolean).join(' + ')} · ${logged.sets} مجموعة` : 'مفيش تسجيل'}</T>
+              <T style={{ fontSize: 12, color: logged ? t.okText : t.mute }}>{logged ? `${logged.weekdays.map(dayTitle).filter(Boolean).join(' + ')} · ${logged.sets} مجموعة` : 'مفيش تسجيل'}</T>
             </Pressable>
           );
         })}

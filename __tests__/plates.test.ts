@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { ALL_EXERCISES } from '../src/data/program';
+import { ALL_EXERCISES, RETIRED_EXERCISES } from '../src/data/program';
 import { ALTERNATIVES } from '../src/data/alternatives';
 import { barFor, EZ_BAR_KG, platesFor, warmups } from '../src/lib/plates';
 
@@ -29,7 +29,8 @@ test('alternatives: every program exercise has some, none repeats the exercise i
     expect(a).not.toContain(e.name);
     expect(new Set(a).size).toBe(a.length);
   }
-  expect(Object.keys(ALTERNATIVES).sort()).toEqual(ALL_EXERCISES.map((e) => e.id).sort());
+  // exercises that left the program keep theirs, in case you add them back
+  expect(Object.keys(ALTERNATIVES).sort()).toEqual([...ALL_EXERCISES, ...RETIRED_EXERCISES].map((e) => e.id).sort());
 });
 
 test('warm-up ramp', () => {
