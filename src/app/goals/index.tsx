@@ -3,7 +3,8 @@ import { Item } from '../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Btn, Card, Label, Ring, Screen, T } from '../../components/ui';
+import { Btn, Card, HeaderBtn, Label, Ring, Screen, T } from '../../components/ui';
+import { GoalStepsSheet } from '../../components/GoalSteps';
 import { MenuButton } from '../../components/SideMenu';
 import { GoalForm } from '../../components/GoalForm';
 import { ACTION, Swipe } from '../../components/Swipe';
@@ -36,6 +37,7 @@ function Goals() {
   const goals = readGoals();
   const [adding, setAdding] = useState(false);
   const [logging, setLogging] = useState<Goal | null>(null);
+  const [steps, setSteps] = useState(false);
   const later = goals.filter((g) => g.later && !g.umbrella);
   // Put off for later (بعدين) or bring back, with undo.
   const toLater = (g: Goal) => {
@@ -51,7 +53,15 @@ function Goals() {
   };
 
   return (
-    <Screen title="الأهداف" action={<MenuButton />}>
+    <Screen
+      title="الأهداف"
+      action={
+        <View style={{ flexDirection: 'row', gap: 8 }}>
+          {goals.some((g) => !g.umbrella) ? <HeaderBtn icon="calendar-outline" label="خطوات الفترة" onPress={() => setSteps(true)} /> : null}
+          <MenuButton />
+        </View>
+      }>
+      {steps ? <GoalStepsSheet onClose={() => setSteps(false)} /> : null}
       {adding ? <GoalForm onClose={() => setAdding(false)} onSaved={(g) => router.push(`/goals/${g.id}`)} /> : null}
       {logging ? <LogSheet g={logging} onClose={() => setLogging(null)} /> : null}
       {!goals.length ? (

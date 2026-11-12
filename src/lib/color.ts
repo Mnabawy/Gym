@@ -54,11 +54,14 @@ export type AccentTokens = { ok: string; okText: string; onOk: string; okSoft: s
 export function accentTokens(hex: string, bg: string): AccentTokens {
   const light = '#FFFFFF';
   const dark = '#111111';
+  // Icons, rings and filled buttons need 3:1 on the background (WCAG 1.4.11, non-text): a near-black color on the
+  // dark theme (or a near-white one on the light theme) is lightened / darkened just enough to show.
+  const ok = readable(hex, bg, 3);
   return {
-    ok: hex,
+    ok,
     okText: readable(hex, bg),
-    onOk: contrast(light, hex) >= contrast(dark, hex) ? light : dark,
-    okSoft: mix(hex, bg, isDark(bg) ? 0.22 : 0.16),
+    onOk: contrast(light, ok) >= contrast(dark, ok) ? light : dark,
+    okSoft: mix(ok, bg, isDark(bg) ? 0.22 : 0.16),
   };
 }
 

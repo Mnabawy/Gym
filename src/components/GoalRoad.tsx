@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { INPUT, Btn, Ring, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
+import { taskFollowsStep } from '../lib/goalTaskStore';
 import { showUndo } from '../lib/undo';
 import { NoteEditor, NoteView } from './NoteEditor';
 import { currentStage, duplicateStage, nextTask, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
@@ -216,14 +217,19 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
               ) : null}
             </View>
           );
+          // Ticking a step also ticks the task made from it in مهامي (src/lib/goalTasks.ts).
+          const flip = () => {
+            saveGoal(toggleTask(g, r.task.id, today));
+            taskFollowsStep(g.id, r.task.id, r.task.done ? null : today);
+          };
           onPress = () => {
             tap();
             ease();
-            saveGoal(toggleTask(g, r.task.id, today));
+            flip();
           };
           onLong = () => setEdit({ st: r.st, task: r.task });
           label = r.task.title;
-          const tick = () => saveGoal(toggleTask(g, r.task.id, today));
+          const tick = flip;
           start = [done ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: tick } : { icon: 'checkmark', label: 'خلصت', color: ACTION.green, onPress: tick }];
           end = [
             { icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeBead(g, r.st, r.task) },

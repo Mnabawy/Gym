@@ -44,7 +44,7 @@ export function T({ style, w = 'body', ...p }: TextProps & { w?: keyof typeof F 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
 /** Round 44pt header button (back, settings). */
-export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; label: string; onPress: () => void; style?: ViewStyle }) {
+export function HeaderBtn({ icon, label, onPress, style, color }: { icon: IconName; label: string; onPress: () => void; style?: ViewStyle; color?: string }) {
   const t = useTheme();
   return (
     <Pressable
@@ -52,7 +52,7 @@ export function HeaderBtn({ icon, label, onPress, style }: { icon: IconName; lab
       accessibilityRole="button"
       accessibilityLabel={label}
       style={({ pressed }) => [s.round, { opacity: pressed ? 0.35 : 1 }, style]}>
-      <Ionicons name={icon} size={24} color={t.ok} />
+      <Ionicons name={icon} size={24} color={color ?? t.ok} />
     </Pressable>
   );
 }

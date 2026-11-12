@@ -32,7 +32,12 @@ export type Task = {
   wasDue?: string | null;
   /** Which list it's on: «خاص» (personal, the default when missing) or «شغل» (work). */
   space?: Space;
+  /** Made from a goal's step (src/lib/goalTasks.ts): ticking one ticks the other. */
+  goal?: GoalLink;
 };
+
+/** A task that came from a goal's step: the goal's id and the step's id. */
+export type GoalLink = { goal: string; step: string };
 
 /** Two separate to-do lists on the same page: personal and work. */
 export type Space = 'personal' | 'work';
@@ -92,6 +97,9 @@ export function parseTasks(raw: string | null): Task[] {
       created: isDate(o.created) ? o.created : '2026-01-01',
       ...(typeof o.from === 'string' ? { from: o.from, wasDue: isDate(o.wasDue) ? o.wasDue : null } : {}),
       ...(o.space === 'work' ? { space: 'work' as const } : {}),
+      ...(o.goal && typeof o.goal === 'object' && typeof (o.goal as Record<string, unknown>).goal === 'string' && typeof (o.goal as Record<string, unknown>).step === 'string'
+        ? { goal: { goal: (o.goal as Record<string, string>).goal, step: (o.goal as Record<string, string>).step } }
+        : {}),
     });
   }
   return out;

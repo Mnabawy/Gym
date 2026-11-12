@@ -17,6 +17,9 @@ import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSu
 import { router } from 'expo-router';
 import { setFocus } from '../lib/focusStore';
 import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, writeTasks } from '../lib/taskStore';
+import { stepFollowsTask } from '../lib/goalTaskStore';
+import { readGoals } from '../lib/goalStore';
+import type { Goal } from '../lib/goals';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../theme';
@@ -79,7 +82,9 @@ function Tasks() {
     ease();
     const before = readTasks();
     writeTasks(toggleTask(before, x.id, today, taskId(stamp())));
-    if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, () => writeTasks(before));
+    // A task made from a goal's step ticks the step too.
+    const goalBack = stepFollowsTask(x.id);
+    if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, () => { writeTasks(before); goalBack?.(); });
   };
   const addQuick = () => {
     const title = quick.trim();
@@ -95,7 +100,9 @@ function Tasks() {
   const tv = todayView(list, today);
   const todayAll = tv.overdue.length + tv.day.length + tv.done.length;
   const trash = readTrash().filter((x) => spaceOf(x.task) === space);
-  const row = (x: Task, last: boolean, showDate: boolean) => <Item key={x.id}><TaskRow t={t} x={x} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} /></Item>;
+  // Tasks made from a goal's step show the goal's name and open it.
+  const goalsById = new Map(readGoals().map((g) => [g.id, g]));
+  const row = (x: Task, last: boolean, showDate: boolean) => <Item key={x.id}><TaskRow t={t} x={x} goal={x.goal ? goalsById.get(x.goal.goal) : undefined} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} /></Item>;
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
       <View key={key} style={{ gap: 8 }}>
@@ -342,7 +349,7 @@ function Empty({ t, icon, title, sub }: { t: Theme; icon: React.ComponentProps<t
  * One task: a round check in its priority's color, the title, a line with time, repeat, reminder, tag — and its
  * subtasks: the button at the end opens them under the task, to tick, remove or add one without opening the form.
  */
-function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSubs }: { t: Theme; x: Task; today: string; last: boolean; showDate: boolean; onToggle: () => void; onOpen: () => void; subsOpen: boolean; onSubs: () => void }) {
+function TaskRow({ t, x, goal, today, last, showDate, onToggle, onOpen, subsOpen, onSubs }: { t: Theme; x: Task; goal?: Goal; today: string; last: boolean; showDate: boolean; onToggle: () => void; onOpen: () => void; subsOpen: boolean; onSubs: () => void }) {
   // The ring takes the priority's color; a plain task takes the app's color, «بعدين» stays grey.
   const c = x.priority === 3 ? t.ok : x.priority === 4 ? t.mute : PRIORITY[x.priority].color;
   const done = !!x.done;
@@ -392,8 +399,14 @@ function TaskRow({ t, x, today, last, showDate, onToggle, onOpen, subsOpen, onSu
       <View style={[s.body, { borderBottomWidth: last || subsOpen ? 0 : StyleSheet.hairlineWidth, borderColor: t.line }]}>
       <Pressable onPress={onOpen} accessibilityRole="button" accessibilityHint="افتح وعدّل" style={({ pressed }) => ({ flex: 1, minWidth: 0, opacity: pressed ? 0.6 : 1, gap: 3 })}>
         <T style={{ fontSize: 15, lineHeight: 21, color: done ? t.mute : t.fg, textDecorationLine: done ? 'line-through' : 'none' }}>{x.title}</T>
-        {(meta.length || x.tag) && !done ? (
+        {(meta.length || x.tag || goal) && !done ? (
           <View style={s.meta}>
+            {goal ? (
+              <Pressable onPress={() => router.push(`/goals/${goal.id}`)} hitSlop={6} accessibilityRole="link" accessibilityLabel={`من هدف ${goal.name}`} style={({ pressed }) => [s.metaItem, { opacity: pressed ? 0.5 : 1 }]}>
+                <Ionicons name="flag" size={12} color={goal.color} />
+                <T style={{ fontSize: 12, color: t.mute }} numberOfLines={1}>{goal.name}</T>
+              </Pressable>
+            ) : null}
             {meta.map((m) => (
               <View key={m.icon} style={s.metaItem}>
                 <Ionicons name={m.icon} size={13} color={m.color ?? t.mute} />

@@ -7,6 +7,7 @@ import { Pressable, ScrollView, StyleSheet, useColorScheme, View } from 'react-n
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { T } from '../components/ui';
+import { MenuButton } from '../components/SideMenu';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { dayFor, PLAN_WEEKDAYS } from '../data/program';
 import { useDataVersion } from '../lib/bus';
@@ -85,9 +86,12 @@ export default function Sections() {
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>
       <View style={s.bar}>
         <T w="bold" style={{ fontSize: 30, lineHeight: 40, color: c.label }}>Brainy</T>
-        <Pressable onPress={() => router.push('/prayer')} hitSlop={8} accessibilityRole="button" accessibilityLabel="مواقيت الصلاة" style={({ pressed }) => [s.barBtn, { opacity: pressed ? 0.4 : 1 }]}>
-          <Ionicons name="moon-outline" size={23} color={c.tint} />
-        </Pressable>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+          <Pressable onPress={() => router.push('/prayer')} hitSlop={8} accessibilityRole="button" accessibilityLabel="مواقيت الصلاة" style={({ pressed }) => [s.barBtn, { opacity: pressed ? 0.4 : 1 }]}>
+            <Ionicons name="moon-outline" size={23} color={c.tint} />
+          </Pressable>
+          <MenuButton hub color={c.tint} />
+        </View>
       </View>
       <ScrollView contentContainerStyle={s.scroll}>
         <View style={s.grid}>
