@@ -14,6 +14,7 @@ import { useDataVersion } from '../lib/bus';
 import { readGoals } from '../lib/goalStore';
 import { kidsOf, nextTask, progress, umbrellaProgress } from '../lib/goals';
 import { habitStats, isDue, logKey } from '../lib/habits';
+import { CALENDAR_OFF, HABITS_OFF } from '../lib/hidden';
 import { readHabitLog, readHabits } from '../lib/habitStore';
 import { dateKey } from '../lib/logic';
 import { currentWorkout } from '../lib/schedule';
@@ -79,8 +80,10 @@ export default function Sections() {
     { key: 'habits', title: 'العادات', icon: 'repeat-outline', value: due.length ? `${done}/${due.length}` : '', line: !habits.length ? 'ابدأ أول عادة' : due.length && done === due.length ? 'كمّلت عادات النهارده ✓' : streak > 1 ? `🔥 ${streak} يوم` : 'عادات النهارده' },
     { key: 'goals', title: 'الأهداف', icon: 'flag-outline', value: goal ? `${Math.floor(goalShare * 100)}%` : '', line: step ? step.task.title : goal ? goal.name : 'حدّد هدفك' },
     { key: 'quit', title: 'بطّل', icon: 'hand-left-outline', value: quit ? runLabel(clean(quit, now).ms) : '', line: quit ? 'نضيف، كمّل' : 'عادة عايز تبطّلها؟' },
-  ].map((x) => ({ ...x, icon: x.icon as IconName, onPress: () => go(x.key as Section), current: x.key === here }));
-  cards.push({ key: 'calendar', title: 'التقويم', icon: 'calendar-outline', value: '', line: 'كل حاجة على شهر واحد', onPress: () => router.push('/calendar') });
+  ]
+    .filter((x) => !(HABITS_OFF && x.key === 'habits'))
+    .map((x) => ({ ...x, icon: x.icon as IconName, onPress: () => go(x.key as Section), current: x.key === here }));
+  if (!CALENDAR_OFF) cards.push({ key: 'calendar', title: 'التقويم', icon: 'calendar-outline', value: '', line: 'كل حاجة على شهر واحد', onPress: () => router.push('/calendar') });
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: c.bg }}>

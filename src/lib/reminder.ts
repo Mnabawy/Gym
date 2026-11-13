@@ -18,6 +18,7 @@ import { MEAL_PICKS_KEY } from './journal';
 import { readNumbers } from './meta';
 import { energyFor } from './energy';
 import { parseWeights, WEIGHTS_KEY } from './weight';
+import { HABITS_OFF } from './hidden';
 import { isDue, logKey, partsDone, pausedNow, prayerTime, type Habit } from './habits';
 import { ADHKAR_AR, adhkarOf } from './adhkar';
 import { readHabitLog, readHabitParts, readHabits } from './habitStore';
@@ -59,7 +60,7 @@ function briefInput(today: string): BriefInput {
     weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
     shopTrips: st.shopTrips,
     shopMoves: st.shopMoves,
-    habits: readHabits(),
+    habits: HABITS_OFF ? [] : readHabits(),
     goals: readGoals(),
     quits: readQuits(),
     tasks: readTasks(),
@@ -113,7 +114,7 @@ export function syncReminders(): Promise<void> {
           });
         }
       }
-      const habits = readHabits().filter((h) => !pausedNow(h) && (h.remind != null || h.at || h.parts?.some((p) => p.at)));
+      const habits = (HABITS_OFF ? [] : readHabits()).filter((h) => !pausedNow(h) && (h.remind != null || h.at || h.parts?.some((p) => p.at)));
       if ((!st.reminder && !st.brief && !habits.length) || !(await Notifications.getPermissionsAsync()).granted) return;
       const today = dateKey();
       // Each habit with a reminder: its next due days at its time; not today once it's ticked (done or excused).

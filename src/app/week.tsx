@@ -22,6 +22,7 @@ import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
 import { readHabitLog, readHabits } from '../lib/habitStore';
+import { HABITS_OFF } from '../lib/hidden';
 import { CARDIO_KEY, parseCardio, parseSteps, STEPS_KEY } from '../lib/cardio';
 import { useTheme } from '../theme';
 
@@ -50,7 +51,7 @@ export default function WeekScreen() {
     water: readNumbers(WATER_KEY),
     waterGoal: waterGoalMl(energyFor(body)?.water ?? null, false),
     mealsPerDay: MEAL_ORDER.length,
-    habits: readHabits(),
+    habits: HABITS_OFF ? [] : readHabits(),
     habitLog: readHabitLog(),
     cardio: parseCardio(storage.getMeta(CARDIO_KEY)),
     weightKg: body.weight ?? 0,
