@@ -4,7 +4,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import Animated, { FadeIn } from 'react-native-reanimated';
 import { Card, Label, Ring, Screen, T } from '../components/ui';
-import { dayFor, dayTitle, MONTHS_AR, WEEKDAYS_AR } from '../data/program';
+import { dayTitle, MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
 import { CAL_SOURCES, daysIn, quitLabel, goalMarks, goalSpans, weekPieces, type Span, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
 import { readGoals } from '../lib/goalStore';

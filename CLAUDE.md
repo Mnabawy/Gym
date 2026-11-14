@@ -8,7 +8,7 @@ Exercise names stay in English (gym vocabulary).
 - Storage: expo-sqlite on iOS/Android (`src/lib/storage.ts`), localStorage on web (`src/lib/storage.web.ts`), same `Storage` interface
 - react-native-health-connect (steps, Android), expo-build-properties (minSdk 26), expo-haptics, expo-keep-awake, expo-notifications (rest timer when backgrounded + workout reminder), expo-clipboard, expo-file-system + expo-sharing + expo-document-picker (backup file), expo-image-picker + expo-image-manipulator (progress photos), expo-local-authentication (app lock), expo-location (prayer times), react-native-webview (form videos play in-app; `YouTubePlayer.web.tsx` is a plain iframe), expo-intent-launcher (open other apps)
 - Fonts: Apple's system font (SF Pro + SF Arabic on iPhone; sans-serif on Android): `F` + `font(w)` in `src/theme/index.ts` give fontFamily + fontWeight (+ tabular digits for `num*`); `T` uses it. Only Amiri Quran is loaded (verses)
-- No backend. Offline-first.
+- Offline-first: everything is saved on the phone first (SQLite). Optional Supabase sync keeps a copy on the owner's Google account (see Data → Supabase sync); the app works fully without it. Photos are not synced, only in backup files.
 
 ## Design rules
 - RTL forced (expo-localization plugin `forcesRTL` + I18nManager in root layout). Use `start/end`, never `left/right`.
@@ -40,6 +40,8 @@ Exercise names stay in English (gym vocabulary).
 - `src/data/videos.ts` — one short YouTube form video per exercise ("فيديو" button on each exercise card opens `VideoSheet`, which plays it in-app); how they were picked is at the top of the file
 - `src/data/verses.ts` — Quran verses for the launch popup (`src/components/VersePopup.tsx`). Tanzil Uthmani text copied verbatim from api.alquran.cloud; never retype or edit a verse by hand
 - Source PDFs live in `docs/`
+- Hidden or unlinked on purpose (code kept, don't rebuild): `/habits`, `/habit/[id]`, `/adhkar` (flag `HABITS_OFF`), `/calendar` (`CALENDAR_OFF`), both in `src/lib/hidden.ts`; `/gaps` and `/attendance` have no link anywhere; `CardioCard.tsx` is not used by any screen
+- Config: `.env` and `eas.json` are committed on purpose and hold only public values (`EXPO_PUBLIC_*`: Supabase URL, anon key, Google web client id; security is the row-level policies in `supabase/schema.sql`). Never commit a Supabase `service_role` key or any other secret there
 - `src/lib/backup.ts` (format, parsing) + `src/lib/backupIO.ts` / `.web.ts` (share sheet, file picker, clipboard) — backup and restore of everything (`Storage.dump` / `restore`), from the settings page. Meta `lastBackup`; the end-of-workout card nudges after 7 days
 - `src/lib/weight.ts` — body weight log (`/weight`, side menu وزنك), meta `weights`; weekly rate vs the goal. Logging a weight also sets the calculator's weight
 - `src/lib/journal.ts` (pure) + `src/lib/meta.ts` (read/write) — JSON maps in meta: `swaps` (exercise swapped for today, `date|exId` → name; sets stay on the program exercise, records/prefill/progress chart only compare the same variant, `toSessions` gets the swapped set), `notes` (per exercise), `water` (ml per day), `mealPicks` (meal option per `date|meal`); food history for the food tab

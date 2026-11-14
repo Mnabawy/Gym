@@ -1,5 +1,4 @@
-// Backup file: everything the app saved (sets, meals, shopping ticks, settings and other meta) as one JSON file.
-// There's no server, so this file is the only copy outside the phone. Pure — unit tested in __tests__/backup.test.ts.
+// Backup file: saved sets, meals, shopping ticks, settings and the rest of meta in one JSON file (photos too, in the files from the share sheet or the folder). Sync keeps a copy on your account, but this file is the copy you hold yourself. Pure, unit tested in __tests__/backup.test.ts.
 import type { Dump, MealCheck, SetRow, ShopCheck } from './storage.types';
 
 export const BACKUP_APP = 'gym-backup';

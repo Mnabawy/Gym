@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Item } from '../../components/Motion';
+import { Item, Pop } from '../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -8,7 +8,6 @@ import { GoalStepsSheet } from '../../components/GoalSteps';
 import { MenuButton } from '../../components/SideMenu';
 import { GoalForm } from '../../components/GoalForm';
 import { ACTION, Swipe } from '../../components/Swipe';
-import { Pop } from '../../components/Motion';
 import { LogSheet } from './[id]';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
