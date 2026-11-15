@@ -2,16 +2,20 @@
 // Two-phone sync simulator for the tests. Each simulated phone (`Device`) gets its own copy of the real app modules
 // (cloud.ts, track.ts, settings.ts, restore.ts...) loaded through jest.isolateModules over its own in-memory storage,
 // so module state (the change log, the sync lock, the settings store) is per phone. All phones talk to one FakeSupabase.
-// Only three things are replaced: storage (in memory), google.ts (a fake Google account per phone) and photos.ts
-// (counters). Everything else is production code.
+// Only four things are replaced: storage (in memory), google.ts (a fake Google account per phone), photos.ts (counters)
+// and expo-file-system (an in-memory file system per phone, test-utils/fakeFs.ts, under the real safetyIO.ts and
+// autoBackup.ts). Everything else is production code.
 //
 // Time: Date.now() is virtual (`sim.advance`) plus a per-phone skew. The phone whose action is running (`d.act`, and
 // every helper on Device) is the one whose skew applies; overlapping async actions on two phones should keep skew 0.
+import type * as AutoBackupMod from '../src/lib/autoBackup';
 import type * as CloudMod from '../src/lib/cloud';
 import type * as RestoreMod from '../src/lib/restore';
+import type * as SafetyIOMod from '../src/lib/safetyIO';
 import type * as SettingsMod from '../src/lib/settings';
 import type * as TrackMod from '../src/lib/track';
 import type { Storage } from '../src/lib/storage.types';
+import { createFakeFs } from './fakeFs';
 import { FakeSupabase } from './fakeSupabase';
 import { memoryStorage } from './memoryStorage';
 
@@ -43,7 +47,7 @@ export class Sim {
   get time() {
     return this.clock;
   }
-  device(id: string, opts: { configured?: boolean; skewMs?: number } = {}) {
+  device(id: string, opts: { configured?: boolean; skewMs?: number; fs?: { free?: number; noMove?: boolean } } = {}) {
     return new Device(this, id, opts);
   }
 }
@@ -60,11 +64,16 @@ export class Device {
   readonly track!: typeof TrackMod;
   readonly settings!: typeof SettingsMod;
   readonly restoreMod!: typeof RestoreMod;
+  readonly safety!: typeof SafetyIOMod;
+  readonly autoBackup!: typeof AutoBackupMod;
+  /** The phone's file system (app folder), with failure knobs. */
+  readonly fs: ReturnType<typeof createFakeFs>;
   /** The phone's storage as the app sees it (writes are noted for sync). */
   readonly storage!: Storage;
 
-  constructor(readonly sim: Sim, readonly id: string, opts: { configured?: boolean; skewMs?: number }) {
+  constructor(readonly sim: Sim, readonly id: string, opts: { configured?: boolean; skewMs?: number; fs?: { free?: number; noMove?: boolean } }) {
     this.skew = opts.skewMs ?? 0;
+    this.fs = createFakeFs(opts.fs);
     const base = memoryStorage();
     this.raw = base;
     const names = ['EXPO_PUBLIC_SUPABASE_URL', 'EXPO_PUBLIC_SUPABASE_ANON_KEY'] as const;
@@ -89,7 +98,9 @@ export class Device {
           photosSupported: true,
           deleteAllPhotos: () => void this.photos.deleted++,
           importPhotos: () => 0,
+          exportPhotos: async () => [],
         }));
+        jest.doMock('expo-file-system', () => this.fs.module);
         jest.doMock('../src/lib/storage', () => {
           const { track } = jest.requireActual<typeof TrackMod>('../src/lib/track');
           return { storage: track(base) };
@@ -100,6 +111,8 @@ export class Device {
         self.cloud = jest.requireActual<typeof CloudMod>('../src/lib/cloud');
         self.settings = jest.requireActual<typeof SettingsMod>('../src/lib/settings');
         self.restoreMod = jest.requireActual<typeof RestoreMod>('../src/lib/restore');
+        self.safety = jest.requireActual<typeof SafetyIOMod>('../src/lib/safetyIO');
+        self.autoBackup = jest.requireActual<typeof AutoBackupMod>('../src/lib/autoBackup');
       });
     } finally {
       // A variable that did not exist is deleted: assigning undefined would leave the string "undefined".
@@ -139,12 +152,13 @@ export class Device {
     await this.act(() => this.cloud.linkCloud());
   }
   /** account.tsx `signOut` without its guards: sync off, Google off, optional wipe, welcome again. */
-  signOut(opts: { wipe?: boolean } = {}) {
+  async signOut(opts: { wipe?: boolean } = {}) {
+    // Same order as account.tsx: the wipe (with its safety copy) first, then sync and Google off.
+    if (opts.wipe) await this.act(() => this.restoreMod.wipeLocal());
     this.do(() => {
       this.cloud.unlinkCloud();
       for (const k of ['driveUser', 'driveName', 'drivePhoto']) this.storage.setMeta(k, '');
       this.googleAccount = null;
-      if (opts.wipe) this.restoreMod.wipeLocal();
       this.storage.setMeta('welcomeDone', '');
     });
   }
@@ -153,6 +167,25 @@ export class Device {
   }
   keepSynced() {
     return this.act(() => this.cloud.keepSynced());
+  }
+
+  // --- files ---------------------------------------------------------------------------------------------------
+  /** A progress photo file in the app's photos folder (same folder and name pattern as photos.ts). */
+  addPhoto(name: string, text = 'jpeg-bytes') {
+    this.fs.put(this.fs.doc('photos', name), text);
+  }
+  photoNames(): string[] {
+    return this.fs.names(this.fs.doc('photos'));
+  }
+  /** File names in the safety snapshot folder, the recovery folder and the weekly backup folder. */
+  snapshotFiles(): string[] {
+    return this.fs.names(this.fs.doc('backups', 'safety'));
+  }
+  recoveryFolders(): string[] {
+    return this.fs.names(this.fs.doc('recovery'));
+  }
+  autoBackupFiles(): string[] {
+    return this.fs.names(this.fs.doc('backups')).filter((n) => n.startsWith('gym-auto-'));
   }
 
   // --- data helpers ----------------------------------------------------------------------------------------------

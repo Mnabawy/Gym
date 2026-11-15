@@ -164,6 +164,8 @@ type Store = Settings & {
   /** A light week from today for 7 days (half the sets), or end it early. */
   startDeload: () => void;
   stopDeload: () => void;
+  /** Re-apply the plan for today (a light week that ended halves nothing any more). Call when the day rolls over. */
+  refreshPlan: () => void;
 };
 
 // Your edited program first: the saved sets overrides are checked against its exercises.
@@ -226,5 +228,9 @@ export const useSettings = create<Store>((set, get) => {
     },
     startDeload: () => commit({ ...pick(get()), deloadUntil: addDays(dateKey(), 6) }),
     stopDeload: () => commit({ ...pick(get()), deloadUntil: '' }),
+    refreshPlan: () => {
+      applyPlan(plan(pick(get())));
+      useDataVersion.getState().bumpAll();
+    },
   };
 });

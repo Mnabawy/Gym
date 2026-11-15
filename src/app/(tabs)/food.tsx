@@ -12,7 +12,9 @@ import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_P
 import { readNumbers, writeEntry } from '../../lib/meta';
 import { showUndo } from '../../lib/undo';
 import { useSettings } from '../../lib/settings';
-import { dateKey, mealMacros, parseNum } from '../../lib/logic';
+import { mealMacros, parseNum } from '../../lib/logic';
+import { weekdayOfKey } from '../../lib/rollover';
+import { useToday } from '../../lib/useToday';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { useDataVersion } from '../../lib/bus';
@@ -23,10 +25,11 @@ const typeColor = (t: Theme, ty: string) => (ty === 'p' ? t.protein : ty === 'c'
 
 export default function Food() {
   const t = useTheme();
-  const now = new Date();
-  const today = now.getDay();
-  const date = dateKey(now);
-  const [sel, setSel] = useState(today);
+  const date = useToday();
+  const today = weekdayOfKey(date);
+  // null = follow today (also past midnight); a day you picked yourself stays.
+  const [picked, setSel] = useState<number | null>(null);
+  const sel = picked ?? today;
   const [showSwaps, setShowSwaps] = useState(false);
   const [swapMeal, setSwapMeal] = useState<MealKey | null>(null);
   const [extraForm, setExtraForm] = useState<{ name: string; kcal: string; p: string } | null>(null);
@@ -100,8 +103,22 @@ export default function Food() {
     saveExtras([...extras, { name: extraForm.name.trim() || 'أكل برة الخطة', kcal: Math.round(kcal), p: Math.round(parseNum(extraForm.p) ?? 0) }]);
   };
   const removeExtra = (i: number) => {
-    saveExtras(extras.filter((_, j) => j !== i));
-    showUndo('اتمسح أكل', () => saveExtras(extras));
+    const gone = extras[i];
+    if (!gone) return;
+    const day = selDate;
+    const write = (list: Extra[]) => {
+      const all = parseExtras(storage.getMeta(EXTRAS_KEY));
+      if (list.length) all[day] = list;
+      else delete all[day];
+      storage.setMeta(EXTRAS_KEY, JSON.stringify(all));
+      bump();
+    };
+    write(extras.filter((_, j) => j !== i));
+    // Undo re-reads what is stored now and puts back only the removed item.
+    showUndo('اتمسح أكل', () => {
+      const cur = parseExtras(storage.getMeta(EXTRAS_KEY))[day] ?? [];
+      write([...cur.slice(0, i), gone, ...cur.slice(i)]);
+    });
   };
   const tickMeal = (m: MealKey, on: boolean) => {
     storage.setMealCheck(selDate, m, on);

@@ -7,6 +7,7 @@ import { Btn, Card, HeaderBtn, Label, Ring, Screen, T } from '../../components/u
 import { MenuButton } from '../../components/SideMenu';
 import { ACTION, Swipe, type SwipeAction } from '../../components/Swipe';
 import { countAr, shopWeekKey, TIMES } from '../../lib/logic';
+import { useToday } from '../../lib/useToday';
 import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } from '../../lib/shop';
 import { useSettings } from '../../lib/settings';
 import { storage } from '../../lib/storage';
@@ -18,6 +19,7 @@ const daysText = (days: string[]) => (days.length === 7 ? 'كل يوم' : days.j
 
 export default function Shop() {
   const t = useTheme();
+  useToday(); // re-render at midnight so the week key follows
   const week = shopWeekKey();
   const { bump } = useDataVersion();
   const [copied, setCopied] = useState(false);

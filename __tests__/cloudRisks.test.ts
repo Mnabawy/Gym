@@ -85,7 +85,7 @@ describe('F2 · account switching', () => {
     d.setMeta('tasks', JSON.stringify([task('t1')]));
     d.setMeta('weights', w(80));
     await d.signIn(A);
-    d.signOut(); // no wipe
+    await d.signOut(); // no wipe
     await d.signIn(B);
     expect(sim.server.keysOf(B)).toEqual(['meta:tasks/t1', 'meta:weights', 'set:2026-11-01|bench|0']);
     expect(sim.server.keysOf(A)).toEqual(sim.server.keysOf(B)); // account A's data is now in account B as well
@@ -129,7 +129,7 @@ describe('F3 · restoring a backup while sync is on', () => {
     await a.sync();
     expect(a.setKeys()).toContain('2026-11-05|squat|0');
     sim.advance(DAY);
-    a.do(() => a.restoreMod.applyBackup(oldFile, [])); // restore the older file on A
+    await a.act(() => a.restoreMod.applyBackup(oldFile, [])); // restore the older file on A
     await a.sync();
     await e.sync();
     expect(e.setKeys()).toEqual(['2026-11-01|bench|0']); // the other phone lost its newer set
@@ -144,7 +144,7 @@ describe('F3 · restoring a backup while sync is on', () => {
     await a.signIn(A);
     const b = sim.device('B');
     sim.advance(1000);
-    b.do(() => b.restoreMod.applyBackup({ sets: [{ date: '2026-11-01', weekday: 1, exId: 'bench', idx: 0, kg: 99, reps: 8, done: 1 }], meals: [], shop: [], meta: {} }, []));
+    await b.act(() => b.restoreMod.applyBackup({ sets: [{ date: '2026-11-01', weekday: 1, exId: 'bench', idx: 0, kg: 99, reps: 8, done: 1 }], meals: [], shop: [], meta: {} }, []));
     expect(b.dirtyKeys()).toEqual([]);
     await b.signIn(A);
     expect(b.raw.allSets()[0].kg).toBe(60); // the file's value for the same set lost to the server's
@@ -172,7 +172,7 @@ describe('F4 · first sync and signing back in', () => {
     d.setMeta('weights', w(80));
     await d.signIn(A);
     sim.advance(1000);
-    d.signOut(); // no wipe
+    await d.signOut(); // no wipe
     sim.advance(1000);
     d.setMeta('tasks', JSON.stringify([task('t2')])); // t1 deleted while signed out
     d.setMeta('weights', w(75)); // weights corrected while signed out
@@ -286,7 +286,7 @@ describe('F8 · wiping on sign-out and photos', () => {
     sim.server.offline.add('A');
     d.setRow('2026-11-02', 'bench', 0); // changed here, never reached the account
     expect(d.dirtyKeys()).toHaveLength(1);
-    d.signOut({ wipe: true }); // what the screen runs once its own checks pass
+    await d.signOut({ wipe: true }); // what the screen runs once its own checks pass
     expect(d.photos.deleted).toBe(1);
     expect(d.setKeys()).toEqual([]);
     sim.server.offline.delete('A');
@@ -298,7 +298,7 @@ describe('F8 · wiping on sign-out and photos', () => {
     const d = sim.device('A');
     d.setRow('2026-11-01', 'bench', 0);
     await d.signIn(A);
-    d.signOut({ wipe: true });
+    await d.signOut({ wipe: true });
     expect(sim.server.keysOf(A)).toEqual(['set:2026-11-01|bench|0']);
     await d.signIn(A);
     expect(d.setKeys()).toEqual(['2026-11-01|bench|0']);

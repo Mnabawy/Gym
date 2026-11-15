@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { morningBrief, type BriefInput } from '../src/lib/brief';
+import { clock, morningBrief, type BriefInput } from '../src/lib/brief';
 import { currentWorkout } from '../src/lib/schedule';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
@@ -93,4 +93,13 @@ test("tasks: the day's count, the top two, and what's overdue today", () => {
   const tasks = [t('أ', { priority: 2 }), t('ب', { priority: 1 }), t('ج', {}), t('قديمة', { due: '2026-11-01' })];
   expect(morningBrief(TODAY, { ...base, tasks: tasks as never }).body).toContain('📝 مهامك: 3 (ب، أ…) · 1 متأخرة');
   expect(morningBrief('2026-11-05', { ...base, tasks: tasks as never }).body).not.toContain('📝');
+});
+
+test('clock: noon, midnight and the half hours', () => {
+  expect(clock(720)).toBe('12 العصر');
+  expect(clock(750)).toContain('12:30');
+  expect(clock(750)).not.toMatch(/^0/);
+  expect(clock(0)).toBe('12 الصبح');
+  expect(clock(30)).toBe('12:30 الصبح');
+  expect(clock(23 * 60 + 59)).toBe('11:59 بالليل');
 });

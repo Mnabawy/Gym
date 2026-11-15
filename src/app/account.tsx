@@ -10,7 +10,7 @@ import { useDataVersion } from '../lib/bus';
 import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, syncStatus, unlinkCloud } from '../lib/cloud';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported, linkGoogle, unlinkGoogle } from '../lib/google';
 import { listPhotos, photosSupported } from '../lib/photos';
-import { WELCOME_KEY, wipeLocal } from '../lib/restore';
+import { safetyText, WELCOME_KEY, wipeLocal } from '../lib/restore';
 import { storage } from '../lib/storage';
 import { tint, useTheme } from '../theme';
 
@@ -43,7 +43,7 @@ export default function Account() {
       await f();
     } catch (e) {
       const why = String((e as { code?: string; message?: string })?.code ?? (e as Error)?.message ?? '').slice(0, 80);
-      setMsg({ text: `حصلت مشكلة، جرّب تاني.${why ? ` (${why})` : ''}`, bad: true });
+      setMsg({ text: safetyText(e) ?? `حصلت مشكلة، جرّب تاني.${why ? ` (${why})` : ''}`, bad: true });
     } finally {
       setBusy(false);
     }
@@ -57,9 +57,10 @@ export default function Account() {
         const ok = await syncCloud().then(() => pendingChanges() === 0, () => false);
         if (!ok) return setMsg({ text: 'معرفتش أحفظ آخر تغييراتك على حسابك، فما مسحتش حاجة. اتأكد من النت وجرّب تاني.', bad: true });
       }
+      // The wipe goes first: it makes a safety copy, and if that fails nothing is wiped and the account stays linked.
+      if (wipe) await wipeLocal();
       unlinkCloud();
       await unlinkGoogle();
-      if (wipe) wipeLocal();
       storage.setMeta(WELCOME_KEY, '');
       router.replace('/welcome');
     });

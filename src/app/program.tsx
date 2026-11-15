@@ -10,7 +10,7 @@ import { WorkoutChips } from '../components/WorkoutChips';
 import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
 import { dateKey } from '../lib/logic';
 import { confirm } from '../lib/confirm';
-import { move, newId, REPS_MAX, REPS_MIN } from '../lib/programEdit';
+import { move, newId, parsePast, PAST_KEY, REPS_MAX, REPS_MIN, reservedIds } from '../lib/programEdit';
 import { currentWorkout, seqIndex } from '../lib/schedule';
 import { deloadOn, useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
@@ -40,7 +40,7 @@ export default function ProgramScreen() {
 
   const save = (list: ExerciseDef[]) => st.setProgram({ ...currentEdit(), [day]: list });
   const defs = () => currentEdit()[day];
-  const taken = () => PROGRAM.flatMap((d) => d.exercises.map((e) => e.id));
+  const taken = () => [...PROGRAM.flatMap((d) => d.exercises.map((e) => e.id)), ...reservedIds(parsePast(storage.getMeta(PAST_KEY)))];
 
   const submit = () => {
     if (!form || !form.name.trim()) return;

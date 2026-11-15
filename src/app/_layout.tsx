@@ -19,6 +19,9 @@ import { syncReminders } from '../lib/reminder';
 import { runAutoBackup } from '../lib/autoBackup';
 import { cloudConfigured, keepSynced } from '../lib/cloud';
 import { onDirty } from '../lib/track';
+import { hasLocalData } from '../lib/safety';
+import { repairRecoveries } from '../lib/safetyIO';
+import { storage } from '../lib/storage';
 import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
 
@@ -108,6 +111,10 @@ function ReminderSync() {
  * leaving it. Signed in to Google but sync not on yet (it failed before, or from before sync existed): it turns on by itself.
  */
 function CloudSync() {
+  // After an interrupted wipe: put the photos back (or note the wipe), and delete old recovery folders. Works offline.
+  useEffect(() => {
+    void repairRecoveries(hasLocalData(storage.dump())).catch(() => {});
+  }, []);
   useEffect(() => {
     if (!cloudConfigured) return;
     const go = () => void keepSynced();

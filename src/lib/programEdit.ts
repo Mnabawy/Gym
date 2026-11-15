@@ -58,6 +58,11 @@ export function newId(name: string, taken: Iterable<string>): string {
   return `${base}-${i}`;
 }
 
+/** Ids a new exercise must not take: the PDF's, retired ones and ones you had before (they'd bring their old history back). */
+export function reservedIds(past: Record<string, PastExercise>): string[] {
+  return [...Object.values(PDF_PROGRAM).flat().map((e) => e.id), ...RETIRED_EXERCISES.map((e) => e.id), ...Object.keys(past)];
+}
+
 /** True when the edit is the same as the PDF program (so it can be dropped). */
 export function isPdf(edit: ProgramEdit): boolean {
   return Object.entries(PDF_PROGRAM).every(([wd, defs]) => {

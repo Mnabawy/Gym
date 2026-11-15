@@ -44,7 +44,7 @@ const FROZEN: [string, string][] = [['فراخ', 'الفراخ'], ['لحم', 'ا
 /** Days without a weigh-in before the brief says to weigh. */
 export const WEIGH_EVERY = 7;
 
-const clock = (m: number) => `${m % 720 === 0 ? 12 : Math.floor((m % 720) / 60)}${m % 60 ? `:${String(m % 60).padStart(2, '0')}` : ''} ${m < 720 ? 'الصبح' : m < 1020 ? 'العصر' : 'بالليل'}`;
+export const clock = (m: number) => `${Math.floor((m % 720) / 60) || 12}${m % 60 ? `:${String(m % 60).padStart(2, '0')}` : ''} ${m < 720 ? 'الصبح' : m < 1020 ? 'العصر' : 'بالليل'}`;
 
 export function morningBrief(date: string, x: BriefInput): { title: string; body: string } {
   const wd = weekdayOf(date);

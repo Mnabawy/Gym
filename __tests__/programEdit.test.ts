@@ -1,6 +1,6 @@
 /// <reference types="jest" />
-import { ALL_EXERCISES, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, dayFor, exerciseById, PDF_PROGRAM, PROGRAM } from '../src/data/program';
-import { exerciseInfo, isPdf, move, newId, parsePast, parseProgram, remember } from '../src/lib/programEdit';
+import { RETIRED_EXERCISES, ALL_EXERCISES, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, dayFor, exerciseById, PDF_PROGRAM, PROGRAM } from '../src/data/program';
+import { exerciseInfo, isPdf, move, newId, parsePast, parseProgram, remember, reservedIds } from '../src/lib/programEdit';
 
 const pdf = () => Object.fromEntries(Object.entries(PDF_PROGRAM).map(([k, v]) => [k, v.map((d) => ({ ...d }))]));
 const plan = { sets: {}, restHeavy: DEFAULT_REST.heavy, restNormal: DEFAULT_REST.normal };
@@ -74,4 +74,14 @@ test('light week: half the sets, rounded up, never under one', () => {
   expect(exerciseById('deadlift')!.sets).toBe(2);
   expect(exerciseById('lat-pulldown')!.sets).toBe(1);
   expect(exerciseById('barbell-bench-press')!.sets).toBe(2); // 4 → 2
+});
+
+test('a new or replaced exercise never takes a retired or past id', () => {
+  const retired = RETIRED_EXERCISES[0];
+  const past = { 'my-old-move': { name: 'My old move', muscle: retired.muscle } };
+  const taken = [...PROGRAM.flatMap((d) => d.exercises.map((e) => e.id)), ...reservedIds(past)];
+  const id = newId(retired.name, taken);
+  expect(id).not.toBe(retired.id);
+  expect(RETIRED_EXERCISES.map((e) => e.id)).not.toContain(id);
+  expect(newId('My old move', taken)).not.toBe('my-old-move');
 });

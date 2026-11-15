@@ -69,3 +69,19 @@ test('the saved color is checked', () => {
   expect(parseSettings(JSON.stringify({ accent: '' })).accent).toBe('');
   expect(parseSettings(null).accent).toBe('#007AFF');
 });
+
+describe('light week expiry', () => {
+  afterEach(() => jest.useRealTimers());
+  test('refreshPlan after the last day brings the sets back without a restart', () => {
+    jest.useFakeTimers().setSystemTime(new Date(2026, 10, 15, 12));
+    const full = exerciseById('deadlift')!.sets;
+    useSettings.getState().startDeload(); // until 2026-11-21
+    expect(exerciseById('deadlift')!.sets).toBe(Math.ceil(full / 2));
+    jest.setSystemTime(new Date(2026, 10, 21, 23, 59));
+    useSettings.getState().refreshPlan();
+    expect(exerciseById('deadlift')!.sets).toBe(Math.ceil(full / 2)); // last day still light
+    jest.setSystemTime(new Date(2026, 10, 22, 0, 1));
+    useSettings.getState().refreshPlan();
+    expect(exerciseById('deadlift')!.sets).toBe(full);
+  });
+});

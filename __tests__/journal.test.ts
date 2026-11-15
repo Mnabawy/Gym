@@ -57,3 +57,8 @@ test('extras keep valid entries and round', () => {
   expect(extrasTotal([{ name: 'a', kcal: 100, p: 5 }, { name: 'b', kcal: 50, p: 2 }])).toEqual({ kcal: 150, p: 7 });
   expect(parseExtras('oops')).toEqual({});
 });
+
+test('parseExtras keeps big entries instead of dropping them', () => {
+  const raw = JSON.stringify({ '2026-11-01': [{ name: 'وليمة', kcal: 6000, p: 700 }] });
+  expect(parseExtras(raw)['2026-11-01']).toEqual([{ name: 'وليمة', kcal: 6000, p: 700 }]);
+});

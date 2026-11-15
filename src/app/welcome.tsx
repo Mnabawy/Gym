@@ -11,7 +11,7 @@ import { pickBackup } from '../lib/backupIO';
 import { cloudConfigured, linkCloud } from '../lib/cloud';
 import { linkGoogle } from '../lib/google';
 import { native, useReducedMotion } from '../lib/motion';
-import { applyBackup, WELCOME_KEY } from '../lib/restore';
+import { applyBackup, safetyText, WELCOME_KEY } from '../lib/restore';
 import { storage } from '../lib/storage';
 import { warmDark, ThemeProvider, tint, useTheme } from '../theme';
 
@@ -69,10 +69,10 @@ function WelcomeScreen() {
       if (!text) return;
       const p = parseBackup(text);
       if (!p.ok) return setErr(p.error);
-      applyBackup(p.data, p.photos);
+      await applyBackup(p.data, p.photos);
       finish();
-    } catch {
-      setErr('معرفتش أفتح الملف، جرّب تاني');
+    } catch (e) {
+      setErr(safetyText(e) ?? 'معرفتش أفتح الملف، جرّب تاني');
     }
   };
 

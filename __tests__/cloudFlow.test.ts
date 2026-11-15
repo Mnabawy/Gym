@@ -366,7 +366,7 @@ describe('concurrent calls and unlinking', () => {
     a.setRow('2026-11-01', 'bench', 0);
     await a.signIn(A);
     a.setRow('2026-11-02', 'bench', 0); // not sent yet
-    a.signOut();
+    await a.signOut();
     expect(a.track.trackingOn()).toBe(false);
     expect(a.cloud.cloudLinked()).toBe(false);
     for (const k of ['sync.session', 'sync.cursor', 'sync.full']) expect(a.meta(k)).toBeFalsy();

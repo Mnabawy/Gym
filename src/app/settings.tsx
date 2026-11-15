@@ -22,7 +22,7 @@ import { ExportSheet } from '../components/ExportSheet';
 import { useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
 import { listPhotos, photosSupported } from '../lib/photos';
-import { applyBackup } from '../lib/restore';
+import { applyBackup, safetyText } from '../lib/restore';
 import { canLock, lockSupported, unlock } from '../lib/lock';
 import { GOOGLE_USER, googleSupported } from '../lib/google';
 import { syncStatus } from '../lib/cloud';
@@ -82,11 +82,15 @@ export default function SettingsScreen() {
     if (!p.ok) return setMsg({ text: p.error, bad: true });
     setPending({ data: p.data, photos: p.photos, info: p.info, exportedAt: p.exportedAt });
   };
-  const restore = () => {
+  const restore = async () => {
     if (!pending) return;
-    const added = applyBackup(pending.data, pending.photos);
-    setPending(null);
-    setMsg({ text: added ? `رجّعت النسخة ✓ ومعاها ${countAr(added, PHOTOS)}` : 'رجّعت النسخة ✓' });
+    try {
+      const added = await applyBackup(pending.data, pending.photos);
+      setPending(null);
+      setMsg({ text: added ? `رجّعت النسخة ✓ ومعاها ${countAr(added, PHOTOS)}` : 'رجّعت النسخة ✓' });
+    } catch (e) {
+      setMsg({ text: safetyText(e) ?? 'حصلت مشكلة وأنا برجّع النسخة، جرّب تاني.', bad: true });
+    }
   };
 
   return (

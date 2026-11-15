@@ -8,6 +8,8 @@ import { useDataVersion } from './bus';
 import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
 import { applyRows, entry, localRows, SPLIT_META, splitKey, pushItems, rowId, type Pulled } from './cloudSync';
 import { GOOGLE_USER, googleIdToken } from './google';
+import { hasAnythingToProtect, SafetyError } from './safety';
+import { createSnapshot } from './safetyIO';
 import { useSettings } from './settings';
 import { storage } from './storage';
 import { dirty, rawStorage, saveDirty, setTracking, trackingOn } from './track';
@@ -157,6 +159,12 @@ export async function linkCloud(): Promise<void> {
   if (!cloudConfigured || !storage.getMeta(GOOGLE_USER)) return;
   const s = await freshSignIn();
   const old = readSession();
+  // Before anything is switched on or the first sync merges the server's rows into this phone: a safety copy of what's
+  // here (a SafetyError stops here, nothing is changed and sync stays off). A phone with nothing on it needs none.
+  if (meta(FULL) !== '1' || !trackingOn() || (old && old.uid !== s.uid)) {
+    const d = storage.dump();
+    if (hasAnythingToProtect(d)) await createSnapshot('first-sync', d);
+  }
   // Another account than before: start over (drop the old account's pending changes; this phone's data goes up whole).
   if (old && old.uid !== s.uid) {
     setTracking(false);
@@ -185,14 +193,17 @@ export function unlinkCloud() {
 export function keepSynced(): Promise<void> {
   if (!cloudConfigured) return Promise.resolve();
   const p = !cloudLinked() && storage.getMeta(GOOGLE_USER) ? linkCloud() : syncCloud();
-  return p.then(() => undefined, () => undefined);
+  return p.then(() => undefined, (e) => {
+    // A failed safety copy stops sync from turning on: show it as failed instead of staying silent.
+    if (e instanceof SafetyError) setMeta(SYNC_ERROR, String(Date.now()));
+  });
 }
 
 export type SyncStatus = { state: 'off' | 'saved' | 'waiting' | 'failed'; at: number; waiting: number };
 /** In plain terms: off (not signed in / not set up), saved (all on your account), waiting (changes not sent yet), failed. */
 export function syncStatus(): SyncStatus {
   const at = Number(meta(SYNC_AT) || 0);
-  if (!cloudLinked()) return { state: 'off', at, waiting: 0 };
+  if (!cloudLinked()) return cloudConfigured && storage.getMeta(GOOGLE_USER) && meta(SYNC_ERROR) ? { state: 'failed', at, waiting: 0 } : { state: 'off', at, waiting: 0 };
   const waiting = pendingChanges();
   if (meta(SYNC_ERROR)) return { state: 'failed', at, waiting };
   return { state: waiting || !at ? 'waiting' : 'saved', at, waiting };

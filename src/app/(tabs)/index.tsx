@@ -9,7 +9,8 @@ import { TimerBar } from '../../components/TimerBar';
 import { router } from 'expo-router';
 import { Btn, Card, HeaderBtn, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
-import { dateKey, formatClock, weekdayOf } from '../../lib/logic';
+import { formatClock, weekdayOf } from '../../lib/logic';
+import { useToday } from '../../lib/useToday';
 import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { confirm } from '../../lib/confirm';
@@ -36,7 +37,7 @@ const dayName = (k: string, today: string) => {
 
 function WorkoutScreen() {
   const t = useTheme();
-  const today = dateKey();
+  const today = useToday();
   // A past day you're logging (or fixing); null = today. Picked from the calendar button in the header.
   const [view, setView] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
