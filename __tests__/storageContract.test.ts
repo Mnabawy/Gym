@@ -86,6 +86,47 @@ describe.each([
     expect(s.lastSession('bench', '2026-11-01')).toBeUndefined();
   });
 
+  test('lastSession: the whole day in idx order with gaps blank, only this exercise, done and undone sets alike', () => {
+    s.saveSet(row('2026-11-02', 'bench', 2, 70, 0, { rir: 1, at: 5 }));
+    s.saveSet(row('2026-11-02', 'bench', 0, 60));
+    s.saveSet(row('2026-11-02', 'squat', 0, 100));
+    s.saveSet(row('2026-11-03', 'squat', 0, 110));
+    expect(s.lastSession('bench', '2026-11-04')).toEqual([
+      { kg: 60, reps: 8, done: true, rir: null, at: null },
+      { kg: null, reps: null, done: false },
+      { kg: 70, reps: 8, done: false, rir: 1, at: 5 },
+    ]);
+    expect(s.lastSession('bench', '2026-11-02')).toBeUndefined();
+    expect(s.lastSession('deadlift', '2026-11-30')).toBeUndefined();
+    // A day that only has empty rows is skipped, but that day's empty rows still come with a day that has a number.
+    s.saveSet(row('2026-11-05', 'bench', 0, null));
+    s.saveSet(row('2026-11-06', 'bench', 1, null));
+    s.saveSet(row('2026-11-06', 'bench', 0, 65));
+    expect(s.lastSession('bench', '2026-11-06')?.[0].kg).toBe(60);
+    expect(s.lastSession('bench', '2026-11-07')).toEqual([
+      { kg: 65, reps: 8, done: true, rir: null, at: null },
+      { kg: null, reps: null, done: true, rir: null, at: null },
+    ]);
+  });
+
+  test('history: one entry per date oldest first, each day like setsFor, other exercises left out', () => {
+    s.saveSet(row('2026-11-09', 'bench', 1, 72, 0, { rir: 3, at: 7 }));
+    s.saveSet(row('2026-11-01', 'bench', 2, 64));
+    s.saveSet(row('2026-11-09', 'bench', 0, 70));
+    s.saveSet(row('2026-11-01', 'bench', 0, 60));
+    s.saveSet(row('2026-11-05', 'squat', 0, 100));
+    s.saveSet(row('2026-11-05', 'bench', 0, null, 0));
+    const h = s.history('bench');
+    expect(h).toEqual([
+      { date: '2026-11-01', sets: [{ kg: 60, reps: 8, done: true, rir: null, at: null }, { kg: null, reps: null, done: false }, { kg: 64, reps: 8, done: true, rir: null, at: null }] },
+      { date: '2026-11-05', sets: [{ kg: null, reps: null, done: false, rir: null, at: null }] },
+      { date: '2026-11-09', sets: [{ kg: 70, reps: 8, done: true, rir: null, at: null }, { kg: 72, reps: 8, done: false, rir: 3, at: 7 }] },
+    ]);
+    for (const d of h) expect(d.sets).toEqual(s.setsFor(d.date, 'bench'));
+    expect(s.history('deadlift')).toEqual([]);
+    expect(s.history('squat').map((d) => d.date)).toEqual(['2026-11-05']);
+  });
+
   test('clearDay and deleteSet remove only what they name', () => {
     s.saveSet(row('2026-11-01', 'bench', 0));
     s.saveSet(row('2026-11-01', 'bench', 1));

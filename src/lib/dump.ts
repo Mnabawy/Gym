@@ -6,6 +6,8 @@
 // asleep about 9 minutes faster (Scullin et al. 2018, J Exp Psychol Gen 147(1) 139–146). The capture-then-sort
 // order and the two-minute rule are David Allen's (Getting Things Done, 2001). Saved in meta `dump`. Pure.
 
+import { isRec, keepExtra, parseList } from './records';
+
 export const DUMP_KEY = 'dump';
 
 export type DumpKind = 'new' | 'worry' | 'idea';
@@ -14,21 +16,16 @@ export type DumpItem = { id: string; text: string; at: string; kind: DumpKind; d
 
 const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 
-export function parseDump(raw: string | null): DumpItem[] {
-  try {
-    const v = JSON.parse(raw ?? '[]');
-    if (!Array.isArray(v)) return [];
-    const seen = new Set<string>();
-    return v.flatMap((x) => {
-      if (!x || typeof x !== 'object' || typeof x.id !== 'string' || seen.has(x.id) || typeof x.text !== 'string' || !x.text.trim() || !isDate(x.at)) return [];
-      seen.add(x.id);
-      const kind: DumpKind = x.kind === 'worry' || x.kind === 'idea' ? x.kind : 'new';
-      return [{ id: x.id, text: x.text.trim(), at: x.at, kind, ...(kind === 'worry' && isDate(x.day) ? { day: x.day } : {}) }];
-    });
-  } catch {
-    return [];
-  }
+const DUMP_FIELDS = new Set(['id', 'text', 'at', 'kind', 'day']);
+
+/** One stored item, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
+export function parseDumpItem(x: unknown): DumpItem | null {
+  if (!isRec(x) || typeof x.id !== 'string' || typeof x.text !== 'string' || !x.text.trim() || !isDate(x.at)) return null;
+  const kind: DumpKind = x.kind === 'worry' || x.kind === 'idea' ? x.kind : 'new';
+  return keepExtra<DumpItem>(x, DUMP_FIELDS, { id: x.id, text: x.text.trim(), at: x.at, kind, ...(kind === 'worry' && isDate(x.day) ? { day: x.day } : {}) });
 }
+
+export const parseDump = (raw: string | null): DumpItem[] => parseList(raw, parseDumpItem);
 
 /** Lines typed or pasted at once become one item each (empty lines and bullet marks dropped). */
 export function splitLines(text: string): string[] {

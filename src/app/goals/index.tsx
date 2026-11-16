@@ -23,12 +23,16 @@ import { dateKey } from '../../lib/logic';
 import { showUndo } from '../../lib/undo';
 import { tap } from '../../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
+import { crashBoundary } from '../../components/CrashScreen';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 type Tab = 'today' | 'mine' | 'later' | 'done';
 
 const day = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 const month = (k: string) => `${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
+
+/** A crash on this page shows a recovery screen instead of closing the app (src/components/CrashScreen.tsx). */
+export const ErrorBoundary = crashBoundary('goals');
 
 export default function GoalsSection() {
   return (

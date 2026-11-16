@@ -1,7 +1,7 @@
 // Web storage: localStorage (used for the web preview; the phone app uses SQLite)
 import { brokenName, DB_RECOVERED_KEY, type DbRecovery } from './dbOpen';
 import { track } from './track';
-import { rowsToSets, type SetRow, type Storage } from './storage.types';
+import { groupByDate, rowsToSets, type SetRow, type Storage } from './storage.types';
 
 type State = { sets: SetRow[]; meals: { date: string; meal: string }[]; shop: { week: string; item: string }[]; meta: Record<string, string> };
 const KEY = 'gym-app-v1';
@@ -50,8 +50,9 @@ const base: Storage = {
     persist();
   },
   lastSession(exId, date) {
-    const dates = [...new Set(S.sets.filter((r) => r.exId === exId && r.date < date && (r.kg != null || r.reps != null)).map((r) => r.date))].sort();
-    const d = dates.pop();
+    // One pass for the newest earlier day with a number, one for its rows.
+    let d: string | undefined;
+    for (const r of S.sets) if (r.exId === exId && r.date < date && (r.kg != null || r.reps != null) && (d === undefined || r.date > d)) d = r.date;
     return d ? this.setsFor(d, exId) : undefined;
   },
   clearDay(date, exIds) {
@@ -72,8 +73,9 @@ const base: Storage = {
     }
   },
   history(exId) {
-    const dates = [...new Set(S.sets.filter((r) => r.exId === exId).map((r) => r.date))].sort();
-    return dates.map((date) => ({ date, sets: this.setsFor(date, exId) }));
+    // One pass over the rows (not one per date), grouped by date like storage.ts.
+    const rows = S.sets.filter((r) => r.exId === exId).sort((a, b) => (a.date !== b.date ? (a.date < b.date ? -1 : 1) : a.idx - b.idx));
+    return groupByDate(rows);
   },
   doneSetsBetween(from, to) {
     const m = new Map<string, number>();

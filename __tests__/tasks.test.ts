@@ -6,11 +6,11 @@ import { inSpace, parseTrash, pruneTrash, revertTasks, spaceOf, toTrash } from '
 const T = '2026-11-08';
 const mk = (o: Partial<Task>): Task => ({ id: 'x', title: 'مهمة', due: null, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: '2026-11-01', ...o });
 
-test('parse drops broken tasks', () => {
+test('parse drops broken tasks (fields it does not know are kept, records.ts)', () => {
   const ok = mk({ id: 'a', time: 600, remind: true });
   const list = parseTasks(JSON.stringify([{ ...ok, note: ' ملاحظة ', evening: true, urgent: true }, { ...ok }, { id: 'b', title: ' ' }, { ...ok, id: 'c', priority: 9, time: 5000, remind: true, due: 'x' }]));
   expect(list.map((t) => t.id)).toEqual(['a', 'c']);
-  expect(list[0]).toEqual({ ...ok, note: 'ملاحظة' });
+  expect(list[0]).toEqual({ ...ok, note: 'ملاحظة', evening: true, urgent: true });
   expect(list[1]).toMatchObject({ priority: 3, time: null, remind: false, due: null });
   expect(parseTasks('nope')).toEqual([]);
 });

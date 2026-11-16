@@ -8,6 +8,7 @@
 // Sessions in meta `focus`, settings in `focusCfg`, the running clock in `focusState` (this phone only).
 // Pure — unit tested in __tests__/focus.test.ts.
 import { addDays } from './gaps';
+import { isRec, keepExtra, parseList } from './records';
 
 export const FOCUS_KEY = 'focus';
 export const FOCUS_CFG_KEY = 'focusCfg';
@@ -81,26 +82,18 @@ export function parseState(raw: string | null): State {
   };
 }
 
-export function parseSessions(raw: string | null): Session[] {
-  let v: unknown;
-  try {
-    v = JSON.parse(raw ?? '[]');
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(v)) return [];
-  const seen = new Set<string>();
-  const out: Session[] = [];
-  for (const x of v) {
-    if (!x || typeof x !== 'object') continue;
-    const o = x as Record<string, unknown>;
-    if (typeof o.id !== 'string' || seen.has(o.id) || typeof o.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.date)) continue;
-    if (typeof o.min !== 'number' || o.min < 1 || typeof o.start !== 'number' || typeof o.end !== 'number') continue;
-    seen.add(o.id);
-    out.push({ id: o.id, kind: isKind(o.kind) ? o.kind : 'work', start: o.start, end: o.end, min: Math.round(o.min), date: o.date, ...(typeof o.task === 'string' && o.task ? { task: o.task } : {}) });
-  }
-  return out;
+const SESSION_FIELDS = new Set(['id', 'kind', 'start', 'end', 'min', 'date', 'task']);
+
+/** One stored focus block, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
+export function parseSession(x: unknown): Session | null {
+  if (!isRec(x)) return null;
+  const o = x;
+  if (typeof o.id !== 'string' || typeof o.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.date)) return null;
+  if (typeof o.min !== 'number' || o.min < 1 || typeof o.start !== 'number' || typeof o.end !== 'number') return null;
+  return keepExtra<Session>(o, SESSION_FIELDS, { id: o.id, kind: isKind(o.kind) ? o.kind : 'work', start: o.start, end: o.end, min: Math.round(o.min), date: o.date, ...(typeof o.task === 'string' && o.task ? { task: o.task } : {}) });
 }
+
+export const parseSessions = (raw: string | null): Session[] => parseList(raw, parseSession);
 
 export const phaseMs = (p: Phase, c: Cfg) => (p === 'focus' ? c.focus : p === 'short' ? c.short : c.long) * MIN;
 export const running = (s: State) => s.endAt != null;

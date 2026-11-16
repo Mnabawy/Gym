@@ -16,6 +16,7 @@ import { isPackage } from './apps';
 import { addDays, daysBetween } from './gaps';
 import { weekdayOf } from './logic';
 import { PRAYERS, timesFor, type Method, type PrayerKey } from './prayer';
+import { isRec, keepExtra, parseList } from './records';
 
 export const HABITS_KEY = 'habits';
 export const HABIT_LOG_KEY = 'habitLog';
@@ -79,55 +80,48 @@ export const HABIT_COLORS = ['#1BA6A8', '#0072B2', '#D55E00', '#CC79A7', '#E69F0
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 const hex = /^#[0-9A-Fa-f]{6}$/;
 
-export function parseHabits(raw: string | null): Habit[] {
-  let v: unknown;
-  try {
-    v = raw ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(v)) return [];
-  const out: Habit[] = [];
-  const seen = new Set<string>();
-  for (const x of v) {
-    if (!x || typeof x !== 'object') continue;
-    const o = x as Record<string, unknown>;
-    if (typeof o.id !== 'string' || !o.id || seen.has(o.id) || typeof o.name !== 'string' || !o.name.trim()) continue;
-    if (typeof o.start !== 'string' || !DATE.test(o.start)) continue;
-    const days = Array.isArray(o.days) ? [...new Set(o.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort() : [];
-    if (!days.length) continue;
-    seen.add(o.id);
-    out.push({
-      id: o.id,
-      name: o.name.trim(),
-      icon: typeof o.icon === 'string' ? o.icon : 'star',
-      color: typeof o.color === 'string' && hex.test(o.color) ? o.color : HABIT_COLORS[0],
-      days,
-      remind: typeof o.remind === 'number' && o.remind >= 0 && o.remind < 1440 ? o.remind : null,
-      start: o.start,
-      ...(typeof o.cue === 'string' && o.cue.trim() ? { cue: o.cue.trim().slice(0, 60) } : null),
-      ...(typeof o.app === 'string' && isPackage(o.app) ? { app: o.app } : null),
-      ...(typeof o.group === 'string' && o.group.trim() ? { group: o.group.trim().slice(0, 30) } : null),
-      ...(parseRef(o.at) ? { at: parseRef(o.at)! } : null),
-      ...(Array.isArray(o.parts)
-        ? {
-            parts: o.parts
-              .filter((p): p is { name: string; at?: unknown; adhkar?: unknown } => !!p && typeof p === 'object' && typeof (p as { name?: unknown }).name === 'string' && !!(p as { name: string }).name.trim())
-              .slice(0, 12)
-              .map((p) => ({ name: p.name.trim().slice(0, 30), ...(parseRef(p.at) ? { at: parseRef(p.at)! } : null), ...(p.adhkar === 'morning' || p.adhkar === 'evening' ? { adhkar: p.adhkar } : null) })),
-          }
-        : null),
-      ...(Array.isArray(o.pauses)
-        ? {
-            pauses: o.pauses.filter(
-              (p): p is { from: string; to: string | null } => !!p && typeof p.from === 'string' && DATE.test(p.from) && (p.to === null || (typeof p.to === 'string' && DATE.test(p.to) && p.to >= p.from)),
-            ),
-          }
-        : null),
-    });
-  }
-  return out;
+const HABIT_FIELDS = new Set(['id', 'name', 'icon', 'color', 'days', 'remind', 'start', 'cue', 'app', 'group', 'at', 'parts', 'pauses']);
+const PART_FIELDS = new Set(['name', 'at', 'adhkar']);
+
+/** One stored habit, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
+export function parseHabit(x: unknown): Habit | null {
+  if (!isRec(x)) return null;
+  const o = x;
+  if (typeof o.id !== 'string' || !o.id || typeof o.name !== 'string' || !o.name.trim()) return null;
+  if (typeof o.start !== 'string' || !DATE.test(o.start)) return null;
+  const days = Array.isArray(o.days) ? [...new Set(o.days.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort() : [];
+  if (!days.length) return null;
+  return keepExtra<Habit>(o, HABIT_FIELDS, {
+    id: o.id,
+    name: o.name.trim(),
+    icon: typeof o.icon === 'string' ? o.icon : 'star',
+    color: typeof o.color === 'string' && hex.test(o.color) ? o.color : HABIT_COLORS[0],
+    days,
+    remind: typeof o.remind === 'number' && o.remind >= 0 && o.remind < 1440 ? o.remind : null,
+    start: o.start,
+    ...(typeof o.cue === 'string' && o.cue.trim() ? { cue: o.cue.trim().slice(0, 60) } : null),
+    ...(typeof o.app === 'string' && isPackage(o.app) ? { app: o.app } : null),
+    ...(typeof o.group === 'string' && o.group.trim() ? { group: o.group.trim().slice(0, 30) } : null),
+    ...(parseRef(o.at) ? { at: parseRef(o.at)! } : null),
+    ...(Array.isArray(o.parts)
+      ? {
+          parts: o.parts
+            .filter((p): p is { name: string; at?: unknown; adhkar?: unknown } => !!p && typeof p === 'object' && typeof (p as { name?: unknown }).name === 'string' && !!(p as { name: string }).name.trim())
+            .slice(0, 12)
+            .map((p) => keepExtra<Part>(p, PART_FIELDS, { name: p.name.trim().slice(0, 30), ...(parseRef(p.at) ? { at: parseRef(p.at)! } : null), ...(p.adhkar === 'morning' || p.adhkar === 'evening' ? { adhkar: p.adhkar } : null) })),
+        }
+      : null),
+    ...(Array.isArray(o.pauses)
+      ? {
+          pauses: o.pauses.filter(
+            (p): p is { from: string; to: string | null } => !!p && typeof p.from === 'string' && DATE.test(p.from) && (p.to === null || (typeof p.to === 'string' && DATE.test(p.to) && p.to >= p.from)),
+          ),
+        }
+      : null),
+  });
 }
+
+export const parseHabits = (raw: string | null): Habit[] => parseList(raw, parseHabit);
 
 function parseRef(v: unknown): PrayerRef | null {
   if (!v || typeof v !== 'object') return null;
@@ -155,6 +149,8 @@ export function parsePartsLog(raw: string | null): PartsLog {
   }
   return out;
 }
+/** A `habitParts` entry this build can read (others are kept as they are on write, records.ts `keepUnreadMap`). */
+export const okPartsEntry = (k: string, x: unknown) => DATE.test(k.slice(-10)) && Array.isArray(x) && x.some((i) => Number.isInteger(i) && i >= 0 && i < 12);
 
 /** Parts done on a date (indexes). A day marked done as a whole counts as all of them. */
 export function partsDone(h: Habit, log: Log, parts: PartsLog, date: string): number[] {
@@ -231,9 +227,11 @@ export function parseLog(raw: string | null): Log {
     return out;
   }
   if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
-  for (const [k, m] of Object.entries(v as Record<string, unknown>)) if ((m === 'done' || m === 'skip') && DATE.test(k.slice(-10))) out[k] = m;
+  for (const [k, m] of Object.entries(v as Record<string, unknown>)) if (okLogEntry(k, m)) out[k] = m as Mark;
   return out;
 }
+/** A `habitLog` entry this build can read (others are kept as they are on write, records.ts `keepUnreadMap`). */
+export const okLogEntry = (k: string, m: unknown) => (m === 'done' || m === 'skip') && DATE.test(k.slice(-10));
 
 export const logKey = (id: string, date: string) => `${id}|${date}`;
 /** Paused on that date (inside a pause stretch, or an open one that started by then). */

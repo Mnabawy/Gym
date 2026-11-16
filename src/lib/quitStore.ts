@@ -1,21 +1,24 @@
 // Reading and writing quits in storage meta (src/lib/quit.ts), with a data-version bump so screens re-read.
 import { useDataVersion } from './bus';
-import { parseQuits, QUITS_KEY, type Quit, type Slip, type Urge } from './quit';
+import { parseQuit, parseQuits, QUITS_KEY, type Quit, type Slip, type Urge } from './quit';
+import { keepUnread } from './records';
 import { storage } from './storage';
 
 export const readQuits = () => parseQuits(storage.getMeta(QUITS_KEY));
+/** Saves the list; quits a newer build wrote that this one can't read stay as they are (records.ts). */
+const writeQuits = (list: readonly Quit[]) => storage.setMeta(QUITS_KEY, keepUnread(storage.getMeta(QUITS_KEY), list, parseQuit));
 
 export function saveQuit(q: Quit) {
   const list = readQuits();
   const i = list.findIndex((x) => x.id === q.id);
   if (i >= 0) list[i] = q;
   else list.push(q);
-  storage.setMeta(QUITS_KEY, JSON.stringify(list));
+  writeQuits(list);
   useDataVersion.getState().bump();
 }
 
 export function deleteQuit(id: string) {
-  storage.setMeta(QUITS_KEY, JSON.stringify(readQuits().filter((q) => q.id !== id)));
+  writeQuits(readQuits().filter((q) => q.id !== id));
   useDataVersion.getState().bump();
 }
 

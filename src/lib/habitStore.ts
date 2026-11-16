@@ -1,29 +1,35 @@
 // Reading and writing habits in storage meta (src/lib/habits.ts), with a data-version bump so screens re-read.
 import { useDataVersion } from './bus';
-import { HABIT_LOG_KEY, HABIT_PARTS_KEY, HABITS_KEY, logKey, parseHabits, parseLog, parsePartsLog, togglePart, type Habit, type Mark } from './habits';
+import { HABIT_LOG_KEY, HABIT_PARTS_KEY, HABITS_KEY, logKey, okLogEntry, okPartsEntry, parseHabit, parseHabits, parseLog, parsePartsLog, togglePart, type Habit, type Log, type Mark, type PartsLog } from './habits';
+import { keepUnread, keepUnreadMap } from './records';
 import { storage } from './storage';
 
 export const readHabits = () => parseHabits(storage.getMeta(HABITS_KEY));
 export const readHabitLog = () => parseLog(storage.getMeta(HABIT_LOG_KEY));
+
+// Writes keep what a newer build wrote that this one can't read (records.ts): habits, log days and part days.
+const writeHabits = (list: readonly Habit[]) => storage.setMeta(HABITS_KEY, keepUnread(storage.getMeta(HABITS_KEY), list, parseHabit));
+const writeLog = (log: Log) => storage.setMeta(HABIT_LOG_KEY, keepUnreadMap(storage.getMeta(HABIT_LOG_KEY), log, okLogEntry));
+const writeParts = (parts: PartsLog) => storage.setMeta(HABIT_PARTS_KEY, keepUnreadMap(storage.getMeta(HABIT_PARTS_KEY), parts, okPartsEntry));
 
 export function saveHabit(h: Habit) {
   const list = readHabits();
   const i = list.findIndex((x) => x.id === h.id);
   if (i >= 0) list[i] = h;
   else list.push(h);
-  storage.setMeta(HABITS_KEY, JSON.stringify(list));
+  writeHabits(list);
   useDataVersion.getState().bump();
 }
 
 /** Deletes a habit and everything logged for it. */
 export function deleteHabit(id: string) {
-  storage.setMeta(HABITS_KEY, JSON.stringify(readHabits().filter((h) => h.id !== id)));
+  writeHabits(readHabits().filter((h) => h.id !== id));
   const log = readHabitLog();
   for (const k of Object.keys(log)) if (k.startsWith(`${id}|`)) delete log[k];
-  storage.setMeta(HABIT_LOG_KEY, JSON.stringify(log));
+  writeLog(log);
   const parts = readHabitParts();
   for (const k of Object.keys(parts)) if (k.startsWith(`${id}|`)) delete parts[k];
-  storage.setMeta(HABIT_PARTS_KEY, JSON.stringify(parts));
+  writeParts(parts);
   useDataVersion.getState().bump();
 }
 
@@ -31,12 +37,12 @@ export function setMark(id: string, date: string, m: Mark | undefined) {
   const log = readHabitLog();
   if (m) log[logKey(id, date)] = m;
   else delete log[logKey(id, date)];
-  storage.setMeta(HABIT_LOG_KEY, JSON.stringify(log));
+  writeLog(log);
   // A whole-day mark replaces the day's parts (done = all of them, skip or nothing = none).
   const parts = readHabitParts();
   if (parts[logKey(id, date)]) {
     delete parts[logKey(id, date)];
-    storage.setMeta(HABIT_PARTS_KEY, JSON.stringify(parts));
+    writeParts(parts);
   }
   useDataVersion.getState().bump();
 }
@@ -49,7 +55,7 @@ export function moveHabit(id: string, by: number) {
   if (i < 0 || i === j) return;
   const [h] = list.splice(i, 1);
   list.splice(j, 0, h);
-  storage.setMeta(HABITS_KEY, JSON.stringify(list));
+  writeHabits(list);
   useDataVersion.getState().bump();
 }
 
@@ -64,8 +70,8 @@ export function setPart(h: Habit, date: string, i: number) {
   else delete log[logKey(h.id, date)];
   if (r.done.length) parts[logKey(h.id, date)] = r.done;
   else delete parts[logKey(h.id, date)];
-  storage.setMeta(HABIT_LOG_KEY, JSON.stringify(log));
-  storage.setMeta(HABIT_PARTS_KEY, JSON.stringify(parts));
+  writeLog(log);
+  writeParts(parts);
   useDataVersion.getState().bump();
 }
 
@@ -80,7 +86,7 @@ export function addHabits(list: readonly Omit<Habit, 'id' | 'start'>[], today: s
     cur.push({ ...t, id: `h${(now + n).toString(36)}`, start: today });
     n++;
   }
-  storage.setMeta(HABITS_KEY, JSON.stringify(cur));
+  writeHabits(cur);
   useDataVersion.getState().bump();
   return n;
 }

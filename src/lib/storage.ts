@@ -3,7 +3,7 @@ import { Directory, File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { brokenName, carriedOver, DB_RECOVERED_KEY, markerName, openWithRecovery, parseDbRecovery, type DbRecovery } from './dbOpen';
 import { track } from './track';
-import { rowsToSets, type Dump, type SetRow, type Storage } from './storage.types';
+import { groupByDate, rowsToSets, type Dump, type SetRow, type Storage } from './storage.types';
 
 const NAME = 'gym.db';
 
@@ -116,11 +116,14 @@ const base: Storage = {
     );
   },
   lastSession(exId, date) {
-    const d = db.getFirstSync<{ date: string }>(
-      `SELECT date FROM set_logs WHERE ex_id = ? AND date < ? AND (kg IS NOT NULL OR reps IS NOT NULL) ORDER BY date DESC LIMIT 1`,
-      exId, date,
+    // One query: the newest earlier day with a number, and all of that day's rows.
+    const rows = db.getAllSync<Row>(
+      `SELECT idx, kg, reps, done, rir, at FROM set_logs WHERE ex_id = ? AND date = (
+         SELECT MAX(date) FROM set_logs WHERE ex_id = ? AND date < ? AND (kg IS NOT NULL OR reps IS NOT NULL)
+       ) ORDER BY idx`,
+      exId, exId, date,
     );
-    return d ? this.setsFor(d.date, exId) : undefined;
+    return rows.length ? rowsToSets(rows) : undefined;
   },
   clearDay(date, exIds) {
     for (const id of exIds) db.runSync('DELETE FROM set_logs WHERE date = ? AND ex_id = ?', date, id);
@@ -132,8 +135,9 @@ const base: Storage = {
     db.withTransactionSync(f);
   },
   history(exId) {
-    const dates = db.getAllSync<{ date: string }>('SELECT DISTINCT date FROM set_logs WHERE ex_id = ? ORDER BY date', exId);
-    return dates.map(({ date }) => ({ date, sets: this.setsFor(date, exId) }));
+    // One query for every day (not one per date), grouped here; rows come sorted by date, then idx.
+    const rows = db.getAllSync<Row & { date: string }>('SELECT date, idx, kg, reps, done, rir, at FROM set_logs WHERE ex_id = ? ORDER BY date, idx', exId);
+    return groupByDate(rows);
   },
   doneSetsBetween(from, to) {
     return db

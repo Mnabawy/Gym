@@ -1,13 +1,15 @@
 // Reading and writing tasks in storage meta (src/lib/tasks.ts), with a data-version bump so screens re-read.
 import { useDataVersion } from './bus';
-import { parseTasks, parseTrash, pruneTrash, revertTasks, toTrash, TASKS_KEY, TRASH_KEY, type Task, type Trashed } from './tasks';
+import { keepUnread } from './records';
+import { parseTask, parseTasks, parseTrash, parseTrashed, pruneTrash, revertTasks, toTrash, TASKS_KEY, TRASH_KEY, type Task, type Trashed } from './tasks';
 import { dateKey } from './logic';
 import { storage } from './storage';
 
 export const readTasks = () => parseTasks(storage.getMeta(TASKS_KEY));
 
+/** Saves the list; tasks a newer build wrote that this one can't read stay as they are (records.ts). */
 export function writeTasks(list: readonly Task[]) {
-  storage.setMeta(TASKS_KEY, JSON.stringify(list));
+  storage.setMeta(TASKS_KEY, keepUnread(storage.getMeta(TASKS_KEY), list, parseTask));
   useDataVersion.getState().bump();
 }
 
@@ -35,7 +37,7 @@ export function saveTask(t: Task) {
 export function deleteTask(id: string) {
   const list = readTasks();
   const gone = list.find((t) => t.id === id);
-  if (gone) storage.setMeta(TRASH_KEY, JSON.stringify(toTrash(readTrash(), gone, dateKey())));
+  if (gone) storage.setMeta(TRASH_KEY, keepUnread(storage.getMeta(TRASH_KEY), toTrash(readTrash(), gone, dateKey()), parseTrashed));
   writeTasks(list.filter((t) => t.id !== id));
 }
 
@@ -43,7 +45,7 @@ export function deleteTask(id: string) {
 export const readTrash = (): Trashed[] => pruneTrash(parseTrash(storage.getMeta(TRASH_KEY)), readTasks(), dateKey());
 
 function writeTrash(list: readonly Trashed[]) {
-  storage.setMeta(TRASH_KEY, JSON.stringify(list));
+  storage.setMeta(TRASH_KEY, keepUnread(storage.getMeta(TRASH_KEY), list, parseTrashed));
   useDataVersion.getState().bump();
 }
 

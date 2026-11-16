@@ -23,6 +23,7 @@ import { isDue, logKey, partsDone, pausedNow, prayerTime, type Habit } from './h
 import { ADHKAR_AR, adhkarOf } from './adhkar';
 import { readHabitLog, readHabitParts, readHabits } from './habitStore';
 import { addDays } from './gaps';
+import { report } from './errlog';
 
 const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
@@ -75,7 +76,7 @@ async function block(name: string, fn: () => Promise<void>): Promise<boolean> {
     await fn();
     return true;
   } catch (e) {
-    console.warn(`reminders: ${name} failed`, e);
+    report(e, `reminders:${name}`);
     return false;
   }
 }
@@ -95,7 +96,7 @@ export function syncReminders(): Promise<void> {
     try {
       scheduled = await Notifications.getAllScheduledNotificationsAsync();
     } catch (e) {
-      console.warn('reminders: could not list scheduled notifications', e);
+      report(e, 'reminders:list');
       return;
     }
     for (const n of scheduled) {
@@ -165,7 +166,7 @@ export function syncReminders(): Promise<void> {
     }
   };
   // One sync at a time; a change while one runs queues another after it.
-  running = (running ?? Promise.resolve()).then(go).catch((e) => console.warn('reminders: sync failed', e));
+  running = (running ?? Promise.resolve()).then(go).catch((e) => report(e, 'reminders'));
   return running;
 }
 

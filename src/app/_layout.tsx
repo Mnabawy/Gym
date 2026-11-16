@@ -27,6 +27,8 @@ import { repairRecoveries } from '../lib/safetyIO';
 import { storage } from '../lib/storage';
 import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
+import { crashBoundary } from '../components/CrashScreen';
+import { report } from '../lib/errlog';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
@@ -40,6 +42,9 @@ if (Platform.OS === 'web' && typeof document !== 'undefined') {
   document.documentElement.lang = 'ar';
 }
 
+/** A crash on this page shows a recovery screen instead of closing the app (src/components/CrashScreen.tsx). */
+export const ErrorBoundary = crashBoundary('root');
+
 export default function RootLayout() {
   const [loaded] = useFonts({ AmiriQuran_400Regular });
 
@@ -49,7 +54,7 @@ export default function RootLayout() {
   // Automatic backups, a little after opening so they don't slow the start.
   useEffect(() => {
     const id = setTimeout(async () => {
-      await runAutoBackup().catch(() => {});
+      await runAutoBackup().catch((e) => report(e, 'autoBackup'));
       if (useSettings.getState().stepsSync) await syncSteps(); // the last two weeks' steps from the phone
     }, 5000);
     return () => clearTimeout(id);
@@ -141,7 +146,11 @@ function ReminderSync() {
 function CloudSync() {
   // After an interrupted wipe: put the photos back (or note the wipe), and delete old recovery folders. Works offline.
   useEffect(() => {
-    void repairRecoveries(hasLocalData(storage.dump())).catch(() => {});
+    try {
+      void repairRecoveries(hasLocalData(storage.dump())).catch((e) => report(e, 'repairRecoveries'));
+    } catch (e) {
+      report(e, 'repairRecoveries');
+    }
   }, []);
   useEffect(() => {
     if (!cloudConfigured) return;

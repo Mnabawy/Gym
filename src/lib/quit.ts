@@ -15,6 +15,7 @@
 // - A replacement behaviour for the same cue (competing response, from habit reversal training, Azrin & Nunn 1973).
 // - Milestones at 1, 3, 7, 14, 30, 60, 90, 180 and 365 days give near goals instead of one far one.
 import { dateKey } from './logic';
+import { isRec, keepExtra, parseList } from './records';
 
 export const QUITS_KEY = 'quits';
 export const DAY_MS = 24 * 60 * 60 * 1000;
@@ -89,44 +90,38 @@ const str = (s: unknown) => (typeof s === 'string' ? s : '');
 const trig = (t: unknown): Trigger | undefined => (typeof t === 'string' && t in TRIGGERS ? (t as Trigger) : undefined);
 const typ = (t: unknown): HabitType => (typeof t === 'string' && t in HABIT_TYPES ? (t as HabitType) : 'habit');
 
-export function parseQuits(raw: string | null): Quit[] {
-  let data: unknown;
-  try {
-    data = JSON.parse(raw ?? '[]');
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(data)) return [];
-  const seen = new Set<string>();
-  const out: Quit[] = [];
-  for (const q of data) {
-    if (!q || typeof q !== 'object') continue;
-    const o = q as Record<string, unknown>;
-    if (typeof o.id !== 'string' || seen.has(o.id) || !str(o.name).trim() || !(num(o.start) > 0)) continue;
-    seen.add(o.id);
-    const list = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is Record<string, unknown> => !!x && typeof x === 'object' && num(x.at) > 0) : []);
-    const type = typ(o.type);
-    out.push({
-      id: o.id,
-      name: str(o.name).trim(),
-      ...(str(o.alias).trim() ? { alias: str(o.alias).trim().slice(0, 30) } : {}),
-      icon: str(o.icon) || QUIT_ICONS[0],
-      color: /^#[0-9a-f]{6}$/i.test(str(o.color)) ? str(o.color) : QUIT_COLORS[0],
-      start: num(o.start),
-      why: str(o.why),
-      replace: str(o.replace),
-      costPerDay: num(o.costPerDay),
-      currency: str(o.currency) || 'ج.م',
-      minutesPerDay: num(o.minutesPerDay),
-      slips: list(o.slips).map((s) => ({ at: s.at as number, ...(trig(s.trigger) ? { trigger: trig(s.trigger) } : {}), ...(str(s.note) ? { note: str(s.note) } : {}) })).sort((a, b) => a.at - b.at),
-      urges: list(o.urges).map((u) => ({ at: u.at as number, resisted: u.resisted === true, ...(trig(u.trigger) ? { trigger: trig(u.trigger) } : {}) })).sort((a, b) => a.at - b.at),
-      password: str(o.password) || undefined,
-      type,
-      targetDays: num(o.targetDays, HABIT_TYPES[type].targetDays),
-    });
-  }
-  return out;
+const QUIT_FIELDS = new Set(['id', 'name', 'alias', 'icon', 'color', 'start', 'why', 'replace', 'costPerDay', 'currency', 'minutesPerDay', 'slips', 'urges', 'password', 'type', 'targetDays']);
+const SLIP_FIELDS = new Set(['at', 'trigger', 'note']);
+const URGE_FIELDS = new Set(['at', 'resisted', 'trigger']);
+
+/** One stored quit, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
+export function parseQuit(q: unknown): Quit | null {
+  if (!isRec(q)) return null;
+  const o = q;
+  if (typeof o.id !== 'string' || !str(o.name).trim() || !(num(o.start) > 0)) return null;
+  const list = (a: unknown) => (Array.isArray(a) ? a.filter((x): x is Record<string, unknown> => isRec(x) && num(x.at) > 0) : []);
+  const type = typ(o.type);
+  return keepExtra<Quit>(o, QUIT_FIELDS, {
+    id: o.id,
+    name: str(o.name).trim(),
+    ...(str(o.alias).trim() ? { alias: str(o.alias).trim().slice(0, 30) } : {}),
+    icon: str(o.icon) || QUIT_ICONS[0],
+    color: /^#[0-9a-f]{6}$/i.test(str(o.color)) ? str(o.color) : QUIT_COLORS[0],
+    start: num(o.start),
+    why: str(o.why),
+    replace: str(o.replace),
+    costPerDay: num(o.costPerDay),
+    currency: str(o.currency) || 'ج.م',
+    minutesPerDay: num(o.minutesPerDay),
+    slips: list(o.slips).map((s) => keepExtra<Slip>(s, SLIP_FIELDS, { at: s.at as number, ...(trig(s.trigger) ? { trigger: trig(s.trigger) } : {}), ...(str(s.note) ? { note: str(s.note) } : {}) })).sort((a, b) => a.at - b.at),
+    urges: list(o.urges).map((u) => keepExtra<Urge>(u, URGE_FIELDS, { at: u.at as number, resisted: u.resisted === true, ...(trig(u.trigger) ? { trigger: trig(u.trigger) } : {}) })).sort((a, b) => a.at - b.at),
+    password: str(o.password) || undefined,
+    type,
+    targetDays: num(o.targetDays, HABIT_TYPES[type].targetDays),
+  });
 }
+
+export const parseQuits = (raw: string | null): Quit[] => parseList(raw, parseQuit);
 
 export const quitId = (now: number = Date.now()) => `q${now.toString(36)}`;
 

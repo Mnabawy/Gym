@@ -17,6 +17,7 @@ import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO
 import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, AUTO_KEY, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { daysBetween } from '../lib/gaps';
 import { DbNotice } from '../components/DbNotice';
+import { ErrLogRow } from '../components/ErrLogRow';
 import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
 import { ExportSheet } from '../components/ExportSheet';
@@ -29,6 +30,7 @@ import { GOOGLE_USER, googleSupported } from '../lib/google';
 import { syncStatus } from '../lib/cloud';
 import { AccentPicker } from '../components/AccentPicker';
 import { useTheme } from '../theme';
+import { BUILD, buildDateText } from '../lib/buildInfo';
 
 const phone = Platform.OS !== 'web';
 const clock = (sec: number) => formatClock(sec * 1000);
@@ -372,6 +374,7 @@ export default function SettingsScreen() {
         <Sep />
         <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />
       </Card>
+      <ErrLogRow />
 
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
         {!confirm ? (
@@ -385,6 +388,11 @@ export default function SettingsScreen() {
         )}
       </View>
       <T style={{ color: t.mute, fontSize: 12, textAlign: 'center' }}>تغيير الإعدادات مبيمسحش أي حاجة اتسجلت قبل كده</T>
+      {/* Build identity: the English part on its own left-to-right line, the Arabic date under it, so they never mix. */}
+      <View style={{ alignItems: 'center', marginTop: 4 }}>
+        <T style={{ color: t.mute, fontSize: 12, textAlign: 'center', writingDirection: 'ltr' }}>{`Brainy ${BUILD.version} · ${BUILD.sha}`}</T>
+        {buildDateText(BUILD.date) ? <T style={{ color: t.mute, fontSize: 12, textAlign: 'center' }}>{`اتبنت ${buildDateText(BUILD.date)}`}</T> : null}
+      </View>
       {exporting ? <ExportSheet visible onClose={() => setExporting(false)} /> : null}
     </Screen>
   );

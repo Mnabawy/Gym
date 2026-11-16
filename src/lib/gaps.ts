@@ -190,6 +190,16 @@ export function weeksSinceLight(sess: readonly Session[], c: Ctx): number {
 }
 
 /**
+ * Is a light week due (the `deload` gap of `analyze`), from the rows alone. Only weeks before this one count, so only
+ * rows before this week's Saturday are read: ticking sets this week can't change it (the workout tab skips re-checking then).
+ */
+export function deloadDue(rows: readonly SetRow[], today: string = dateKey()): boolean {
+  const ws = weekStart(today);
+  const sess = toSessions(rows.filter((r) => r.date < ws));
+  return weeksSinceLight(sess, ctxOf(sess, today)) >= DELOAD_WEEKS;
+}
+
+/**
  * One calendar day, overall or for one muscle. done/planned = ticked vs planned sets
  * (planned from the program days you logged that date, or the date's own plan if you didn't train).
  * partial: trained, but under PARTIAL of the plan.

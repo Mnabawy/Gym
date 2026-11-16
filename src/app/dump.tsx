@@ -10,9 +10,10 @@ import { ACTION, Swipe } from '../components/Swipe';
 import { ClockPicker } from '../components/ClockPicker';
 import { INPUT, Screen, SwitchRow, T } from '../components/ui';
 import { useDataVersion } from '../lib/bus';
-import { addLines, DUMP_KEY, dumpView, nextFriday, parseDump, removeItem, setKind, type DumpItem } from '../lib/dump';
+import { addLines, DUMP_KEY, dumpView, nextFriday, parseDump, parseDumpItem, removeItem, setKind, type DumpItem } from '../lib/dump';
 import { addDays } from '../lib/gaps';
 import { dateKey } from '../lib/logic';
+import { keepUnread } from '../lib/records';
 import { allowReminders } from '../lib/reminder';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
@@ -25,7 +26,8 @@ import { font, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../the
 const stamp = () => Date.now();
 const read = () => parseDump(storage.getMeta(DUMP_KEY));
 const write = (list: readonly DumpItem[]) => {
-  storage.setMeta(DUMP_KEY, JSON.stringify(list));
+  // Items a newer build wrote that this one can't read stay as they are (records.ts).
+  storage.setMeta(DUMP_KEY, keepUnread(storage.getMeta(DUMP_KEY), list, parseDumpItem));
   useDataVersion.getState().bump();
 };
 

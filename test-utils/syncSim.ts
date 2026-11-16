@@ -4,12 +4,14 @@
 // so module state (the change log, the sync lock, the settings store) is per phone. All phones talk to one FakeSupabase.
 // Only four things are replaced: storage (in memory), google.ts (a fake Google account per phone), photos.ts (counters)
 // and expo-file-system (an in-memory file system per phone, test-utils/fakeFs.ts, under the real safetyIO.ts and
-// autoBackup.ts). Everything else is production code.
+// autoBackup.ts). Everything else is production code. `device(id, { dataVersion })` runs a phone on a build with another
+// DATA_VERSION (src/lib/dataVersion.ts).
 //
 // Time: Date.now() is virtual (`sim.advance`) plus a per-phone skew. The phone whose action is running (`d.act`, and
 // every helper on Device) is the one whose skew applies; overlapping async actions on two phones should keep skew 0.
 import type * as AutoBackupMod from '../src/lib/autoBackup';
 import type * as CloudMod from '../src/lib/cloud';
+import type * as DataVersionMod from '../src/lib/dataVersion';
 import type * as RestoreMod from '../src/lib/restore';
 import type * as SafetyIOMod from '../src/lib/safetyIO';
 import type * as SettingsMod from '../src/lib/settings';
@@ -47,10 +49,13 @@ export class Sim {
   get time() {
     return this.clock;
   }
-  device(id: string, opts: { configured?: boolean; skewMs?: number; fs?: { free?: number; noMove?: boolean } } = {}) {
+  device(id: string, opts: DeviceOpts = {}) {
     return new Device(this, id, opts);
   }
 }
+
+/** `dataVersion`: the phone runs a build with this DATA_VERSION (src/lib/dataVersion.ts) instead of the real one. */
+export type DeviceOpts = { configured?: boolean; skewMs?: number; fs?: { free?: number; noMove?: boolean }; dataVersion?: number };
 
 export class Device {
   skew: number;
@@ -71,7 +76,7 @@ export class Device {
   /** The phone's storage as the app sees it (writes are noted for sync). */
   readonly storage!: Storage;
 
-  constructor(readonly sim: Sim, readonly id: string, opts: { configured?: boolean; skewMs?: number; fs?: { free?: number; noMove?: boolean } }) {
+  constructor(readonly sim: Sim, readonly id: string, opts: DeviceOpts) {
     this.skew = opts.skewMs ?? 0;
     this.fs = createFakeFs(opts.fs);
     const base = memoryStorage();
@@ -101,6 +106,13 @@ export class Device {
           exportPhotos: async () => [],
         }));
         jest.doMock('expo-file-system', () => this.fs.module);
+        const version = opts.dataVersion;
+        if (version != null) {
+          jest.doMock('../src/lib/dataVersion', () => {
+            const real = jest.requireActual<typeof DataVersionMod>('../src/lib/dataVersion');
+            return { ...real, DATA_VERSION: version, dataTooNew: (raw: string | null) => real.dataTooNew(raw, version), versionToWrite: (raw: string | null) => real.versionToWrite(raw, version) };
+          });
+        }
         jest.doMock('../src/lib/storage', () => {
           const { track } = jest.requireActual<typeof TrackMod>('../src/lib/track');
           return { storage: track(base) };

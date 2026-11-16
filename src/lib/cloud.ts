@@ -7,6 +7,8 @@
 import { useDataVersion } from './bus';
 import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
 import { applyRows, entry, localRows, SPLIT_META, splitKey, pushItems, rowId, type Pulled } from './cloudSync';
+import { DATA_VERSION_KEY, dataTooNew, readDataVersion, versionToWrite } from './dataVersion';
+import { report } from './errlog';
 import { GOOGLE_USER, googleIdToken } from './google';
 import { hasAnythingToProtect, SafetyError } from './safety';
 import { createSnapshot } from './safetyIO';
@@ -28,6 +30,16 @@ const FULL = 'sync.full';
 const SPLIT_SENT = 'sync.split';
 export const SYNC_AT = 'sync.at';
 export const SYNC_ERROR = 'sync.error';
+/** 'update' while the account's data is newer than this build (dataVersion.ts): nothing is sent until the app is updated. */
+const SYNC_BLOCKED = 'sync.blocked';
+
+/** Thrown by a sync that pulled but sent nothing because the account's data is newer than this build. */
+export class UpdateNeeded extends Error {
+  constructor() {
+    super('update the app to keep saving');
+    this.name = 'UpdateNeeded';
+  }
+}
 
 const meta = (k: string) => rawStorage().getMeta(k);
 const setMeta = (k: string, v: string) => rawStorage().setMeta(k, v);
@@ -84,14 +96,22 @@ export function syncCloud(): Promise<'ok' | 'off'> {
 }
 
 async function syncOnce() {
+  const changedMeta: string[] = [];
+  let changed = false;
+  /** Screens re-read what a pull changed (settings and the program reload). */
+  const refresh = () => {
+    if (changed) {
+      if (changedMeta.some((k) => k === 'settings' || k === 'program')) useSettings.getState().reload();
+      else useDataVersion.getState().bumpAll();
+    } else useDataVersion.getState().bump();
+  };
   try {
     const token = await accessToken();
     // Until the first full sync finishes (it may be cut off midway), each sync also queues what only the phone has.
     const first = meta(FULL) !== '1';
     let cursor = Number(meta(CURSOR) || 0);
     const seen = new Set<string>();
-    const changedMeta: string[] = [];
-    let changed = false;
+    let pulledVersion = 1;
     // Pull: everything after the last rev we saw.
     for (;;) {
       const rows: Pulled[] = await pullRows(CONFIG, token, cursor, fetch);
@@ -103,7 +123,10 @@ async function syncOnce() {
         changedMeta.push(...r.meta);
       });
       saveDirty();
-      for (const r of rows) seen.add(rowId(r.kind, r.key));
+      for (const r of rows) {
+        seen.add(rowId(r.kind, r.key));
+        if (r.kind === 'meta' && r.key === DATA_VERSION_KEY && !r.deleted && typeof r.data === 'string') pulledVersion = Math.max(pulledVersion, readDataVersion(r.data));
+      }
       cursor = rows[rows.length - 1].rev;
       setMeta(CURSOR, String(cursor));
       if (rows.length < PAGE) break;
@@ -130,6 +153,16 @@ async function syncOnce() {
       saveDirty();
       setMeta(SPLIT_SENT, split);
     }
+    // The highest version seen wins, even when an edit here kept the pulled row out (dataVersion.ts).
+    if (pulledVersion > readDataVersion(meta(DATA_VERSION_KEY))) setMeta(DATA_VERSION_KEY, String(pulledVersion));
+    // Data written by a newer build: keep what was pulled, send nothing (it waits for the app to be updated).
+    if (dataTooNew(meta(DATA_VERSION_KEY))) {
+      setMeta(SYNC_BLOCKED, 'update');
+      throw new UpdateNeeded();
+    }
+    setMeta(SYNC_BLOCKED, '');
+    const v = versionToWrite(meta(DATA_VERSION_KEY));
+    if (v) storage.setMeta(DATA_VERSION_KEY, v); // noted, so it goes up with the rest
     // Push what changed here, in batches; an entry edited again meanwhile stays for next time.
     const items = pushItems(dirty(), (k) => rawStorage().getMeta(k));
     for (let i = 0; i < items.length; i += PUSH_BATCH) {
@@ -141,13 +174,10 @@ async function syncOnce() {
     }
     setMeta(SYNC_AT, String(Date.now()));
     setMeta(SYNC_ERROR, '');
-    if (changed) {
-      if (changedMeta.some((k) => k === 'settings' || k === 'program')) useSettings.getState().reload();
-      else useDataVersion.getState().bumpAll();
-    } else useDataVersion.getState().bump();
+    refresh();
   } catch (e) {
     setMeta(SYNC_ERROR, String(Date.now()));
-    useDataVersion.getState().bump();
+    refresh();
     throw e;
   }
 }
@@ -173,6 +203,7 @@ export async function linkCloud(): Promise<void> {
     setTracking(false);
     setMeta(CURSOR, '');
     setMeta(FULL, '');
+    setMeta(DATA_VERSION_KEY, ''); // the old account's data version must not block this one; the first pull sets it again
   }
   setMeta(SESSION, JSON.stringify(s));
   setMeta(LAST_UID, '');
@@ -195,7 +226,7 @@ export function unlinkCloud(wiped = false) {
   const keep = !!uid && !wiped;
   setTracking(false, keep);
   setMeta(LAST_UID, keep ? uid : '');
-  for (const k of [SESSION, CURSOR, FULL, SYNC_AT, SYNC_ERROR]) setMeta(k, '');
+  for (const k of [SESSION, CURSOR, FULL, SYNC_AT, SYNC_ERROR, SYNC_BLOCKED]) setMeta(k, '');
 }
 
 /**
@@ -216,17 +247,20 @@ export function keepSynced(): Promise<void> {
   if (!cloudConfigured) return Promise.resolve();
   const p = !cloudLinked() && storage.getMeta(GOOGLE_USER) ? linkCloud() : syncCloud();
   return p.then(() => undefined, (e) => {
+    if (!(e instanceof UpdateNeeded)) report(e, 'sync'); // not a fault: shown on the account page until the app is updated
     // A failed safety copy stops sync from turning on: show it as failed instead of staying silent.
     if (e instanceof SafetyError) setMeta(SYNC_ERROR, String(Date.now()));
   });
 }
 
-export type SyncStatus = { state: 'off' | 'saved' | 'waiting' | 'failed'; at: number; waiting: number };
+/** `reason` 'update': failed because the account's data is newer than this build (update the app). */
+export type SyncStatus = { state: 'off' | 'saved' | 'waiting' | 'failed'; at: number; waiting: number; reason?: 'update' };
 /** In plain terms: off (not signed in / not set up), saved (all on your account), waiting (changes not sent yet), failed. */
 export function syncStatus(): SyncStatus {
   const at = Number(meta(SYNC_AT) || 0);
   if (!cloudLinked()) return cloudConfigured && storage.getMeta(GOOGLE_USER) && meta(SYNC_ERROR) ? { state: 'failed', at, waiting: 0 } : { state: 'off', at, waiting: 0 };
   const waiting = pendingChanges();
+  if (meta(SYNC_BLOCKED)) return { state: 'failed', at, waiting, reason: 'update' };
   if (meta(SYNC_ERROR)) return { state: 'failed', at, waiting };
   return { state: waiting || !at ? 'waiting' : 'saved', at, waiting };
 }

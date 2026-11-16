@@ -6,7 +6,8 @@ import { useDataVersion } from './bus';
 import { dateKey } from './logic';
 import { storage } from './storage';
 import { buzz } from './timer';
-import { FOCUS_CFG_KEY, FOCUS_KEY, FOCUS_STATE_KEY, finish, parseCfg, parseSessions, parseState, pause, PHASE_AR, reset, start, type Cfg, type State } from './focus';
+import { FOCUS_CFG_KEY, FOCUS_KEY, FOCUS_STATE_KEY, finish, parseCfg, parseSession, parseSessions, parseState, pause, PHASE_AR, reset, start, type Cfg, type State } from './focus';
+import { keepUnread } from './records';
 
 const native = Platform.OS !== 'web';
 const NOTIF = 'focus-end';
@@ -54,7 +55,8 @@ export const setFocus = (p: Partial<Pick<State, 'kind' | 'task'>>) => {
 };
 /** Puts the logged blocks back as given (deleting one, or undoing that). */
 export function writeSessions(list: ReturnType<typeof readSessions>) {
-  storage.setMeta(FOCUS_KEY, JSON.stringify(list));
+  // Blocks a newer build wrote that this one can't read stay as they are (records.ts).
+  storage.setMeta(FOCUS_KEY, keepUnread(storage.getMeta(FOCUS_KEY), list, parseSession));
   useDataVersion.getState().bump();
 }
 
@@ -67,7 +69,7 @@ export function endPhase(done: boolean) {
   const now = Date.now();
   // The block counts on the day it ended (a block past midnight goes on the new day), not the day it's noticed.
   const r = finish(readFocus(), readCfg(), now, done, `f${now.toString(36)}`, (ms) => dateKey(new Date(ms)));
-  if (r.session) storage.setMeta(FOCUS_KEY, JSON.stringify([...readSessions(), r.session]));
+  if (r.session) writeSessions([...readSessions(), r.session]);
   if (done) buzz();
   write(r.state);
 }

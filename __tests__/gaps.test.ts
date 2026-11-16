@@ -2,7 +2,7 @@
 import { dayFor } from '../src/data/program';
 import { weekdayOf } from '../src/lib/logic';
 import type { SetRow } from '../src/lib/storage.types';
-import { addDays, analyze, ctxOf, dayInfo, daysBetween, prSet, dueDates, exerciseAdherence, planSets, toSessions, trendOf, weekStart, weeksSinceLight } from '../src/lib/gaps';
+import { addDays, analyze, ctxOf, dayInfo, deloadDue, daysBetween, prSet, dueDates, exerciseAdherence, planSets, toSessions, trendOf, weekStart, weeksSinceLight } from '../src/lib/gaps';
 
 const TODAY = '2026-11-04'; // Wednesday
 
@@ -164,6 +164,29 @@ describe('light week reminder', () => {
     expect(analyze(rows, TODAY).gaps).toContainEqual({ kind: 'deload', level: 1, weeks: 7 });
     const holiday = rows.filter((x) => x.date < '2026-10-17' || x.date > '2026-10-23');
     expect(weeksSinceLight(toSessions(holiday), ctxOf(toSessions(holiday), TODAY))).toBe(1);
+  });
+  test('deloadDue matches the report and ignores this week', () => {
+    const hasDeload = (rows: SetRow[], today: string) => analyze(rows, today).gaps.some((g) => g.kind === 'deload');
+    const full = block('2026-09-12', '2026-10-30');
+    const holiday = full.filter((x) => x.date < '2026-10-17' || x.date > '2026-10-23');
+    const cases: [SetRow[], string][] = [
+      [full, TODAY],
+      [holiday, TODAY],
+      [[], TODAY],
+      [day(TODAY), TODAY], // first session ever is today
+      [[...full, ...day('2026-11-02'), ...day(TODAY)], TODAY],
+      [block('2026-09-12', '2026-10-23'), TODAY], // last week missed
+      [block('2026-09-19', '2026-10-30'), TODAY], // 6 weeks: just due
+      [block('2026-09-26', '2026-10-30'), TODAY], // 5 weeks: not yet
+      [full, '2026-10-31'], // a Saturday: last week is now the one that ended yesterday
+      [full, '2026-12-31'],
+    ];
+    for (const [rows, today] of cases) expect([today, rows.length, deloadDue(rows, today)]).toEqual([today, rows.length, hasDeload(rows, today)]);
+    expect(deloadDue(full, TODAY)).toBe(true);
+    expect(deloadDue(block('2026-09-26', '2026-10-30'), TODAY)).toBe(false);
+    // Anything logged this week (ticked, unticked, swapped days) can't change it.
+    const thisWeek = [...day('2026-10-31', { weekday: 1 }), ...day('2026-11-02'), ...day(TODAY, { sets: { deadlift: 1 } })];
+    for (const rows of [full, holiday, block('2026-09-26', '2026-10-30')]) expect(deloadDue([...rows, ...thisWeek], TODAY)).toBe(deloadDue(rows, TODAY));
   });
 });
 

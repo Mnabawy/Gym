@@ -23,6 +23,7 @@ import type { Goal } from '../lib/goals';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../theme';
+import { crashBoundary } from '../components/CrashScreen';
 
 type Tab = 'today' | 'calendar' | 'all';
 const stamp = () => Date.now();
@@ -32,6 +33,9 @@ const ease = () => {
 const LATE = '#C0392B';
 /** Short weekday names by `Date.getDay()` for the week strip. */
 const WD = ['حد', 'اتنين', 'تلات', 'أربع', 'خميس', 'جمعة', 'سبت'];
+
+/** A crash on this page shows a recovery screen instead of closing the app (src/components/CrashScreen.tsx). */
+export const ErrorBoundary = crashBoundary('tasks');
 
 export default function TasksSection() {
   return (

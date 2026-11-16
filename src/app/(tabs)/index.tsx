@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Item } from '../../components/Motion';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -15,10 +15,9 @@ import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { confirm } from '../../lib/confirm';
 import { deloadOn, useSettings } from '../../lib/settings';
-import { useReport } from '../../lib/useReport';
 import { useDataVersion } from '../../lib/bus';
 import { BACKUP_STALE_DAYS, LAST_BACKUP_KEY } from '../../lib/backup';
-import { addDays, daysBetween } from '../../lib/gaps';
+import { addDays, daysBetween, deloadDue } from '../../lib/gaps';
 import { SWAPS_KEY, swappedSet } from '../../lib/journal';
 import { readStrings } from '../../lib/meta';
 import { sessionSummary } from '../../lib/summary';
@@ -44,11 +43,18 @@ function WorkoutScreen() {
   const date = view && view < today ? view : today;
   const live = date === today;
   const [picked, setPicked] = useState<{ date: string; id: number } | null>(null);
-  const { cards, bump, bumpAll } = useDataVersion();
+  const { v, cards, bump, bumpAll } = useDataVersion();
 
   // Workouts run in one sequence, not by weekday: open on the one after your last session (src/lib/schedule.ts).
   // Re-read on every render; the screen re-renders when the data version (v) changes.
-  const cur = currentWorkout(storage.trainedDays(), date);
+  const trained = storage.trainedDays();
+  const cur = currentWorkout(trained, date);
+  // The day picker looks its 15 days up in the same list (no queries of its own; it used to run one per day per render).
+  const loggedOn = new Map(trained.map((d) => [d.date, d]));
+  // Light week card: shown while one is on, or when one is due. Due only looks at weeks before this one (deloadDue), so
+  // ticking sets on today's workout can't change it: re-checked only when the day, the plan (cards) or a past day's log changes.
+  const lightOn = deloadOn({ deloadUntil: useSettings((x) => x.deloadUntil) }, today);
+  const lightDue = useMemo(() => !lightOn && deloadDue(storage.allSets(), today), [lightOn, today, cards, live ? -1 : v]); // eslint-disable-line react-hooks/exhaustive-deps
   const sel = picked?.date === date ? picked.id : cur.id; // a pick from yesterday doesn't stick
   const day = dayFor(sel)!;
   // Which exercise is open: the one you tapped, else the first one not finished (it moves on by itself as you tick).
@@ -91,7 +97,7 @@ function WorkoutScreen() {
       }>
       <Sheet visible={choosing} onClose={() => setChoosing(false)} title="سجّل أو عدّل يوم فات" sub="لو نسيت تسجّل أو عايز تصلّح رقم. الترتيب بيمشي على حسب اللي اتسجل">
         {Array.from({ length: BACK_DAYS + 1 }, (_, i) => addDays(today, -i)).map((k) => {
-          const logged = storage.trainedDays().find((d) => d.date === k);
+          const logged = loggedOn.get(k);
           const on = k === date;
           return (
             <Pressable
@@ -124,8 +130,8 @@ function WorkoutScreen() {
           <T w="num" style={{ color: t.mute, fontSize: 12 }}>{`\u2066${done} / ${total}\u2069 مجموعة · \u2066${minutes}\u2069 د`}</T>
         </View>
       </Card>
-      {finished ? <DoneCard date={date} weekday={sel} next={live ? dayFor(after(cur.id))?.titleAr ?? '' : null} /> : null}
-      <LightWeek today={today} />
+      {finished ? <DoneCard date={date} weekday={sel} next={live ? dayFor(after(cur.id))?.titleAr ?? '' : null} v={v} /> : null}
+      {lightOn || lightDue ? <LightWeek today={today} /> : null}
       {sel !== cur.id ? (
         <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
           <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
@@ -175,9 +181,11 @@ function WorkoutScreen() {
 }
 
 /** After the last set of the day: what you did, how it compares with last time, new records, and a backup nudge. */
-function DoneCard({ date, weekday, next }: { date: string; weekday: number; next: string | null }) {
+function DoneCard({ date, weekday, next, v }: { date: string; weekday: number; next: string | null; v: number }) {
   const t = useTheme();
-  const sum = sessionSummary(storage.allSets(), date, weekday, swappedSet(readStrings(SWAPS_KEY)));
+  // Every set is read again only after a write (v), not on every render of the workout tab.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const sum = useMemo(() => sessionSummary(storage.allSets(), date, weekday, swappedSet(readStrings(SWAPS_KEY))), [date, weekday, v]);
   const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
   const since = lastBackup ? daysBetween(lastBackup, date) : null;
   const nudge = since == null || since >= BACKUP_STALE_DAYS;
@@ -229,10 +237,8 @@ function DoneCard({ date, weekday, next }: { date: string; weekday: number; next
 function LightWeek({ today }: { today: string }) {
   const t = useTheme();
   const st = useSettings();
-  const report = useReport();
+  // Mounted only when the card shows (on, or due: see WorkoutScreen).
   const on = deloadOn(st, today);
-  const due = !on && report.gaps.some((g) => g.kind === 'deload');
-  if (!on && !due) return null;
   const left = on ? daysBetween(today, st.deloadUntil) + 1 : 0;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, backgroundColor: on ? t.okSoft : t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>

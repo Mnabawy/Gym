@@ -77,3 +77,28 @@ test('what counts as data: logged things, not settings or bookkeeping', () => {
   expect(hasData({ ...empty, meta: { ...empty.meta, water: '{"2026-11-05":3500}' } })).toBe(true);
   expect(hasData({ ...empty, meta: { ...empty.meta, goals: 'broken' } })).toBe(false);
 });
+
+test('backup file says which build wrote it; old files without it still parse', () => {
+  const text = toBackup(dump, new Date('2026-11-05T10:00:00Z'), [], { version: '1.2.3', sha: 'abc1234' });
+  expect(JSON.parse(text).build).toEqual({ version: '1.2.3', sha: 'abc1234' });
+  expect(JSON.parse(text).app).toBe(BACKUP_APP);
+  const p = parseBackup(text);
+  expect(p.ok && p.build).toEqual({ version: '1.2.3', sha: 'abc1234' });
+  // Default build info works under jest (no app.config extra → 'dev').
+  expect(JSON.parse(toBackup(dump)).build).toMatchObject({ sha: expect.any(String), version: expect.any(String) });
+  // A file from before the field existed.
+  const old = JSON.parse(text);
+  delete old.build;
+  const p2 = parseBackup(JSON.stringify(old));
+  expect(p2.ok).toBe(true);
+  if (p2.ok) {
+    expect(p2.data).toEqual(dump);
+    expect(p2.build).toBeNull();
+  }
+  // A broken build field never blocks a restore.
+  for (const bad of ['x', 5, { version: 1, sha: null }, []]) {
+    const p3 = parseBackup(JSON.stringify({ ...old, build: bad }));
+    expect(p3.ok).toBe(true);
+    if (p3.ok) expect(p3.build).toBeNull();
+  }
+});

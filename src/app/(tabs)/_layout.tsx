@@ -7,6 +7,7 @@ import { WELCOME_KEY } from '../../lib/restore';
 import { storage } from '../../lib/storage';
 import { hubWasSeen, lastSection, SECTION_PATH } from '../../lib/section';
 import { useTheme, font } from '../../theme';
+import { crashBoundary } from '../../components/CrashScreen';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -29,6 +30,9 @@ function TabLabel({ color, children }: { color: ColorValue; children: string }) 
     </Text>
   );
 }
+
+/** A crash on this page shows a recovery screen instead of closing the app (src/components/CrashScreen.tsx). */
+export const ErrorBoundary = crashBoundary('tabs');
 
 export default function TabsLayout() {
   const t = useTheme();

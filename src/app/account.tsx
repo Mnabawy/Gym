@@ -7,7 +7,7 @@ import { dateKey } from '../lib/logic';
 import { Btn, Card, Screen, T } from '../components/ui';
 import { backupInfo } from '../lib/backup';
 import { useDataVersion } from '../lib/bus';
-import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, syncStatus, unlinkCloud } from '../lib/cloud';
+import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, syncStatus, unlinkCloud, UpdateNeeded } from '../lib/cloud';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported, linkGoogle, unlinkGoogle } from '../lib/google';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { hasAnythingToProtect } from '../lib/safety';
@@ -47,7 +47,7 @@ export default function Account() {
       await f();
     } catch (e) {
       const why = String((e as { code?: string; message?: string })?.code ?? (e as Error)?.message ?? '').slice(0, 80);
-      setMsg({ text: safetyText(e) ?? `حصلت مشكلة، جرّب تاني.${why ? ` (${why})` : ''}`, bad: true });
+      setMsg({ text: e instanceof UpdateNeeded ? UPDATE_TEXT : safetyText(e) ?? `حصلت مشكلة، جرّب تاني.${why ? ` (${why})` : ''}`, bad: true });
     } finally {
       setBusy(false);
     }
@@ -143,7 +143,7 @@ export default function Account() {
                   <View style={{ flex: 1, gap: 2 }}>
                     <T w="bold" style={{ fontSize: 15.5 }}>{STATE[st.state].title(st.waiting)}</T>
                     <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>
-                      {st.state === 'off' ? 'شغّله عشان بياناتك ترجع لو مسحت التطبيق أو غيّرت الموبايل' : st.state === 'failed' ? 'اتأكد من النت ودوس «احفظ دلوقتي»' : st.at ? `آخر حفظ: ${whenAr(st.at)}` : 'بيحفظ لأول مرة…'}
+                      {st.state === 'off' ? 'شغّله عشان بياناتك ترجع لو مسحت التطبيق أو غيّرت الموبايل' : st.state === 'failed' ? (st.reason === 'update' ? UPDATE_TEXT : 'اتأكد من النت ودوس «احفظ دلوقتي»') : st.at ? `آخر حفظ: ${whenAr(st.at)}` : 'بيحفظ لأول مرة…'}
                     </T>
                   </View>
                 </View>
@@ -197,6 +197,9 @@ export default function Account() {
     </Screen>
   );
 }
+
+/** Sync stopped because the account's data came from a newer version of the app (src/lib/dataVersion.ts). */
+const UPDATE_TEXT = 'حدّث التطبيق عشان تكمّل الحفظ';
 
 /** The sync state in plain words, an icon and a color. */
 const STATE: Record<ReturnType<typeof syncStatus>['state'], { title: (n: number) => string; icon: React.ComponentProps<typeof Ionicons>['name']; color: (t: ReturnType<typeof useTheme>) => string }> = {

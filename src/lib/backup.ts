@@ -1,6 +1,7 @@
 // Backup file: saved sets, meals, shopping ticks, settings and the rest of meta in one JSON file (photos too, in the files from the share sheet or the folder). Sync keeps a copy on your account, but this file is the copy you hold yourself. Pure, unit tested in __tests__/backup.test.ts.
 import { isLocalMeta, SPLIT_META } from './cloudSync';
 import type { Dump, MealCheck, SetRow, ShopCheck } from './storage.types';
+import { BUILD, type BuildInfo } from './buildInfo';
 
 export const BACKUP_APP = 'gym-backup';
 export const BACKUP_VERSION = 1;
@@ -17,9 +18,20 @@ const numOrNull = (v: unknown): v is number | null => v === null || num(v);
 export type PhotoData = { name: string; data: string };
 export const PHOTO_NAME = /^\d{4}-\d{2}-\d{2}_\d+\.jpg$/;
 
-/** Backup file text. Photos are optional: the file backup has them, the clipboard copy doesn't (too big to paste). */
-export function toBackup(d: Dump, now: Date = new Date(), photos: readonly PhotoData[] = []): string {
-  return JSON.stringify({ app: BACKUP_APP, version: BACKUP_VERSION, exportedAt: now.toISOString(), data: d, ...(photos.length ? { photos } : null) });
+/**
+ * Backup file text. Photos are optional: the file backup has them, the clipboard copy doesn't (too big to paste).
+ * `build` = which app build wrote it ({ version, sha }; `app` already holds the file's magic name). Only informational:
+ * parseBackup reads it when it's there and old files without it parse the same.
+ */
+export function toBackup(d: Dump, now: Date = new Date(), photos: readonly PhotoData[] = [], build: Pick<BuildInfo, 'version' | 'sha'> = BUILD): string {
+  return JSON.stringify({
+    app: BACKUP_APP,
+    version: BACKUP_VERSION,
+    build: { version: build.version, sha: build.sha },
+    exportedAt: now.toISOString(),
+    data: d,
+    ...(photos.length ? { photos } : null),
+  });
 }
 
 export const backupFileName = (date: string) => `gym-backup-${date}.json`;
@@ -100,7 +112,17 @@ export function infoText(i: BackupInfo): string {
   return parts.join(' · ');
 }
 
-export type Parsed = { ok: true; data: Dump; photos: PhotoData[]; exportedAt: string | null; info: BackupInfo } | { ok: false; error: string };
+/** Which build wrote a backup file (null for files from before it was saved). */
+export type BackupBuild = { version: string; sha: string } | null;
+
+export type Parsed = { ok: true; data: Dump; photos: PhotoData[]; exportedAt: string | null; build?: BackupBuild; info: BackupInfo } | { ok: false; error: string };
+
+/** The file's `build` field, or null when missing or malformed (never fails the parse). */
+export function backupBuild(v: unknown): BackupBuild {
+  if (!v || typeof v !== 'object') return null;
+  const b = v as Record<string, unknown>;
+  return typeof b.version === 'string' && typeof b.sha === 'string' && b.version && b.sha ? { version: b.version.slice(0, 40), sha: b.sha.slice(0, 40) } : null;
+}
 
 /**
  * Reads a backup file's text. A file that isn't ours fails with a message to show; inside a good file, rows with
@@ -151,5 +173,5 @@ export function parseBackup(text: string): Parsed {
   }
 
   const data = { sets, meals, shop, meta };
-  return { ok: true, data, photos, exportedAt: typeof o.exportedAt === 'string' ? o.exportedAt : null, info: backupInfo(data, photos.length) };
+  return { ok: true, data, photos, exportedAt: typeof o.exportedAt === 'string' ? o.exportedAt : null, build: backupBuild(o.build), info: backupInfo(data, photos.length) };
 }

@@ -6,6 +6,7 @@ import { deleteAllPhotos, importPhotos, photosSupported } from './photos';
 import { hasAnythingToProtect, SafetyError } from './safety';
 import { abortRecovery, createSnapshot, finishRecovery, movePhotosToRecovery } from './safetyIO';
 import { dropSignedOutLog } from './cloud';
+import { report } from './errlog';
 import { useSettings } from './settings';
 import { storage } from './storage';
 import { untracked } from './track';
@@ -47,11 +48,12 @@ export async function wipeLocal(): Promise<void> {
     if (photosSupported) deleteAllPhotos();
     useSettings.getState().reload();
   } catch (e) {
-    if (moved.id) await abortRecovery(moved.id).catch(() => 0);
+    report(e, 'wipe');
+    if (moved.id) await abortRecovery(moved.id).catch((x) => report(x, 'wipe:abortRecovery'));
     throw e;
   }
   // The wipe is done; a failure here must not stop the caller from unlinking (repairRecoveries fixes the folder on next start).
-  if (moved.id) await finishRecovery(moved.id).catch(() => 0);
+  if (moved.id) await finishRecovery(moved.id).catch((e) => report(e, 'wipe:finishRecovery'));
 }
 
 /** What to tell the user when a safety copy could not be made (null: not that kind of error). */

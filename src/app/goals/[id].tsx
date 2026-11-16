@@ -18,6 +18,7 @@ import { confirm } from '../../lib/confirm';
 import { showUndo } from '../../lib/undo';
 import { tap } from '../../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../../theme';
+import { crashBoundary } from '../../components/CrashScreen';
 
 const dayLabel = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 /** 25000 → "$25K", 300 → "300". */
@@ -26,6 +27,9 @@ const short = (n: number, unit: string) => {
   return /^[$€£]$/.test(unit) ? `${unit}${v}` : v;
 };
 const monthLabel = (k: string) => `${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
+
+/** A crash on this page shows a recovery screen instead of closing the app (src/components/CrashScreen.tsx). */
+export const ErrorBoundary = crashBoundary('goal');
 
 export default function GoalScreen() {
   return (

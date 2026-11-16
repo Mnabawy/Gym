@@ -6,6 +6,7 @@ import { hasData, LAST_BACKUP_KEY, toBackup } from './backup';
 import { daysBetween } from './gaps';
 import { dateKey } from './logic';
 import { useSettings } from './settings';
+import { report } from './errlog';
 import { exportPhotos } from './photos';
 import { storage } from './storage';
 import { sameBackup, writeVerified } from './verifiedWrite';
@@ -85,7 +86,8 @@ export async function runAutoBackup(force = false): Promise<'saved' | 'skipped'>
       if (!sameBackup(text, await out.text())) throw new Error('the copy in your folder does not match');
       storage.setMeta(LAST_BACKUP_KEY, today); // a copy outside the app counts as a backup
       storage.setMeta(AUTO_ERROR_KEY, '');
-    } catch {
+    } catch (e) {
+      report(e, 'autoBackup:folder');
       try {
         if (out?.exists) out.delete();
       } catch {}

@@ -3,6 +3,7 @@
 // a weekly review (what you did, what stopped you, the next step) and a nudge when nothing moved for a while.
 // Saved as JSON in storage meta `goals`. Pure — unit tested in __tests__/goals.test.ts.
 import { addDays, daysBetween } from './gaps';
+import { keepExtra, parseList } from './records';
 
 export const GOALS_KEY = 'goals';
 /** Days without a review before the weekly review shows. */
@@ -68,61 +69,59 @@ const arr = (a: unknown): unknown[] => (Array.isArray(a) ? a : []);
 type Obj = Record<string, unknown>;
 const obj = (o: unknown): o is Obj => !!o && typeof o === 'object';
 
-export function parseGoals(raw: string | null): Goal[] {
-  let data: unknown;
-  try {
-    data = JSON.parse(raw ?? '[]');
-  } catch {
-    return [];
-  }
-  const seen = new Set<string>();
-  const out: Goal[] = [];
-  for (const g of arr(data)) {
-    if (!obj(g) || typeof g.id !== 'string' || seen.has(g.id) || !str(g.name).trim()) continue;
-    const start = num(g.start) ?? 0;
-    const target = num(g.target);
-    if (target === null || target === start || !isDate(g.startDate)) continue;
-    seen.add(g.id);
-    out.push({
-      id: g.id,
-      name: str(g.name).trim(),
-      icon: str(g.icon) || GOAL_ICONS[0],
-      color: /^#[0-9a-f]{6}$/i.test(str(g.color)) ? str(g.color) : GOAL_COLORS[0],
-      unit: str(g.unit).trim(),
-      start,
-      target,
-      startDate: g.startDate,
-      due: isDate(g.due) ? g.due : null,
-      why: str(g.why),
-      stages: arr(g.stages).filter(obj).filter((s) => typeof s.id === 'string' && str(s.title).trim()).map((s) => ({
-        id: s.id as string,
-        title: str(s.title).trim(),
-        ...(str(s.note) ? { note: str(s.note) } : {}),
-        ...(isDate(s.until) ? { until: s.until } : {}),
-        ...(num(s.amount) !== null && (s.amount as number) > 0 ? { amount: s.amount as number } : {}),
-        tasks: arr(s.tasks).filter(obj).filter((t) => typeof t.id === 'string' && str(t.title).trim())
-          .map((t) => ({ id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null, ...(isDate(t.due) ? { due: t.due } : {}), ...(str(t.note).trim() ? { note: str(t.note) } : {}) })),
-      })),
-      entries: arr(g.entries).filter(obj).filter((e) => typeof e.id === 'string' && isDate(e.date) && num(e.amount) !== null)
-        .map((e) => ({ id: e.id as string, date: e.date as string, amount: e.amount as number, ...(str(e.note) ? { note: str(e.note) } : {}) }))
-        .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
-      wins: arr(g.wins).filter(obj).filter((w) => typeof w.id === 'string' && isDate(w.date) && str(w.title).trim())
-        .map((w) => ({ id: w.id as string, date: w.date as string, title: str(w.title).trim() })),
-      reviews: arr(g.reviews).filter(obj).filter((r) => isDate(r.date))
-        .map((r) => ({ date: r.date as string, did: str(r.did), blocked: str(r.blocked), next: str(r.next) }))
-        .sort((a, b) => (a.date < b.date ? -1 : 1)),
-      ...(g.split === true ? { split: true } : {}),
-      ...(g.umbrella === true ? { umbrella: true } : {}),
-      ...(g.umbrella !== true && typeof g.parent === 'string' && g.parent && g.parent !== g.id ? { parent: g.parent } : {}),
-      ...(g.weight === 2 || g.weight === 3 ? { weight: g.weight } : {}),
-      ...(g.umbrella !== true && isDate(g.later) ? { later: g.later } : {}),
-      ...(isDate(g.back) ? { back: g.back } : {}),
-      ...(str(g.obstacle).trim() ? { obstacle: str(g.obstacle).trim() } : {}),
-      ...(str(g.plan).trim() ? { plan: str(g.plan).trim() } : {}),
-    });
-  }
-  return out;
+const GOAL_FIELDS = new Set(['id', 'name', 'icon', 'color', 'unit', 'start', 'target', 'startDate', 'due', 'why', 'stages', 'entries', 'wins', 'reviews', 'split', 'umbrella', 'parent', 'weight', 'later', 'back', 'obstacle', 'plan']);
+const STAGE_FIELDS = new Set(['id', 'title', 'note', 'until', 'amount', 'tasks']);
+const STEP_FIELDS = new Set(['id', 'title', 'done', 'due', 'note']);
+const ENTRY_FIELDS = new Set(['id', 'date', 'amount', 'note']);
+const WIN_FIELDS = new Set(['id', 'date', 'title']);
+const REVIEW_FIELDS = new Set(['date', 'did', 'blocked', 'next']);
+
+/** One stored goal, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
+export function parseGoal(g: unknown): Goal | null {
+  if (!obj(g) || typeof g.id !== 'string' || !str(g.name).trim()) return null;
+  const start = num(g.start) ?? 0;
+  const target = num(g.target);
+  if (target === null || target === start || !isDate(g.startDate)) return null;
+  return keepExtra<Goal>(g, GOAL_FIELDS, {
+    id: g.id,
+    name: str(g.name).trim(),
+    icon: str(g.icon) || GOAL_ICONS[0],
+    color: /^#[0-9a-f]{6}$/i.test(str(g.color)) ? str(g.color) : GOAL_COLORS[0],
+    unit: str(g.unit).trim(),
+    start,
+    target,
+    startDate: g.startDate,
+    due: isDate(g.due) ? g.due : null,
+    why: str(g.why),
+    stages: arr(g.stages).filter(obj).filter((s) => typeof s.id === 'string' && str(s.title).trim()).map((s) => keepExtra<Stage>(s, STAGE_FIELDS, {
+      id: s.id as string,
+      title: str(s.title).trim(),
+      ...(str(s.note) ? { note: str(s.note) } : {}),
+      ...(isDate(s.until) ? { until: s.until } : {}),
+      ...(num(s.amount) !== null && (s.amount as number) > 0 ? { amount: s.amount as number } : {}),
+      tasks: arr(s.tasks).filter(obj).filter((t) => typeof t.id === 'string' && str(t.title).trim())
+        .map((t) => keepExtra<Task>(t, STEP_FIELDS, { id: t.id as string, title: str(t.title).trim(), done: isDate(t.done) ? t.done : null, ...(isDate(t.due) ? { due: t.due } : {}), ...(str(t.note).trim() ? { note: str(t.note) } : {}) })),
+    })),
+    entries: arr(g.entries).filter(obj).filter((e) => typeof e.id === 'string' && isDate(e.date) && num(e.amount) !== null)
+      .map((e) => keepExtra<Entry>(e, ENTRY_FIELDS, { id: e.id as string, date: e.date as string, amount: e.amount as number, ...(str(e.note) ? { note: str(e.note) } : {}) }))
+      .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0)),
+    wins: arr(g.wins).filter(obj).filter((w) => typeof w.id === 'string' && isDate(w.date) && str(w.title).trim())
+      .map((w) => keepExtra<Win>(w, WIN_FIELDS, { id: w.id as string, date: w.date as string, title: str(w.title).trim() })),
+    reviews: arr(g.reviews).filter(obj).filter((r) => isDate(r.date))
+      .map((r) => keepExtra<Review>(r, REVIEW_FIELDS, { date: r.date as string, did: str(r.did), blocked: str(r.blocked), next: str(r.next) }))
+      .sort((a, b) => (a.date < b.date ? -1 : 1)),
+    ...(g.split === true ? { split: true } : {}),
+    ...(g.umbrella === true ? { umbrella: true } : {}),
+    ...(g.umbrella !== true && typeof g.parent === 'string' && g.parent && g.parent !== g.id ? { parent: g.parent } : {}),
+    ...(g.weight === 2 || g.weight === 3 ? { weight: g.weight } : {}),
+    ...(g.umbrella !== true && isDate(g.later) ? { later: g.later } : {}),
+    ...(isDate(g.back) ? { back: g.back } : {}),
+    ...(str(g.obstacle).trim() ? { obstacle: str(g.obstacle).trim() } : {}),
+    ...(str(g.plan).trim() ? { plan: str(g.plan).trim() } : {}),
+  });
 }
+
+export const parseGoals = (raw: string | null): Goal[] => parseList(raw, parseGoal);
 
 export const goalId = (now: number = Date.now(), n = 0) => `g${now.toString(36)}${n ? `-${n}` : ''}`;
 

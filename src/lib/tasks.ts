@@ -5,6 +5,7 @@
 // Pure — unit tested in __tests__/tasks.test.ts.
 import { addDays } from './gaps';
 import { weekdayOf } from './logic';
+import { isRec, keepExtra, parseList } from './records';
 
 export const TASKS_KEY = 'tasks';
 export type Priority = 1 | 2 | 3 | 4;
@@ -65,48 +66,39 @@ export function tagColor(tag: string): string {
 const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const str = (s: unknown) => (typeof s === 'string' ? s : '');
 
-export function parseTasks(raw: string | null): Task[] {
-  let data: unknown;
-  try {
-    data = JSON.parse(raw ?? '[]');
-  } catch {
-    return [];
-  }
-  if (!Array.isArray(data)) return [];
-  const seen = new Set<string>();
-  const out: Task[] = [];
-  for (const x of data) {
-    if (!x || typeof x !== 'object') continue;
-    const o = x as Record<string, unknown>;
-    if (typeof o.id !== 'string' || seen.has(o.id) || !str(o.title).trim()) continue;
-    seen.add(o.id);
-    const p = o.priority;
-    const time = typeof o.time === 'number' && o.time >= 0 && o.time < 1440 ? Math.round(o.time) : null;
-    out.push({
-      id: o.id,
-      title: str(o.title).trim(),
-      due: isDate(o.due) ? o.due : null,
-      time,
-      priority: p === 1 || p === 2 || p === 3 || p === 4 ? p : 3,
-      ...(str(o.tag).trim() ? { tag: str(o.tag).trim() } : {}),
-      ...(str(o.note).trim() ? { note: str(o.note).trim() } : {}),
-      subs: (Array.isArray(o.subs) ? o.subs : [])
-        .filter((s): s is Record<string, unknown> => !!s && typeof s === 'object' && typeof (s as Record<string, unknown>).id === 'string' && !!str((s as Record<string, unknown>).title).trim())
-        .map((s) => ({ id: s.id as string, title: str(s.title).trim(), done: s.done === true })),
-      repeat: o.repeat === 'daily' || o.repeat === 'weekdays' || o.repeat === 'weekly' || o.repeat === 'monthly' ? o.repeat : null,
-      remind: o.remind === true && time != null,
-      done: isDate(o.done) ? o.done : null,
-      created: isDate(o.created) ? o.created : '2026-01-01',
-      ...(typeof o.from === 'string' ? { from: o.from, wasDue: isDate(o.wasDue) ? o.wasDue : null } : {}),
-      ...(o.space === 'work' ? { space: 'work' as const } : {}),
-      ...(typeof o.anchor === 'number' && o.anchor >= 1 && o.anchor <= 31 ? { anchor: Math.round(o.anchor) } : {}),
-      ...(o.goal && typeof o.goal === 'object' && typeof (o.goal as Record<string, unknown>).goal === 'string' && typeof (o.goal as Record<string, unknown>).step === 'string'
-        ? { goal: { goal: (o.goal as Record<string, string>).goal, step: (o.goal as Record<string, string>).step } }
-        : {}),
-    });
-  }
-  return out;
+const TASK_FIELDS = new Set(['id', 'title', 'due', 'time', 'priority', 'tag', 'note', 'subs', 'repeat', 'remind', 'done', 'created', 'from', 'wasDue', 'space', 'anchor', 'goal']);
+const SUB_FIELDS = new Set(['id', 'title', 'done']);
+
+/** One stored task, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
+export function parseTask(x: unknown): Task | null {
+  if (!isRec(x)) return null;
+  const o = x;
+  if (typeof o.id !== 'string' || !str(o.title).trim()) return null;
+  const p = o.priority;
+  const time = typeof o.time === 'number' && o.time >= 0 && o.time < 1440 ? Math.round(o.time) : null;
+  return keepExtra<Task>(o, TASK_FIELDS, {
+    id: o.id,
+    title: str(o.title).trim(),
+    due: isDate(o.due) ? o.due : null,
+    time,
+    priority: p === 1 || p === 2 || p === 3 || p === 4 ? p : 3,
+    ...(str(o.tag).trim() ? { tag: str(o.tag).trim() } : {}),
+    ...(str(o.note).trim() ? { note: str(o.note).trim() } : {}),
+    subs: (Array.isArray(o.subs) ? o.subs : [])
+      .filter((s): s is Record<string, unknown> => isRec(s) && typeof s.id === 'string' && !!str(s.title).trim())
+      .map((s) => keepExtra<Sub>(s, SUB_FIELDS, { id: s.id as string, title: str(s.title).trim(), done: s.done === true })),
+    repeat: o.repeat === 'daily' || o.repeat === 'weekdays' || o.repeat === 'weekly' || o.repeat === 'monthly' ? o.repeat : null,
+    remind: o.remind === true && time != null,
+    done: isDate(o.done) ? o.done : null,
+    created: isDate(o.created) ? o.created : '2026-01-01',
+    ...(typeof o.from === 'string' ? { from: o.from, wasDue: isDate(o.wasDue) ? o.wasDue : null } : {}),
+    ...(o.space === 'work' ? { space: 'work' as const } : {}),
+    ...(typeof o.anchor === 'number' && o.anchor >= 1 && o.anchor <= 31 ? { anchor: Math.round(o.anchor) } : {}),
+    ...(isRec(o.goal) && typeof o.goal.goal === 'string' && typeof o.goal.step === 'string' ? { goal: { goal: o.goal.goal, step: o.goal.step } } : {}),
+  });
 }
+
+export const parseTasks = (raw: string | null): Task[] => parseList(raw, parseTask);
 
 export const taskId = (now: number = Date.now(), n = 0) => `t${now.toString(36)}${n ? `-${n}` : ''}`;
 
@@ -285,19 +277,16 @@ export const TRASH_KEY = 'taskTrash';
 /** `id` = the task's id (so cloud sync can keep one row per deleted task). */
 export type Trashed = { id: string; task: Task; at: string };
 
-export function parseTrash(raw: string | null): Trashed[] {
-  try {
-    const v = JSON.parse(raw ?? '[]');
-    if (!Array.isArray(v)) return [];
-    return v.flatMap((x) => {
-      if (!x || typeof x !== 'object' || typeof x.at !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x.at)) return [];
-      const [task] = parseTasks(JSON.stringify([x.task]));
-      return task ? [{ id: task.id, task, at: x.at }] : [];
-    });
-  } catch {
-    return [];
-  }
+const TRASH_FIELDS = new Set(['id', 'task', 'at']);
+
+/** One stored deleted task, or null when this build can't read it (kept in storage by the store, records.ts). */
+export function parseTrashed(x: unknown): Trashed | null {
+  if (!isRec(x) || typeof x.at !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(x.at)) return null;
+  const task = parseTask(x.task);
+  return task ? keepExtra<Trashed>(x, TRASH_FIELDS, { id: task.id, task, at: x.at }) : null;
 }
+
+export const parseTrash = (raw: string | null): Trashed[] => parseList(raw, parseTrashed);
 
 /** Puts a deleted task first in the trash (replacing an older copy of it). */
 export const toTrash = (trash: readonly Trashed[], task: Task, at: string): Trashed[] => [{ id: task.id, task, at }, ...trash.filter((x) => x.task.id !== task.id)];

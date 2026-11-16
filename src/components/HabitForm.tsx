@@ -34,7 +34,16 @@ export function HabitForm({ visible, habit, onClose }: { visible: boolean; habit
     const app = packageFrom(f.app ?? '');
     const group = (f.group ?? '').trim();
     const parts = (f.parts ?? []).filter((p) => p.name.trim());
+    // Start from the stored habit so fields a newer build added survive; the optional ones the form can clear are dropped.
+    const kept: Partial<Habit> = { ...habit };
+    delete kept.at;
+    delete kept.cue;
+    delete kept.app;
+    delete kept.group;
+    delete kept.parts;
+    delete kept.pauses;
     saveHabit({
+      ...kept,
       id: habit?.id ?? habitId(),
       start: habit?.start ?? dateKey(),
       name: f.name.trim(),

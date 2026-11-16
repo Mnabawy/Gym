@@ -46,6 +46,21 @@ export interface Storage {
   restore(d: Dump): void;
 }
 
+/** Rows of one exercise sorted by date → one entry per date, oldest first, each day as `rowsToSets` (Storage.history). */
+export function groupByDate<R extends { date: string; idx: number; kg: number | null; reps: number | null; done: number; rir?: number | null; at?: number | null }>(
+  rows: R[],
+): { date: string; sets: SetEntry[] }[] {
+  const out: { date: string; sets: SetEntry[] }[] = [];
+  let start = 0;
+  for (let i = 1; i <= rows.length; i++) {
+    if (i === rows.length || rows[i].date !== rows[start].date) {
+      out.push({ date: rows[start].date, sets: rowsToSets(rows.slice(start, i)) });
+      start = i;
+    }
+  }
+  return out;
+}
+
 export function rowsToSets(rows: { idx: number; kg: number | null; reps: number | null; done: number; rir?: number | null; at?: number | null }[]): SetEntry[] {
   const out: SetEntry[] = [];
   for (const r of rows) out[r.idx] = { kg: r.kg, reps: r.reps, done: !!r.done, rir: r.rir ?? null, at: r.at ?? null };

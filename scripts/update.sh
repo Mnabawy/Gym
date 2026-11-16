@@ -45,6 +45,17 @@ npm install --no-audit --no-fund --loglevel=error
 git checkout -q -- package-lock.json 2>/dev/null || true
 
 if [ "$1" = "--build" ]; then
+  # Release gate: never build a version that fails the type check or the tests.
+  echo "🧪 بشغّل typecheck والتستات قبل البناء…"
+  if ! npm run --silent typecheck; then
+    echo "❌ typecheck فشل، موقّف البناء. النسخة اللي على الموبايل زي ما هي." >&2
+    exit 1
+  fi
+  if ! npm test --silent; then
+    echo "❌ فيه تستات فاشلة، موقّف البناء. النسخة اللي على الموبايل زي ما هي." >&2
+    exit 1
+  fi
+  echo "✅ typecheck والتستات تمام"
   # Native settings or packages changed since the last build: regenerate the Android project.
   if [ "$before" != "$after" ] && git diff --name-only "$before" "$after" | grep -qE '^(package\.json|app\.json|app\.config\.)'; then
     echo "🔧 فيه تغيير في الإعدادات أو الباكدجات، ببني مشروع أندرويد من جديد…"
