@@ -24,9 +24,9 @@ const KEEP = ['driveUser', 'driveName', 'drivePhoto', 'welcomeDone', 'device'];
 export async function applyBackup(data: Dump, photos: readonly PhotoData[]): Promise<number> {
   const before = storage.dump();
   if (hasAnythingToProtect(before)) await createSnapshot('pre-restore', before);
-  const keep = KEEP.map((k) => [k, storage.getMeta(k) ?? ''] as const);
-  storage.restore(data);
-  for (const [k, v] of keep) storage.setMeta(k, v);
+  const keep = Object.fromEntries(KEEP.map((k) => [k, storage.getMeta(k) ?? '']));
+  // Put in with the backup's data, in the same transaction (a crash can't leave the phone without its account keys).
+  storage.restore({ ...data, meta: { ...data.meta, ...keep } });
   // Signed out: the change log kept for that account described the data that was just replaced.
   dropSignedOutLog();
   const added = photosSupported ? importPhotos(photos) : 0;

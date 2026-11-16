@@ -8,7 +8,7 @@ import { INPUT, Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } f
 import { MenuButton } from '../../components/SideMenu';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { energyFor, targetsFor } from '../../lib/energy';
-import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasJson, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
+import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasJson, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
 import { readNumbers, writeEntry } from '../../lib/meta';
 import { showUndo } from '../../lib/undo';
 import { useSettings } from '../../lib/settings';
@@ -67,7 +67,7 @@ export default function Food() {
   });
   const setPick = (m: MealKey, i: number) => {
     setSwapMeal(null);
-    writeEntry(MEAL_PICKS_KEY, 'number', dayKey(selDate, m), i === day.picks[m] ? undefined : i, { dated: true });
+    writeEntry(MEAL_PICKS_KEY, 'number', dayKey(selDate, m), i === day.picks[m] ? undefined : i);
   };
 
   // Water (today only): cups of 250 ml against the calculator's goal (or 3 L), +0.5 L on a training day.
@@ -75,12 +75,14 @@ export default function Food() {
   const waterMl = waterMap[selDate] ?? 0;
   const baseWater = energyFor(body)?.water ?? null;
   const waterGoal = waterGoalMl(baseWater, isTraining);
-  const addWater = (ml: number) => writeEntry(WATER_KEY, 'number', selDate, Math.max(0, waterMl + ml) || undefined, { dated: true });
+  const addWater = (ml: number) => writeEntry(WATER_KEY, 'number', selDate, Math.max(0, waterMl + ml) || undefined);
   // Supplements ticked per day (meta supps).
   const supps = readNumbers(SUPPS_KEY);
   const history = foodHistory(storage.allMealChecks(), waterMap, date, 14);
   const adh = adherence(history, MEAL_ORDER.length, date);
-  const waterDays = history.filter((d) => d.water >= waterGoalMl(baseWater, false)).length;
+  // Each day against its own goal: a training day needs the extra 0.5 L.
+  const waterGoalOn = (d: string) => waterGoalMl(baseWater, isTrainingDay(d, date, trained, restDay));
+  const waterDays = waterDaysMet(history, waterGoalOn);
   const creatine = SUPPLEMENTS[0]?.name;
   const creatineDays = creatine ? history.filter((d) => supps[dayKey(d.date, creatine)]).length : 0;
   const total = meals.reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: 0, p: 0 });
@@ -124,7 +126,7 @@ export default function Food() {
     storage.setMealCheck(selDate, m, on);
     bump();
   };
-  const tickSupp = (name: string, on: boolean) => writeEntry(SUPPS_KEY, 'number', dayKey(selDate, name), on ? 1 : undefined, { dated: true });
+  const tickSupp = (name: string, on: boolean) => writeEntry(SUPPS_KEY, 'number', dayKey(selDate, name), on ? 1 : undefined);
 
   const order = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
   const chips = order.map((wd) => {
@@ -346,7 +348,7 @@ export default function Food() {
                   <View style={{ width: '100%', maxWidth: 16, height: 36, borderRadius: 4, backgroundColor: t.soft, justifyContent: 'flex-end', overflow: 'hidden' }}>
                     <View style={{ height: `${f * 100}%`, backgroundColor: full ? t.ok : tint(t.ok, 0.5) }} />
                   </View>
-                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.water >= waterGoalMl(baseWater, false) ? t.protein : 'transparent' }} />
+                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.water >= waterGoalOn(d.date) ? t.protein : 'transparent' }} />
                   <T w="num" style={{ fontSize: 9, color: d.date === date ? t.fg : t.mute }}>{String(+d.date.slice(8))}</T>
                 </View>
               );

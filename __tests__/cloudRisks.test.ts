@@ -22,21 +22,78 @@ const task = (id: string) => ({ id, title: `task ${id}` });
 const serverSet = (i: number, kg: number, updated_at: number) => ({ kind: 'set', key: `2026-11-01|bench|${i}`, data: { date: '2026-11-01', exId: 'bench', idx: i, weekday: 1, kg, reps: 1, done: 1 }, updated_at });
 
 describe('F1 · conflicts are decided by device clocks', () => {
-  test('a phone whose clock is a day ahead wins over a later real edit on a correct phone', async () => {
+  test('fixed: a phone whose clock is a day ahead no longer wins over a later real edit on a correct phone', async () => {
     const fast = sim.device('A', { skewMs: DAY });
     const right = sim.device('B');
     await fast.signIn(A);
     await right.signIn(A);
     sim.advance(1000);
-    fast.setMeta('weights', w(80)); // really first, stamped one day in the future
+    fast.setMeta('weights', w(80)); // really first, stamped one day in the future on the phone
     await fast.sync();
+    // Sent stamped at most the server's time (its Date header, + 1 s for rounding) + SKEW_MARGIN_MS, not a day ahead.
+    expect(sim.server.find(A, 'meta', 'weights/2026-11-01')!.updated_at).toBeLessThanOrEqual(sim.time + 31_000);
     sim.advance(60_000);
     right.setMeta('weights', w(81)); // really later
     await right.sync();
-    // The later edit is dropped on the correct phone: the future-stamped one wins everywhere.
-    expect(right.meta('weights')).toBe(w(80));
+    expect(right.meta('weights')).toBe(w(81)); // the later edit wins
+    expect(serverKg()).toBe(81);
+    await fast.sync();
+    expect(fast.meta('weights')).toBe(w(81));
+  });
+
+  test('a correct clock is never clamped; without a Date header nothing is clamped (the old behavior)', async () => {
+    const right = sim.device('R');
+    await right.signIn(A);
+    sim.advance(1000);
+    right.setMeta('weights', w(80));
+    const t = sim.time;
+    await right.sync();
+    expect(sim.server.find(A, 'meta', 'weights/2026-11-01')!.updated_at).toBe(t);
+    sim.server.sendDate = false;
+    const fast = sim.device('F', { skewMs: DAY });
+    await fast.signIn(A);
+    sim.advance(1000);
+    fast.setMeta('weights', w(82));
+    await fast.sync();
+    expect(sim.server.find(A, 'meta', 'weights/2026-11-01')!.updated_at).toBe(sim.time + DAY);
+  });
+
+  test('clamped before comparing: a server row already stamped ahead (by an older build) is not left different on the phone', async () => {
+    const fast = sim.device('F', { skewMs: DAY });
+    await fast.signIn(A);
+    sim.advance(1000);
+    fast.setMeta('weights', w(80)); // stamped a day ahead here
+    // Another phone on an older build sent this record stamped an hour ahead.
+    sim.server.put(A, { kind: 'meta', key: 'weights/2026-11-01', data: { date: '2026-11-01', kg: 79 }, updated_at: sim.time + 3_600_000 });
+    await fast.sync();
+    // Clamped to "server now", the pending edit is older than that row: the server's wins on the phone too, nothing is
+    // pushed only to be skipped by the server (which would leave the phone and the server different).
+    expect(sim.server.skipped).toEqual([]);
+    expect(fast.meta('weights')).toBe(w(79));
+    expect(serverKg()).toBe(79);
+    expect(fast.dirtyKeys()).toEqual([]);
+  });
+
+  test('a pending edit stamped in the future is clamped before it is compared with pulled rows', async () => {
+    const fast = sim.device('F', { skewMs: DAY });
+    const right = sim.device('R');
+    await fast.signIn(A);
+    await right.signIn(A);
+    sim.server.offline.add('F');
+    sim.advance(1000);
+    fast.setMeta('weights', w(80)); // a day ahead, not sent (offline)
+    await expect(fast.sync()).rejects.toThrow();
+    sim.server.offline.delete('F');
+    sim.advance(10 * 60_000);
+    right.setMeta('weights', w(81)); // ten minutes later, sent
+    await right.sync();
+    sim.advance(10 * 60_000);
+    // F's pending edit is stamped "server now + margin" (later than R's), so it is kept and sent: an edit made before a
+    // sync but synced late still counts as made at sync time (the clock can't tell when it really was made).
+    await fast.sync();
     expect(serverKg()).toBe(80);
-    // Safe behavior: the edit made later in real time wins, or the user is told.
+    expect(sim.server.find(A, 'meta', 'weights/2026-11-01')!.updated_at).toBeLessThanOrEqual(sim.time + 31_000);
+    expect(fast.dirtyKeys()).toEqual([]);
   });
 
   test('reverse: the fast phone\'s really older edit overwrites the correct phone\'s newer one, so timestamps alone decide', async () => {
@@ -55,7 +112,9 @@ describe('F1 · conflicts are decided by device clocks', () => {
     expect(serverKg()).toBe(80); // the newer real edit is overwritten
     await right.sync();
     expect(right.meta('weights')).toBe(w(80));
-    // The two tests together: whichever phone's clock is ahead wins, whatever really happened first.
+    // Still so after the clamp: the fast phone's edit is sent stamped "server now" (it can't know when it was really
+    // made), which is after the correct phone's. Only a phone ahead of the server *at sync time* by more than the margin
+    // is held back (the test above).
   });
 
   test('push rejected after the pull: the phone keeps its value for one cycle, the next pull replaces it, its edit is lost', async () => {
@@ -191,7 +250,7 @@ describe('F4 · first sync and signing back in', () => {
 });
 
 describe('F5 · rev ordering and skipped rows', () => {
-  test('a push that took a rev earlier but committed later is never seen by a phone that already pulled past it', async () => {
+  test('fixed: a push that took a rev earlier but committed later is still seen by a phone that already pulled past it', async () => {
     const [pa, pb, pc] = [sim.device('A'), sim.device('B'), sim.device('C')];
     await pa.signIn(A);
     await pb.signIn(A);
@@ -206,13 +265,57 @@ describe('F5 · rev ordering and skipped rows', () => {
     await pc.sync(); // C pulls: it sees B's row (the higher rev) and moves its cursor past A's still-uncommitted one
     gate.resolve();
     await slow; // A's row commits now, with the lower rev
+    expect(Number(pc.meta('sync.cursor'))).toBeGreaterThan(sim.server.find(A, 'set', '2026-11-01|bench|0')!.rev); // C's cursor is past A's row
     await pc.sync();
     expect(sim.server.keysOf(A)).toContain('set:2026-11-01|bench|0'); // the server has it
-    expect(pc.setKeys()).toEqual(['2026-11-02|squat|0']); // C never gets it
+    expect(pc.setKeys()).toEqual(['2026-11-01|bench|0', '2026-11-02|squat|0']); // and C gets it: pulls re-read behind the cursor
     const fresh = sim.device('D');
     await fresh.signIn(A);
-    expect(fresh.setKeys()).toHaveLength(2); // a new phone from rev 0 does
-    // Safe behavior: pull a window behind the cursor (applying rows twice is harmless) or order revs by commit.
+    expect(fresh.setKeys()).toHaveLength(2);
+  });
+
+  test('the late row is still caught when the next sync comes after the re-read window settled', async () => {
+    const [pa, pb, pc] = [sim.device('A'), sim.device('B'), sim.device('C')];
+    await pa.signIn(A);
+    await pb.signIn(A);
+    await pc.signIn(A);
+    pa.setRow('2026-11-01', 'bench', 0);
+    pb.setRow('2026-11-02', 'squat', 0);
+    const gate = deferred();
+    sim.server.holdCommit = (r) => (r.device === 'A' ? gate.promise : undefined);
+    const slow = pa.sync();
+    await until(() => sim.server.requests.some((r) => r.call === 'push' && r.device === 'A'), "A's push");
+    await pb.sync();
+    await pc.sync(); // past A's uncommitted rev
+    gate.resolve();
+    await slow;
+    sim.advance(10 * 60_000); // C's next sync is much later
+    await pc.sync();
+    expect(pc.setKeys()).toEqual(['2026-11-01|bench|0', '2026-11-02|squat|0']);
+    sim.advance(10 * 60_000);
+    const n = sim.server.requests.length;
+    await pc.sync(); // and after that the window has caught up: nothing is read again
+    expect(sim.server.requests.slice(n).filter((r) => r.call === 'pull').map((r) => r.returned)).toEqual([0]);
+  });
+
+  test('rows read again are not applied again (no refresh, a newer pending edit here is kept)', async () => {
+    const a = sim.device('A');
+    const b = sim.device('B');
+    await a.signIn(A);
+    await b.signIn(A);
+    sim.advance(1000);
+    a.setRow('2026-11-01', 'bench', 0, 60);
+    await a.sync();
+    await b.sync(); // gets it
+    sim.advance(1000);
+    b.setRow('2026-11-01', 'bench', 0, 70); // edited here, not sent yet
+    sim.server.offline.add('B');
+    await expect(b.sync()).rejects.toThrow();
+    sim.server.offline.delete('B');
+    const applied = jest.spyOn(b.raw, 'saveSet');
+    await b.sync(); // re-reads A's row (same rev): not applied over the pending edit
+    expect(applied).not.toHaveBeenCalled();
+    expect((sim.server.find(A, 'set', '2026-11-01|bench|0')?.data as { kg: number }).kg).toBe(70);
   });
 });
 
@@ -314,24 +417,43 @@ describe('F8 · wiping on sign-out and photos', () => {
 });
 
 describe('F9 · a silent re-sign-in as another account', () => {
-  test('expired session + refused refresh + a different Google account: the phone is moved to that account without any reset', async () => {
+  test('fixed: expired session + refused refresh + a different Google account: sync stops, signed out, nothing goes to the other account', async () => {
     const d = sim.device('A');
     d.setRow('2026-11-01', 'bench', 0);
     await d.signIn(A);
+    expect(d.meta('sync.uid')).toBe(`user-${A}`);
     d.setRow('2026-11-02', 'bench', 0); // pending, meant for account A
     sim.advance(3600 * 1000);
     sim.server.refreshRevoked = true;
     d.googleAccount = B; // the Google sign-in now hands out account B's token
-    await d.sync();
-    expect(JSON.parse(String(d.meta('sync.session'))).email).toBe(B);
-    expect(sim.server.keysOf(B)).toEqual(['set:2026-11-02|bench|0']); // A's pending edit went into B
-    expect(sim.server.keysOf(A)).toEqual(['set:2026-11-01|bench|0']);
-    // Safe behavior: compare the new user id with the saved one and stop with an error when they differ.
+    await expect(d.sync()).rejects.toThrow('different account');
+    expect(sim.server.keysOf(B)).toEqual([]); // nothing went into B
+    expect(sim.server.requests.filter((r) => r.email === B && (r.call === 'pull' || r.call === 'push'))).toEqual([]);
+    expect(d.cloud.cloudLinked()).toBe(false);
+    for (const k of ['sync.session', 'sync.uid', 'driveUser']) expect(d.meta(k)).toBeFalsy();
+    expect(d.status().state).toBe('off'); // the account page shows signed out
+    expect(d.meta('sync.lastUid')).toBe(`user-${A}`); // the pending edit stays, tied to A
+    expect(d.dirtyKeys()).toEqual(['set:2026-11-02|bench|0']);
+    await d.keepSynced(); // no automatic re-link to B
+    expect(sim.server.keysOf(B)).toEqual([]);
+    sim.server.refreshRevoked = false;
+    await d.signIn(A); // back to A: the edit made for A is sent there
+    expect(sim.server.keysOf(A)).toEqual(['set:2026-11-01|bench|0', 'set:2026-11-02|bench|0']);
+  });
+
+  test('a broken saved session counts as not linked everywhere (cloudLinked, sync)', async () => {
+    const d = sim.device('A');
+    await d.signIn(A);
+    d.raw.setMeta('sync.session', '{broken');
+    expect(d.cloud.cloudLinked()).toBe(false);
+    expect(await d.sync()).toBe('off');
+    d.raw.setMeta('sync.session', JSON.stringify({ access: 1 }));
+    expect(d.cloud.cloudLinked()).toBe(false);
   });
 });
 
 describe('F9 · the old cursor carries over to the new account', () => {
-  test('the new account\'s older rows are never downloaded because the cursor of the old account is kept', async () => {
+  test('fixed: the switch is stopped before any pull, so no rows of the other account come down; signing in to it on purpose starts over', async () => {
     for (let i = 0; i < 5; i++) sim.server.put(B, serverSet(i, 7, 1)); // account B: revs 1-5
     for (let i = 10; i < 20; i++) sim.server.put(A, serverSet(i, 1, 1)); // account A: revs 6-15
     const d = sim.device('A');
@@ -340,16 +462,12 @@ describe('F9 · the old cursor carries over to the new account', () => {
     sim.advance(3600 * 1000);
     sim.server.refreshRevoked = true;
     d.googleAccount = B;
-    await d.sync();
-    expect(JSON.parse(String(d.meta('sync.session'))).email).toBe(B);
-    expect(d.meta('sync.cursor')).toBe('15'); // not reset for the new account
-    expect(d.setKeys()).toHaveLength(10); // only account A's own sets are on the phone
-    expect(d.setKeys().some((k) => /bench\|[0-4]$/.test(k))).toBe(false); // none of B's rows (revs 1-5) came down
-    expect(sim.server.keysOf(B)).toHaveLength(5);
-    const clean = sim.device('N');
-    await clean.signIn(B);
-    expect(clean.setKeys()).toHaveLength(5); // a phone that signs in as B normally gets all of them
-    // Safe behavior: a different user id resets the cursor (or stops), so the phone never mixes two accounts' history.
+    await expect(d.sync()).rejects.toThrow('different account');
+    expect(d.setKeys()).toHaveLength(10); // only account A's own sets
+    expect(d.meta('sync.cursor')).toBeFalsy(); // cleared with the link
+    sim.server.refreshRevoked = false;
+    await d.signIn(B); // on purpose, from the account page
+    expect(d.setKeys().filter((k) => /bench\|[0-4]$/.test(k))).toHaveLength(5); // all of B's rows, from rev 0
   });
 });
 

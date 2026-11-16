@@ -22,9 +22,17 @@ export type Summary = {
 
 const vol = (rows: readonly SetRow[]) => rows.reduce((a, r) => a + (r.kg ?? 0) * (r.reps ?? 0), 0);
 
-export function sessionSummary(all: readonly SetRow[], date: string, weekday: number, swapped: ReadonlySet<string> = new Set()): Summary {
+/** Each exercise's current number of sets (the plan, after edits and a light week). */
+export const setCounts = (exercises: readonly { id: string; sets: number }[]): Record<string, number> =>
+  Object.fromEntries(exercises.map((e) => [e.id, e.sets]));
+
+/**
+ * `counts`: each exercise's current number of sets. The day's rows past it (left from before the sets were cut, or
+ * before a light week halved them) don't show on the card, so they don't count here either.
+ */
+export function sessionSummary(all: readonly SetRow[], date: string, weekday: number, swapped: ReadonlySet<string> = new Set(), counts: Record<string, number> = {}): Summary {
   const done = all.filter((r) => r.done && r.weekday === weekday);
-  const today = done.filter((r) => r.date === date);
+  const today = done.filter((r) => r.date === date && r.idx < (counts[r.exId] ?? Infinity));
   const before = done.filter((r) => r.date < date);
   const prevDate = before.reduce<string | null>((m, r) => (!m || r.date > m ? r.date : m), null);
 

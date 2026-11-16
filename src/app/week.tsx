@@ -9,6 +9,7 @@ import { energyFor } from '../lib/energy';
 import { addDays, weekStart } from '../lib/gaps';
 import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../lib/journal';
 import { dateKey } from '../lib/logic';
+import { isTrainingDay } from '../lib/schedule';
 import { readNumbers, readStrings } from '../lib/meta';
 import { weekReport } from '../lib/report';
 import { useSettings } from '../lib/settings';
@@ -43,13 +44,16 @@ export default function WeekScreen() {
   const rows = storage.allSets();
   const first = rows.find((r) => r.done)?.date;
   const canPrev = !!first && from > weekStart(first);
+  const baseWater = energyFor(body)?.water ?? null;
+  const trained = new Set(storage.trainedDays().map((d) => d.date));
+  const restDay = storage.getMeta('restDay') || null;
   const r = weekReport(from, today, {
     rows,
     swapped: swappedSet(readStrings(SWAPS_KEY)),
     weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
     checks: storage.allMealChecks(),
     water: readNumbers(WATER_KEY),
-    waterGoal: waterGoalMl(energyFor(body)?.water ?? null, false),
+    waterGoal: (d) => waterGoalMl(baseWater, isTrainingDay(d, today, trained, restDay)),
     mealsPerDay: MEAL_ORDER.length,
     habits: HABITS_OFF ? [] : readHabits(),
     habitLog: readHabitLog(),
@@ -62,8 +66,8 @@ export default function WeekScreen() {
     focus: readSessions(),
   });
   const live = from === thisWeek;
-  // Only for a finished week: a week in progress would always look like a drop.
-  const change = !live && r.prevVolume ? Math.round(((r.volume - r.prevVolume) / r.prevVolume) * 100) : null;
+  // prevVolume covers the same days of the week before, so a week in progress compares fairly too.
+  const change = r.prevVolume ? Math.round(((r.volume - r.prevVolume) / r.prevVolume) * 100) : null;
   const short = (Object.keys(MUSCLE_AR) as Muscle[]).filter((m) => r.perMuscle[m] < TARGET);
 
   return (
@@ -82,7 +86,7 @@ export default function WeekScreen() {
           <T w="bold" style={{ fontSize: 16 }}>{r.sessions >= r.target ? 'حضرت كل التمارين ✓' : live ? `حضرت ${r.sessions} لحد دلوقتي` : `حضرت ${r.sessions} من ${r.target}`}</T>
           <T style={{ color: t.mute, fontSize: 12.5 }}>{`${r.sets} مجموعة · ${iso(r.volume.toLocaleString('en-US'))} كجم حجم${r.minutes ? ` · متوسط التمرين ${r.minutes} د` : ''}`}</T>
           {change != null ? (
-            <T style={{ fontSize: 12.5, color: change >= 0 ? t.okText : t.warn }}>{`الحجم ${iso(`${signed(change)}%`)} عن الأسبوع اللي قبله`}</T>
+            <T style={{ fontSize: 12.5, color: change >= 0 ? t.okText : t.warn }}>{`الحجم ${iso(`${signed(change)}%`)} ${live ? 'عن نفس الأيام من الأسبوع اللي فات' : 'عن الأسبوع اللي قبله'}`}</T>
           ) : null}
         </View>
       </Card>

@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { adherence, dayKey, extrasTotal, foodHistory, lastFor, parseExtras, parseMap, prune, waterGoalMl } from '../src/lib/journal';
+import { adherence, dayKey, extrasTotal, foodHistory, isDaySwap, lastFor, parseExtras, parseMap, waterDaysMet, waterGoalMl } from '../src/lib/journal';
 
 const set = (kg: number | null, reps: number | null, done = true) => ({ kg, reps, done });
 
@@ -10,8 +10,21 @@ test('parseMap keeps only the right type', () => {
   expect(parseMap('oops', 'string')).toEqual({});
 });
 
-test('prune drops dated entries older than 120 days', () => {
-  expect(prune({ '2026-01-01|x': 1, '2026-11-01|y': 2, '2026-11-01': 3 }, '2026-11-05')).toEqual({ '2026-11-01|y': 2, '2026-11-01': 3 });
+test('isDaySwap: only the cleared day and its exercises', () => {
+  const ids = ['deadlift', 'lat-pulldown'];
+  expect(isDaySwap(dayKey('2026-11-03', 'deadlift'), '2026-11-03', ids)).toBe(true);
+  expect(isDaySwap(dayKey('2026-11-03', 'barbell-bench-press'), '2026-11-03', ids)).toBe(false); // another day's exercise
+  expect(isDaySwap(dayKey('2026-11-04', 'deadlift'), '2026-11-03', ids)).toBe(false); // another date
+});
+
+test('water days: each day against its own goal (training needs +0.5 L)', () => {
+  const days = [
+    { date: '2026-11-01', water: 3000 }, // rest: met
+    { date: '2026-11-02', water: 3000 }, // training: short of 3.5 L
+    { date: '2026-11-03', water: 3500 }, // training: met
+  ];
+  const training = new Set(['2026-11-02', '2026-11-03']);
+  expect(waterDaysMet(days, (d) => waterGoalMl(null, training.has(d)))).toBe(2);
 });
 
 test('lastFor: same variant only', () => {

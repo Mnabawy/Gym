@@ -8,13 +8,15 @@
 export type Row = { kind: string; key: string; data: unknown; deleted: boolean; updated_at: number; rev: number };
 export type PushItem = { kind: string; key: string; data?: unknown; deleted?: boolean; updated_at: number };
 export type Req = { n: number; device: string; email: string; call: 'sign-in' | 'refresh' | 'pull' | 'push'; since?: number; items?: PushItem[]; returned?: number };
-type Reply = { ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string> };
+type Reply = { ok: boolean; status: number; json(): Promise<unknown>; text(): Promise<string>; headers: { get(name: string): string | null } };
 
-const reply = (status: number, body: unknown = null): Reply => ({
+/** `date`: the server's clock (ms) for the HTTP Date header (whole seconds, like a real server), or null for none. */
+const reply = (status: number, body: unknown = null, date: number | null = null): Reply => ({
   ok: status >= 200 && status < 300,
   status,
   json: async () => body,
   text: async () => (typeof body === 'string' ? body : JSON.stringify(body ?? '')),
+  headers: { get: (name: string) => (name.toLowerCase() === 'date' && date != null ? new Date(date).toUTCString() : null) },
 });
 const KINDS = ['set', 'meal', 'shop', 'meta'];
 const NUL = '\u0000';
@@ -35,8 +37,14 @@ export class FakeSupabase {
   onRequest?: (r: Req) => Promise<number | void> | number | void;
   /** Called in a push after its revs were handed out and before it commits (the overlap window). */
   holdCommit?: (r: Req) => Promise<void> | void;
+  /** Awaited after a pull's reply was made (its Date header stamped), before the phone gets it: a slow download. */
+  afterReply?: (r: Req) => Promise<void> | void;
   /** Return true to lose the reply of a request that the server has already handled (a push is committed, a pull was read). */
   dropResponse?: (r: Req) => boolean;
+  /** The server's own clock (ms), sent as the Date header of every reply. The Sim sets it to the shared clock, without any phone's skew. */
+  now: () => number = () => Date.now();
+  /** false: replies carry no Date header (a browser that hides it). */
+  sendDate = true;
   /** Rows a push carried that the upsert rule skipped because the stored row had a newer `updated_at`. */
   skipped: { email: string; kind: string; key: string; incoming: number; stored: number }[] = [];
   private valid = new Set<string>();
@@ -123,13 +131,18 @@ export class FakeSupabase {
       return reply(200, this.session(email, device));
     }
     if (call === 'pull') {
-      const since = Number(/(?:^|&)rev=gt\.(\d+)/.exec(q)?.[1] ?? 0);
+      // Like PostgREST: a filter value that isn't a bigint fails the request (`rev=gt.NaN`).
+      const gt = /(?:^|&)rev=gt\.([^&]*)/.exec(q)?.[1];
+      if (gt != null && !/^-?\d+$/.test(gt)) return reply(400, `invalid input syntax for type bigint: "${gt}"`);
+      const since = Number(gt ?? 0);
       const limit = Math.min(Number(/(?:^|&)limit=(\d+)/.exec(q)?.[1] ?? this.maxRows), this.maxRows);
       const rows = this.rowsOf(email).filter((r) => r.rev > since).slice(0, limit);
       req.since = since;
       req.returned = rows.length;
       if (this.dropResponse?.(req)) throw new TypeError('Network request failed');
-      return reply(200, rows.map((r) => ({ ...r })));
+      const res = reply(200, rows.map((r) => ({ ...r })), this.sendDate ? this.now() : null);
+      await this.afterReply?.(req);
+      return res;
     }
     // push_rows(items): the whole batch fails on a bad kind; each row gets a rev now, the write lands at commit.
     const items = ((body?.items ?? []) as PushItem[]).map((x) => ({ ...x }));
@@ -141,6 +154,6 @@ export class FakeSupabase {
     await this.holdCommit?.(req);
     items.forEach((it, i) => this.commit(email, it, revs[i]));
     if (this.dropResponse?.(req)) throw new TypeError('Network request failed');
-    return reply(204);
+    return reply(204, null, this.sendDate ? this.now() : null);
   };
 }

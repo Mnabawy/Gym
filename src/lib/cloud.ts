@@ -5,16 +5,16 @@
 // The first sync on a phone pulls everything; the server wins where both have the same record, and anything only on the
 // phone goes up. Photos aren't synced. Setup (project, table, Google provider): docs/supabase-setup.md.
 import { useDataVersion } from './bus';
-import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
-import { applyRows, entry, expandWhole, isSplit, localRows, settleWhole, snapWhole, SPLIT_META, splitKey, pushItems, rowId, type Pulled } from './cloudSync';
+import { pullPage, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
+import { ackBatch, advanceWindow, applyRows, clampDirty, emptyWindow, entry, expandWhole, isSplit, localRows, readCursor, readWindow, settleWhole, SKEW_MARGIN_MS, snapWhole, SPLIT_META, splitKey, pushItems, rowId, rowsPerEntry, type Pulled } from './cloudSync';
 import { DATA_VERSION_KEY, dataTooNew, readDataVersion, versionToWrite } from './dataVersion';
 import { report } from './errlog';
-import { GOOGLE_USER, googleIdToken } from './google';
+import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleIdToken } from './google';
 import { hasAnythingToProtect, SafetyError } from './safety';
 import { createSnapshot } from './safetyIO';
 import { useSettings } from './settings';
 import { storage } from './storage';
-import { clearLog, dirty, expireLogOnly, LAST_UID, rawStorage, saveDirty, setTracking, trackingOn } from './track';
+import { clearLog, dirty, expireLogOnly, LAST_UID, rawStorage, saveDirty, setTracking, trackingOn, useDirty, writeDirty } from './track';
 
 const CONFIG: CloudConfig = { url: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '', key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '' };
 /** The build has a Supabase project (env vars at build time). */
@@ -22,7 +22,11 @@ export const cloudConfigured = !!(CONFIG.url && CONFIG.key);
 
 /** Meta keys (this phone only): the session, the last rev pulled, last good sync (ms), last error. */
 const SESSION = 'sync.session';
+/** The Supabase user this phone's sync is linked to (set by linkCloud, cleared by unlinkCloud). */
+const UID = 'sync.uid';
 const CURSOR = 'sync.cursor';
+/** Where the next pull starts and which revs were applied already (cloudSync.ts PullWindow); goes with the cursor. */
+const WINDOW = 'sync.window';
 /** '1' once this phone's first full sync finished (pulled everything and queued what only the phone has). */
 const FULL = 'sync.full';
 /**
@@ -36,6 +40,17 @@ export const SYNC_ERROR = 'sync.error';
 /** 'update' while the account's data is newer than this build (dataVersion.ts): nothing is sent until the app is updated. */
 const SYNC_BLOCKED = 'sync.blocked';
 
+/**
+ * Thrown when signing in again (an expired session) gave a different account than the one sync is linked to: nothing is
+ * pulled or sent, sync is turned off and the phone shows as signed out (the change log stays tied to the old account).
+ */
+export class AccountChanged extends Error {
+  constructor() {
+    super('signed in to a different account than the one sync is linked to');
+    this.name = 'AccountChanged';
+  }
+}
+
 /** Thrown by a sync that pulled but sent nothing because the account's data is newer than this build. */
 export class UpdateNeeded extends Error {
   constructor() {
@@ -47,12 +62,14 @@ export class UpdateNeeded extends Error {
 const meta = (k: string) => rawStorage().getMeta(k);
 const setMeta = (k: string, v: string) => rawStorage().setMeta(k, v);
 
-export const cloudLinked = () => cloudConfigured && trackingOn() && !!meta(SESSION);
+/** Linked = sync on and a readable session saved (a broken one counts as none, everywhere). */
+export const cloudLinked = () => cloudConfigured && trackingOn() && !!readSession();
 export const pendingChanges = () => Object.keys(dirty()).length;
 
 function readSession(): Session | null {
   try {
-    return JSON.parse(meta(SESSION) || 'null') as Session | null;
+    const s = JSON.parse(meta(SESSION) || 'null') as Partial<Session> | null;
+    return s && typeof s === 'object' && typeof s.access === 'string' && typeof s.refresh === 'string' && typeof s.exp === 'number' && typeof s.uid === 'string' ? (s as Session) : null;
   } catch {
     return null;
   }
@@ -68,7 +85,14 @@ async function freshSignIn(): Promise<Session> {
 async function accessToken(): Promise<string> {
   let s = readSession();
   if (!s || s.exp - 60_000 < Date.now()) {
+    const linked = meta(UID) || s?.uid || '';
     s = s ? await refreshSession(CONFIG, s.refresh, fetch).catch(() => freshSignIn()) : await freshSignIn();
+    // The phone's Google account changed under a linked sync: never move this phone's data to another account silently.
+    if (linked && s.uid !== linked) {
+      unlinkCloud(); // keeps the change log, tied to the linked account
+      for (const k of [GOOGLE_USER, GOOGLE_NAME, GOOGLE_PHOTO]) setMeta(k, ''); // signed out: no automatic re-link
+      throw new AccountChanged();
+    }
     setMeta(SESSION, JSON.stringify(s));
   }
   return s.access;
@@ -116,7 +140,11 @@ async function syncOnce() {
     const sentBefore = meta(SPLIT_SENT) ?? '';
     // More keys split than when this phone last synced: rows for them pulled by the older build were skipped, so pull
     // everything again (applying a row twice is harmless; changes waiting here still win when newer).
-    let cursor = first || sentBefore === split ? Number(meta(CURSOR) || 0) : 0;
+    const repull = !(first || sentBefore === split);
+    // A broken cursor (not a whole number) would make every pull fail: it counts as 0, everything is pulled again.
+    let cursor = repull ? 0 : readCursor(meta(CURSOR));
+    let win = repull ? emptyWindow() : readWindow(meta(WINDOW), cursor);
+    const applied = new Set(win.revs);
     const seen = new Set<string>();
     let pulledVersion = 1;
     // Keys an older build noted as a whole and never sent (it was blocked, or offline): their value now, before the pull
@@ -124,47 +152,80 @@ async function syncOnce() {
     const snap = snapWhole(dirty(), (k) => rawStorage().getMeta(k));
     const base: Record<string, { v: string; at: number }> = {};
     const newer: Record<string, number> = {};
-    // Pull: everything after the last rev we saw.
+    // The server's clock minus this phone's (ms), from the pull's Date header; null = unknown (then nothing is clamped).
+    let offset: number | null = null;
+    // Pull: from a little behind the cursor (rows that committed late), see PullWindow.
+    const start = Date.now();
+    const known = cursor;
+    let from = win.safe;
     for (;;) {
-      const rows: Pulled[] = await pullRows(CONFIG, token, cursor, fetch);
-      if (!rows.length) break;
-      const d = dirty();
+      const t0 = Date.now();
+      const page = await pullPage(CONFIG, token, from, fetch);
+      const rows: Pulled[] = page.rows;
+      const at = Date.now();
+      // The Date header was made after t0 and is cut to the second, so header + 1 s - t0 can only overestimate the server's
+      // lead: a correct phone is never clamped. A slow reply makes the sample too loose to trust: skipped.
+      if (page.serverTime != null && at - t0 <= SKEW_MARGIN_MS) offset = page.serverTime + 1000 - t0;
+      const prev = from;
+      const top = rows.length ? rows[rows.length - 1].rev : NaN;
+      if (Number.isSafeInteger(top) && top > from) from = top;
+      // The last page: a short one that reached the old cursor (a short page still inside the part read again asks for
+      // more), an empty one, or one that didn't move past `from` (a broken reply: stop instead of asking forever).
+      const last = !rows.length || from === prev || (rows.length < PAGE && from >= known);
+      cursor = Math.max(cursor, from);
+      win = advanceWindow(win, rows.map((r) => r.rev), { cursor, covered: last ? cursor : from, at, start });
+      // A copy of the log is changed and written with the rows, the cursor and the window in one transaction; it becomes
+      // the log only once that committed.
+      let d = { ...dirty() };
+      if (offset != null) d = clampDirty(d, Date.now() + offset + SKEW_MARGIN_MS).dirty;
+      // A whole-key entry stamped lower: its snapshot follows, so settleWhole still recognizes it as the same edit.
+      for (const [k, sn] of Object.entries(snap)) {
+        const e = d[rowId('meta', k)];
+        if (e && !e.row && e.t < sn.t) sn.t = e.t;
+      }
+      const fresh = rows.filter((r) => !applied.has(r.rev));
       rawStorage().transaction(() => {
-        const r = applyRows(rows, d, rawStorage());
-        changed ||= r.changed;
-        changedMeta.push(...r.meta);
+        if (fresh.length) {
+          const r = applyRows(fresh, d, rawStorage());
+          changed ||= r.changed;
+          changedMeta.push(...r.meta);
+        }
+        writeDirty(d);
+        setMeta(CURSOR, String(cursor));
+        setMeta(WINDOW, JSON.stringify(win));
       });
-      saveDirty();
+      useDirty(d);
       for (const r of rows) {
+        applied.add(r.rev);
         seen.add(rowId(r.kind, r.key));
         if (r.kind === 'meta' && snap[r.key] && isSplit(r.key) && !r.deleted && typeof r.data === 'string') base[r.key] = { v: r.data, at: r.updated_at };
         const sp = r.kind === 'meta' ? splitKey(r.key) : null;
         if (sp && snap[sp.key]) newer[rowId(r.kind, r.key)] = Math.max(newer[rowId(r.kind, r.key)] ?? -Infinity, r.updated_at);
         if (r.kind === 'meta' && r.key === DATA_VERSION_KEY && !r.deleted && typeof r.data === 'string') pulledVersion = Math.max(pulledVersion, readDataVersion(r.data));
       }
-      cursor = rows[rows.length - 1].rev;
-      setMeta(CURSOR, String(cursor));
-      if (rows.length < PAGE) break;
+      if (last) break;
     }
+    /** A time stamp for what goes up: never later than the server's now + a margin (a phone clock running ahead). */
+    const cap = (t: number) => (offset == null ? t : Math.min(t, Date.now() + offset + SKEW_MARGIN_MS));
     if (first) {
       // First sync on this phone: what the server doesn't have yet goes up.
       const d = dirty();
-      for (const r of localRows(storage.dump(), Date.now())) {
+      for (const r of localRows(storage.dump(), cap(Date.now()))) {
         const id = rowId(r.kind, r.key);
         if (!seen.has(id) && !d[id]) d[id] = entry(r);
       }
       saveDirty();
-      setMeta(CURSOR, String(cursor));
       setMeta(FULL, '1');
     }
     if (Object.keys(snap).length) {
-      const d = dirty();
+      const d = { ...dirty() };
       rawStorage().transaction(() => {
         const keys = settleWhole(snap, base, newer, d, rawStorage());
         if (keys.length) changed = true;
         changedMeta.push(...keys);
+        writeDirty(d);
       });
-      saveDirty();
+      useDirty(d);
     }
     // Anything still noted as one value (edited again during the pull): one entry per record it holds.
     if (expandWhole(dirty(), (k) => rawStorage().getMeta(k))) saveDirty();
@@ -177,7 +238,7 @@ async function syncOnce() {
       // An older build stored the record rows it pulled for keys it didn't split as plain keys (`notes/bench`): drop them.
       for (const k of Object.keys(storage.dump().meta)) if (splitKey(k)) rawStorage().setMeta(k, '');
       const d = dirty();
-      for (const r of localRows(storage.dump(), Date.now())) {
+      for (const r of localRows(storage.dump(), cap(Date.now()))) {
         const id = rowId(r.kind, r.key);
         const sp = splitKey(r.key);
         if (sp && !had.has(sp.key) && !d[id]) d[id] = entry(r);
@@ -195,13 +256,14 @@ async function syncOnce() {
     setMeta(SYNC_BLOCKED, '');
     const v = versionToWrite(meta(DATA_VERSION_KEY));
     if (v) storage.setMeta(DATA_VERSION_KEY, v); // noted, so it goes up with the rest
-    // Push what changed here, in batches; an entry edited again meanwhile stays for next time.
+    // Push what changed here, in batches; an entry edited again meanwhile stays for next time. An entry that goes as
+    // several rows (a split key an older build noted as a whole) is cleared only once all of them were accepted.
     const items = pushItems(dirty(), (k) => rawStorage().getMeta(k));
+    const left = rowsPerEntry(items);
     for (let i = 0; i < items.length; i += PUSH_BATCH) {
       const part = items.slice(i, i + PUSH_BATCH);
-      await pushRows(CONFIG, token, part.map((x) => x.row), fetch);
-      const d = dirty();
-      for (const x of part) if (d[x.id]?.t === x.t) delete d[x.id];
+      await pushRows(CONFIG, token, part.map((x) => ({ ...x.row, updated_at: cap(x.row.updated_at) })), fetch);
+      ackBatch(dirty(), part, left);
       saveDirty();
     }
     setMeta(SYNC_AT, String(Date.now()));
@@ -223,7 +285,7 @@ export async function linkCloud(): Promise<void> {
   const s = await freshSignIn();
   expireLogOnly(); // a signed-out log past its limit is not sent: the full first sync below runs instead
   const old = readSession();
-  const before = old?.uid ?? meta(LAST_UID);
+  const before = meta(UID) || old?.uid || meta(LAST_UID);
   // Before anything is switched on or the first sync merges the server's rows into this phone: a safety copy of what's
   // here (a SafetyError stops here, nothing is changed and sync stays off). A phone with nothing on it needs none.
   if (meta(FULL) !== '1' || !trackingOn() || (before && before !== s.uid)) {
@@ -234,13 +296,16 @@ export async function linkCloud(): Promise<void> {
   if (before && before !== s.uid) {
     setTracking(false);
     setMeta(CURSOR, '');
+    setMeta(WINDOW, '');
     setMeta(FULL, '');
     setMeta(DATA_VERSION_KEY, ''); // the old account's data version must not block this one; the first pull sets it again
   }
   setMeta(SESSION, JSON.stringify(s));
+  setMeta(UID, s.uid);
   setMeta(LAST_UID, '');
   if (!trackingOn()) {
     setMeta(CURSOR, '');
+    setMeta(WINDOW, '');
     setMeta(FULL, '');
     setTracking(true);
   }
@@ -254,11 +319,11 @@ export async function linkCloud(): Promise<void> {
  * wipe (`wiped`) nothing is kept.
  */
 export function unlinkCloud(wiped = false) {
-  const uid = readSession()?.uid;
+  const uid = meta(UID) || readSession()?.uid;
   const keep = !!uid && !wiped;
   setTracking(false, keep);
   setMeta(LAST_UID, keep ? uid : '');
-  for (const k of [SESSION, CURSOR, FULL, SYNC_AT, SYNC_ERROR, SYNC_BLOCKED]) setMeta(k, '');
+  for (const k of [SESSION, UID, CURSOR, WINDOW, FULL, SYNC_AT, SYNC_ERROR, SYNC_BLOCKED]) setMeta(k, '');
 }
 
 /**

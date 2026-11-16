@@ -151,11 +151,16 @@ export function itemChanges(key: string, before: string | null | undefined, afte
 /** A change-log entry for a row: plain meta keys are read when sent; everything else keeps the row. */
 export const entry = (r: CloudRow) => (r.kind === 'meta' && !splitKey(r.key) ? { t: r.updated_at } : { t: r.updated_at, row: r });
 
+/**
+ * A split key's value while a batch of pulled rows is applied: read and parsed once, changed record by record, written
+ * once at the end (one parse and one write per key, not per record: a first sync pulls thousands of `habitLog/…` rows).
+ */
+type OpenKey = { cur: string | null; m: Map<string, unknown>; changed: boolean };
+
 /** Puts one pulled record into its key's value (null = removed). False when nothing changed. */
-function applyEntry(s: Target, key: string, id: string, data: unknown): boolean {
+function applyEntry(o: OpenKey, key: string, id: string, data: unknown): boolean {
   if (localField(key, id)) return false;
-  const cur = s.getMeta(key);
-  const m = entriesOf(key, cur);
+  const m = o.m;
   if (data == null) {
     if (!m.has(id)) return false;
     m.delete(id);
@@ -163,7 +168,7 @@ function applyEntry(s: Target, key: string, id: string, data: unknown): boolean 
     if (!okEntry(key, id, data) || JSON.stringify(m.get(id)) === JSON.stringify(data)) return false;
     m.set(id, data);
   }
-  s.setMeta(key, valueOf(key, m, cur));
+  o.changed = true;
   return true;
 }
 /**
@@ -182,30 +187,38 @@ export function readTombs(raw: string | null | undefined): Tombs {
     return {};
   }
 }
-/** Notes the record deletes in `rows` (and forgets records written again); old ones are dropped. True when changed. */
-export function noteTombs(tombs: Tombs, rows: readonly CloudRow[], now: number): boolean {
-  let changed = false;
-  for (const r of rows) {
-    if (r.kind !== 'meta' || !splitKey(r.key)) continue;
-    if (r.deleted) {
-      if (tombs[r.key] !== r.updated_at) (tombs[r.key] = r.updated_at), (changed = true);
-    } else if (tombs[r.key] != null) {
-      delete tombs[r.key];
-      changed = true;
-    }
+/** Notes one row: a record delete is remembered, a record written again is forgotten. True when changed. */
+function tombRow(tombs: Tombs, r: CloudRow): boolean {
+  if (r.kind !== 'meta' || !splitKey(r.key)) return false;
+  if (r.deleted) {
+    if (tombs[r.key] === r.updated_at) return false;
+    tombs[r.key] = r.updated_at;
+    return true;
   }
+  if (tombs[r.key] == null) return false;
+  delete tombs[r.key];
+  return true;
+}
+/** Drops the ones older than TOMB_DAYS. True when changed. */
+function pruneTombs(tombs: Tombs, now: number): boolean {
+  let changed = false;
   const old = now - TOMB_DAYS * 86400000;
   for (const [k, t] of Object.entries(tombs)) if (t < old) (delete tombs[k]), (changed = true);
   return changed;
+}
+/** Notes the record deletes in `rows` (and forgets records written again); old ones are dropped. True when changed. */
+export function noteTombs(tombs: Tombs, rows: readonly CloudRow[], now: number): boolean {
+  let changed = false;
+  for (const r of rows) changed = tombRow(tombs, r) || changed;
+  return pruneTombs(tombs, now) || changed;
 }
 
 /**
  * A whole value sent before records went one by one (or by an older build): only adds the records missing here, never
  * removes or replaces one; a record with a change waiting here (deleted here, not sent yet) is not brought back.
  */
-function mergeWhole(s: Target, key: string, v: string, dirty: Dirty, tombs: Tombs): boolean {
-  const cur = s.getMeta(key);
-  const m = entriesOf(key, cur);
+function mergeWhole(o: OpenKey, key: string, v: string, dirty: Dirty, tombs: Tombs): boolean {
+  const m = o.m;
   let added = false;
   for (const [id, x] of entriesOf(key, v)) {
     const k = itemKey(key, id);
@@ -213,7 +226,7 @@ function mergeWhole(s: Target, key: string, v: string, dirty: Dirty, tombs: Tomb
     m.set(id, x);
     added = true;
   }
-  if (added) s.setMeta(key, valueOf(key, m, cur));
+  if (added) o.changed = true;
   return added;
 }
 
@@ -253,6 +266,18 @@ export function applyRows(rows: readonly Pulled[], dirty: Dirty, s: Target, now 
   const meta: string[] = [];
   const tombs = readTombs(s.getMeta(TOMBS));
   let tombed = false;
+  let anySplit = false;
+  // Each split key touched by the batch is read once and written once (after the loop).
+  const open = new Map<string, OpenKey>();
+  const load = (key: string): OpenKey => {
+    let o = open.get(key);
+    if (!o) {
+      const cur = s.getMeta(key);
+      o = { cur, m: entriesOf(key, cur), changed: false };
+      open.set(key, o);
+    }
+    return o;
+  };
   for (const r of rows) {
     if (r.kind === 'meta' && isLocalMeta(r.key)) continue;
     const id = rowId(r.kind, r.key);
@@ -273,11 +298,12 @@ export function applyRows(rows: readonly Pulled[], dirty: Dirty, s: Target, now 
       s.setShopCheck(d.week, d.item, !r.deleted);
     } else if (r.kind === 'meta' && splitKey(r.key)) {
       const sp = splitKey(r.key)!;
-      tombed = noteTombs(tombs, [r], now) || tombed;
-      if (!applyEntry(s, sp.key, sp.id, r.deleted ? null : r.data)) continue;
+      anySplit = true;
+      tombed = tombRow(tombs, r) || tombed;
+      if (!applyEntry(load(sp.key), sp.key, sp.id, r.deleted ? null : r.data)) continue;
       if (!meta.includes(sp.key)) meta.push(sp.key);
     } else if (r.kind === 'meta' && isSplit(r.key)) {
-      if (r.deleted || !str(r.data) || !mergeWhole(s, r.key, r.data, dirty, tombs)) continue;
+      if (r.deleted || !str(r.data) || !mergeWhole(load(r.key), r.key, r.data, dirty, tombs)) continue;
       if (!meta.includes(r.key)) meta.push(r.key);
     } else if (r.kind === 'meta') {
       const v = r.deleted || !str(r.data) ? '' : r.data;
@@ -287,6 +313,8 @@ export function applyRows(rows: readonly Pulled[], dirty: Dirty, s: Target, now 
     } else continue;
     changed = true;
   }
+  for (const [key, o] of open) if (o.changed) s.setMeta(key, valueOf(key, o.m, o.cur));
+  if (anySplit) tombed = pruneTombs(tombs, now) || tombed;
   if (tombed) s.setMeta(TOMBS, JSON.stringify(tombs));
   return { changed, meta };
 }
@@ -396,6 +424,25 @@ export function pushItems(dirty: Dirty, getMeta: (k: string) => string | null): 
   return out;
 }
 
+/**
+ * After a batch was accepted by the server: drops the entries it carried from the log, unless edited again meanwhile
+ * (`t` changed). `left` counts the rows still to send per entry: an entry that goes as several rows (a split key an
+ * older build noted as a whole) is dropped only with its last row, so a later batch that fails keeps it.
+ */
+export function ackBatch(dirty: Dirty, part: readonly { id: string; t: number }[], left: Map<string, number>): void {
+  for (const x of part) {
+    const n = (left.get(x.id) ?? 1) - 1;
+    left.set(x.id, n);
+    if (n <= 0 && dirty[x.id]?.t === x.t) delete dirty[x.id];
+  }
+}
+/** How many rows each entry goes as (for ackBatch). */
+export function rowsPerEntry(items: readonly { id: string }[]): Map<string, number> {
+  const left = new Map<string, number>();
+  for (const x of items) left.set(x.id, (left.get(x.id) ?? 0) + 1);
+  return left;
+}
+
 /** Every record on the phone as rows (first sync: whatever the server doesn't have yet goes up). Empty meta is skipped. */
 export function localRows(d: Dump, t: number): CloudRow[] {
   const out: CloudRow[] = [];
@@ -420,4 +467,73 @@ export function diffRows(before: Dump, after: Dump, t: number): CloudRow[] {
     if (!now.has(id)) now.set(id, { ...r, data: r.kind === 'meta' ? null : r.data, deleted: true });
   }
   return [...now.values()];
+}
+
+/** The saved pull cursor (meta `sync.cursor`): a whole rev ≥ 0; anything else (empty, garbage, NaN) is 0 = pull everything. */
+export function readCursor(raw: string | null | undefined): number {
+  const s = (raw ?? '').trim();
+  if (!/^\d+$/.test(s)) return 0;
+  const n = Number(s);
+  return Number.isSafeInteger(n) ? n : 0;
+}
+
+/**
+ * Re-reading behind the cursor. On the server `rev` comes from a sequence when a push *starts* (schema.sql), not when it
+ * commits, so a slow push can become visible after a faster one with higher revs was pulled: "rev > cursor" alone would
+ * skip it forever. So each pull starts from `safe`, a rev below which every row has been seen, and re-reads what's
+ * between it and the cursor; rows whose rev was already applied (`revs`) are not applied again (an unchanged rev is an
+ * unchanged row: any write gives a new rev). `safe` moves up to a rev seen at least SETTLE_MS before this pull started
+ * (`marks`: [phone time, cursor] after each page; any rev at or below it was handed out before that time, and a push is
+ * one statement that ends within seconds, so it has committed or failed by now), and never lags more than
+ * OVERLAP_REVS behind the cursor (a cap on what's re-read; two full push batches). Phone-only meta `sync.window`.
+ */
+export type PullWindow = { safe: number; marks: [number, number][]; revs: number[] };
+export const SETTLE_MS = 2 * 60_000;
+export const OVERLAP_REVS = 1000;
+const MAX_MARKS = 64;
+const whole = (x: unknown): x is number => typeof x === 'number' && Number.isSafeInteger(x) && x >= 0;
+export const emptyWindow = (): PullWindow => ({ safe: 0, marks: [], revs: [] });
+/** The saved window, checked against the cursor (missing or broken: re-read the last OVERLAP_REVS once). */
+export function readWindow(raw: string | null | undefined, cursor: number): PullWindow {
+  const fallback = { safe: Math.max(0, cursor - OVERLAP_REVS), marks: [], revs: [] };
+  let v: unknown;
+  try {
+    v = JSON.parse(raw || 'null');
+  } catch {
+    return fallback;
+  }
+  if (!isObj(v) || !whole(v.safe) || v.safe > cursor || !Array.isArray(v.marks) || !Array.isArray(v.revs)) return fallback;
+  const marks = v.marks.filter((m): m is [number, number] => Array.isArray(m) && m.length === 2 && typeof m[0] === 'number' && isFinite(m[0]) && whole(m[1]));
+  const revs = v.revs.filter((r): r is number => whole(r) && r > (v as PullWindow).safe && r <= cursor);
+  return { safe: v.safe, marks, revs };
+}
+/**
+ * After a page: `revs` the page's revs, `cursor` the highest rev ever pulled, `covered` the highest rev this pull has
+ * read up to (the cursor once the last page came), `at` the phone's time now, `start` when this pull began.
+ */
+export function advanceWindow(w: PullWindow, revs: readonly number[], o: { cursor: number; covered: number; at: number; start: number }): PullWindow {
+  const marks = [...w.marks, [o.at, o.cursor] as [number, number]].slice(-MAX_MARKS);
+  let safe = w.safe;
+  for (const [t, r] of marks) if (t <= o.start - SETTLE_MS) safe = Math.max(safe, Math.min(r, o.covered));
+  safe = Math.min(o.cursor, Math.max(safe, o.cursor - OVERLAP_REVS));
+  const all = new Set([...w.revs, ...revs].filter((r) => r > safe));
+  return { safe, marks: marks.filter(([, r]) => r > safe), revs: [...all].sort((p, q) => p - q) };
+}
+
+/**
+ * A phone whose clock runs ahead would win every conflict (the newer `updated_at` wins). Once the server's time is known
+ * (the Date header of a pull), pending changes stamped later than the server's now + SKEW_MARGIN_MS are stamped at that
+ * limit instead (returns a new log; entries are not changed in place). A correct clock is never touched.
+ */
+export const SKEW_MARGIN_MS = 30_000;
+export function clampDirty(d: Dirty, limit: number): { dirty: Dirty; changed: boolean } {
+  let changed = false;
+  const out: Dirty = {};
+  for (const [id, e] of Object.entries(d)) {
+    if (e.t > limit) {
+      out[id] = e.row ? { t: limit, row: { ...e.row, updated_at: limit } } : { t: limit };
+      changed = true;
+    } else out[id] = e;
+  }
+  return { dirty: changed ? out : d, changed };
 }

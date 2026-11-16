@@ -34,6 +34,7 @@ export class Sim {
 
   /** Call in beforeEach. */
   install() {
+    this.server.now = () => this.clock;
     this.now = jest.spyOn(Date, 'now').mockImplementation(() => this.clock + (this.current?.skew ?? 0));
     globalThis.fetch = this.server.fetch as unknown as typeof fetch;
   }

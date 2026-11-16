@@ -246,16 +246,23 @@ describe('the change log (dirty) and push', () => {
 });
 
 describe('pull and the cursor', () => {
-  test('the cursor is the last rev pulled; a sync with nothing new pulls nothing', async () => {
+  test('the cursor is the last rev pulled; right after, a sync re-reads the recent revs; once settled, nothing new pulls nothing', async () => {
     const a = sim.device('A');
     const b = sim.device('B');
     a.setRow('2026-11-01', 'bench', 0);
     await a.signIn(A);
     await b.signIn(A);
     expect(Number(b.meta('sync.cursor'))).toBe(sim.server.rev);
-    const before = sim.server.requests.length;
+    let before = sim.server.requests.length;
+    await b.sync(); // within SETTLE_MS: the recent revs are read again, but not applied again
+    let pulls = sim.server.requests.slice(before).filter((r) => r.call === 'pull');
+    expect(pulls[0].since).toBeLessThan(sim.server.rev);
+    expect(b.dirtyKeys()).toEqual([]);
+    sim.advance(3 * 60_000);
+    await b.sync(); // the window catches up with the cursor
+    before = sim.server.requests.length;
     await b.sync();
-    const pulls = sim.server.requests.slice(before).filter((r) => r.call === 'pull');
+    pulls = sim.server.requests.slice(before).filter((r) => r.call === 'pull');
     expect(pulls).toHaveLength(1);
     expect(pulls[0].returned).toBe(0);
     expect(pulls[0].since).toBe(sim.server.rev);
@@ -292,8 +299,11 @@ describe('pull and the cursor', () => {
     await a.signIn(A);
     expect(a.setKeys()).toHaveLength(100); // cloud.ts stops when a page has fewer than PAGE rows
     expect(a.meta('sync.full')).toBe('1'); // and still calls the first sync done
-    await a.sync();
-    await a.sync();
+    // Each sync re-reads from a little behind the cursor; that only catches up once SETTLE_MS has passed.
+    for (let i = 0; i < 4; i++) {
+      sim.advance(3 * 60_000);
+      await a.sync();
+    }
     expect(a.setKeys()).toHaveLength(250);
   });
 });

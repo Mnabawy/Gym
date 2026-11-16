@@ -11,8 +11,6 @@ export const NOTES_KEY = 'notes';
 export const WATER_KEY = 'water';
 export const MEAL_PICKS_KEY = 'mealPicks';
 
-/** Days of water and meal swaps kept (older entries are dropped on the next write). */
-export const KEEP_DAYS = 120;
 export const CUP_ML = 250;
 /** Water goal when the calorie calculator has no data yet: liters on a rest day. */
 export const DEFAULT_WATER_L = 3;
@@ -37,13 +35,8 @@ export function parseMap<V extends string | number>(raw: string | null, kind: 's
 /** Key for a per-day entry about one thing (an exercise or a meal). Dates sort first, so old ones are easy to drop. */
 export const dayKey = (date: string, id: string) => `${date}|${id}`;
 
-/** Drops entries keyed by a date older than KEEP_DAYS before `today`. */
-export function prune<V>(m: Record<string, V>, today: string): Record<string, V> {
-  const from = addDays(today, -KEEP_DAYS);
-  const out: Record<string, V> = {};
-  for (const [k, v] of Object.entries(m)) if (k.slice(0, 10) >= from) out[k] = v;
-  return out;
-}
+/** Is `k` (a `date|id` key) a swap of one of `exIds` on `date`? Clearing a day's sets drops its swaps too. */
+export const isDaySwap = (k: string, date: string, exIds: readonly string[]) => exIds.some((id) => k === dayKey(date, id));
 
 /** Every `date|exId` you trained a swapped exercise on: those days don't count for the program exercise's records. */
 export const swappedSet = (swaps: Record<string, string>): Set<string> => new Set(Object.keys(swaps));
@@ -65,6 +58,10 @@ export function lastFor(history: readonly { date: string; sets: SetEntry[] }[], 
 export function waterGoalMl(liters: number | null, training: boolean): number {
   return Math.round(((liters ?? DEFAULT_WATER_L) + (training ? TRAINING_WATER_L : 0)) * 1000);
 }
+
+/** Days that met their own water goal (a training day needs the extra 0.5 L, a rest day doesn't). */
+export const waterDaysMet = (days: readonly { date: string; water: number }[], goalOn: (date: string) => number) =>
+  days.filter((d) => d.water >= goalOn(d.date)).length;
 
 export type DayFood = { date: string; meals: number; water: number };
 

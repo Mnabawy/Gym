@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { sessionSummary } from '../src/lib/summary';
+import { sessionSummary, setCounts } from '../src/lib/summary';
 import type { SetRow } from '../src/lib/storage.types';
 
 const r = (date: string, exId: string, idx: number, kg: number, reps: number, done = 1, weekday = 1): SetRow => ({ date, weekday, exId, idx, kg, reps, done });
@@ -46,4 +46,13 @@ test('session length from tick times', () => {
   expect(s.minutes).toBe(6); // 5 min between first and last tick + 1
   expect(s.gapSec).toBe(150);
   expect(sessionSummary(rows, '2026-11-03', 1).minutes).toBeNull();
+});
+
+test('sets past the current count (sets cut, light week) are not counted', () => {
+  const extra = [...rows, r('2026-11-03', 'deadlift', 2, 200, 5), r('2026-11-03', 'deadlift', 3, 200, 5)];
+  const s = sessionSummary(extra, '2026-11-03', 1, new Set(), setCounts([{ id: 'deadlift', sets: 2 }, { id: 'lat-pulldown', sets: 3 }]));
+  expect(s.sets).toBe(3);
+  expect(s.volume).toBe(110 * 5 + 105 * 5 + 500);
+  // Without counts every stored row counts (old callers)
+  expect(sessionSummary(extra, '2026-11-03', 1).sets).toBe(5);
 });

@@ -247,7 +247,9 @@ describe('existing installs move over once', () => {
     expect(pushed.filter((k) => k.startsWith('tasks/'))).toEqual([]); // keys split before aren't sent again
     expect(new Set(pushed).size).toBe(pushed.length);
 
-    // Next sync: incremental again, nothing to send.
+    // Next sync (once the re-read window has settled): incremental again, nothing to send.
+    sim.advance(3 * 60_000);
+    await a.sync(); // one more pull after the window settled moves it up to the cursor
     const n1 = sim.server.requests.length;
     await a.sync();
     const later = sim.server.requests.slice(n1);

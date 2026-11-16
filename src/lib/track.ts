@@ -65,6 +65,17 @@ export function dirty(): Dirty {
 export function saveDirty() {
   raw.setMeta(DIRTY, JSON.stringify(dirty()));
 }
+/**
+ * Changing the log together with other writes in one transaction: change a copy (`{ ...dirty() }`), save it with
+ * `writeDirty` inside the transaction, and once it has committed make it the log with `useDirty`. If the transaction
+ * fails, the log in memory is still the one that matches what's stored.
+ */
+export function writeDirty(next: Dirty) {
+  raw.setMeta(DIRTY, JSON.stringify(next));
+}
+export function useDirty(next: Dirty) {
+  D = next;
+}
 /** Called after each tracked change (the sync waits a few seconds, then sends). */
 export function onDirty(f: () => void) {
   listeners.add(f);
@@ -162,11 +173,21 @@ export function track(base: Storage): Storage {
     },
     restore(d) {
       const before = base.dump();
-      const keep = localKeys(before.meta);
-      base.restore({ ...d, meta: Object.fromEntries(Object.entries(d.meta).filter(([k]) => !k.startsWith(SYNC_PREFIX))) });
-      for (const [k, v] of keep) base.setMeta(k, v);
-      if (paused || !recording()) return;
-      note(diffRows(before, d, Date.now()).map((r) => ({ id: rowId(r.kind, r.key), ...entry(r) })));
+      const keep: Record<string, string> = Object.fromEntries(localKeys(before.meta));
+      // The restore is noted (sent while sync is on): the new log is written with the data, in the same transaction.
+      let next: Dirty | null = null;
+      if (!paused && recording()) {
+        next = { ...dirty() };
+        for (const r of diffRows(before, d, Date.now())) next[rowId(r.kind, r.key)] = entry(r);
+        keep[DIRTY] = JSON.stringify(next);
+      }
+      // One transaction (base.restore): the backup's data and this phone's own sync keys go in together, so a crash
+      // can't leave the data replaced with the session, cursor or change log gone.
+      base.restore({ ...d, meta: { ...Object.fromEntries(Object.entries(d.meta).filter(([k]) => !k.startsWith(SYNC_PREFIX))), ...keep } });
+      if (!next) return;
+      D = next;
+      if (!trackingOn() && expireLogOnly()) return;
+      for (const f of listeners) f();
     },
   };
 }

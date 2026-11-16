@@ -18,9 +18,9 @@ import { deloadOn, useSettings } from '../../lib/settings';
 import { useDataVersion } from '../../lib/bus';
 import { BACKUP_STALE_DAYS, LAST_BACKUP_KEY } from '../../lib/backup';
 import { addDays, daysBetween, deloadDue } from '../../lib/gaps';
-import { SWAPS_KEY, swappedSet } from '../../lib/journal';
-import { readStrings } from '../../lib/meta';
-import { sessionSummary } from '../../lib/summary';
+import { isDaySwap, SWAPS_KEY, swappedSet } from '../../lib/journal';
+import { readStrings, removeEntries } from '../../lib/meta';
+import { sessionSummary, setCounts } from '../../lib/summary';
 import { useTheme } from '../../theme';
 
 export default function Workout() {
@@ -174,7 +174,7 @@ function WorkoutScreen() {
         </Pressable>
       ) : null}
       <View style={{ gap: 8, marginTop: 4 }}>
-        <Btn kind="danger" label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) { storage.clearDay(date, day.exercises.map((e) => e.id)); bumpAll(); } }} />
+        <Btn kind="danger" label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) { const ids = day.exercises.map((e) => e.id); storage.clearDay(date, ids); removeEntries(SWAPS_KEY, (k) => isDaySwap(k, date, ids)); bumpAll(); } }} />
       </View>
     </Screen>
   );
@@ -185,7 +185,7 @@ function DoneCard({ date, weekday, next, v }: { date: string; weekday: number; n
   const t = useTheme();
   // Every set is read again only after a write (v), not on every render of the workout tab.
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  const sum = useMemo(() => sessionSummary(storage.allSets(), date, weekday, swappedSet(readStrings(SWAPS_KEY))), [date, weekday, v]);
+  const sum = useMemo(() => sessionSummary(storage.allSets(), date, weekday, swappedSet(readStrings(SWAPS_KEY)), setCounts(dayFor(weekday)?.exercises ?? [])), [date, weekday, v]);
   const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
   const since = lastBackup ? daysBetween(lastBackup, date) : null;
   const nudge = since == null || since >= BACKUP_STALE_DAYS;

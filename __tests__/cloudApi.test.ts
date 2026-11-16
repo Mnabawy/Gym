@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { CloudError, pullRows, pushRows, refreshSession, signInWithGoogle } from '../src/lib/cloudApi';
+import { CloudError, pullPage, pullRows, pushRows, refreshSession, signInWithGoogle } from '../src/lib/cloudApi';
 
 type Call = { url: string; method?: string; headers?: Record<string, string>; body?: string };
 const fake = (replies: { status: number; body?: unknown }[]) => {
@@ -45,4 +45,13 @@ test('push calls the upsert function with the batch', async () => {
   await pushRows(c, 'acc', [{ kind: 'meta', key: 'a', data: '1', deleted: false, updated_at: 5 }], f);
   expect(calls[0].url).toBe('https://x.supabase.co/rest/v1/rpc/push_rows');
   expect(JSON.parse(calls[0].body!).items).toHaveLength(1);
+});
+
+test('a pull page carries the server clock from the Date header (null when missing or broken)', async () => {
+  const withDate = (date: string | null) => async () => ({ ok: true, status: 200, json: async () => [], text: async () => '', headers: { get: (n: string) => (n.toLowerCase() === 'date' ? date : null) } });
+  expect((await pullPage(c, 'acc', 0, withDate('Wed, 21 Oct 2026 07:28:00 GMT'))).serverTime).toBe(Date.parse('2026-10-21T07:28:00Z'));
+  expect((await pullPage(c, 'acc', 0, withDate(null))).serverTime).toBeNull();
+  expect((await pullPage(c, 'acc', 0, withDate('garbage'))).serverTime).toBeNull();
+  const { f } = fake([{ status: 200, body: [] }]); // no headers at all
+  expect((await pullPage(c, 'acc', 0, f)).serverTime).toBeNull();
 });

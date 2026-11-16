@@ -2,7 +2,7 @@
 // Pure — unit tested in __tests__/report.test.ts.
 import { exerciseById, MUSCLE_AR, PLAN_WEEKDAYS, type Muscle } from '../data/program';
 import { addDays, daysBetween, prSet, toSessions } from './gaps';
-import { adherence, foodHistory, type DayFood } from './journal';
+import { adherence, foodHistory, waterDaysMet, type DayFood } from './journal';
 import type { MealCheck, SetRow } from './storage.types';
 import type { WeighIn } from './weight';
 import { dayState, type Habit, type Log } from './habits';
@@ -21,6 +21,7 @@ export type WeekReport = {
   target: number;
   sets: number;
   volume: number;
+  /** Volume over the same days of the week before (Sat up to the same weekday), so a week in progress compares like for like. */
   prevVolume: number | null;
   perMuscle: Record<Muscle, number>;
   prs: { exId: string; date: string }[];
@@ -47,8 +48,8 @@ export type ReportInput = {
   weights: readonly WeighIn[];
   checks: readonly MealCheck[];
   water: Record<string, number>;
-  /** ml that counts as a full water day. */
-  waterGoal: number;
+  /** ml that counts as a full water day on `date` (more on a training day). */
+  waterGoal: (date: string) => number;
   mealsPerDay: number;
   habits?: readonly Habit[];
   habitLog?: Log;
@@ -68,8 +69,10 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
   const end = to < today ? to : today;
   const inWeek = (d: string) => d >= from && d <= end;
   const done = x.rows.filter((r) => r.done && inWeek(r.date));
+  // The same span of the week before: up to Thursday if today is Thursday, the whole week once this one is over.
   const prevFrom = addDays(from, -7);
-  const prev = x.rows.filter((r) => r.done && r.date >= prevFrom && r.date < from);
+  const prevEnd = addDays(end, -7);
+  const prev = x.rows.filter((r) => r.done && r.date >= prevFrom && r.date <= prevEnd);
 
   const perMuscle = Object.fromEntries(Object.keys(MUSCLE_AR).map((m) => [m, 0])) as Record<Muscle, number>;
   for (const r of done) {
@@ -128,7 +131,7 @@ export function weekReport(from: string, today: string, x: ReportInput): WeekRep
     prs,
     weight: { end: lastIn?.kg ?? null, change: lastIn && lastBefore ? Math.round((lastIn.kg - lastBefore.kg) * 10) / 10 : null },
     meals: adherence(days, x.mealsPerDay, today),
-    waterDays: days.filter((d) => d.water >= x.waterGoal).length,
+    waterDays: waterDaysMet(days, x.waterGoal),
     minutes: spans.length ? Math.round(spans.reduce((a, b) => a + b, 0) / spans.length) : null,
   };
 }
