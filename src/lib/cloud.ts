@@ -12,7 +12,7 @@ import { hasAnythingToProtect, SafetyError } from './safety';
 import { createSnapshot } from './safetyIO';
 import { useSettings } from './settings';
 import { storage } from './storage';
-import { dirty, rawStorage, saveDirty, setTracking, trackingOn } from './track';
+import { clearLog, dirty, expireLogOnly, LAST_UID, rawStorage, saveDirty, setTracking, trackingOn } from './track';
 
 const CONFIG: CloudConfig = { url: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '', key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '' };
 /** The build has a Supabase project (env vars at build time). */
@@ -23,6 +23,7 @@ const SESSION = 'sync.session';
 const CURSOR = 'sync.cursor';
 /** '1' once this phone's first full sync finished (pulled everything and queued what only the phone has). */
 const FULL = 'sync.full';
+/** The account (uid) the phone signed out of (plain sign-out): the change log is kept for that account only. */
 /** Which keys this phone has already sent one record per row (after updating, each record goes up once). */
 const SPLIT_SENT = 'sync.split';
 export const SYNC_AT = 'sync.at';
@@ -158,20 +159,23 @@ async function syncOnce() {
 export async function linkCloud(): Promise<void> {
   if (!cloudConfigured || !storage.getMeta(GOOGLE_USER)) return;
   const s = await freshSignIn();
+  expireLogOnly(); // a signed-out log past its limit is not sent: the full first sync below runs instead
   const old = readSession();
+  const before = old?.uid ?? meta(LAST_UID);
   // Before anything is switched on or the first sync merges the server's rows into this phone: a safety copy of what's
   // here (a SafetyError stops here, nothing is changed and sync stays off). A phone with nothing on it needs none.
-  if (meta(FULL) !== '1' || !trackingOn() || (old && old.uid !== s.uid)) {
+  if (meta(FULL) !== '1' || !trackingOn() || (before && before !== s.uid)) {
     const d = storage.dump();
     if (hasAnythingToProtect(d)) await createSnapshot('first-sync', d);
   }
   // Another account than before: start over (drop the old account's pending changes; this phone's data goes up whole).
-  if (old && old.uid !== s.uid) {
+  if (before && before !== s.uid) {
     setTracking(false);
     setMeta(CURSOR, '');
     setMeta(FULL, '');
   }
   setMeta(SESSION, JSON.stringify(s));
+  setMeta(LAST_UID, '');
   if (!trackingOn()) {
     setMeta(CURSOR, '');
     setMeta(FULL, '');
@@ -180,10 +184,28 @@ export async function linkCloud(): Promise<void> {
   await syncCloud();
 }
 
-/** Sync off on this phone (sign-out). The data on the server stays. */
-export function unlinkCloud() {
-  setTracking(false);
+/**
+ * Sync off on this phone (sign-out). The data on the server stays. After a plain sign-out the change log is kept and
+ * writes keep being noted, tied to this account: signing back in to the same one sends them (edits and deletes made
+ * while signed out win over the server's older rows), a different account or a restored backup drops them. After a
+ * wipe (`wiped`) nothing is kept.
+ */
+export function unlinkCloud(wiped = false) {
+  const uid = readSession()?.uid;
+  const keep = !!uid && !wiped;
+  setTracking(false, keep);
+  setMeta(LAST_UID, keep ? uid : '');
   for (const k of [SESSION, CURSOR, FULL, SYNC_AT, SYNC_ERROR]) setMeta(k, '');
+}
+
+/**
+ * After a backup was put back while signed out: the data was replaced, so a change log kept from the last sign-out
+ * means nothing any more. Drop it and forget that account. Nothing happens while sync is on (the restore is sent).
+ */
+export function dropSignedOutLog() {
+  if (cloudLinked()) return;
+  clearLog();
+  setMeta(LAST_UID, '');
 }
 
 /**

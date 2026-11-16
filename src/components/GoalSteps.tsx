@@ -10,7 +10,7 @@ import { plannedCounts, stepsBetween, stepsToTasks, taskFor, type PlannedStep } 
 import { addDays } from '../lib/gaps';
 import { dateKey, weekdayOf } from '../lib/logic';
 import { storage } from '../lib/storage';
-import { readTasks, writeTasks } from '../lib/taskStore';
+import { readTasks, undoable, writeTasks } from '../lib/taskStore';
 import { taskId, type Space } from '../lib/tasks';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
@@ -66,8 +66,8 @@ export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
     const before = readTasks();
     const stamp = nowMs();
     const made = stepsToTasks(picked, before, today, space, (i) => taskId(stamp, i + 1));
-    writeTasks([...before, ...made]);
-    showUndo(`${made.length} ${made.length === 1 ? 'خطوة بقت مهمة' : 'خطوات بقوا مهام'} في «${space === 'work' ? 'شغل' : 'خاص'}»`, () => writeTasks(before));
+    const undo = undoable(() => writeTasks([...readTasks(), ...made]));
+    showUndo(`${made.length} ${made.length === 1 ? 'خطوة بقت مهمة' : 'خطوات بقوا مهام'} في «${space === 'work' ? 'شغل' : 'خاص'}»`, undo);
     onClose();
   };
 

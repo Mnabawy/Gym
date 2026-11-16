@@ -16,7 +16,7 @@ import { dateKey, weekdayOf } from '../lib/logic';
 import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
 import { router } from 'expo-router';
 import { setFocus } from '../lib/focusStore';
-import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, writeTasks } from '../lib/taskStore';
+import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, undoable, writeTasks } from '../lib/taskStore';
 import { stepFollowsTask } from '../lib/goalTaskStore';
 import { readGoals } from '../lib/goalStore';
 import type { Goal } from '../lib/goals';
@@ -80,11 +80,10 @@ function Tasks() {
   const toggle = (x: Task) => {
     tap();
     ease();
-    const before = readTasks();
-    writeTasks(toggleTask(before, x.id, today, taskId(stamp())));
+    const undo = undoable(() => writeTasks(toggleTask(readTasks(), x.id, today, taskId(stamp()))));
     // A task made from a goal's step ticks the step too.
     const goalBack = stepFollowsTask(x.id);
-    if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, () => { writeTasks(before); goalBack?.(); });
+    if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, () => { undo(); goalBack?.(); });
   };
   const addQuick = () => {
     const title = quick.trim();
@@ -360,22 +359,18 @@ function TaskRow({ t, x, goal, today, last, showDate, onToggle, onOpen, subsOpen
   if (x.remind) meta.push({ icon: 'notifications-outline', text: '' });
   if (x.note) meta.push({ icon: 'document-text-outline', text: '' });
   const subsDone = x.subs.filter((y) => y.done).length;
-  const before = () => readTasks();
   const remove = () => {
-    const list = before();
-    deleteTask(x.id);
-    showUndo(`اتمسحت: ${x.title}`, () => writeTasks(list));
+    const undo = undoable(() => deleteTask(x.id));
+    showUndo(`اتمسحت: ${x.title}`, undo);
   };
   const other: Space = spaceOf(x) === 'work' ? 'personal' : 'work';
   const move = () => {
-    const list = before();
-    saveTask({ ...x, space: other });
-    showUndo(`${x.title} · اتنقلت لـ ${SPACES[other]}`, () => writeTasks(list));
+    const undo = undoable(() => saveTask({ ...x, space: other }));
+    showUndo(`${x.title} · اتنقلت لـ ${SPACES[other]}`, undo);
   };
   const tomorrow = () => {
-    const list = before();
-    saveTask({ ...x, due: addDays(today, 1) });
-    showUndo(`${x.title} · بكرة`, () => writeTasks(list));
+    const undo = undoable(() => saveTask({ ...x, due: addDays(today, 1) }));
+    showUndo(`${x.title} · بكرة`, undo);
   };
   return (
     <Swipe

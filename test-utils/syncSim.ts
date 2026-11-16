@@ -156,7 +156,7 @@ export class Device {
     // Same order as account.tsx: the wipe (with its safety copy) first, then sync and Google off.
     if (opts.wipe) await this.act(() => this.restoreMod.wipeLocal());
     this.do(() => {
-      this.cloud.unlinkCloud();
+      this.cloud.unlinkCloud(opts.wipe);
       for (const k of ['driveUser', 'driveName', 'drivePhoto']) this.storage.setMeta(k, '');
       this.googleAccount = null;
       this.storage.setMeta('welcomeDone', '');

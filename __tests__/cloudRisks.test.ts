@@ -166,7 +166,7 @@ describe('F4 · first sync and signing back in', () => {
     // Safe behavior: merge whole-value data by record, and keep a local snapshot before the first sync.
   });
 
-  test('edits made while signed out are lost when signing back in, and deleted records come back', async () => {
+  test('edits and deletes made while signed out survive signing back in to the same account (log kept after a plain sign-out)', async () => {
     const d = sim.device('A');
     d.setMeta('tasks', JSON.stringify([task('t1'), task('t2')]));
     d.setMeta('weights', w(80));
@@ -178,9 +178,12 @@ describe('F4 · first sync and signing back in', () => {
     d.setMeta('weights', w(75)); // weights corrected while signed out
     d.setRow('2026-11-09', 'bench', 0); // and a new set
     await d.signIn(A);
-    expect(d.tasks().sort()).toEqual(['t1', 't2']); // the deleted task is back
-    expect(d.meta('weights')).toBe(w(80)); // the correction is gone
-    expect(sim.server.keysOf(A)).toContain('set:2026-11-09|bench|0'); // new records do survive
+    expect(d.tasks()).toEqual(['t2']); // the deleted task stays deleted
+    expect(d.meta('weights')).toBe(w(75)); // the correction is kept
+    expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(75));
+    expect(sim.server.keysOf(A)).not.toContain('meta:tasks/t1');
+    expect(sim.server.keysOf(A)).toContain('set:2026-11-09|bench|0'); // new records survive too
+    expect(d.dirtyKeys()).toEqual([]);
   });
 });
 

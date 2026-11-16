@@ -1,25 +1,106 @@
 // Native storage: expo-sqlite (iOS / Android)
+import { Directory, File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
+import { brokenName, carriedOver, DB_RECOVERED_KEY, markerName, openWithRecovery, parseDbRecovery, type DbRecovery } from './dbOpen';
 import { track } from './track';
 import { rowsToSets, type Dump, type SetRow, type Storage } from './storage.types';
 
-const db = SQLite.openDatabaseSync('gym.db');
-db.execSync(`
-  PRAGMA journal_mode = WAL;
-  CREATE TABLE IF NOT EXISTS set_logs (
-    date TEXT NOT NULL, weekday INTEGER NOT NULL, ex_id TEXT NOT NULL, idx INTEGER NOT NULL,
-    kg REAL, reps INTEGER, done INTEGER NOT NULL DEFAULT 0,
-    PRIMARY KEY (date, ex_id, idx)
-  );
-  CREATE INDEX IF NOT EXISTS set_logs_ex ON set_logs (ex_id, date);
-  CREATE TABLE IF NOT EXISTS meal_checks (date TEXT NOT NULL, meal TEXT NOT NULL, PRIMARY KEY (date, meal));
-  CREATE TABLE IF NOT EXISTS shop_checks (week TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (week, item));
-  CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-`);
-// Columns added later: reps left in the tank (rir) and when the set was ticked (at, ms).
-const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(set_logs)').map((c) => c.name);
-if (!cols.includes('rir')) db.execSync('ALTER TABLE set_logs ADD COLUMN rir INTEGER');
-if (!cols.includes('at')) db.execSync('ALTER TABLE set_logs ADD COLUMN at INTEGER');
+const NAME = 'gym.db';
+
+function setup(db: SQLite.SQLiteDatabase) {
+  db.execSync(`
+    PRAGMA journal_mode = WAL;
+    CREATE TABLE IF NOT EXISTS set_logs (
+      date TEXT NOT NULL, weekday INTEGER NOT NULL, ex_id TEXT NOT NULL, idx INTEGER NOT NULL,
+      kg REAL, reps INTEGER, done INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (date, ex_id, idx)
+    );
+    CREATE INDEX IF NOT EXISTS set_logs_ex ON set_logs (ex_id, date);
+    CREATE TABLE IF NOT EXISTS meal_checks (date TEXT NOT NULL, meal TEXT NOT NULL, PRIMARY KEY (date, meal));
+    CREATE TABLE IF NOT EXISTS shop_checks (week TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (week, item));
+    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+  `);
+  // Columns added later: reps left in the tank (rir) and when the set was ticked (at, ms).
+  const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(set_logs)').map((c) => c.name);
+  if (!cols.includes('rir')) db.execSync('ALTER TABLE set_logs ADD COLUMN rir INTEGER');
+  if (!cols.includes('at')) db.execSync('ALTER TABLE set_logs ADD COLUMN at INTEGER');
+  // Reading a row makes SQLite read the file: a broken one fails here, not later on a screen.
+  db.getFirstSync('SELECT key FROM meta LIMIT 1');
+}
+
+const dbDir = () => {
+  const root = String(SQLite.defaultDatabaseDirectory ?? '');
+  return new Directory(root.startsWith('file://') ? root : `file://${root}`);
+};
+const TAILS = ['', '-wal', '-shm'];
+
+/** Moves gym.db (and its -wal / -shm) aside, renamed with the time; never deletes. The new name, or null if there was no file. */
+function moveAside(at: number): string | null {
+  const dir = dbDir();
+  const main = new File(dir, NAME);
+  if (!main.exists) return null;
+  for (const tail of ['-wal', '-shm']) {
+    const f = new File(dir, NAME + tail);
+    if (f.exists) f.rename(brokenName(NAME, at) + tail);
+  }
+  main.rename(brokenName(NAME, at));
+  return brokenName(NAME, at);
+}
+
+/** Undoes moveAside(at): the fresh (empty, failed) gym.db and its -wal / -shm go, the moved files get their names back. */
+function moveBack(at: number) {
+  const dir = dbDir();
+  if (!new File(dir, brokenName(NAME, at)).exists) throw new Error('nothing to put back');
+  // A -wal / -shm left by the fresh open must not be applied to the old file: drop all of the fresh one first.
+  for (const tail of TAILS) {
+    const fresh = new File(dir, NAME + tail);
+    if (fresh.exists) fresh.delete();
+  }
+  for (const tail of TAILS) {
+    const moved = new File(dir, brokenName(NAME, at) + tail);
+    if (moved.exists) moved.rename(NAME + tail);
+  }
+}
+
+// A broken gym.db must not give a white screen: dbOpen.ts moves a corrupt one aside and opens a fresh one; any other error
+// runs this session in memory with the file left in place (meta `dbRecovered`).
+const opened = openWithRecovery({
+  open: () => SQLite.openDatabaseSync(NAME),
+  setup,
+  close: (d) => d.closeSync(),
+  moveAside,
+  moveBack,
+  openMemory: () => SQLite.openDatabaseSync(':memory:'),
+});
+const db = opened.db;
+
+// The note must survive even when this session's database is in memory: then it also goes in a marker file next to
+// gym.db, and the next start that opens the real file carries it into meta and deletes the marker.
+const marker = () => new File(dbDir(), markerName(NAME));
+const putNote = (n: DbRecovery) => db.runSync('INSERT OR REPLACE INTO meta (key, value) VALUES (?, ?)', DB_RECOVERED_KEY, JSON.stringify(n));
+if (opened.recovery) {
+  let saved = false;
+  try {
+    putNote(opened.recovery);
+    saved = !opened.recovery.memory;
+  } catch {}
+  try {
+    const m = marker();
+    if (saved) {
+      if (m.exists) m.delete(); // an older marker must not overwrite this newer note on the next start
+    } else {
+      if (!m.exists) m.create();
+      m.writeSync(JSON.stringify(opened.recovery));
+    }
+  } catch {}
+} else {
+  try {
+    const m = marker();
+    const old = m.exists ? parseDbRecovery(m.textSync()) : null;
+    if (old) putNote(old.memory ? carriedOver(old) : old);
+    if (m.exists) m.delete();
+  } catch {}
+}
 
 type Row = { idx: number; kg: number | null; reps: number | null; done: number; rir: number | null; at: number | null };
 

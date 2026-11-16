@@ -7,12 +7,12 @@
 //   recovery/photos-<ms>/                                  progress photos moved aside for a wipe, with manifest.json
 //
 // Snapshot write protocol: space check → write `<name>.tmp` → read it back and compare its hash with the live data →
-// rename to the final name. Only a finished, verified file counts; a crash before the rename leaves a .tmp that the next
+// rename to the final name (`writeVerified` in verifiedWrite.ts, shared with the weekly automatic backup). Only a finished, verified file counts; a crash before the rename leaves a .tmp that the next
 // call deletes. Photo protocol: write the manifest first, move the files one by one, and on any failure put the moved
 // ones back. The state lives in the manifest file, not in meta: sign-out, unlink and restore keep or rewrite meta keys
 // (track.ts re-applies every `sync.*` key after a restore), so a meta marker would survive a wipe and go stale.
 import { Directory, File, Paths } from 'expo-file-system';
-import { PHOTO_NAME, parseBackup, toBackup } from './backup';
+import { PHOTO_NAME, toBackup } from './backup';
 import {
   dumpHash,
   enoughSpace,
@@ -29,7 +29,6 @@ import {
   SafetyError,
   snapshotName,
   spaceNeeded,
-  tmpName,
   toManifest,
   utf8Length,
   type RecoveryManifest,
@@ -39,6 +38,7 @@ import {
   type SnapshotResult,
 } from './safety';
 import type { Dump } from './storage.types';
+import { writeVerified } from './verifiedWrite';
 
 export const safetySupported = true;
 
@@ -136,21 +136,7 @@ export function createSnapshot(reason: SnapshotReason, dump: Dump, now = Date.no
     if (!enoughSpace(Paths.availableDiskSpace, spaceNeeded(utf8Length(text)))) throw new SafetyError('space', 'not enough free space for a safety copy');
 
     const name = snapshotName(reason, now, hash);
-    const tmp = new File(dir, tmpName(name));
-    try {
-      writeText(tmp, text);
-      // parseBackup drops rows it cannot read, so the file is compared with what parsing the text gives, not the live dump.
-      const want = parseBackup(text);
-      const back = parseBackup(await tmp.text());
-      if (!want.ok || !back.ok || dumpHash(back.data) !== dumpHash(want.data)) throw new SafetyError('verify', 'the saved copy does not match the data');
-      const final = new File(dir, name);
-      if (final.exists) final.delete();
-      tmp.rename(name);
-    } catch (e) {
-      safe(() => tmp.delete());
-      if (e instanceof SafetyError) throw e;
-      throw new SafetyError(/ENOSPC|space/i.test(message(e)) ? 'space' : 'io', message(e));
-    }
+    await writeVerified(dir, name, text); // tmp → read back and compare → rename (verifiedWrite.ts); throws SafetyError
     prune(now);
     return { name, reused: false };
   });

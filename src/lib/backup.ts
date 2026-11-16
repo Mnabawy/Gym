@@ -1,4 +1,5 @@
 // Backup file: saved sets, meals, shopping ticks, settings and the rest of meta in one JSON file (photos too, in the files from the share sheet or the folder). Sync keeps a copy on your account, but this file is the copy you hold yourself. Pure, unit tested in __tests__/backup.test.ts.
+import { isLocalMeta, SPLIT_META } from './cloudSync';
 import type { Dump, MealCheck, SetRow, ShopCheck } from './storage.types';
 
 export const BACKUP_APP = 'gym-backup';
@@ -38,8 +39,18 @@ export type BackupInfo = {
   total: number;
 };
 
-/** Meta keys that hold things you logged — not settings, and not the app's own bookkeeping. */
-export const DATA_KEYS = ['habits', 'habitLog', 'habitParts', 'goals', 'quits', 'weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps', 'tasks', 'focus'] as const;
+/**
+ * Meta keys that hold things you logged and that sync keeps as one value: not settings (`settings`, `focusCfg`), not
+ * the app's own bookkeeping, not small UI state (`restDay`). A new key of that kind goes here.
+ */
+export const PLAIN_DATA_KEYS = ['weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps', 'adhkar'] as const;
+
+/**
+ * Meta keys that hold things you logged: every key sync splits into records (tasks, goals, habits, the brain dump, deleted
+ * tasks, focus sessions… `SPLIT_META` in cloudSync.ts, so a new one is counted on its own) plus `PLAIN_DATA_KEYS`, never
+ * a phone-only key (`isLocalMeta`).
+ */
+export const DATA_KEYS: readonly string[] = [...new Set([...Object.keys(SPLIT_META), ...PLAIN_DATA_KEYS])].filter((k) => !isLocalMeta(k));
 
 /** Entries in one meta value: array length or object key count (0 for empty or broken). */
 function count(raw: string | undefined): number {

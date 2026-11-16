@@ -16,6 +16,9 @@ import { UndoBar } from '../components/UndoBar';
 import { ConfirmHost } from '../components/ConfirmHost';
 import { useDataVersion } from '../lib/bus';
 import { syncReminders } from '../lib/reminder';
+import { HABITS_OFF } from '../lib/hidden';
+import { openQueue } from '../lib/openQueue';
+import { afterHub } from '../lib/section';
 import { runAutoBackup } from '../lib/autoBackup';
 import { cloudConfigured, keepSynced } from '../lib/cloud';
 import { onDirty } from '../lib/track';
@@ -75,21 +78,28 @@ export default function RootLayout() {
 function OpenFromNotification() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
+    // From a closed app the page waits until the launch redirects (welcome, home page) are done, so they can't replace it.
+    const q = openQueue((url) => setTimeout(() => router.push(url as Href), 300));
     const go = (r: Notifications.NotificationResponse | null) => {
-      const data = r?.notification.request.content.data;
+      if (!r || !q.first(`${r.notification.request.identifier}|${r.actionIdentifier}`)) return;
+      const data = r.notification.request.content.data;
       const url = data?.url;
-      if (typeof url === 'string' && url.startsWith('/')) setTimeout(() => router.push(url as Href), 300);
+      if (typeof url === 'string' && url.startsWith('/')) q.open(url);
       // A habit's app (e.g. the Quran app): open it straight away.
       if (typeof data?.app === 'string' && isPackage(data.app)) void openApp(data.app);
     };
     Notifications.getLastNotificationResponseAsync().then(go).catch(() => {});
     const sub = Notifications.addNotificationResponseReceivedListener(go);
-    return () => sub.remove();
+    const off = afterHub(q.ready);
+    return () => {
+      sub.remove();
+      off();
+    };
   }, []);
   return null;
 }
 
-/** Keeps the workout reminders in step with the settings and the log (a few seconds after the last change). */
+/** Keeps the reminders in step with the settings and the log (a few seconds after the last change), and fresh each time the app comes back (the morning brief's text is built from today). */
 function ReminderSync() {
   const on = useSettings((s) => s.reminder);
   const time = useSettings((s) => s.reminderTime);
@@ -98,11 +108,29 @@ function ReminderSync() {
   const briefTime = useSettings((s) => s.briefTime);
   const dumpRemind = useSettings((s) => s.dumpRemind);
   const dumpTime = useSettings((s) => s.dumpTime);
+  const shopTrips = useSettings((s) => s.shopTrips);
+  const shopMoves = useSettings((s) => s.shopMoves);
+  // Prayer place and method only time habit reminders.
+  const place = useSettings((s) => (HABITS_OFF ? null : s.place));
+  const method = useSettings((s) => (HABITS_OFF ? null : s.prayerMethod));
   const v = useDataVersion((s) => s.v);
   useEffect(() => {
     const id = setTimeout(() => syncReminders(), 2000);
     return () => clearTimeout(id);
-  }, [on, time, days, brief, briefTime, dumpRemind, dumpTime, v]);
+  }, [on, time, days, brief, briefTime, dumpRemind, dumpTime, shopTrips, shopMoves, place, method, v]);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    let id: ReturnType<typeof setTimeout> | undefined;
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st !== 'active') return;
+      clearTimeout(id);
+      id = setTimeout(() => syncReminders(), 1000);
+    });
+    return () => {
+      clearTimeout(id);
+      sub.remove();
+    };
+  }, []);
   return null;
 }
 

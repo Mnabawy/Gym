@@ -34,6 +34,8 @@ export type Task = {
   space?: Space;
   /** Made from a goal's step (src/lib/goalTasks.ts): ticking one ticks the other. */
   goal?: GoalLink;
+  /** Monthly repeat: the day of the month it's meant for (so the 31st comes back after a short month). */
+  anchor?: number;
 };
 
 /** A task that came from a goal's step: the goal's id and the step's id. */
@@ -97,6 +99,7 @@ export function parseTasks(raw: string | null): Task[] {
       created: isDate(o.created) ? o.created : '2026-01-01',
       ...(typeof o.from === 'string' ? { from: o.from, wasDue: isDate(o.wasDue) ? o.wasDue : null } : {}),
       ...(o.space === 'work' ? { space: 'work' as const } : {}),
+      ...(typeof o.anchor === 'number' && o.anchor >= 1 && o.anchor <= 31 ? { anchor: Math.round(o.anchor) } : {}),
       ...(o.goal && typeof o.goal === 'object' && typeof (o.goal as Record<string, unknown>).goal === 'string' && typeof (o.goal as Record<string, unknown>).step === 'string'
         ? { goal: { goal: (o.goal as Record<string, string>).goal, step: (o.goal as Record<string, string>).step } }
         : {}),
@@ -107,8 +110,15 @@ export function parseTasks(raw: string | null): Task[] {
 
 export const taskId = (now: number = Date.now(), n = 0) => `t${now.toString(36)}${n ? `-${n}` : ''}`;
 
-/** The next day a repeating task is due after `from`. Work days are Sunday–Thursday (Egypt). */
-export function nextDue(from: string, repeat: Repeat): string {
+const dayOf = (d: string) => Number(d.slice(8, 10));
+const daysIn = (d: string) => new Date(Number(d.slice(0, 4)), Number(d.slice(5, 7)), 0).getDate();
+
+/**
+ * The next day a repeating task is due after `from`. Work days are Sunday–Thursday (Egypt). Monthly goes to the same
+ * day next month, or that month's last day when it's shorter; `anchor` (the day it's meant for) keeps a 31st from
+ * drifting: Jan 31 → Feb 28 → Mar 31.
+ */
+export function nextDue(from: string, repeat: Repeat, anchor?: number): string {
   if (repeat === 'daily') return addDays(from, 1);
   if (repeat === 'weekly') return addDays(from, 7);
   if (repeat === 'weekdays') {
@@ -116,7 +126,8 @@ export function nextDue(from: string, repeat: Repeat): string {
     while (weekdayOf(d) === 5 || weekdayOf(d) === 6) d = addDays(d, 1);
     return d;
   }
-  const [y, m, day] = from.split('-').map(Number);
+  const [y, m, d0] = from.split('-').map(Number);
+  const day = anchor ?? d0;
   const last = new Date(y, m + 1, 0).getDate(); // days in next month
   const ny = m === 12 ? y + 1 : y;
   const nm = m === 12 ? 1 : m + 1;
@@ -132,18 +143,56 @@ export function toggleTask(list: readonly Task[], id: string, today: string, new
   if (!t) return [...list];
   if (t.done) {
     if (t.from) {
-      return list.filter((x) => x.id !== id).map((x) => (x.id === t.from ? { ...x, due: t.wasDue ?? x.due } : x));
+      // Back to the day it was for — or no day, when it had none (`wasDue` null).
+      return list.filter((x) => x.id !== id).map((x) => (x.id === t.from ? { ...x, due: t.wasDue === undefined ? x.due : t.wasDue } : x));
     }
     return list.map((x) => (x.id === id ? { ...x, done: null } : x));
   }
   if (t.repeat) {
     const base = t.due ?? today;
     const copy: Task = { ...t, id: newId, repeat: null, remind: false, done: today, from: t.id, wasDue: t.due, subs: t.subs.map((s) => ({ ...s, done: true })) };
-    let next = nextDue(base, t.repeat);
-    while (next <= today) next = nextDue(next, t.repeat);
-    return [...list.map((x) => (x.id === id ? { ...x, due: next, subs: x.subs.map((s) => ({ ...s, done: false })) } : x)), copy];
+    // Monthly: the anchor holds only while the day is a short month's last day (cut down from it); a day you moved
+    // the task to yourself becomes the new anchor.
+    const d = dayOf(base);
+    const anchor = t.repeat === 'monthly' ? (t.anchor != null && t.anchor > d && d === daysIn(base) ? t.anchor : d) : undefined;
+    let next = nextDue(base, t.repeat, anchor);
+    while (next <= today) next = nextDue(next, t.repeat, anchor);
+    const moved: Task = { ...t, due: next, subs: t.subs.map((s) => ({ ...s, done: false })) };
+    if (anchor != null && anchor > 28) moved.anchor = anchor;
+    else delete moved.anchor;
+    return [...list.map((x) => (x.id === id ? moved : x)), copy];
   }
   return list.map((x) => (x.id === id ? { ...x, done: today } : x));
+}
+
+/**
+ * Undo as an inverse patch: only the tasks an action touched (added, removed or changed between `before` and
+ * `after`) go back to how they were, on top of the list as it is now — so anything else that changed meanwhile
+ * (a sync, another edit) stays.
+ */
+export function revertTasks(current: readonly Task[], before: readonly Task[], after: readonly Task[]): Task[] {
+  const was = new Map(before.map((t) => [t.id, t]));
+  const now = new Map(after.map((t) => [t.id, t]));
+  const touched = new Set<string>();
+  for (const id of new Set([...was.keys(), ...now.keys()])) if (JSON.stringify(was.get(id)) !== JSON.stringify(now.get(id))) touched.add(id);
+  if (!touched.size) return [...current];
+  const out: Task[] = [];
+  const placed = new Set<string>();
+  for (const t of current) {
+    if (!touched.has(t.id)) out.push(t);
+    else if (was.has(t.id)) {
+      out.push(was.get(t.id)!);
+      placed.add(t.id);
+    }
+  }
+  // Touched tasks gone from the list now (deleted by the action) come back where they were.
+  before.forEach((t, i) => {
+    if (!touched.has(t.id) || placed.has(t.id)) return;
+    const prev = before.slice(0, i).reverse().find((p) => out.some((o) => o.id === p.id));
+    const at = prev ? out.findIndex((o) => o.id === prev.id) + 1 : 0;
+    out.splice(at, 0, t);
+  });
+  return out;
 }
 
 /** Subtasks: tick one on or off, add one at the end, remove one. */

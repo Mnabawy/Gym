@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { dirty, onDirty, setTracking, track, untracked } from '../src/lib/track';
+import { dirty, expireLogOnly, LAST_UID, LOG_ONLY_DAYS, LOG_ONLY_MAX, onDirty, setTracking, track, untracked } from '../src/lib/track';
 import { rowsToSets, type Dump, type SetRow, type Storage } from '../src/lib/storage.types';
 
 function memory(): Storage {
@@ -87,4 +87,80 @@ test('the to-do list is noted one task at a time, also through a restore', () =>
   expect(dirty()['meta:tasks/c'].row?.data).toEqual({ id: 'c' });
   expect(dirty()['meta:tasks/a'].row?.deleted).toBe(true);
   expect(dirty()['meta:tasks']).toBeUndefined();
+});
+
+describe('signed out with a kept log ("log only") is bounded', () => {
+  const DAY = 86400000;
+  let now = 1_000_000_000_000;
+  let spy: jest.SpyInstance;
+  beforeEach(() => {
+    now = 1_000_000_000_000;
+    spy = jest.spyOn(Date, 'now').mockImplementation(() => now);
+  });
+  afterEach(() => spy.mockRestore());
+  const signedOut = () => {
+    const s = track(memory());
+    setTracking(false);
+    setTracking(false, true);
+    s.setMeta(LAST_UID, 'uid-a');
+    return s;
+  };
+
+  test('within the limits writes keep being noted', () => {
+    const s = signedOut();
+    s.setMeta('notes', '[1]');
+    now += (LOG_ONLY_DAYS - 1) * DAY;
+    s.saveSet(set(0));
+    expect(Object.keys(dirty()).sort()).toEqual(['meta:notes', 'set:2026-11-01|bench|0']);
+    expect(s.getMeta(LAST_UID)).toBe('uid-a');
+  });
+
+  test(`after ${LOG_ONLY_DAYS} days the log, log-only and the account are dropped together, and nothing more is noted`, () => {
+    const s = signedOut();
+    s.setMeta('notes', '[1]');
+    now += (LOG_ONLY_DAYS + 1) * DAY;
+    s.setMeta('weights', '[1]');
+    expect(dirty()).toEqual({});
+    expect(s.getMeta('sync.dirty')).toBe('{}');
+    expect(s.getMeta('sync.logOnly')).toBe('');
+    expect(s.getMeta(LAST_UID)).toBe('');
+    s.saveSet(set(1));
+    expect(dirty()).toEqual({});
+  });
+
+  test('expireLogOnly on its own (sign-in) drops an old log without a new write', () => {
+    const s = signedOut();
+    s.setMeta('notes', '[1]');
+    expect(expireLogOnly(now + DAY)).toBe(false);
+    expect(expireLogOnly(now + (LOG_ONLY_DAYS + 1) * DAY)).toBe(true);
+    expect(dirty()).toEqual({});
+    expect(s.getMeta(LAST_UID)).toBe('');
+  });
+
+  test(`more than ${LOG_ONLY_MAX} entries drops it too`, () => {
+    const s = signedOut();
+    s.setMeta('tasks', JSON.stringify(Array.from({ length: LOG_ONLY_MAX }, (_, i) => ({ id: `t${i}` }))));
+    expect(Object.keys(dirty()).length).toBe(LOG_ONLY_MAX);
+    s.setMealCheck('one-more', 'm', true);
+    expect(dirty()).toEqual({});
+    expect(s.getMeta(LAST_UID)).toBe('');
+  });
+
+  test('a log kept before the start time was recorded starts counting now', () => {
+    const s = signedOut();
+    s.setMeta('sync.logSince', '');
+    s.setMeta('notes', '[1]');
+    expect(s.getMeta('sync.logSince')).toBe(String(now));
+    expect(dirty()['meta:notes']).toBeDefined();
+  });
+
+  test('sync on is never expired', () => {
+    const s = track(memory());
+    setTracking(true);
+    s.setMeta('notes', '[1]');
+    now += 365 * DAY;
+    s.setMeta('weights', '[1]');
+    expect(Object.keys(dirty()).sort()).toEqual(['meta:notes', 'meta:weights']);
+    setTracking(false);
+  });
 });

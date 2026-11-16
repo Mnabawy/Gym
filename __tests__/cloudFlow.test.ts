@@ -361,7 +361,7 @@ describe('concurrent calls and unlinking', () => {
     expect(sim.server.requests.slice(after).filter((r) => r.call === 'pull')).toHaveLength(1);
   });
 
-  test('unlinkCloud: sync off, change log, session and cursor cleared; the phone keeps its data and the server keeps its rows', async () => {
+  test('unlinkCloud: sync off, session and cursor cleared; the phone keeps its data and the server keeps its rows', async () => {
     const a = sim.device('A');
     a.setRow('2026-11-01', 'bench', 0);
     await a.signIn(A);
@@ -370,7 +370,7 @@ describe('concurrent calls and unlinking', () => {
     expect(a.track.trackingOn()).toBe(false);
     expect(a.cloud.cloudLinked()).toBe(false);
     for (const k of ['sync.session', 'sync.cursor', 'sync.full']) expect(a.meta(k)).toBeFalsy();
-    expect(a.dirtyKeys()).toEqual([]);
+    expect(a.dirtyKeys()).toEqual(["set:2026-11-02|bench|0"]); // unsent changes are kept for the same account
     expect(a.setKeys()).toEqual(['2026-11-01|bench|0', '2026-11-02|bench|0']);
     expect(sim.server.keysOf(A)).toEqual(['set:2026-11-01|bench|0']);
     expect(a.status().state).toBe('off');

@@ -1,7 +1,10 @@
 // بومودورو (focus section): work and study in focus blocks with short breaks and a long break every few blocks.
 // The Pomodoro Technique (Francesco Cirillo): 25 minutes of focus, a 5-minute break, and after 4 blocks a longer one
 // (15–30 minutes). Lengths are yours to change. The clock runs on an end time, so it stays right with the app closed;
-// a focus block counts once it reaches its end (or, skipped early, for the whole minutes you put in).
+// a focus block counts once it reaches its end (or, skipped early, for the whole minutes you put in). A block counts
+// on the day it ended (one that runs past midnight goes on the new day, whole; it isn't split).
+// Auto-start never chains blocks that went by with the app closed: reopening late logs only the block that ended and
+// stops there (a break still running is kept; one that's over too lands you on a focus block, not started).
 // Sessions in meta `focus`, settings in `focusCfg`, the running clock in `focusState` (this phone only).
 // Pure — unit tested in __tests__/focus.test.ts.
 import { addDays } from './gaps';
@@ -10,6 +13,8 @@ export const FOCUS_KEY = 'focus';
 export const FOCUS_CFG_KEY = 'focusCfg';
 export const FOCUS_STATE_KEY = 'focusState';
 const MIN = 60_000;
+/** Ending a phase later than this after its end time = catching up after the app was closed (the page ticks every second). */
+export const CATCH_UP_MS = 5_000;
 
 export type Kind = 'work' | 'study';
 export const KINDS: Record<Kind, string> = { work: 'شغل', study: 'مذاكرة' };
@@ -124,15 +129,18 @@ export const focused = (s: State, now: number) => (s.phase !== 'focus' ? 0 : s.s
 /**
  * Ends the phase — on time (`done`) or skipped — and moves on: after focus a short break, or the long one every
  * `every` blocks; after a break, focus. A focus block logs a session: its full length on time, or the whole minutes
- * put in when skipped (nothing under a minute). With `auto`, the next phase starts right away.
+ * put in when skipped (nothing under a minute), on the day it ended (`date`: the day, or a function from the end
+ * time to its day). With `auto`, the next phase starts right away — unless this is a catch-up (the app was closed
+ * past the end): then no focus block is started for time nobody was there; a break is kept only while it still runs.
  */
-export function finish(s: State, c: Cfg, now: number, done: boolean, id: string, date: string): { state: State; session: Session | null } {
+export function finish(s: State, c: Cfg, now: number, done: boolean, id: string, date: string | ((ms: number) => string)): { state: State; session: Session | null } {
   let session: Session | null = null;
   let next: State;
   if (s.phase === 'focus') {
     const min = done ? c.focus : Math.floor(focused(s, now) / MIN);
     const end = done && s.endAt != null ? s.endAt : now;
-    if (min >= 1) session = { id, kind: s.kind, start: s.startedAt ?? end - min * MIN, end, min, date, ...(s.task ? { task: s.task } : {}) };
+    const day = typeof date === 'string' ? date : date(end);
+    if (min >= 1) session = { id, kind: s.kind, start: s.startedAt ?? end - min * MIN, end, min, date: day, ...(s.task ? { task: s.task } : {}) };
     // A skipped block with nothing in it doesn't count toward the long break.
     const round = s.round + (session ? 1 : 0);
     const long = round >= c.every;
@@ -141,7 +149,13 @@ export function finish(s: State, c: Cfg, now: number, done: boolean, id: string,
     next = { ...IDLE, kind: s.kind, ...(s.task ? { task: s.task } : {}), phase: 'focus', round: s.round };
   }
   // Auto: the next phase starts where this one ended (on time) or now (skipped).
-  if (c.auto) next = start(next, c, done && s.endAt != null ? Math.min(now, s.endAt) : now);
+  if (c.auto) {
+    const from = done && s.endAt != null ? Math.min(now, s.endAt) : now;
+    const auto = start(next, c, from);
+    if (now - from <= CATCH_UP_MS) next = auto;
+    // Catching up: a break that's still running goes on; one that's over too (or a focus block) waits for you.
+    else if (next.phase !== 'focus') next = auto.endAt! > now ? auto : { ...next, phase: 'focus' };
+  }
   return { state: next, session };
 }
 

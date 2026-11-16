@@ -65,13 +65,17 @@ export const resetFocus = () => write(reset(readFocus()));
 /** Ends the phase (on time or skipped), logs the focus block, and moves on. */
 export function endPhase(done: boolean) {
   const now = Date.now();
-  const r = finish(readFocus(), readCfg(), now, done, `f${now.toString(36)}`, dateKey());
+  // The block counts on the day it ended (a block past midnight goes on the new day), not the day it's noticed.
+  const r = finish(readFocus(), readCfg(), now, done, `f${now.toString(36)}`, (ms) => dateKey(new Date(ms)));
   if (r.session) storage.setMeta(FOCUS_KEY, JSON.stringify([...readSessions(), r.session]));
   if (done) buzz();
   write(r.state);
 }
 
-/** Called every second while the page is open (and on open): ends the phase once its time is up. */
+/**
+ * Called every second while the page is open (and on open): ends the phase once its time is up. After a long gap it
+ * logs only the block that ended; `finish` doesn't chain phases that went by with the app closed.
+ */
 export function tickFocus(now: number) {
   const s = readFocus();
   if (s.endAt != null && now >= s.endAt) endPhase(true);

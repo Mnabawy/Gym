@@ -50,7 +50,7 @@ describe('snapshot names', () => {
     const n = snapshotName('first-sync', NOW, 'abcdef0123456789');
     expect(n).toBe(`gym-safety-first-sync-${NOW}-abcdef0123456789.json`);
     expect(parseSnapshotName(n)).toEqual({ name: n, reason: 'first-sync', at: NOW, hash: 'abcdef0123456789' });
-    for (const reason of ['first-sync', 'pre-restore', 'pre-wipe'] as const) expect(parseSnapshotName(snapshotName(reason, NOW, '0123456789abcdef'))?.reason).toBe(reason);
+    for (const reason of ['first-sync', 'pre-restore', 'pre-wipe', 'pre-signout'] as const) expect(parseSnapshotName(snapshotName(reason, NOW, '0123456789abcdef'))?.reason).toBe(reason);
     for (const bad of [
       'gym-auto-2026-11-01.json',
       'gym-backup-2026-11-01.json',
@@ -147,6 +147,15 @@ describe('reuse and retention', () => {
     expect(retentionPlan(young, NOW).remove).toEqual([]); // 8 snapshots, all younger than 14 days
     const edge = [...Array.from({ length: 5 }, (_, i) => snap('first-sync', i + 1, `${i}`.repeat(16))), snap('first-sync', SNAPSHOT_FRESH_DAYS - 0.1, 'a'.repeat(16)), snap('first-sync', SNAPSHOT_FRESH_DAYS + 0.1, 'b'.repeat(16))];
     expect(retentionPlan(edge, NOW).remove.map((f) => f.hash)).toEqual(['b'.repeat(16)]);
+  });
+
+  test('pre-signout: kept like first-sync (newest 5, or younger than 14 days), counted on its own', () => {
+    const old = Array.from({ length: 7 }, (_, i) => snap('pre-signout', 20 + i * 20, `${i}`.repeat(16)));
+    expect(retentionPlan(old, NOW).remove.map((f) => f.hash)).toEqual(['5'.repeat(16), '6'.repeat(16)]);
+    const young = Array.from({ length: 8 }, (_, i) => snap('pre-signout', i + 1, `${i}`.repeat(16)));
+    expect(retentionPlan(young, NOW).remove).toEqual([]); // 8 snapshots, all younger than 14 days
+    const mixed = [...Array.from({ length: 5 }, (_, i) => snap('first-sync', 100 + i, `${i}`.repeat(16))), snap('pre-signout', 100, '9'.repeat(16))];
+    expect(retentionPlan(mixed, NOW).remove).toEqual([]); // five first-sync copies do not push the pre-signout one out
   });
 
   test('pre-wipe: every one is kept for 30 days, then it goes (no "keep the newest" exception)', () => {

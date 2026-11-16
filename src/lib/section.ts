@@ -24,7 +24,19 @@ export function openSection(s: Section) {
 
 // The home page (/sections) is what the app opens on: it's shown once per launch, then the tabs open the gym.
 let seen = false;
+const waiting = new Set<() => void>();
 export const hubWasSeen = () => seen;
 export const hubSeen = () => {
   seen = true;
+  for (const f of [...waiting]) f();
+  waiting.clear();
 };
+/** Runs `f` once the home page has been shown (the launch redirects are done); right away if it already has. */
+export function afterHub(f: () => void): () => void {
+  if (seen) {
+    f();
+    return () => {};
+  }
+  waiting.add(f);
+  return () => waiting.delete(f);
+}

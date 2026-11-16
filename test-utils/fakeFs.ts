@@ -53,7 +53,7 @@ export function createFakeFs(opts: { free?: number; noMove?: boolean } = {}) {
   const isFile = (u: string) => typeof store.get(u) === 'string';
   const isDir = (u: string) => store.get(u) === null;
   const mkdirp = (uri: string) => {
-    if (store.has(uri)) return;
+    if (store.has(uri) || uri === '' || uri === 'file://') return; // the root needs no entry
     mkdirp(parentOf(uri));
     store.set(uri, null);
   };
@@ -101,6 +101,10 @@ export function createFakeFs(opts: { free?: number; noMove?: boolean } = {}) {
       if (delta > fs.free) throw new Error('ENOSPC: no space left on device');
       fs.free -= delta;
       store.set(this.uri, stored);
+    }
+    async write(text: string) {
+      await Promise.resolve();
+      this.writeSync(text);
     }
     async text(): Promise<string> {
       touch('read', this.uri);
@@ -165,6 +169,12 @@ export function createFakeFs(opts: { free?: number; noMove?: boolean } = {}) {
           store.delete(k);
         }
       }
+    }
+    /** Like a picked folder's createFile: a new empty file (no overwrite). */
+    createFile(name: string, _mime: string | null): File {
+      const f = new File(this.uri, name);
+      f.create();
+      return f;
     }
     list(): (File | Directory)[] {
       touch('list', this.uri);

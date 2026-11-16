@@ -5,6 +5,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { setStatusBarStyle } from 'expo-status-bar';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
+import { DbNotice } from '../components/DbNotice';
 import { T } from '../components/ui';
 import { parseBackup } from '../lib/backup';
 import { pickBackup } from '../lib/backupIO';
@@ -128,6 +129,9 @@ function WelcomeScreen() {
               </View>
 
               <Animated.View style={[{ gap: 8 }, rise(5)]}>
+                {/* The phone's database was broken or couldn't be opened at start (dbOpen.ts): a fresh one has no welcomeDone,
+                    so this is where the owner lands, and the same notice as in settings is shown here. */}
+                <DbNotice />
                 <Pressable
                   onPress={signIn}
                   disabled={busy}

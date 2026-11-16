@@ -11,11 +11,12 @@ import { PHOTO_NAME } from './backup';
 import { isLocalMeta, localRows } from './cloudSync';
 import type { Dump } from './storage.types';
 
-export type SnapshotReason = 'first-sync' | 'pre-restore' | 'pre-wipe';
-export const SNAPSHOT_REASONS: readonly SnapshotReason[] = ['first-sync', 'pre-restore', 'pre-wipe'];
+/** `pre-signout`: a plain sign-out with changes that could not be sent (nothing is wiped; the copy is just in case). */
+export type SnapshotReason = 'first-sync' | 'pre-restore' | 'pre-wipe' | 'pre-signout';
+export const SNAPSHOT_REASONS: readonly SnapshotReason[] = ['first-sync', 'pre-restore', 'pre-wipe', 'pre-signout'];
 
 const DAY = 86_400_000;
-/** First-sync and pre-restore snapshots: the newest this many are kept... */
+/** First-sync, pre-restore and pre-signout snapshots: the newest this many are kept... */
 export const SNAPSHOT_KEEP = 5;
 /** ...and anything younger than this many days is kept too. */
 export const SNAPSHOT_FRESH_DAYS = 14;
@@ -39,7 +40,7 @@ export class SafetyError extends Error {
 export type SnapshotInfo = { name: string; reason: SnapshotReason; at: number; hash: string };
 export type SnapshotResult = { name: string; reused: boolean };
 
-const NAME = /^gym-safety-(first-sync|pre-restore|pre-wipe)-(\d{10,16})-([0-9a-f]{16})\.json$/;
+const NAME = /^gym-safety-(first-sync|pre-restore|pre-wipe|pre-signout)-(\d{10,16})-([0-9a-f]{16})\.json$/;
 const TMP = /^gym-safety-.+\.json\.tmp$/;
 
 export const snapshotName = (reason: SnapshotReason, at: number, hash: string) => `gym-safety-${reason}-${at}-${hash}.json`;

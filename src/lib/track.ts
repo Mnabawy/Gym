@@ -7,6 +7,19 @@ import type { Dump, Storage } from './storage.types';
 
 const ON = 'sync.on';
 const DIRTY = 'sync.dirty';
+/** '1': sync is off but writes are still noted (signed out with changes unsent; the same account sends them on sign-in). */
+const LOG_ONLY = 'sync.logOnly';
+/** When "log only" started (ms): the signed-out log is dropped after LOG_ONLY_DAYS. */
+const LOG_SINCE = 'sync.logSince';
+/** The account the kept log belongs to (cloud.ts); dropped with the log. */
+export const LAST_UID = 'sync.lastUid';
+/**
+ * A signed-out log is kept at most this long, and at most LOG_ONLY_MAX entries: past that it's dropped (with the account
+ * it belongs to), and signing back in runs a full first sync instead (the server's rows win on overlap, phone-only rows
+ * go up), so nothing on the phone is lost, only edits to rows the server also has. Keeps sync.dirty from growing forever.
+ */
+export const LOG_ONLY_DAYS = 30;
+export const LOG_ONLY_MAX = 5000;
 
 let raw: Storage;
 let D: Dirty | null = null;
@@ -16,12 +29,27 @@ const listeners = new Set<() => void>();
 /** The storage without the change log (putting pulled rows on the phone). */
 export const rawStorage = (): Storage => raw;
 export const trackingOn = () => raw.getMeta(ON) === '1';
-export function setTracking(on: boolean) {
+/** Writes are noted: sync is on, or it's off but the change log is kept for the account signed out of. */
+const recording = () => trackingOn() || raw.getMeta(LOG_ONLY) === '1';
+/**
+ * Sync on or off. Off with `keepLog`: the change log stays and writes keep being noted ("log only"; cloudLinked and
+ * syncCloud still see sync as off). Off without it: the log is dropped.
+ */
+export function setTracking(on: boolean, keepLog = false) {
   raw.setMeta(ON, on ? '1' : '');
-  if (!on) {
+  raw.setMeta(LOG_ONLY, !on && keepLog ? '1' : '');
+  raw.setMeta(LOG_SINCE, !on && keepLog ? String(Date.now()) : '');
+  if (!on && !keepLog) {
     D = {};
     saveDirty();
   }
+}
+/** Drops the change log and stops "log only" noting (does not touch sync on/off). */
+export function clearLog() {
+  raw.setMeta(LOG_ONLY, '');
+  raw.setMeta(LOG_SINCE, '');
+  D = {};
+  saveDirty();
 }
 
 export function dirty(): Dirty {
@@ -53,10 +81,28 @@ export function untracked<T>(f: () => T): T {
   }
 }
 
+/**
+ * Signed out with a kept log: drops it (and the account it's for) once it's older than LOG_ONLY_DAYS or has more than
+ * LOG_ONLY_MAX entries. True when it was dropped. A log from before `sync.logSince` existed starts counting now.
+ */
+export function expireLogOnly(now = Date.now()): boolean {
+  if (trackingOn() || raw.getMeta(LOG_ONLY) !== '1') return false;
+  const since = Number(raw.getMeta(LOG_SINCE) || 0);
+  if (!since) {
+    raw.setMeta(LOG_SINCE, String(now));
+    return false;
+  }
+  if (now - since <= LOG_ONLY_DAYS * 86400000 && Object.keys(dirty()).length <= LOG_ONLY_MAX) return false;
+  clearLog();
+  raw.setMeta(LAST_UID, '');
+  return true;
+}
+
 function note(rows: { id: string; t: number; row?: CloudRow }[]) {
-  if (paused || !rows.length || !trackingOn()) return;
+  if (paused || !rows.length || !recording()) return;
   const d = dirty();
   for (const r of rows) d[r.id] = r.row ? { t: r.t, row: r.row } : { t: r.t };
+  if (!trackingOn() && expireLogOnly()) return;
   saveDirty();
   for (const f of listeners) f();
 }
@@ -97,7 +143,7 @@ export function track(base: Storage): Storage {
         // Synced one record per row: note only the records that changed.
         const before = base.getMeta(key);
         base.setMeta(key, value);
-        if (!paused && trackingOn()) note(itemChanges(key, before, value, Date.now()).map(row));
+        if (!paused && recording()) note(itemChanges(key, before, value, Date.now()).map(row));
         return;
       }
       base.setMeta(key, value);
@@ -113,7 +159,7 @@ export function track(base: Storage): Storage {
       const keep = localKeys(before.meta);
       base.restore({ ...d, meta: Object.fromEntries(Object.entries(d.meta).filter(([k]) => !k.startsWith(SYNC_PREFIX))) });
       for (const [k, v] of keep) base.setMeta(k, v);
-      if (paused || !trackingOn()) return;
+      if (paused || !recording()) return;
       note(diffRows(before, d, Date.now()).map((r) => ({ id: rowId(r.kind, r.key), ...entry(r) })));
     },
   };

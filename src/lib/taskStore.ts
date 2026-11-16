@@ -1,6 +1,6 @@
 // Reading and writing tasks in storage meta (src/lib/tasks.ts), with a data-version bump so screens re-read.
 import { useDataVersion } from './bus';
-import { parseTasks, parseTrash, pruneTrash, toTrash, TASKS_KEY, TRASH_KEY, type Task, type Trashed } from './tasks';
+import { parseTasks, parseTrash, pruneTrash, revertTasks, toTrash, TASKS_KEY, TRASH_KEY, type Task, type Trashed } from './tasks';
 import { dateKey } from './logic';
 import { storage } from './storage';
 
@@ -9,6 +9,18 @@ export const readTasks = () => parseTasks(storage.getMeta(TASKS_KEY));
 export function writeTasks(list: readonly Task[]) {
   storage.setMeta(TASKS_KEY, JSON.stringify(list));
   useDataVersion.getState().bump();
+}
+
+/**
+ * Runs a change to the tasks and returns its undo: an inverse patch (`revertTasks`) that puts back only the tasks
+ * the change touched, on the list as it is when you undo — not a whole-list snapshot, which would also throw away
+ * whatever a sync merged in meanwhile.
+ */
+export function undoable(change: () => void): () => void {
+  const before = readTasks();
+  change();
+  const after = readTasks();
+  return () => writeTasks(revertTasks(readTasks(), before, after));
 }
 
 export function saveTask(t: Task) {

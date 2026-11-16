@@ -42,24 +42,34 @@ async function ensurePermission(): Promise<boolean> {
   }
 }
 
+// Bumped by every cancel: a schedule still in flight (permission prompt, native call) sees it changed and drops its
+// notification, so coming back to the app right after leaving never leaves a rest banner behind.
+let token = 0;
+
 async function cancelNotif() {
-  if (notifId) {
+  token++;
+  const id = notifId;
+  notifId = null;
+  if (id) {
     try {
-      await Notifications.cancelScheduledNotificationAsync(notifId);
+      await Notifications.cancelScheduledNotificationAsync(id);
     } catch {}
-    notifId = null;
   }
 }
 
 async function scheduleNotif(endAt: number, label: string) {
   await cancelNotif();
+  const mine = token;
   const seconds = Math.round((endAt - Date.now()) / 1000);
-  if (seconds < 1 || !(await ensurePermission())) return;
+  if (seconds < 1 || !(await ensurePermission()) || mine !== token) return;
   try {
-    notifId = await Notifications.scheduleNotificationAsync({
+    const id = await Notifications.scheduleNotificationAsync({
       content: { title: 'الراحة خلصت', body: `يلا المجموعة الجاية · ${label}`, sound: true },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds, repeats: false, channelId: 'rest' },
     });
+    // Cancelled (back in the app, or the timer stopped) while it was being scheduled: take it back.
+    if (mine !== token) await Notifications.cancelScheduledNotificationAsync(id);
+    else notifId = id;
   } catch {}
 }
 
@@ -91,7 +101,7 @@ if (native) {
   AppState.addEventListener('change', (s) => {
     const { endAt, label } = useTimer.getState();
     if (s === 'background' && endAt && endAt > Date.now() && useSettings.getState().restAlert) scheduleNotif(endAt, label);
-    if (s === 'active') cancelNotif();
+    if (s === 'active') void cancelNotif();
   });
 }
 

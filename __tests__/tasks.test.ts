@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 import { addMonths, addSub, removeSub, toggleSub, allView, counts, dayTasks, doneBetween, doneOn, dueCounts, from12, monthGrid, nextDue, parseTasks, tagColor, timeAr, to12, todayView, toggleTask, type Task } from '../src/lib/tasks';
-import { inSpace, parseTrash, pruneTrash, spaceOf, toTrash } from '../src/lib/tasks';
+import { inSpace, parseTrash, pruneTrash, revertTasks, spaceOf, toTrash } from '../src/lib/tasks';
 
 // Sunday 8 Nov 2026
 const T = '2026-11-08';
@@ -130,4 +130,78 @@ test('deleted tasks stay in the trash for 30 days, until put back', () => {
   // a is older than 30 days; b is back in the list (undo) — both drop.
   expect(pruneTrash(trash, [], '2026-11-09').map((x) => x.task.id)).toEqual(['b']);
   expect(pruneTrash(trash, [b], '2026-11-09')).toEqual([]);
+});
+
+test('undoing the tick of a repeating task with no day leaves it with no day', () => {
+  const after = toggleTask([mk({ id: 'u', repeat: 'daily' })], 'u', T, 'c');
+  expect(after.find((t) => t.id === 'u')!.due).toBe('2026-11-09');
+  const back = toggleTask(after, 'c', T, 'z');
+  expect(back).toHaveLength(1);
+  expect(back[0].due).toBeNull();
+  // One that had a day goes back to it.
+  expect(toggleTask(toggleTask([mk({ id: 'v', due: T, repeat: 'daily' })], 'v', T, 'c'), 'c', T, 'z')[0].due).toBe(T);
+});
+
+test('monthly repeat keeps the 31st: Jan 31 → Feb 28 → Mar 31 → Apr 30 → May 31', () => {
+  expect(nextDue('2026-02-28', 'monthly', 31)).toBe('2026-03-31');
+  let list = [mk({ id: 'm', due: '2026-01-31', repeat: 'monthly' })];
+  const seen: string[] = [];
+  for (const [i, today] of ['2026-01-31', '2026-02-28', '2026-03-31', '2026-04-30'].entries()) {
+    list = toggleTask(list, 'm', today, `c${i}`);
+    seen.push(list.find((t) => t.id === 'm')!.due!);
+  }
+  expect(seen).toEqual(['2026-02-28', '2026-03-31', '2026-04-30', '2026-05-31']);
+  // Survives a save and reload.
+  expect(parseTasks(JSON.stringify(list)).find((t) => t.id === 'm')!.anchor).toBe(31);
+});
+
+test('monthly: a day you moved the task to yourself becomes its day', () => {
+  // Was anchored to the 31st, then moved by hand to the 15th.
+  const list = toggleTask([mk({ id: 'm', due: '2026-03-15', repeat: 'monthly', anchor: 31 })], 'm', '2026-03-15', 'c');
+  const m = list.find((t) => t.id === 'm')!;
+  expect(m.due).toBe('2026-04-15');
+  expect(m.anchor).toBeUndefined();
+});
+
+describe('revertTasks (undo as an inverse patch)', () => {
+  const a = mk({ id: 'a', title: 'A' });
+  const b = mk({ id: 'b', title: 'B' });
+  const c = mk({ id: 'c', title: 'C' });
+
+  test('undoing a tick keeps a task that a sync merged in meanwhile', () => {
+    const before = [a, b];
+    const after = [{ ...a, done: T }, b];
+    const synced = [...after, mk({ id: 'n', title: 'from the other phone' })];
+    const out = revertTasks(synced, before, after);
+    expect(out.map((t) => t.id)).toEqual(['a', 'b', 'n']);
+    expect(out[0].done).toBeNull();
+  });
+
+  test('keeps a sync edit to a task the action did not touch', () => {
+    const before = [a, b];
+    const after = [{ ...a, due: '2026-11-09' }, b];
+    const synced = [after[0], { ...b, title: 'B edited elsewhere' }];
+    const out = revertTasks(synced, before, after);
+    expect(out[0].due).toBeNull();
+    expect(out[1].title).toBe('B edited elsewhere');
+  });
+
+  test('a delete comes back in its place; an add goes away', () => {
+    expect(revertTasks([a, c], [a, b, c], [a, c]).map((t) => t.id)).toEqual(['a', 'b', 'c']);
+    expect(revertTasks([a, b, c], [a], [a, b, c]).map((t) => t.id)).toEqual(['a']);
+    // A synced task added after the action stays.
+    expect(revertTasks([a, b, mk({ id: 's' })], [a], [a, b]).map((t) => t.id)).toEqual(['a', 's']);
+  });
+
+  test('a repeating tick: the copy goes, the task goes back to its day', () => {
+    const r = mk({ id: 'r', due: T, repeat: 'weekly' });
+    const after = toggleTask([r], 'r', T, 'copy');
+    const out = revertTasks([...after, b], [r], after);
+    expect(out.map((t) => t.id)).toEqual(['r', 'b']);
+    expect(out[0].due).toBe(T);
+  });
+
+  test('nothing touched: the list stays as it is now', () => {
+    expect(revertTasks([b], [a], [a])).toEqual([b]);
+  });
 });

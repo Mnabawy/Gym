@@ -10,6 +10,8 @@ import { useDataVersion } from '../lib/bus';
 import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, syncStatus, unlinkCloud } from '../lib/cloud';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported, linkGoogle, unlinkGoogle } from '../lib/google';
 import { listPhotos, photosSupported } from '../lib/photos';
+import { hasAnythingToProtect } from '../lib/safety';
+import { createSnapshot } from '../lib/safetyIO';
 import { safetyText, WELCOME_KEY, wipeLocal } from '../lib/restore';
 import { storage } from '../lib/storage';
 import { tint, useTheme } from '../theme';
@@ -35,6 +37,8 @@ export default function Account() {
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);
+  // Plain sign-out with changes that could not be sent: how many, until the user cancels or signs out anyway.
+  const [unsent, setUnsent] = useState(0);
 
   const run = async (f: () => Promise<void>) => {
     setMsg(null);
@@ -49,8 +53,22 @@ export default function Account() {
     }
   };
 
-  const signOut = (wipe: boolean) =>
+  const signOut = (wipe: boolean, anyway = false) =>
     run(async () => {
+      if (!wipe && cloudLinked()) {
+        if (!anyway) {
+          // Try to send what's waiting first; if that fails, ask before leaving.
+          await syncCloud().catch(() => undefined);
+          const n = pendingChanges();
+          if (n > 0) return setUnsent(n);
+        } else if (pendingChanges() > 0) {
+          // Signing out anyway, still with unsent changes (the count on the card may be old: a sync may have sent them
+          // since): a safety copy first (a failure stops here, nothing changes). Nothing is wiped.
+          const d = storage.dump();
+          if (hasAnythingToProtect(d)) await createSnapshot('pre-signout', d);
+        }
+      }
+      setUnsent(0);
       if (wipe) {
         // Everything has to be on the server before the phone is wiped.
         if (!cloudLinked()) return setMsg({ text: 'الحفظ على حسابك مقفول، فبياناتك مش متحفظة وما مسحتهاش. احفظ نسخة من الإعدادات الأول.', bad: true });
@@ -59,7 +77,7 @@ export default function Account() {
       }
       // The wipe goes first: it makes a safety copy, and if that fails nothing is wiped and the account stays linked.
       if (wipe) await wipeLocal();
-      unlinkCloud();
+      unlinkCloud(wipe);
       await unlinkGoogle();
       storage.setMeta(WELCOME_KEY, '');
       router.replace('/welcome');
@@ -152,7 +170,14 @@ export default function Account() {
             </Card>
           )}
 
-          {!leaving ? (
+          {unsent > 0 ? (
+            <View style={[s.box, { backgroundColor: t.warnSoft, marginHorizontal: 0 }]}>
+              <T w="semi" style={{ color: t.warn }}>فيه تغييرات لسه ما اتحفظتش</T>
+              <T style={{ fontSize: 12.5, lineHeight: 19 }}>{`${unsent} تغيير ما اتحفظوش على حسابك (غالبًا النت مقطوع). لو خرجت دلوقتي هنحتفظ بنسخة منهم على الموبايل، وهيتحفظوا على حسابك لما تدخل بنفس الحساب تاني.`}</T>
+              <Btn label="الغي وفضل داخل" onPress={() => setUnsent(0)} />
+              <Btn label="اخرج برضه" kind="danger" onPress={() => signOut(false, true)} />
+            </View>
+          ) : !leaving ? (
             <Btn label="تسجيل الخروج" onPress={() => setLeaving(true)} />
           ) : (
             <View style={[s.box, { backgroundColor: t.warnSoft, marginHorizontal: 0 }]}>

@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { clock, DEFAULT_CFG, finish, focused, IDLE, minAr, minutesBetween, minutesOn, parseCfg, parseSessions, parseState, pause, remaining, reset, start, streak, week, type Cfg, type Session } from '../src/lib/focus';
+import { CATCH_UP_MS, clock, DEFAULT_CFG, finish, focused, IDLE, minAr, minutesBetween, minutesOn, parseCfg, parseSessions, parseState, pause, remaining, reset, start, streak, week, type Cfg, type Session } from '../src/lib/focus';
 
 const M = 60_000;
 const c: Cfg = { ...DEFAULT_CFG, every: 2 };
@@ -39,7 +39,7 @@ test('long break every N blocks, then focus again; skipping early logs whole min
 
 test('auto starts the next phase where the last one ended; reset goes back to the full phase', () => {
   const a = { ...c, auto: true };
-  const r = finish(start({ ...IDLE }, a, 0), a, 40 * M, true, 'x', D);
+  const r = finish(start({ ...IDLE }, a, 0), a, 25 * M + 900, true, 'x', D);
   expect(r.state).toMatchObject({ phase: 'short', endAt: 30 * M });
   const z = reset(pause(start({ ...IDLE }, c, 0), 5 * M));
   expect(remaining(z, c, 0)).toBe(25 * M);
@@ -67,4 +67,60 @@ test('stats and parsing', () => {
   expect(parseCfg('x')).toEqual(DEFAULT_CFG);
   expect(parseState('{"phase":"long","kind":"study","endAt":5}')).toMatchObject({ phase: 'long', kind: 'study', endAt: 5, left: null });
   expect(parseSessions(JSON.stringify([...ss, { id: '1' }, { id: '9', min: 0, date: D, start: 0, end: 0 }])).map((x) => x.id)).toEqual(['1', '2', '3', '4']);
+});
+
+describe('auto-start after the app was closed (catch-up)', () => {
+  const a: Cfg = { ...DEFAULT_CFG, auto: true };
+  // Replays what the page does on open: tick until nothing is due any more.
+  const catchUp = (s0: ReturnType<typeof start>, now: number) => {
+    let s = s0;
+    const logged: Session[] = [];
+    for (let i = 0; i < 50 && s.endAt != null && now >= s.endAt; i++) {
+      const r = finish(s, a, now, true, `s${i}`, D);
+      if (r.session) logged.push(r.session);
+      s = r.state;
+    }
+    return { s, logged };
+  };
+
+  test('hours later: only the block that ran is logged, nothing chained, focus waits idle', () => {
+    const { s, logged } = catchUp(start({ ...IDLE }, a, 0), 5 * 60 * M);
+    expect(logged).toHaveLength(1);
+    expect(logged[0]).toMatchObject({ min: 25, end: 25 * M });
+    expect(s).toMatchObject({ phase: 'focus', endAt: null, left: null, round: 1 });
+  });
+
+  test('back while the break still runs: the break goes on, then stops before the next focus block', () => {
+    const r = finish(start({ ...IDLE }, a, 0), a, 27 * M, true, 'x', D);
+    expect(r.session).toMatchObject({ min: 25 });
+    expect(r.state).toMatchObject({ phase: 'short', endAt: 30 * M });
+    // That break ending on time (page open) starts focus as usual.
+    expect(finish(r.state, a, 30 * M + 1000, true, 'y', D).state).toMatchObject({ phase: 'focus', endAt: 55 * M });
+  });
+
+  test('a break that ended long ago does not start a focus block', () => {
+    const brk = { ...start({ ...IDLE, phase: 'short' as const }, a, 0) };
+    const r = finish(brk, a, 2 * 60 * M, true, 'z', D);
+    expect(r.session).toBeNull();
+    expect(r.state).toMatchObject({ phase: 'focus', endAt: null });
+  });
+
+  test('just inside the grace window still chains', () => {
+    const r = finish(start({ ...IDLE }, a, 0), a, 25 * M + CATCH_UP_MS, true, 'x', D);
+    expect(r.state.endAt).toBe(30 * M);
+  });
+});
+
+test('a block that ends after midnight counts on the day it ended', () => {
+  // Local-time day of a ms timestamp, like the store's dateKey(new Date(ms)).
+  const dayOf = (ms: number) => {
+    const d = new Date(ms);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const t0 = new Date(2026, 10, 8, 23, 50).getTime();
+  const s = start({ ...IDLE }, DEFAULT_CFG, t0);
+  const r = finish(s, DEFAULT_CFG, t0 + 26 * M, true, 'm', dayOf);
+  expect(r.session).toMatchObject({ date: '2026-11-09', end: t0 + 25 * M });
+  // Skipped before midnight stays on the first day.
+  expect(finish(s, DEFAULT_CFG, t0 + 5 * M, false, 'n', dayOf).session).toMatchObject({ date: '2026-11-08', min: 5 });
 });

@@ -1,16 +1,34 @@
 // Web storage: localStorage (used for the web preview; the phone app uses SQLite)
+import { brokenName, DB_RECOVERED_KEY, type DbRecovery } from './dbOpen';
 import { track } from './track';
 import { rowsToSets, type SetRow, type Storage } from './storage.types';
 
 type State = { sets: SetRow[]; meals: { date: string; meal: string }[]; shop: { week: string; item: string }[]; meta: Record<string, string> };
 const KEY = 'gym-app-v1';
 
+const empty = (): State => ({ sets: [], meals: [], shop: [], meta: {} });
 function load(): State {
+  let raw: string | null | undefined;
   try {
-    const raw = globalThis.localStorage?.getItem(KEY);
-    if (raw) return { meta: {}, ...JSON.parse(raw) };
+    raw = globalThis.localStorage?.getItem(KEY);
   } catch {}
-  return { sets: [], meals: [], shop: [], meta: {} };
+  if (!raw) return empty();
+  try {
+    const v = JSON.parse(raw) as Partial<State>;
+    if (!v || typeof v !== 'object' || Array.isArray(v)) throw new Error('not the app data');
+    return { ...empty(), ...v } as State;
+  } catch (e) {
+    // Like storage.ts: a broken copy is kept under another key (never deleted) and the app starts fresh, with a note.
+    const at = Date.now();
+    let file: string | null = brokenName(KEY, at);
+    try {
+      globalThis.localStorage?.setItem(file, raw);
+    } catch {
+      file = null;
+    }
+    const note: DbRecovery = { at, file, error: String((e as Error)?.message ?? e).slice(0, 200) };
+    return { ...empty(), meta: { [DB_RECOVERED_KEY]: JSON.stringify(note) } };
+  }
 }
 let S = load();
 let batching = false;

@@ -14,8 +14,9 @@ import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
 import { BACKUP_STALE_DAYS, backupInfo, infoText, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
-import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
+import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, AUTO_KEY, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { daysBetween } from '../lib/gaps';
+import { DbNotice } from '../components/DbNotice';
 import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
 import { ExportSheet } from '../components/ExportSheet';
@@ -52,6 +53,7 @@ export default function SettingsScreen() {
   const need = energyFor(st.body);
   useDataVersion((x) => x.v);
   const today = dateKey();
+  const autoError = storage.getMeta(AUTO_ERROR_KEY); // the day the last automatic backup failed (autoBackup.ts)
   const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
   const since = lastBackup ? daysBetween(lastBackup, today) : null;
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
@@ -106,6 +108,7 @@ export default function SettingsScreen() {
 
       <Label>نسخة احتياطية</Label>
       <Card>
+        <DbNotice style={{ marginHorizontal: 12, marginTop: 12 }} />
         <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, gap: 3 }}>
           <T w="medium" style={{ color: since == null || since >= BACKUP_STALE_DAYS ? t.warn : t.okText }}>
             {since == null ? 'لسه ما عملتش نسخة احتياطية' : since === 0 ? 'آخر نسخة النهارده ✓' : `آخر نسخة من ${countAr(since, DAYS)}`}
@@ -157,7 +160,13 @@ export default function SettingsScreen() {
             <Row label="الفولدر" sub={st.backupDir ? decodeURIComponent(st.backupDir.split('/').pop() ?? '').replace(/^primary:/, '') || 'متحدد' : 'جوه التطبيق بس'}>
               <Btn label={st.backupDir ? 'غيّر' : 'اختار'} onPress={() => run(async () => { const d = await pickBackupDir(); if (d) { st.setQuiet({ backupDir: d }); await runAutoBackup(true); useDataVersion.getState().bump(); setMsg({ text: 'اتحفظت نسخة في الفولدر ✓' }); } })} />
             </Row>
-            {storage.getMeta(AUTO_ERROR_KEY) ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 8 }}>معرفتش أكتب في الفولدر آخر مرة. اختاره تاني.</T> : null}
+            {autoError ? (
+              <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 8 }}>
+                {autoError === storage.getMeta(AUTO_KEY)
+                  ? 'معرفتش أكتب في الفولدر آخر مرة. اختاره تاني.'
+                  : 'النسخة التلقائية ما اتحفظتش آخر مرة (ممكن مساحة الموبايل مليانة). فضّي شوية مساحة واحفظ نسخة بإيدك.'}
+              </T>
+            ) : null}
             {listAutoBackups().length ? (
               <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
                 <T style={{ color: t.mute, fontSize: 12.5 }}>{`النسخ التلقائية (كل ${AUTO_DAYS} أيام):`}</T>

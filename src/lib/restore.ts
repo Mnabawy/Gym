@@ -5,6 +5,7 @@ import type { PhotoData } from './backup';
 import { deleteAllPhotos, importPhotos, photosSupported } from './photos';
 import { hasAnythingToProtect, SafetyError } from './safety';
 import { abortRecovery, createSnapshot, finishRecovery, movePhotosToRecovery } from './safetyIO';
+import { dropSignedOutLog } from './cloud';
 import { useSettings } from './settings';
 import { storage } from './storage';
 import { untracked } from './track';
@@ -24,6 +25,8 @@ export async function applyBackup(data: Dump, photos: readonly PhotoData[]): Pro
   const keep = KEEP.map((k) => [k, storage.getMeta(k) ?? ''] as const);
   storage.restore(data);
   for (const [k, v] of keep) storage.setMeta(k, v);
+  // Signed out: the change log kept for that account described the data that was just replaced.
+  dropSignedOutLog();
   const added = photosSupported ? importPhotos(photos) : 0;
   useSettings.getState().reload();
   return added;
