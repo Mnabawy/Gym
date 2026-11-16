@@ -113,7 +113,7 @@ function Goals() {
             {tabs.map(([k, l, n]) => {
               const on = tab === k;
               return (
-                <Pressable key={k} onPress={() => { tap(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.segOn, boxShadow: '0px 1px 3px rgba(0,0,0,0.12)' } : null]}>
+                <Pressable key={k} onPress={() => { tap(); setTab(k); }} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.segOn, boxShadow: '0px 1px 3px rgba(0,0,0,0.12)' } : null]}>
                   <T w={on ? 'semi' : 'medium'} style={{ fontSize: 13, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
                   {n ? <T w="numBold" style={{ fontSize: 11.5, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
                 </Pressable>
@@ -207,7 +207,7 @@ function Today({ t, today, goals, running, later, onBack, onSteps }: { t: Theme;
           <View style={s.row}>
             <Ionicons name="arrow-undo-outline" size={20} color={t.okText} />
             <T style={{ flex: 1, fontSize: 15 }} numberOfLines={2}>{`فيه مكان: ترجّع «${room.name}»؟`}</T>
-            <Pressable onPress={() => onBack(room)} accessibilityRole="button" style={({ pressed }) => [s.pill, { backgroundColor: t.okSoft, opacity: pressed ? 0.6 : 1 }]}>
+            <Pressable onPress={() => onBack(room)} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="button" style={({ pressed }) => [s.pill, { backgroundColor: t.okSoft, opacity: pressed ? 0.6 : 1 }]}>
               <T w="semi" style={{ fontSize: 13.5, color: t.okText }}>رجّعه</T>
             </Pressable>
           </View>
@@ -277,7 +277,7 @@ function Mine({ t, today, goals, running, later, onLog, onLater, onRemove, onSee
             </Swipe>
             {on.length ? rows(on) : <T style={{ fontSize: 12.5, color: t.mute, paddingHorizontal: 4 }}>مفيش أهداف شغالة تحته. افتحه وضيف واحد</T>}
             {off ? (
-              <Pressable onPress={onSeeLater} accessibilityRole="button" style={{ paddingHorizontal: 4, minHeight: 32, justifyContent: 'center' }}>
+              <Pressable onPress={onSeeLater} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" style={{ paddingHorizontal: 4, minHeight: 32, justifyContent: 'center' }}>
                 <T style={{ fontSize: 13, color: t.mute }}>{`تحته كمان ${off} متأجّلين لبعدين ←`}</T>
               </Pressable>
             ) : null}
@@ -351,7 +351,7 @@ function Later({ t, goals, later, onBack }: { t: Theme; goals: Goal[]; later: Go
                       <T style={{ fontSize: 12.5, color: t.mute }} numberOfLines={1}>{`متأجّل من ${day(g.later!)}${u ? ` · ${u.name}` : ''} · ${Math.floor(progress(g) * 100)}%`}</T>
                     </View>
                   </Pressable>
-                  <Pressable onPress={() => onBack(g)} accessibilityRole="button" accessibilityLabel={`رجّع ${g.name}`} style={({ pressed }) => [s.pill, { backgroundColor: t.okSoft, opacity: pressed ? 0.6 : 1 }]}>
+                  <Pressable onPress={() => onBack(g)} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="button" accessibilityLabel={`رجّع ${g.name}`} style={({ pressed }) => [s.pill, { backgroundColor: t.okSoft, opacity: pressed ? 0.6 : 1 }]}>
                     <T w="semi" style={{ fontSize: 13.5, color: t.okText }}>رجّعه</T>
                   </Pressable>
                 </View>

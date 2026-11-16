@@ -4,6 +4,7 @@
 import type { SetEntry } from './logic';
 import { addDays } from './gaps';
 import type { MealCheck } from './storage.types';
+import { keepExtra, keepUnreadMap } from './records';
 
 export const SWAPS_KEY = 'swaps';
 export const NOTES_KEY = 'notes';
@@ -97,6 +98,16 @@ export const EXTRAS_KEY = 'extras';
 export const SUPPS_KEY = 'supps';
 export type Extra = { name: string; kcal: number; p: number };
 
+const EXTRA_FIELDS = new Set(['name', 'kcal', 'p']);
+const okExtra = (x: unknown): x is Extra => {
+  const o = x as Record<string, unknown> | null;
+  return !!o && typeof o === 'object' && typeof o.name === 'string' && typeof o.kcal === 'number' && Number.isFinite(o.kcal) && o.kcal >= 0 && typeof o.p === 'number' && Number.isFinite(o.p) && o.p >= 0;
+};
+/** A day this build can read (a date with at least one item it knows); others are kept as they are on write. */
+const okExtrasDay = (date: string, list: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Array.isArray(list) && list.some(okExtra);
+/** The JSON to store for `next`: it plus the stored days this build can't read (synced one row per date). */
+export const extrasJson = (raw: string | null, next: Record<string, Extra[]>) => keepUnreadMap(raw, next, okExtrasDay);
+
 export function parseExtras(raw: string | null): Record<string, Extra[]> {
   const out: Record<string, Extra[]> = {};
   let v: unknown;
@@ -108,8 +119,8 @@ export function parseExtras(raw: string | null): Record<string, Extra[]> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
   for (const [date, list] of Object.entries(v as Record<string, unknown>)) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Array.isArray(list)) continue;
-    const ok = list.filter((x): x is Extra => !!x && typeof x === 'object' && typeof x.name === 'string' && typeof x.kcal === 'number' && Number.isFinite(x.kcal) && x.kcal >= 0 && typeof x.p === 'number' && Number.isFinite(x.p) && x.p >= 0);
-    if (ok.length) out[date] = ok.map((x) => ({ name: x.name, kcal: Math.round(x.kcal), p: Math.round(x.p) }));
+    const ok = list.filter(okExtra);
+    if (ok.length) out[date] = ok.map((x) => keepExtra<Extra>(x, EXTRA_FIELDS, { name: x.name, kcal: Math.round(x.kcal), p: Math.round(x.p) }));
   }
   return out;
 }

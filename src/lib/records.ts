@@ -80,6 +80,22 @@ export function keepUnread(raw: string | null | undefined, next: readonly unknow
   return JSON.stringify(out);
 }
 
+/**
+ * For a JSON list keyed by `date` (weights, measures): `next` plus the stored records this build can't read (`ok`
+ * false) on a date `next` doesn't have, all in date order.
+ */
+export function keepUnreadDated(raw: string | null | undefined, next: readonly { date: string }[], ok: (x: unknown) => boolean): string {
+  const out: unknown[] = [...next];
+  const dates = new Set(next.map((x) => x.date));
+  for (const x of list(raw)) {
+    if (!isRec(x) || typeof x.date !== 'string' || dates.has(x.date) || ok(x)) continue;
+    dates.add(x.date);
+    out.push(x);
+  }
+  const dateOf = (x: unknown) => String((x as { date: string }).date);
+  return JSON.stringify(out.sort((a, b) => (dateOf(a) < dateOf(b) ? -1 : dateOf(a) > dateOf(b) ? 1 : 0)));
+}
+
 /** For a JSON map (`id|date` → value): `next` plus the stored entries this build can't read (`ok` false), unless `next` sets that key. */
 export function keepUnreadMap(raw: string | null | undefined, next: Readonly<Record<string, unknown>>, ok: (k: string, v: unknown) => boolean): string {
   let old: unknown;

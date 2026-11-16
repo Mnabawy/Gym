@@ -1,6 +1,7 @@
 // Your own program, edited in the app (/program): exercises per program day, saved as JSON under meta key `program`.
 // The five program days themselves stay (their ids are stored with every logged set); what's in them is yours.
 // Pure — unit tested in __tests__/programEdit.test.ts. Applying it: applyProgram (src/data/program.ts) via src/lib/settings.ts.
+import { keepExtra, keepUnreadMap } from './records';
 import { MUSCLE_AR, PDF_PROGRAM, RETIRED_EXERCISES, SETS_MAX, SETS_MIN, slug, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
 
 export const PROGRAM_KEY = 'program';
@@ -86,6 +87,7 @@ export function move<T>(list: readonly T[], i: number, by: number): T[] {
  */
 export const PAST_KEY = 'pastExercises';
 export type PastExercise = { name: string; muscle: Muscle };
+const PAST_FIELDS = new Set(['name', 'muscle']);
 
 export function parsePast(raw: string | null): Record<string, PastExercise> {
   const out: Record<string, PastExercise> = {};
@@ -98,15 +100,18 @@ export function parsePast(raw: string | null): Record<string, PastExercise> {
   if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
   for (const [id, x] of Object.entries(v as Record<string, unknown>)) {
     const o = (x ?? {}) as Record<string, unknown>;
-    if (typeof o.name === 'string' && typeof o.muscle === 'string' && o.muscle in MUSCLE_AR) out[id] = { name: o.name, muscle: o.muscle as Muscle };
+    if (typeof o.name === 'string' && typeof o.muscle === 'string' && o.muscle in MUSCLE_AR) out[id] = keepExtra<PastExercise>(o, PAST_FIELDS, { name: o.name, muscle: o.muscle as Muscle });
   }
   return out;
 }
 
+/** The JSON to store for `past`: it plus the stored entries this build can't read (synced one row per exercise). */
+export const pastJson = (raw: string | null, past: Record<string, PastExercise>) => keepUnreadMap(raw, past, (id, x) => parsePast(JSON.stringify({ [id]: x }))[id] != null);
+
 /** Adds (or updates the name of) every exercise in `defs`. */
 export function remember(past: Record<string, PastExercise>, defs: readonly { id: string; name: string; muscle: Muscle }[]): Record<string, PastExercise> {
   const out = { ...past };
-  for (const d of defs) out[d.id] = { name: d.name, muscle: d.muscle };
+  for (const d of defs) out[d.id] = keepExtra<PastExercise>(out[d.id], PAST_FIELDS, { name: d.name, muscle: d.muscle });
   return out;
 }
 

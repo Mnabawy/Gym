@@ -23,7 +23,7 @@ describe('linkCloud and the first sync', () => {
     a.setMeta('weights', '[{"date":"2026-11-01","kg":80}]');
     await a.signIn(A);
     expect(sim.server.keysOf(A)).toEqual(
-      ['meal:2026-11-01|breakfast', 'meta:tasks/t1', 'meta:tasks/t2', 'meta:weights', 'set:2026-11-01|bench|0'].sort(),
+      ['meal:2026-11-01|breakfast', 'meta:tasks/t1', 'meta:tasks/t2', 'meta:weights/2026-11-01', 'set:2026-11-01|bench|0'].sort(),
     );
     expect(a.track.trackingOn()).toBe(true);
     expect(a.meta('sync.full')).toBe('1');
@@ -94,8 +94,8 @@ describe('the change log (dirty) and push', () => {
     const a = sim.device('A');
     await a.signIn(A);
     a.setRow('2026-11-01', 'bench', 0);
-    a.setMeta('weights', '[]');
-    expect(a.dirtyKeys()).toEqual(['meta:weights', 'set:2026-11-01|bench|0']);
+    a.setMeta('weights', '[{"date":"2026-11-01","kg":80}]');
+    expect(a.dirtyKeys()).toEqual(['meta:weights/2026-11-01', 'set:2026-11-01|bench|0']);
     expect(a.status()).toMatchObject({ state: 'waiting', waiting: 2 });
     await a.sync();
     expect(a.dirtyKeys()).toEqual([]);
@@ -109,8 +109,9 @@ describe('the change log (dirty) and push', () => {
     a.setRow('2026-11-01', 'bench', 0, 60);
     const gate = deferred();
     sim.server.holdCommit = () => gate.promise;
+    const n0 = sim.server.requests.length; // the sign-in's own push came before
     const p = a.sync();
-    await until(() => sim.server.requests.some((r) => r.call === 'push'), 'the push');
+    await until(() => sim.server.requests.slice(n0).some((r) => r.call === 'push'), 'the push');
     sim.advance(1000);
     a.setRow('2026-11-01', 'bench', 0, 70); // edited during the push
     gate.resolve();

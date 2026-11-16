@@ -7,7 +7,7 @@ import type { Dump } from '../src/lib/storage.types';
 const only = (meta: Record<string, string>): Dump => ({ sets: [], meals: [], shop: [], meta });
 
 test('every key sync splits into records is data, and so is every plain data key', () => {
-  for (const k of Object.keys(SPLIT_META)) expect(DATA_KEYS).toContain(k);
+  for (const k of Object.keys(SPLIT_META)) if (k !== 'settings') expect(DATA_KEYS).toContain(k); // settings: split, not data
   for (const k of PLAIN_DATA_KEYS) expect(DATA_KEYS).toContain(k);
   expect(new Set(DATA_KEYS).size).toBe(DATA_KEYS.length);
 });

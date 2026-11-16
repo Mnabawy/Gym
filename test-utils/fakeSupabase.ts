@@ -53,9 +53,12 @@ export class FakeSupabase {
   rowsOf(email: string): Row[] {
     return [...this.rows.entries()].filter(([k]) => k.startsWith(`${email}${NUL}`)).map(([, r]) => r).sort((a, b) => a.rev - b.rev);
   }
-  /** `kind:key` of the live (not deleted) rows of an account, sorted. */
+  /**
+   * `kind:key` of the live (not deleted) rows of an account, sorted. The `dataVersion` row every build since data
+   * version 2 writes on its first sync is bookkeeping, not data: left out here (`find` it, dataVersion.test.ts).
+   */
   keysOf(email: string): string[] {
-    return this.rowsOf(email).filter((r) => !r.deleted).map((r) => `${r.kind}:${r.key}`).sort();
+    return this.rowsOf(email).filter((r) => !r.deleted && !(r.kind === 'meta' && r.key === 'dataVersion')).map((r) => `${r.kind}:${r.key}`).sort();
   }
   find(email: string, kind: string, key: string): Row | undefined {
     return this.rows.get(this.id(email, kind, key));

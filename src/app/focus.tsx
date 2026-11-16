@@ -105,14 +105,14 @@ function Focus() {
           {(Object.keys(KINDS) as Kind[]).map((k) => {
             const sel = s.kind === k;
             return (
-              <Pressable key={k} onPress={() => { tap(); setFocus({ kind: k }); }} accessibilityRole="tab" accessibilityState={{ selected: sel }} style={[s_.segBtn, sel ? { backgroundColor: t.segOn, boxShadow: '0px 1px 6px rgba(0,0,0,0.08)' } : null]}>
+              <Pressable key={k} onPress={() => { tap(); setFocus({ kind: k }); }} hitSlop={{ top: 8, bottom: 8 }} accessibilityRole="tab" accessibilityState={{ selected: sel }} style={[s_.segBtn, sel ? { backgroundColor: t.segOn, boxShadow: '0px 1px 6px rgba(0,0,0,0.08)' } : null]}>
                 <Ionicons name={k === 'work' ? 'briefcase-outline' : 'book-outline'} size={14} color={sel ? t.fg : t.mute} />
                 <T w="semi" style={{ fontSize: 13, color: sel ? t.fg : t.mute }}>{KINDS[k]}</T>
               </Pressable>
             );
           })}
         </View>
-        <Pressable onPress={() => setPicking(true)} accessibilityRole="button" accessibilityLabel={s.task ? `المهمة: ${s.task}` : 'اختار مهمة'} style={({ pressed }) => [s_.task, { backgroundColor: t.soft, opacity: pressed ? 0.7 : 1 }]}>
+        <Pressable onPress={() => setPicking(true)} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="button" accessibilityLabel={s.task ? `المهمة: ${s.task}` : 'اختار مهمة'} style={({ pressed }) => [s_.task, { backgroundColor: t.soft, opacity: pressed ? 0.7 : 1 }]}>
           <Ionicons name="checkbox-outline" size={15} color={s.task ? t.fg : t.mute} />
           <T style={{ flex: 1, fontSize: 13, color: s.task ? t.fg : t.mute }} numberOfLines={1}>{s.task ?? 'على أنهي مهمة؟'}</T>
           <Ionicons name="chevron-down" size={13} color={t.mute} />
@@ -132,13 +132,13 @@ function Focus() {
           </View>
         </Ring>
         <View style={s_.ctrls}>
-          <Pressable onPress={() => { tap(); resetFocus(); }} disabled={!on && !paused(s)} accessibilityRole="button" accessibilityLabel="من الأول" style={({ pressed }) => [s_.side, { backgroundColor: t.soft, opacity: !on && !paused(s) ? 0.4 : pressed ? 0.7 : 1 }]}>
+          <Pressable onPress={() => { tap(); resetFocus(); }} disabled={!on && !paused(s)} hitSlop={2} accessibilityRole="button" accessibilityLabel="من الأول" style={({ pressed }) => [s_.side, { backgroundColor: t.soft, opacity: !on && !paused(s) ? 0.4 : pressed ? 0.7 : 1 }]}>
             <Ionicons name="refresh" size={20} color={t.fg} />
           </Pressable>
           <Pressable onPress={() => { tap(); if (on) pauseFocus(); else startFocus(); }} accessibilityRole="button" accessibilityLabel={on ? 'وقّف' : paused(s) ? 'كمّل' : 'ابدأ'} style={({ pressed }) => [s_.main, { backgroundColor: color, boxShadow: `0px 6px 18px ${tint(color, 0.4)}`, transform: [{ scale: pressed ? 0.95 : 1 }] }]}>
             <Ionicons name={on ? 'pause' : 'play'} size={25} color="#FFFFFF" style={on ? null : { marginStart: 3 }} />
           </Pressable>
-          <Pressable onPress={() => { tap(); ease(); endPhase(false); }} accessibilityRole="button" accessibilityLabel={s.phase === 'focus' ? 'خلّص التركيز' : 'فوّت الراحة'} style={({ pressed }) => [s_.side, { backgroundColor: t.soft, opacity: pressed ? 0.7 : 1 }]}>
+          <Pressable onPress={() => { tap(); ease(); endPhase(false); }} hitSlop={2} accessibilityRole="button" accessibilityLabel={s.phase === 'focus' ? 'خلّص التركيز' : 'فوّت الراحة'} style={({ pressed }) => [s_.side, { backgroundColor: t.soft, opacity: pressed ? 0.7 : 1 }]}>
             <Ionicons name="play-skip-back" size={19} color={t.fg} />
           </Pressable>
         </View>
@@ -192,7 +192,7 @@ function Focus() {
         </View>
       ) : null}
 
-      <Pressable onPress={() => { ease(); setSetup(!setup); }} accessibilityRole="button" accessibilityState={{ expanded: setup }} style={s_.setupBtn}>
+      <Pressable onPress={() => { ease(); setSetup(!setup); }} hitSlop={{ top: 9, bottom: 9 }} accessibilityRole="button" accessibilityState={{ expanded: setup }} style={s_.setupBtn}>
         <Ionicons name="options-outline" size={15} color={t.mute} />
         <T w="semi" style={{ fontSize: 13, color: t.mute }}>{`المدد: ${cfg.focus} / ${cfg.short} / ${cfg.long} · راحة طويلة كل ${cfg.every}`}</T>
         <Ionicons name={setup ? 'chevron-up' : 'chevron-down'} size={14} color={t.mute} />

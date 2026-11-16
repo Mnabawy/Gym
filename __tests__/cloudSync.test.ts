@@ -29,31 +29,31 @@ test('pulled rows land on the phone: sets, meals, shop, meta, deletes', () => {
     pulled(setRow(set({ idx: 1 }), true, 10), 2),
     { kind: 'meal', key: '2026-11-01|breakfast', data: { date: '2026-11-01', meal: 'breakfast' }, deleted: false, updated_at: 10, rev: 3 },
     { kind: 'shop', key: '2026-W44|eggs', data: { week: '2026-W44', item: 'eggs' }, deleted: false, updated_at: 10, rev: 4 },
-    { kind: 'meta', key: 'notes', data: '[1]', deleted: false, updated_at: 10, rev: 5 },
+    { kind: 'meta', key: 'program', data: '[1]', deleted: false, updated_at: 10, rev: 5 },
   ];
   const r = applyRows(rows, {}, f.t);
-  expect(r).toEqual({ changed: true, meta: ['notes'] });
+  expect(r).toEqual({ changed: true, meta: ['program'] });
   expect([...f.sets.keys()]).toEqual(['2026-11-01|bench|0']);
   expect(f.sets.get('2026-11-01|bench|0')?.kg).toBe(60);
   expect(f.meals.has('2026-11-01|breakfast')).toBe(true);
   expect(f.shop.has('2026-W44|eggs')).toBe(true);
-  expect(f.meta.notes).toBe('[1]');
+  expect(f.meta.program).toBe('[1]');
 });
 
 test('a newer change on the phone beats the server; an older one is dropped', () => {
   const f = fakeTarget();
   f.meta.goals = 'mine';
-  const dirty: Dirty = { 'meta:goals': { t: 50 }, 'meta:notes': { t: 5 } };
+  const dirty: Dirty = { 'meta:goals': { t: 50 }, 'meta:program': { t: 5 } };
   applyRows(
     [
       { kind: 'meta', key: 'goals', data: 'theirs', deleted: false, updated_at: 40, rev: 1 },
-      { kind: 'meta', key: 'notes', data: 'theirs', deleted: false, updated_at: 40, rev: 2 },
+      { kind: 'meta', key: 'program', data: 'theirs', deleted: false, updated_at: 40, rev: 2 },
     ],
     dirty,
     f.t,
   );
   expect(f.meta.goals).toBe('mine');
-  expect(f.meta.notes).toBe('theirs');
+  expect(f.meta.program).toBe('theirs');
   expect(Object.keys(dirty)).toEqual(['meta:goals']);
 });
 
@@ -72,7 +72,7 @@ test('the same value again is not a change; phone-only keys are never touched', 
   expect(r.changed).toBe(false);
   expect(f.meta.driveUser).toBeUndefined();
   expect(isLocalMeta('sync.dirty')).toBe(true);
-  expect(isLocalMeta('notes')).toBe(false);
+  expect(isLocalMeta('program')).toBe(false);
 });
 
 test('broken rows are skipped', () => {
@@ -82,17 +82,17 @@ test('broken rows are skipped', () => {
 });
 
 test('push: saved rows as they are, meta read now, empty meta = deleted', () => {
-  const meta: Record<string, string> = { notes: '[2]', water: '' };
-  const dirty: Dirty = { 'set:a': { t: 3, row: setRow(set(), false, 3) }, 'meta:notes': { t: 4 }, 'meta:water': { t: 5 }, 'meta:sync.at': { t: 6 } };
+  const meta: Record<string, string> = { program: '[2]', restDay: '' };
+  const dirty: Dirty = { 'set:a': { t: 3, row: setRow(set(), false, 3) }, 'meta:program': { t: 4 }, 'meta:restDay': { t: 5 }, 'meta:sync.at': { t: 6 } };
   const items = pushItems(dirty, (k) => meta[k] ?? null);
-  expect(items.map((x) => x.id)).toEqual(['set:a', 'meta:notes', 'meta:water']);
-  expect(items[1].row).toEqual({ kind: 'meta', key: 'notes', data: '[2]', deleted: false, updated_at: 4 });
+  expect(items.map((x) => x.id)).toEqual(['set:a', 'meta:program', 'meta:restDay']);
+  expect(items[1].row).toEqual({ kind: 'meta', key: 'program', data: '[2]', deleted: false, updated_at: 4 });
   expect(items[2].row.deleted).toBe(true);
 });
 
 test('first sync sends everything on the phone except empty and phone-only meta', () => {
-  const rows = localRows({ sets: [set()], meals: [{ date: 'd', meal: 'm' }], shop: [{ week: 'w', item: 'i' }], meta: { notes: '[]', water: '', driveUser: 'x', 'sync.on': '1' } }, 7);
-  expect(rows.map((r) => `${r.kind}:${r.key}`)).toEqual(['set:2026-11-01|bench|0', 'meal:d|m', 'shop:w|i', 'meta:notes']);
+  const rows = localRows({ sets: [set()], meals: [{ date: 'd', meal: 'm' }], shop: [{ week: 'w', item: 'i' }], meta: { program: '[]', restDay: '', driveUser: 'x', 'sync.on': '1' } }, 7);
+  expect(rows.map((r) => `${r.kind}:${r.key}`)).toEqual(['set:2026-11-01|bench|0', 'meal:d|m', 'shop:w|i', 'meta:program']);
   expect(rows.every((r) => r.updated_at === 7 && !r.deleted)).toBe(true);
 });
 
@@ -119,7 +119,7 @@ describe('the to-do list goes one task per row', () => {
     expect(rows.map((r) => [r.key, r.deleted])).toEqual([['tasks/a', false], ['tasks/c', false], ['tasks/b', true]]);
     expect(rows[0].data).toEqual({ id: 'a', title: 'A2' });
     expect(splitKey('tasks/a')).toEqual({ key: 'tasks', id: 'a' });
-    expect(splitKey('notes/a')).toBeNull();
+    expect(splitKey('program/a')).toBeNull();
   });
 
   test('pulled task rows edit, add and remove inside the list, leaving the others', () => {

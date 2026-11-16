@@ -8,7 +8,7 @@ import { INPUT, Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } f
 import { MenuButton } from '../../components/SideMenu';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { energyFor, targetsFor } from '../../lib/energy';
-import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
+import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasJson, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
 import { readNumbers, writeEntry } from '../../lib/meta';
 import { showUndo } from '../../lib/undo';
 import { useSettings } from '../../lib/settings';
@@ -92,7 +92,7 @@ export default function Food() {
   const saveExtras = (list: Extra[]) => {
     const next = { ...extrasAll, [selDate]: list };
     if (!list.length) delete next[selDate];
-    storage.setMeta(EXTRAS_KEY, JSON.stringify(next));
+    storage.setMeta(EXTRAS_KEY, extrasJson(storage.getMeta(EXTRAS_KEY), next));
     bump();
   };
   const addExtra = () => {
@@ -110,7 +110,7 @@ export default function Food() {
       const all = parseExtras(storage.getMeta(EXTRAS_KEY));
       if (list.length) all[day] = list;
       else delete all[day];
-      storage.setMeta(EXTRAS_KEY, JSON.stringify(all));
+      storage.setMeta(EXTRAS_KEY, extrasJson(storage.getMeta(EXTRAS_KEY), all));
       bump();
     };
     write(extras.filter((_, j) => j !== i));
@@ -199,10 +199,10 @@ export default function Food() {
               <T w="semi" style={{ fontSize: 13.5 }}>{`المية · \u2066${l1(waterMl)}\u2069 من \u2066${l1(waterGoal)}\u2069 لتر`}</T>
               <T style={{ fontSize: 11.5, color: t.mute }}>{waterMl >= waterGoal ? 'كمّلت المية ✓' : `فاضل ${Math.ceil((waterGoal - waterMl) / CUP_ML)} كوباية`}</T>
             </View>
-            <Pressable onPress={() => addWater(-CUP_ML)} disabled={!waterMl} hitSlop={6} accessibilityRole="button" accessibilityLabel="شيل كوباية" style={({ pressed }) => [s.wbtn, { backgroundColor: t.soft, opacity: !waterMl ? 0.35 : pressed ? 0.7 : 1 }]}>
+            <Pressable onPress={() => addWater(-CUP_ML)} disabled={!waterMl} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="شيل كوباية" style={({ pressed }) => [s.wbtn, { backgroundColor: t.soft, opacity: !waterMl ? 0.35 : pressed ? 0.7 : 1 }]}>
               <Ionicons name="remove" size={18} color={t.fg} />
             </Pressable>
-            <Pressable onPress={() => addWater(CUP_ML)} hitSlop={6} accessibilityRole="button" accessibilityLabel="زوّد كوباية مية" style={({ pressed }) => [s.wadd, { backgroundColor: tint(t.protein, 0.15), opacity: pressed ? 0.7 : 1 }]}>
+            <Pressable onPress={() => addWater(CUP_ML)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="زوّد كوباية مية" style={({ pressed }) => [s.wadd, { backgroundColor: tint(t.protein, 0.15), opacity: pressed ? 0.7 : 1 }]}>
               <T w="semi" style={{ fontSize: 12.5, color: t.protein }} numberOfLines={1}>+ كوباية</T>
             </Pressable>
           </View>
@@ -266,17 +266,17 @@ export default function Food() {
           {extras.map((x, i) => (
             <Item key={i}>
             <Swipe style={s.swipeRow} end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeExtra(i) }]}>
-            <View style={[s.item, s.rowPad, { backgroundColor: t.card }, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
+            <View style={[s.item, s.rowPad, { minHeight: 44, backgroundColor: t.card }, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
               <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
               <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
-              <Pressable onPress={() => removeExtra(i)} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
+              <Pressable onPress={() => removeExtra(i)} hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
                 <Ionicons name="close" size={16} color={t.bad} />
               </Pressable>
             </View>
             </Swipe>
             </Item>
           ))}
-          <Pressable onPress={() => setExtraForm({ name: '', kcal: '', p: '' })} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 36, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
+          <Pressable onPress={() => setExtraForm({ name: '', kcal: '', p: '' })} hitSlop={{ top: 4, bottom: 4 }} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 36, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
             <T w="semi" style={{ fontSize: 13, color: t.okText }}>+ سجّل حاجة كلتها</T>
           </Pressable>
         </Card>
@@ -292,7 +292,7 @@ export default function Food() {
                 key={x.name}
                 style={s.swipeRow}
                 start={[on ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => tickSupp(x.name, false) } : { icon: 'checkmark', label: 'خدتها', color: ACTION.green, onPress: () => tickSupp(x.name, true) }]}>
-              <View style={[s.item, s.rowPad, { minHeight: 40, backgroundColor: t.card }]}>
+              <View style={[s.item, s.rowPad, { minHeight: 44, backgroundColor: t.card }]}>
                 <View style={{ flex: 1 }}>
                   <T style={{ fontSize: 13.5 }}>{x.name}</T>
                   <T style={{ fontSize: 11, color: t.mute }} numberOfLines={1}>{x.dose}</T>

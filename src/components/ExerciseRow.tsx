@@ -341,7 +341,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
       {/* Swipe the exercise: بدّل / فيديو from the start edge, ملاحظة from the end edge. */}
       <Swipe start={rowStart} end={rowEnd}>
         <Under color={wash}>
-          <View style={[s.top, open ? null : s.topClosed]}>
+          <View style={[s.top, open ? s.topOpen : s.topClosed]}>
           <View style={s.head}>
             {/* Tapping the name opens this exercise. Open, the name has the line to itself (its buttons go on the line under it). */}
             <Pressable
@@ -378,14 +378,14 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
               <View style={s.meta}>
                 <TagBadge tag={ex.tag} />
                 {up ? (
-                  <Pressable onPress={() => setWhy(true)} hitSlop={8} accessibilityRole="button" accessibilityLabel={`زوّد ${weightStep} كجم، اعرف ليه`} style={[s.chip, { borderColor: tint(t.ok, 0.5), backgroundColor: t.neon ? undefined : t.okSoft }]}>
+                  <Pressable onPress={() => setWhy(true)} hitSlop={CHIP_SLOP} accessibilityRole="button" accessibilityLabel={`زوّد ${weightStep} كجم، اعرف ليه`} style={[s.chip, { borderColor: tint(t.ok, 0.5), backgroundColor: t.neon ? undefined : t.okSoft }]}>
                     <T w="semi" style={{ fontSize: 10.5, color: t.okText }}>{`${iso(`+${weightStep}`)} ↑`}</T>
                   </Pressable>
                 ) : null}
                 {video ? (
                   <Pressable
                     onPress={() => setWatching(true)}
-                    hitSlop={8}
+                    hitSlop={CHIP_SLOP}
                     accessibilityRole="button"
                     accessibilityLabel={`فيديو الوضعية الصحيحة لـ ${ex.name}`}
                     style={({ pressed }) => [s.chip, { borderColor: tint(t.ok, 0.5), boxShadow: glow(t, t.ok, 6), opacity: pressed ? 0.6 : 1 }]}>
@@ -532,7 +532,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
                         <T w="numBold" style={{ fontSize: 13 }}>{n >= 4 ? '+4' : String(n)}</T>
                       </Pressable>
                     ))}
-                    <Pressable onPress={closeRir} hitSlop={8} accessibilityRole="button" accessibilityLabel="مش عايز أسجّل" style={({ pressed }) => [s.rirBtn, { borderColor: 'transparent', opacity: pressed ? 0.6 : 1 }]}>
+                    <Pressable onPress={closeRir} hitSlop={{ top: 8, bottom: 8 }} accessibilityRole="button" accessibilityLabel="مش عايز أسجّل" style={({ pressed }) => [s.rirBtn, { borderColor: 'transparent', opacity: pressed ? 0.6 : 1 }]}>
                       <Ionicons name="close" size={15} color={t.mute} />
                     </Pressable>
                   </View>
@@ -560,7 +560,7 @@ function MetaChip({ icon, label, a11y, on, onPress }: { icon: React.ComponentPro
   return (
     <Pressable
       onPress={onPress}
-      hitSlop={8}
+      hitSlop={CHIP_SLOP}
       accessibilityRole="button"
       accessibilityLabel={a11y}
       style={({ pressed }) => [s.chip, { borderColor: on ? t.warn : t.line, backgroundColor: on ? t.warnSoft : undefined, opacity: pressed ? 0.6 : 1 }]}>
@@ -619,7 +619,7 @@ function Tick({ on, primary, onPress, label }: { on: boolean; primary?: boolean;
   const t = useTheme();
   const pop = usePop(on, 0.8);
   return (
-    <Pressable onPress={onPress} hitSlop={6} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={label}>
+    <Pressable onPress={onPress} hitSlop={{ top: 7, bottom: 7, left: 5, right: 5 }} accessibilityRole="checkbox" accessibilityState={{ checked: on }} accessibilityLabel={label}>
       <Animated.View
         style={[
           s.tick,
@@ -650,7 +650,7 @@ function Field({ value, unit, label, decimal, error, autoFocus, inputRef, onChan
   const btn = (dir: -1 | 1) => (
     <Pressable
       onPress={() => onStep(dir)}
-      hitSlop={{ top: 6, bottom: 6 }}
+      hitSlop={{ top: 7, bottom: 7 }}
       accessibilityRole="button"
       accessibilityLabel={`${dir > 0 ? 'زوّد' : 'قلّل'} ${label}`}
       style={({ pressed }) => [s.fbtn, { opacity: pressed ? 0.5 : 1 }]}>
@@ -689,17 +689,20 @@ function Field({ value, unit, label, decimal, error, autoFocus, inputRef, onChan
   );
 }
 
-// Tight layout: 36pt set rows; small buttons keep 44pt touch targets through hitSlop.
+// Tight layout: 44pt set rows (30pt controls + 7pt hitSlop each side; Swipe clips touches to the row); small buttons keep 44pt touch targets through hitSlop.
+/** Meta chips: 28pt tall + 8 above and below = 44pt; rows of chips are 44pt apart (28 + 16 gap) so wrapped rows don't steal each other's taps. */
+const CHIP_SLOP = { top: 8, bottom: 8, left: 3, right: 3 };
 const s = StyleSheet.create({
   top: { paddingHorizontal: 10, paddingTop: 7 },
   topClosed: { paddingBottom: 7 },
+  topOpen: { paddingBottom: 8 },
   bottom: { paddingHorizontal: 10, paddingBottom: 7 },
   swipe: { borderRadius: 10, overflow: 'hidden' },
   head: { flexDirection: 'row', alignItems: 'center', gap: 7, minHeight: 30 },
   num: { width: 20, height: 20, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   title: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 7 },
   pr: { backgroundColor: '#FFC53D', borderRadius: 999, paddingHorizontal: 7, paddingVertical: 1 },
-  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 4, marginTop: 3 },
+  meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 16, marginTop: 3 },
   rir: { gap: 4, marginTop: 6 },
   rirBtn: { flex: 1, height: 30, borderRadius: 8, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   opt: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 46, borderRadius: 12, paddingHorizontal: 12 },
@@ -708,9 +711,9 @@ const s = StyleSheet.create({
   plates: { flexDirection: 'row', alignItems: 'center', gap: 2, paddingVertical: 6 },
   sleeve: { width: 28, height: 10, borderRadius: 3 },
   plate: { width: 22, borderRadius: 4, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  chip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, height: 19 },
-  sets: { gap: 4, marginTop: 6 },
-  srow: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 36, borderRadius: 10, borderWidth: 1, paddingHorizontal: 4 },
+  chip: { flexDirection: 'row', alignItems: 'center', gap: 3, borderWidth: 1, borderRadius: 999, paddingHorizontal: 7, height: 28 },
+  sets: { gap: 4 },
+  srow: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 44, borderRadius: 10, borderWidth: 1, paddingHorizontal: 4 },
   cells: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 5, alignSelf: 'stretch' },
   sn: { width: 18, textAlign: 'center', fontSize: 12 },
   cell: { flex: 1, minWidth: 0, height: 30, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },

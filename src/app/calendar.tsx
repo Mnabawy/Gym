@@ -79,7 +79,7 @@ export default function CalendarScreen() {
         {CAL_SOURCES.map((x) => {
           const on = x.key === src;
           return (
-            <Pressable key={x.key} onPress={() => choose(x.key)} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={x.label} style={[s.segBtn, on ? { backgroundColor: t.segOn, boxShadow: '0px 1px 3px rgba(0,0,0,0.12)' } : null]}>
+            <Pressable key={x.key} onPress={() => choose(x.key)} hitSlop={{ top: 5, bottom: 5 }} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={x.label} style={[s.segBtn, on ? { backgroundColor: t.segOn, boxShadow: '0px 1px 3px rgba(0,0,0,0.12)' } : null]}>
               <Ionicons name={x.icon as IconName} size={15} color={on ? t.fg : t.mute} />
               <T w={on ? 'semi' : 'medium'} numberOfLines={1} style={{ fontSize: 13, color: on ? t.fg : t.mute }}>{x.label}</T>
             </Pressable>
@@ -88,11 +88,11 @@ export default function CalendarScreen() {
       </View>
 
       {items.length > 1 ? (
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 2 }}>
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 6 }}>
           {[{ id: '', name: 'الكل' }, ...items].map((x) => {
             const on = (pick ?? '') === x.id;
             return (
-              <Pressable key={x.id || 'all'} onPress={() => { tap(); setOnly(x.id || undefined); }} accessibilityRole="button" accessibilityState={{ selected: on }} style={[s.chip, { backgroundColor: on ? color : t.card }]}>
+              <Pressable key={x.id || 'all'} onPress={() => { tap(); setOnly(x.id || undefined); }} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" accessibilityState={{ selected: on }} style={[s.chip, { backgroundColor: on ? color : t.card }]}>
                 <T w="medium" numberOfLines={1} style={{ fontSize: 13, color: on ? '#FFFFFF' : t.fg }}>{x.name}</T>
               </Pressable>
             );
@@ -107,7 +107,7 @@ export default function CalendarScreen() {
           </Pressable>
           <T w="bold" style={{ flex: 1, textAlign: 'center', fontSize: 16 }}>{`${MONTHS_AR[+ym.slice(5) - 1]} ${ym.slice(0, 4)}`}</T>
           {ym !== today.slice(0, 7) ? (
-            <Pressable onPress={() => { setYm(today.slice(0, 7)); setDay(today); }} hitSlop={6} accessibilityRole="button" style={[s.now, { backgroundColor: t.soft }]}>
+            <Pressable onPress={() => { setYm(today.slice(0, 7)); setDay(today); }} hitSlop={{ top: 9, bottom: 9, left: 6, right: 6 }} accessibilityRole="button" style={[s.now, { backgroundColor: t.soft }]}>
               <T w="semi" style={{ fontSize: 12, color: t.okText }}>النهارده</T>
             </Pressable>
           ) : null}
@@ -175,7 +175,7 @@ function Day({ d, m, color, today, on, onPress }: { d: string; m?: DayMark; colo
   const bg = !m ? 'transparent' : m.tone === 'done' ? color : m.tone === 'bad' ? tint(bad, 0.14) : m.tone === 'clean' ? tint(green, 0.18) : m.tone === 'part' ? tint(color, 0.12) : 'transparent';
   const fg = m?.tone === 'done' ? '#FFFFFF' : m?.tone === 'bad' ? bad : d > today ? t.mute : t.fg;
   return (
-    <Pressable onPress={onPress} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${n} ${MONTHS_AR[+d.slice(5, 7) - 1]}${m?.lines.length ? `، ${m.lines.join('، ')}` : ''}`} style={s.cell}>
+    <Pressable onPress={onPress} hitSlop={{ top: 2, bottom: 2 }} accessibilityRole="button" accessibilityState={{ selected: on }} accessibilityLabel={`${n} ${MONTHS_AR[+d.slice(5, 7) - 1]}${m?.lines.length ? `، ${m.lines.join('، ')}` : ''}`} style={s.cell}>
       <View style={[s.dayWrap, on ? { borderColor: t.fg } : d === today ? { borderColor: tint(t.fg, 0.35) } : null]}>
         {m?.tone === 'part' ? (
           <Ring value={m.v} size={34} stroke={3} color={color} track={tint(color, 0.15)} animated={false}>
@@ -203,6 +203,7 @@ function weekDates(w: (string | null)[]): string[] {
  * bars sit in the same right-to-left row of 7 as the days above, so they line up on both phones and the web.
  */
 function WeekBars({ week, spans, lanes, today }: { week: string[]; spans: Span[]; lanes: number; today: string }) {
+  const t = useTheme();
   const pieces = weekPieces(spans, week);
   return (
     <View style={{ gap: 2, marginBottom: 4 }}>
@@ -218,7 +219,7 @@ function WeekBars({ week, spans, lanes, today }: { week: string[]; spans: Span[]
           const late = !p.span.done && p.span.to < today;
           row.push(
             <View key={p.span.id} style={{ flex: p.c1 - p.c0 + 1, paddingStart: startsHere ? 2 : 0, paddingEnd: endsHere ? 2 : 0 }}>
-              <View style={[s.bar, { backgroundColor: p.span.color, opacity: p.span.done ? 0.45 : 1, borderTopStartRadius: startsHere ? 5 : 0, borderBottomStartRadius: startsHere ? 5 : 0, borderTopEndRadius: endsHere ? 5 : 0, borderBottomEndRadius: endsHere ? 5 : 0 }, late ? { borderWidth: 1.5, borderColor: '#FF3B30' } : null]}>
+              <View style={[s.bar, { backgroundColor: p.span.color, opacity: p.span.done ? 0.45 : 1, borderTopStartRadius: startsHere ? 5 : 0, borderBottomStartRadius: startsHere ? 5 : 0, borderTopEndRadius: endsHere ? 5 : 0, borderBottomEndRadius: endsHere ? 5 : 0 }, late ? { borderWidth: 1.5, borderColor: t.bad } : null]}>
                 {startsHere ? <T numberOfLines={1} style={{ alignSelf: 'flex-start', fontSize: 9, lineHeight: 12, color: '#FFFFFF', ...font('numBold') }}>{p.span.done ? `✓${p.span.n}` : String(p.span.n)}</T> : null}
               </View>
             </View>,

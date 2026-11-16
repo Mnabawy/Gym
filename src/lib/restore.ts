@@ -14,7 +14,8 @@ import { untracked } from './track';
 /** Meta key: the welcome screen was answered (signed in or skipped), so it doesn't show again. */
 export const WELCOME_KEY = 'welcomeDone';
 
-const KEEP = ['driveUser', 'driveName', 'drivePhoto', 'welcomeDone'];
+/** Kept as they are on this phone: the Google account, and `device` (this phone's own settings: backup folder, app lock…). */
+const KEEP = ['driveUser', 'driveName', 'drivePhoto', 'welcomeDone', 'device'];
 
 /**
  * Returns how many photos were added. A safety copy of what's on the phone is saved first; if it cannot be made this

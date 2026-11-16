@@ -1,7 +1,9 @@
 // User settings: plan overrides (sets, rest) and app toggles. Saved as JSON in storage meta; applied to PROGRAM on load and change.
+// Two meta keys: `settings` (synced one field per row, cloudSync.ts) and `device` (this phone only: DEVICE_SETTINGS, e.g.
+// the backup folder, app lock, location). Fields this build doesn't know are kept in `settings` (records.ts rule).
 import { create } from 'zustand';
 import { ALL_EXERCISES, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, PLAN_WEEKDAYS, type ProgramEdit } from '../data/program';
-import { isPdf, PAST_KEY, parsePast, parseProgram, PROGRAM_KEY, remember } from './programEdit';
+import { isPdf, PAST_KEY, parsePast, pastJson, parseProgram, PROGRAM_KEY, remember } from './programEdit';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { DEFAULT_BODY, parseBody, type Body } from './energy';
@@ -9,6 +11,8 @@ import { METHODS, parsePlace, type Method, type Place } from './prayer';
 import { dateKey } from './logic';
 import { addDays } from './gaps';
 import { normHex } from './color';
+import { DEVICE_SETTINGS } from './cloudSync';
+import { isRec, type Rec } from './records';
 
 export type Settings = {
   /** Only exercises changed from the PDF; missing id = default. */
@@ -109,19 +113,35 @@ export const DEFAULT_SETTINGS: Settings = {
 };
 
 const KEY = 'settings';
+/** Phone-only meta: the DEVICE_SETTINGS fields (never synced; isLocalMeta). */
+export const DEVICE_KEY = 'device';
+const DEVICE = new Set<string>(DEVICE_SETTINGS);
+const KNOWN = new Set(Object.keys(DEFAULT_SETTINGS));
 
-/** Parse saved settings, dropping unknown or wrong-typed fields so a bad value never breaks the app. */
-export function parseSettings(raw: string | null): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY }, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays] };
-  if (!raw) return out;
-  let v: unknown;
+function obj(raw: string | null | undefined): Rec | null {
+  if (!raw) return null;
   try {
-    v = JSON.parse(raw);
+    const v: unknown = JSON.parse(raw);
+    return isRec(v) ? v : null;
   } catch {
-    return out;
+    return null;
   }
-  if (!v || typeof v !== 'object') return out;
-  const o = v as Record<string, unknown>;
+}
+
+/**
+ * Parse saved settings, dropping unknown or wrong-typed fields so a bad value never breaks the app. `device`: the
+ * phone-only part (meta `device`); when given, the phone-only fields come only from it (a pulled `settings` value never
+ * sets them). Without it (saved before the split) they come from `raw`.
+ */
+export function parseSettings(raw: string | null, device?: string | null): Settings {
+  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY }, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays] };
+  let o: Rec | null = obj(raw);
+  if (device != null) {
+    const dev = obj(device) ?? {};
+    o = Object.fromEntries(Object.entries(o ?? {}).filter(([k]) => !DEVICE.has(k)));
+    for (const k of DEVICE) if (k in dev) o[k] = dev[k];
+  }
+  if (!o) return out;
   for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
     if (['sets', 'body', 'place', 'prayerMethod', 'shopMoves', 'reminderDays'].includes(k)) continue;
     if (typeof o[k] === typeof DEFAULT_SETTINGS[k]) (out as Record<string, unknown>)[k] = o[k];
@@ -175,7 +195,48 @@ export const deloadOn = (s: Pick<Settings, 'deloadUntil'>, today: string = dateK
 /** The plan with the light week applied when it's on. */
 const plan = (s: Settings) => ({ ...s, deload: deloadOn(s) });
 
-const initial = parseSettings(storage.getMeta(KEY));
+/** The phone-only fields of `s`, as stored under `device`. */
+const devicePart = (s: Settings): Rec => Object.fromEntries(DEVICE_SETTINGS.map((k) => [k, s[k]]));
+
+/**
+ * Settings as saved. The first time on this phone (saved before the phone-only fields moved out, or a backup from
+ * then was put back) the phone-only fields move from `settings` to `device`.
+ */
+function load(): Settings {
+  let device = storage.getMeta(DEVICE_KEY);
+  if (!device) {
+    device = JSON.stringify(devicePart(parseSettings(storage.getMeta(KEY))));
+    storage.setMeta(DEVICE_KEY, device);
+  }
+  return parseSettings(storage.getMeta(KEY), device);
+}
+
+/**
+ * Saves `next`: the phone-only fields under `device`; under `settings` only the fields that changed from `prev` go into
+ * the stored value. Settings sync one field per row (newest wins), so a field this phone never set must not be written
+ * as a fresh edit of its default (it would beat another phone's real choice); fields this build doesn't know (a newer
+ * build's) stay as they are.
+ */
+function write(prev: Settings, next: Settings) {
+  storage.setMeta(DEVICE_KEY, JSON.stringify(devicePart(next)));
+  const o: Rec = obj(storage.getMeta(KEY)) ?? {};
+  for (const k of DEVICE) delete o[k];
+  for (const k of KNOWN) {
+    if (DEVICE.has(k)) continue;
+    const v = next[k as keyof Settings];
+    if (JSON.stringify(v) !== JSON.stringify(prev[k as keyof Settings])) o[k] = v;
+  }
+  // Saved under the Apple look: parseSettings moves the old default red to blue only while `look` is missing, so a
+  // stored color it moved goes in with it (or the red would come back on the next start). A color never stored stays
+  // unwritten (it would beat another phone's real choice).
+  if (o.look !== next.look) {
+    o.look = next.look;
+    if (o.accent !== undefined && o.accent !== next.accent) o.accent = next.accent;
+  }
+  storage.setMeta(KEY, JSON.stringify(o));
+}
+
+const initial = load();
 applyPlan(plan(initial));
 
 const pick = (s: Store): Settings => {
@@ -186,14 +247,16 @@ const pick = (s: Store): Settings => {
 
 export const useSettings = create<Store>((set, get) => {
   const commit = (next: Settings) => {
+    const prev = pick(get());
     set(next);
-    storage.setMeta(KEY, JSON.stringify(next));
+    write(prev, next);
     applyPlan(plan(next));
     useDataVersion.getState().bumpAll(); // screens and exercise cards re-read the plan
   };
   const save = (next: Settings) => {
+    const prev = pick(get());
     set(next);
-    storage.setMeta(KEY, JSON.stringify(next));
+    write(prev, next);
   };
   return {
     ...initial,
@@ -211,7 +274,8 @@ export const useSettings = create<Store>((set, get) => {
     setProgram: (edit) => {
       const keep = edit && !isPdf(edit) ? edit : null;
       // Remember every exercise you had, so a deleted one keeps its name on the progress page.
-      storage.setMeta(PAST_KEY, JSON.stringify(remember(parsePast(storage.getMeta(PAST_KEY)), [...ALL_EXERCISES, ...Object.values(edit ?? {}).flat()])));
+      const pastRaw = storage.getMeta(PAST_KEY);
+      storage.setMeta(PAST_KEY, pastJson(pastRaw, remember(parsePast(pastRaw), [...ALL_EXERCISES, ...Object.values(edit ?? {}).flat()])));
       if (keep) storage.setMeta(PROGRAM_KEY, JSON.stringify(keep));
       else storage.setMeta(PROGRAM_KEY, '');
       applyProgram(keep);
@@ -221,7 +285,7 @@ export const useSettings = create<Store>((set, get) => {
     },
     reload: () => {
       applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
-      const next = parseSettings(storage.getMeta(KEY));
+      const next = load();
       set(next);
       applyPlan(plan(next));
       useDataVersion.getState().bumpAll();

@@ -2,7 +2,17 @@
 import { useDataVersion } from './bus';
 import { dateKey } from './logic';
 import { parseMap, prune } from './journal';
+import { isRec } from './records';
 import { storage } from './storage';
+
+function rawMap(raw: string | null): Record<string, unknown> | null {
+  try {
+    const v: unknown = JSON.parse(raw || 'null');
+    return isRec(v) ? { ...v } : null;
+  } catch {
+    return null;
+  }
+}
 
 export const readStrings = (key: string) => parseMap<string>(storage.getMeta(key), 'string');
 export const readNumbers = (key: string) => parseMap<number>(storage.getMeta(key), 'number');
@@ -12,7 +22,8 @@ export const readNumbers = (key: string) => parseMap<number>(storage.getMeta(key
  * `all`: exercise cards remount too (a swap changes what they show).
  */
 export function writeEntry<V extends string | number>(key: string, kind: 'string' | 'number', k: string, v: V | undefined, opts: { dated?: boolean; all?: boolean } = {}) {
-  let m = parseMap<V>(storage.getMeta(key), kind);
+  // The stored map as it is, so entries this build can't read (a newer build's) are kept: they sync one per row.
+  let m: Record<string, unknown> = rawMap(storage.getMeta(key)) ?? {};
   if (v === undefined || v === '') delete m[k];
   else m[k] = v;
   if (opts.dated) m = prune(m, dateKey());

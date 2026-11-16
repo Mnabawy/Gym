@@ -33,7 +33,7 @@ const set = (idx: number): SetRow => ({ date: '2026-11-01', weekday: 1, exId: 'b
 test('nothing is noted while sync is off', () => {
   const s = track(memory());
   s.saveSet(set(0));
-  s.setMeta('notes', '[]');
+  s.setMeta('program', '[]');
   expect(dirty()).toEqual({});
 });
 
@@ -45,10 +45,10 @@ test('writes are noted while on; phone-only keys and untracked writes are not', 
   s.saveSet(set(0));
   s.saveSet(set(1));
   s.setMealCheck('d', 'm', true);
-  s.setMeta('notes', '[]');
+  s.setMeta('program', '[]');
   s.setMeta('driveUser', 'x');
-  untracked(() => s.setMeta('notes', '{}'));
-  expect(Object.keys(dirty()).sort()).toEqual(['meal:d|m', 'meta:notes', 'set:2026-11-01|bench|0', 'set:2026-11-01|bench|1']);
+  untracked(() => s.setMeta('program', '{}'));
+  expect(Object.keys(dirty()).sort()).toEqual(['meal:d|m', 'meta:program', 'set:2026-11-01|bench|0', 'set:2026-11-01|bench|1']);
   expect(calls).toBe(4);
   s.clearDay('2026-11-01', ['bench']);
   expect(dirty()['set:2026-11-01|bench|1'].row?.deleted).toBe(true);
@@ -59,11 +59,11 @@ test('sync keys stay out of backups and survive a restore; turning off clears th
   const s = track(memory());
   setTracking(true);
   s.setMeta('sync.session', 'tok');
-  s.setMeta('notes', '[1]');
-  expect(s.dump().meta).toEqual({ notes: '[1]' });
+  s.setMeta('program', '[1]');
+  expect(s.dump().meta).toEqual({ program: '[1]' });
   s.restore({ sets: [set(0)], meals: [], shop: [], meta: { goals: '[]', 'sync.session': 'evil' } });
   expect(s.getMeta('sync.session')).toBe('tok');
-  expect(dirty()['meta:notes']).toBeDefined(); // gone → sent as a delete
+  expect(dirty()['meta:program']).toBeDefined(); // gone → sent as a delete
   expect(dirty()['set:2026-11-01|bench|0'].row?.deleted).toBe(false);
   setTracking(false);
   expect(dirty()).toEqual({});
@@ -108,18 +108,18 @@ describe('signed out with a kept log ("log only") is bounded', () => {
 
   test('within the limits writes keep being noted', () => {
     const s = signedOut();
-    s.setMeta('notes', '[1]');
+    s.setMeta('program', '[1]');
     now += (LOG_ONLY_DAYS - 1) * DAY;
     s.saveSet(set(0));
-    expect(Object.keys(dirty()).sort()).toEqual(['meta:notes', 'set:2026-11-01|bench|0']);
+    expect(Object.keys(dirty()).sort()).toEqual(['meta:program', 'set:2026-11-01|bench|0']);
     expect(s.getMeta(LAST_UID)).toBe('uid-a');
   });
 
   test(`after ${LOG_ONLY_DAYS} days the log, log-only and the account are dropped together, and nothing more is noted`, () => {
     const s = signedOut();
-    s.setMeta('notes', '[1]');
+    s.setMeta('program', '[1]');
     now += (LOG_ONLY_DAYS + 1) * DAY;
-    s.setMeta('weights', '[1]');
+    s.setMeta('restDay', '[1]');
     expect(dirty()).toEqual({});
     expect(s.getMeta('sync.dirty')).toBe('{}');
     expect(s.getMeta('sync.logOnly')).toBe('');
@@ -130,7 +130,7 @@ describe('signed out with a kept log ("log only") is bounded', () => {
 
   test('expireLogOnly on its own (sign-in) drops an old log without a new write', () => {
     const s = signedOut();
-    s.setMeta('notes', '[1]');
+    s.setMeta('program', '[1]');
     expect(expireLogOnly(now + DAY)).toBe(false);
     expect(expireLogOnly(now + (LOG_ONLY_DAYS + 1) * DAY)).toBe(true);
     expect(dirty()).toEqual({});
@@ -149,18 +149,18 @@ describe('signed out with a kept log ("log only") is bounded', () => {
   test('a log kept before the start time was recorded starts counting now', () => {
     const s = signedOut();
     s.setMeta('sync.logSince', '');
-    s.setMeta('notes', '[1]');
+    s.setMeta('program', '[1]');
     expect(s.getMeta('sync.logSince')).toBe(String(now));
-    expect(dirty()['meta:notes']).toBeDefined();
+    expect(dirty()['meta:program']).toBeDefined();
   });
 
   test('sync on is never expired', () => {
     const s = track(memory());
     setTracking(true);
-    s.setMeta('notes', '[1]');
+    s.setMeta('program', '[1]');
     now += 365 * DAY;
-    s.setMeta('weights', '[1]');
-    expect(Object.keys(dirty()).sort()).toEqual(['meta:notes', 'meta:weights']);
+    s.setMeta('restDay', '[1]');
+    expect(Object.keys(dirty()).sort()).toEqual(['meta:program', 'meta:restDay']);
     setTracking(false);
   });
 });

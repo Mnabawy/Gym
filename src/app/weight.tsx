@@ -14,7 +14,7 @@ import { showUndo } from '../lib/undo';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { useDataVersion } from '../lib/bus';
-import { bodyOn, latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, MEASURES_KEY, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, type Measure, type Part, type WeighIn } from '../lib/weight';
+import { bodyOn, latestParts, navyBodyFat, addMeasure, addWeighIn, measureChange, MEASURES_KEY, measuresJson, parseMeasures, parseWeights, PARTS, rateBand, rateVerdict, removeWeighIn, validWeight, waistNote, weeklyRate, WEIGHTS_KEY, weightsJson, type Measure, type Part, type WeighIn } from '../lib/weight';
 import { addPhoto, deletePhoto, listPhotos, photosSupported, type Photo } from '../lib/photos';
 import { useTheme, type Theme, font } from '../theme';
 
@@ -39,7 +39,7 @@ export default function WeightScreen() {
   const bad = text.trim() !== '' && !validWeight(kg);
 
   const save = (next: WeighIn[]) => {
-    storage.setMeta(WEIGHTS_KEY, JSON.stringify(next));
+    storage.setMeta(WEIGHTS_KEY, weightsJson(storage.getMeta(WEIGHTS_KEY), next));
     // The calorie calculator (and so the food tab's targets) always uses your latest weigh-in.
     const latest = next[next.length - 1];
     if (latest && latest.kg !== body.weight) setBody({ weight: latest.kg });
@@ -71,7 +71,7 @@ export default function WeightScreen() {
       const v = parseNum(mForm[p.k]);
       if (v != null) m[p.k] = v;
     }
-    storage.setMeta(MEASURES_KEY, JSON.stringify(addMeasure(measures, m)));
+    storage.setMeta(MEASURES_KEY, measuresJson(storage.getMeta(MEASURES_KEY), addMeasure(measures, m)));
     setMForm(null);
     bump();
   };
@@ -139,7 +139,7 @@ export default function WeightScreen() {
               </>
             )}
             {band ? <T style={{ color: t.mute, fontSize: 12 }}>{`المطلوب: من ${iso(signed(band[0]))} لـ ${iso(signed(band[1]))} كجم في الأسبوع`}</T> : null}
-            <Pressable onPress={() => router.push('/calories')} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1, minHeight: 32 })}>
+            <Pressable onPress={() => router.push('/calories')} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 4, opacity: pressed ? 0.6 : 1, minHeight: 32 })}>
               <T style={{ color: t.okText, fontSize: 13 }}>غيّر هدفك من حساب السعرات</T>
               <Ionicons name="chevron-back" size={14} color={t.okText} />
             </Pressable>

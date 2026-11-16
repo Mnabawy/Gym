@@ -76,5 +76,5 @@ test('phone-only: never synced, not data', () => {
   expect(DATA_KEYS).not.toContain(ERR_LOG_KEY);
   const rows = localRows({ sets: [], meals: [], shop: [], meta: { [ERR_LOG_KEY]: '[{"at":1,"where":"x","msg":"y"}]', notes: '{"a":"b"}' } }, 1);
   expect(rows.some((r) => r.key === ERR_LOG_KEY)).toBe(false);
-  expect(rows.some((r) => r.key === 'notes')).toBe(true);
+  expect(rows.some((r) => r.key === 'notes/a')).toBe(true);
 });

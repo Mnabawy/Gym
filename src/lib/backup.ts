@@ -57,12 +57,15 @@ export type BackupInfo = {
  */
 export const PLAIN_DATA_KEYS = ['weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps', 'adhkar'] as const;
 
+/** Split for sync (one row per field) but not something you logged. */
+const NOT_DATA = new Set(['settings']);
+
 /**
  * Meta keys that hold things you logged: every key sync splits into records (tasks, goals, habits, the brain dump, deleted
  * tasks, focus sessions… `SPLIT_META` in cloudSync.ts, so a new one is counted on its own) plus `PLAIN_DATA_KEYS`, never
  * a phone-only key (`isLocalMeta`).
  */
-export const DATA_KEYS: readonly string[] = [...new Set([...Object.keys(SPLIT_META), ...PLAIN_DATA_KEYS])].filter((k) => !isLocalMeta(k));
+export const DATA_KEYS: readonly string[] = [...new Set([...Object.keys(SPLIT_META), ...PLAIN_DATA_KEYS])].filter((k) => !isLocalMeta(k) && !NOT_DATA.has(k));
 
 /** Entries in one meta value: array length or object key count (0 for empty or broken). */
 function count(raw: string | undefined): number {

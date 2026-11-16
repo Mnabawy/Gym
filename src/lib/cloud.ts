@@ -6,7 +6,7 @@
 // phone goes up. Photos aren't synced. Setup (project, table, Google provider): docs/supabase-setup.md.
 import { useDataVersion } from './bus';
 import { pullRows, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
-import { applyRows, entry, localRows, SPLIT_META, splitKey, pushItems, rowId, type Pulled } from './cloudSync';
+import { applyRows, entry, expandWhole, isSplit, localRows, settleWhole, snapWhole, SPLIT_META, splitKey, pushItems, rowId, type Pulled } from './cloudSync';
 import { DATA_VERSION_KEY, dataTooNew, readDataVersion, versionToWrite } from './dataVersion';
 import { report } from './errlog';
 import { GOOGLE_USER, googleIdToken } from './google';
@@ -25,8 +25,11 @@ const SESSION = 'sync.session';
 const CURSOR = 'sync.cursor';
 /** '1' once this phone's first full sync finished (pulled everything and queued what only the phone has). */
 const FULL = 'sync.full';
-/** The account (uid) the phone signed out of (plain sign-out): the change log is kept for that account only. */
-/** Which keys this phone has already sent one record per row (after updating, each record goes up once). */
+/**
+ * Which keys this phone has already sent one record per row (comma list). When a build splits more keys, the next sync
+ * pulls everything again once (an older build skipped the new per-record rows it pulled) and sends each record of the
+ * newly split keys once.
+ */
 const SPLIT_SENT = 'sync.split';
 export const SYNC_AT = 'sync.at';
 export const SYNC_ERROR = 'sync.error';
@@ -109,9 +112,18 @@ async function syncOnce() {
     const token = await accessToken();
     // Until the first full sync finishes (it may be cut off midway), each sync also queues what only the phone has.
     const first = meta(FULL) !== '1';
-    let cursor = Number(meta(CURSOR) || 0);
+    const split = Object.keys(SPLIT_META).join(',');
+    const sentBefore = meta(SPLIT_SENT) ?? '';
+    // More keys split than when this phone last synced: rows for them pulled by the older build were skipped, so pull
+    // everything again (applying a row twice is harmless; changes waiting here still win when newer).
+    let cursor = first || sentBefore === split ? Number(meta(CURSOR) || 0) : 0;
     const seen = new Set<string>();
     let pulledVersion = 1;
+    // Keys an older build noted as a whole and never sent (it was blocked, or offline): their value now, before the pull
+    // can overwrite its records; after it, their edits and deletes are worked out (settleWhole).
+    const snap = snapWhole(dirty(), (k) => rawStorage().getMeta(k));
+    const base: Record<string, { v: string; at: number }> = {};
+    const newer: Record<string, number> = {};
     // Pull: everything after the last rev we saw.
     for (;;) {
       const rows: Pulled[] = await pullRows(CONFIG, token, cursor, fetch);
@@ -125,6 +137,9 @@ async function syncOnce() {
       saveDirty();
       for (const r of rows) {
         seen.add(rowId(r.kind, r.key));
+        if (r.kind === 'meta' && snap[r.key] && isSplit(r.key) && !r.deleted && typeof r.data === 'string') base[r.key] = { v: r.data, at: r.updated_at };
+        const sp = r.kind === 'meta' ? splitKey(r.key) : null;
+        if (sp && snap[sp.key]) newer[rowId(r.kind, r.key)] = Math.max(newer[rowId(r.kind, r.key)] ?? -Infinity, r.updated_at);
         if (r.kind === 'meta' && r.key === DATA_VERSION_KEY && !r.deleted && typeof r.data === 'string') pulledVersion = Math.max(pulledVersion, readDataVersion(r.data));
       }
       cursor = rows[rows.length - 1].rev;
@@ -142,13 +157,30 @@ async function syncOnce() {
       setMeta(CURSOR, String(cursor));
       setMeta(FULL, '1');
     }
-    const split = Object.keys(SPLIT_META).join(',');
-    if (meta(SPLIT_SENT) !== split) {
-      // Habits, goals, quits and tasks used to go as one value: send each record once (the server then has them all).
+    if (Object.keys(snap).length) {
+      const d = dirty();
+      rawStorage().transaction(() => {
+        const keys = settleWhole(snap, base, newer, d, rawStorage());
+        if (keys.length) changed = true;
+        changedMeta.push(...keys);
+      });
+      saveDirty();
+    }
+    // Anything still noted as one value (edited again during the pull): one entry per record it holds.
+    if (expandWhole(dirty(), (k) => rawStorage().getMeta(k))) saveDirty();
+    if (sentBefore !== split) {
+      // Keys that used to go as one value: send each of their records once (the server then has them all; a first sync
+      // already queued what the server doesn't have). The old whole-value row stays on the server: a phone on an older
+      // build still reads it (a delete would empty that key there), and a newer build only adds the records it's
+      // missing from it.
+      const had = new Set(first ? Object.keys(SPLIT_META) : sentBefore.split(','));
+      // An older build stored the record rows it pulled for keys it didn't split as plain keys (`notes/bench`): drop them.
+      for (const k of Object.keys(storage.dump().meta)) if (splitKey(k)) rawStorage().setMeta(k, '');
       const d = dirty();
       for (const r of localRows(storage.dump(), Date.now())) {
         const id = rowId(r.kind, r.key);
-        if (splitKey(r.key) && !d[id]) d[id] = entry(r);
+        const sp = splitKey(r.key);
+        if (sp && !had.has(sp.key) && !d[id]) d[id] = entry(r);
       }
       saveDirty();
       setMeta(SPLIT_SENT, split);

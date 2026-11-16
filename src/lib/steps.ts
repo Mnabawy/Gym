@@ -7,6 +7,7 @@ import { useDataVersion } from './bus';
 import { addDays } from './gaps';
 import { dateKey } from './logic';
 import { STEPS_KEY, parseSteps } from './cardio';
+import { keepUnreadMap } from './records';
 import { storage } from './storage';
 
 export const stepsSupported = Platform.OS === 'android';
@@ -40,7 +41,8 @@ export async function syncSteps(days = 14): Promise<void> {
       const r = await aggregateRecord({ recordType: 'Steps', timeRangeFilter: { operator: 'between', startTime: start.toISOString(), endTime: end.toISOString() } });
       if (r.COUNT_TOTAL > 0) map[d] = r.COUNT_TOTAL;
     }
-    storage.setMeta(STEPS_KEY, JSON.stringify(map));
+    // Days this build can't read stay (synced one row per date).
+    storage.setMeta(STEPS_KEY, keepUnreadMap(storage.getMeta(STEPS_KEY), map, (d, n) => parseSteps(JSON.stringify({ [d]: n }))[d] != null));
     useDataVersion.getState().bump();
   } catch {}
 }

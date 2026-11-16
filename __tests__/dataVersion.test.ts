@@ -51,8 +51,8 @@ describe('two phones on different builds', () => {
     expect(old.tasks()).toEqual(['fromNew']); // pulls still apply
     expect(old.meta('dataVersion')).toBe('2');
     expect(sim.server.rowsOf('me@x.test')).toHaveLength(before); // nothing went up
-    expect(sim.server.find('me@x.test', 'meta', 'weights')).toBeUndefined();
-    expect(old.dirtyKeys()).toEqual(['meta:weights', 'set:2026-11-02|squat|0']); // kept for after the update
+    expect(sim.server.find('me@x.test', 'meta', 'weights/2026-11-02')).toBeUndefined();
+    expect(old.dirtyKeys()).toEqual(['meta:weights/2026-11-02', 'set:2026-11-02|squat|0']); // kept for after the update
     expect(old.status()).toMatchObject({ state: 'failed', reason: 'update' });
 
     // The automatic sync swallows it and keeps the state; the newer phone is unaffected.

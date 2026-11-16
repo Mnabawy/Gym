@@ -16,6 +16,8 @@ const A = 'a@x.test';
 const B = 'b@x.test';
 const DAY = 86_400_000;
 const w = (kg: number) => JSON.stringify([{ date: '2026-11-01', kg }]);
+/** The weigh-in of 2026-11-01 on the server (weights sync one row per date). */
+const serverKg = (acct = A) => (sim.server.find(acct, 'meta', 'weights/2026-11-01')?.data as { kg: number } | undefined)?.kg;
 const task = (id: string) => ({ id, title: `task ${id}` });
 const serverSet = (i: number, kg: number, updated_at: number) => ({ kind: 'set', key: `2026-11-01|bench|${i}`, data: { date: '2026-11-01', exId: 'bench', idx: i, weekday: 1, kg, reps: 1, done: 1 }, updated_at });
 
@@ -33,7 +35,7 @@ describe('F1 · conflicts are decided by device clocks', () => {
     await right.sync();
     // The later edit is dropped on the correct phone: the future-stamped one wins everywhere.
     expect(right.meta('weights')).toBe(w(80));
-    expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(80));
+    expect(serverKg()).toBe(80);
     // Safe behavior: the edit made later in real time wins, or the user is told.
   });
 
@@ -47,10 +49,10 @@ describe('F1 · conflicts are decided by device clocks', () => {
     sim.advance(60_000);
     right.setMeta('weights', w(81)); // really later, synced first
     await right.sync();
-    expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(81));
+    expect(serverKg()).toBe(81);
     await fast.sync(); // its dirty stamp (a day ahead) beats the server row, so it is kept and pushed
     expect(fast.meta('weights')).toBe(w(80));
-    expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(80)); // the newer real edit is overwritten
+    expect(serverKg()).toBe(80); // the newer real edit is overwritten
     await right.sync();
     expect(right.meta('weights')).toBe(w(80));
     // The two tests together: whichever phone's clock is ahead wins, whatever really happened first.
@@ -64,14 +66,14 @@ describe('F1 · conflicts are decided by device clocks', () => {
     sim.server.onRequest = (r) => {
       if (r.call === 'push') {
         sim.server.onRequest = undefined;
-        sim.server.put(A, { kind: 'meta', key: 'weights', data: w(80), updated_at: sim.time + 500 });
+        sim.server.put(A, { kind: 'meta', key: 'weights/2026-11-01', data: { date: '2026-11-01', kg: 80 }, updated_at: sim.time + 500 });
       }
     };
     await a.sync();
     expect(sim.server.skipped).toHaveLength(1); // the server skipped the push without telling the phone
     expect(a.dirtyKeys()).toEqual([]); // and the phone considers it sent
     expect(a.meta('weights')).toBe(w(81)); // phone and server differ right now...
-    expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(80));
+    expect(serverKg()).toBe(80);
     await a.sync(); // ...until the next pull brings the server's row
     expect(a.meta('weights')).toBe(w(80)); // converged, but the edit is gone
     // Audit correction: this converges. It is silent loss of one edit, not permanent divergence.
@@ -87,7 +89,7 @@ describe('F2 · account switching', () => {
     await d.signIn(A);
     await d.signOut(); // no wipe
     await d.signIn(B);
-    expect(sim.server.keysOf(B)).toEqual(['meta:tasks/t1', 'meta:weights', 'set:2026-11-01|bench|0']);
+    expect(sim.server.keysOf(B)).toEqual(['meta:tasks/t1', 'meta:weights/2026-11-01', 'set:2026-11-01|bench|0']);
     expect(sim.server.keysOf(A)).toEqual(sim.server.keysOf(B)); // account A's data is now in account B as well
     // Safe behavior: data that belongs to account A is not uploaded to account B (wipe first, or keep it local-only).
   });
@@ -152,7 +154,7 @@ describe('F3 · restoring a backup while sync is on', () => {
 });
 
 describe('F4 · first sync and signing back in', () => {
-  test('whole-value data on a new phone is replaced by the server\'s copy; nothing keeps the phone\'s own', async () => {
+  test('fixed: a new phone\'s own weigh-ins are merged with the server\'s by date, nothing is replaced', async () => {
     const a = sim.device('A');
     a.setMeta('weights', JSON.stringify([{ date: '2026-11-01', kg: 80 }]));
     await a.signIn(A);
@@ -160,10 +162,11 @@ describe('F4 · first sync and signing back in', () => {
     b.setMeta('weights', JSON.stringify([{ date: '2026-06-01', kg: 90 }, { date: '2026-07-01', kg: 88 }])); // months of history
     b.setRow('2026-06-01', 'bench', 0); // per-record data is merged
     await b.signIn(A);
-    expect(b.json<{ kg: number }[]>('weights').map((x) => x.kg)).toEqual([80]); // B's history is gone
-    expect(JSON.parse(String(sim.server.find(A, 'meta', 'weights')?.data))).toHaveLength(1); // and was never uploaded
+    expect(b.json<{ kg: number }[]>('weights').map((x) => x.kg)).toEqual([90, 88, 80]); // B keeps its history, gets A's
+    expect(sim.server.keysOf(A).filter((k) => k.startsWith('meta:weights/'))).toHaveLength(3); // and it went up
     expect(sim.server.keysOf(A)).toContain('set:2026-06-01|bench|0'); // the per-record data survived
-    // Safe behavior: merge whole-value data by record, and keep a local snapshot before the first sync.
+    await a.sync();
+    expect(a.json<{ kg: number }[]>('weights').map((x) => x.kg)).toEqual([90, 88, 80]);
   });
 
   test('edits and deletes made while signed out survive signing back in to the same account (log kept after a plain sign-out)', async () => {
@@ -180,7 +183,7 @@ describe('F4 · first sync and signing back in', () => {
     await d.signIn(A);
     expect(d.tasks()).toEqual(['t2']); // the deleted task stays deleted
     expect(d.meta('weights')).toBe(w(75)); // the correction is kept
-    expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(75));
+    expect(serverKg()).toBe(75);
     expect(sim.server.keysOf(A)).not.toContain('meta:tasks/t1');
     expect(sim.server.keysOf(A)).toContain('set:2026-11-09|bench|0'); // new records survive too
     expect(d.dirtyKeys()).toEqual([]);
@@ -214,7 +217,7 @@ describe('F5 · rev ordering and skipped rows', () => {
 });
 
 describe('F6 · whole-value keys', () => {
-  test('water logged on two phones the same day: one phone\'s entry is lost; a split key (tasks) keeps both', async () => {
+  test('fixed: water logged on two phones on different days: both entries survive, like tasks', async () => {
     const a = sim.device('A');
     const b = sim.device('B');
     await a.signIn(A);
@@ -228,13 +231,13 @@ describe('F6 · whole-value keys', () => {
     await a.sync();
     await b.sync();
     await a.sync();
-    expect(a.json('water')).toEqual({ '2026-11-02': 300 }); // A's 500 ml is gone on both phones
-    expect(b.json('water')).toEqual({ '2026-11-02': 300 });
+    expect(a.json('water')).toEqual({ '2026-11-01': 500, '2026-11-02': 300 }); // both days, on both phones
+    expect(b.json('water')).toEqual({ '2026-11-02': 300, '2026-11-01': 500 });
     expect(a.tasks().sort()).toEqual(['ta', 'tb']); // the per-record key kept both edits
     expect(b.tasks().sort()).toEqual(['ta', 'tb']);
   });
 
-  test('steps: each phone reads its own Health Connect and they overwrite each other', async () => {
+  test('steps on the same day from two phones\' Health Connect: the newer reading wins that day (one row per date)', async () => {
     const a = sim.device('A');
     const b = sim.device('B');
     await a.signIn(A);
@@ -251,20 +254,22 @@ describe('F6 · whole-value keys', () => {
 });
 
 describe('F7 · device-specific settings', () => {
-  test('backup folder, app lock and steps switch of one phone are applied on the other', async () => {
+  test('fixed: backup folder, app lock and steps switch stay on the phone that set them; the rest still syncs', async () => {
     const a = sim.device('A');
     const b = sim.device('B');
     await a.signIn(A);
     await b.signIn(A);
     sim.advance(1000);
-    a.do(() => a.settings.useSettings.getState().setQuiet({ backupDir: 'content://com.android.externalstorage/tree/primary%3ABackups', appLock: true, stepsSync: true }));
+    a.do(() => a.settings.useSettings.getState().setQuiet({ backupDir: 'content://com.android.externalstorage/tree/primary%3ABackups', appLock: true, stepsSync: true, accent: '#FF9500' }));
     await a.sync();
     await b.sync();
     const s = b.settings.useSettings.getState();
-    expect(s.backupDir).toBe('content://com.android.externalstorage/tree/primary%3ABackups'); // a folder that only exists on A
-    expect(s.appLock).toBe(true);
-    expect(s.stepsSync).toBe(true);
-    // Safe behavior: these stay on the phone that set them; the plan, shop moves and accent still sync.
+    expect(s.backupDir).toBe(''); // a folder that only exists on A
+    expect(s.appLock).toBe(false);
+    expect(s.stepsSync).toBe(false);
+    expect(s.accent).toBe('#FF9500'); // the rest of the settings still sync
+    expect(a.settings.useSettings.getState().appLock).toBe(true);
+    expect(JSON.stringify(sim.server.rowsOf(A))).not.toMatch(/backupDir|appLock|stepsSync|content:/);
   });
 });
 
@@ -407,7 +412,7 @@ describe('F11 · growth', () => {
     const b = sim.device('B');
     await b.signIn(A);
     const first = sim.server.requests.filter((r) => r.device === 'B' && r.call === 'pull')[0];
-    expect(first.returned).toBe(1); // a tombstone, for a set that no longer exists anywhere
+    expect(first.returned).toBe(2); // a tombstone, for a set that no longer exists anywhere (and the dataVersion row)
   });
 
   test('every write saves the whole change log again, so each write costs more than the one before', async () => {

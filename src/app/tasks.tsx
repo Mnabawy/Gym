@@ -30,7 +30,6 @@ const stamp = () => Date.now();
 const ease = () => {
   // Reanimated layout transitions (Item) animate list changes now.
 };
-const LATE = '#C0392B';
 /** Short weekday names by `Date.getDay()` for the week strip. */
 const WD = ['حد', 'اتنين', 'تلات', 'أربع', 'خميس', 'جمعة', 'سبت'];
 
@@ -109,7 +108,7 @@ function Tasks() {
   const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
     items.length ? (
       <View key={key} style={{ gap: 8 }}>
-        {label ? <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} style={s.sec}>
+        {label ? <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} hitSlop={o.fold ? 8 : undefined} style={[s.sec, o.fold ? s.secFold : null]}>
           {o.color ? <View style={[s.secDot, { backgroundColor: o.color }]} /> : null}
           <T w="semi" style={{ fontSize: 13.5, color: o.color ?? t.mute }}>{label}</T>
           <T w="num" style={{ fontSize: 12, color: o.color ?? t.mute }}>{String(items.length)}</T>
@@ -151,7 +150,7 @@ function Tasks() {
             ).map(([k, l, n]) => {
               const on = tab === k;
               return (
-                <Pressable key={k} onPress={() => { ease(); setTab(k); }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.segOn } : null]}>
+                <Pressable key={k} onPress={() => { ease(); setTab(k); }} hitSlop={{ top: 6, bottom: 6 }} accessibilityRole="tab" accessibilityState={{ selected: on }} style={[s.segItem, on ? { backgroundColor: t.segOn } : null]}>
                   <T w={on ? 'semi' : 'medium'} style={{ fontSize: 13.5, color: on ? t.fg : t.mute }} numberOfLines={1}>{l}</T>
                   {n ? <T w="numBold" style={{ fontSize: 11.5, color: on ? t.okText : t.mute }}>{String(n)}</T> : null}
                 </Pressable>
@@ -208,7 +207,7 @@ function Tasks() {
       {tab === 'today' ? (
         todayAll ? (
           <>
-            {group('late', 'متأخرة', tv.overdue, { color: LATE, showDate: true })}
+            {group('late', 'متأخرة', tv.overdue, { color: t.bad, showDate: true })}
             {tv.day.length ? group('day', tv.overdue.length ? 'النهارده' : '', tv.day) : !tv.overdue.length ? <Empty t={t} icon="checkmark-done-outline" title="خلّصت مهام النهارده" sub="برافو. لو فيه حاجة تانية اكتبها تحت" /> : null}
             {group('done', 'خلصت', tv.done, { fold: true })}
           </>
@@ -225,12 +224,12 @@ function Tasks() {
             ) : (
               <WeekStrip t={t} day={day} today={today} marks={dueCounts(list)} onPick={(d) => { tap(); ease(); setDay(d); }} />
             )}
-            <Pressable onPress={() => { ease(); setMonth(!month); }} accessibilityRole="button" accessibilityState={{ expanded: month }} style={s.monthBtn}>
+            <Pressable onPress={() => { ease(); setMonth(!month); }} accessibilityRole="button" accessibilityState={{ expanded: month }} hitSlop={{ bottom: 4 }} style={s.monthBtn}>
               <T w="semi" style={{ fontSize: 12.5, color: t.okText }}>{month ? 'اقفل الشهر' : 'الشهر كله'}</T>
               <Ionicons name={month ? 'chevron-up' : 'chevron-down'} size={14} color={t.okText} />
             </Pressable>
           </View>
-          {day === today && tv.overdue.length ? group('late', 'متأخرة', tv.overdue, { color: LATE, showDate: true }) : null}
+          {day === today && tv.overdue.length ? group('late', 'متأخرة', tv.overdue, { color: t.bad, showDate: true }) : null}
           {dayTasks(list, day).length || doneOn(list, day).length ? (
             <>
               {group('day', dueAr(day, today), dayTasks(list, day))}
@@ -244,7 +243,7 @@ function Tasks() {
 
       {tab === 'all' ? (
         allView(list, today).length ? (
-          allView(list, today).map((g) => group(g.late ? 'late' : g.date ?? 'none', g.late ? 'متأخرة' : g.date ? dueAr(g.date, today) : 'من غير تاريخ', g.tasks, { color: g.late ? LATE : undefined, showDate: g.late }))
+          allView(list, today).map((g) => group(g.late ? 'late' : g.date ?? 'none', g.late ? 'متأخرة' : g.date ? dueAr(g.date, today) : 'من غير تاريخ', g.tasks, { color: g.late ? t.bad : undefined, showDate: g.late }))
         ) : (
           <Empty t={t} icon="checkmark-done-outline" title="مفيش حاجة مفتوحة" sub="كل مهامك خلصت" />
         )
@@ -313,7 +312,7 @@ function WeekStrip({ t, day, today, marks, onPick }: { t: Theme; day: string; to
   const days = Array.from({ length: 7 }, (_, i) => addDays(start, i));
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center' }}>
-      <Pressable onPress={() => onPick(addDays(day, -7))} hitSlop={6} accessibilityRole="button" accessibilityLabel="الأسبوع اللي فات" style={s.wArrow}>
+      <Pressable onPress={() => onPick(addDays(day, -7))} hitSlop={{ left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="الأسبوع اللي فات" style={s.wArrow}>
         <Ionicons name="chevron-forward" size={18} color={t.mute} />
       </Pressable>
       {days.map((d) => {
@@ -329,7 +328,7 @@ function WeekStrip({ t, day, today, marks, onPick }: { t: Theme; day: string; to
           </Pressable>
         );
       })}
-      <Pressable onPress={() => onPick(addDays(day, 7))} hitSlop={6} accessibilityRole="button" accessibilityLabel="الأسبوع الجاي" style={s.wArrow}>
+      <Pressable onPress={() => onPick(addDays(day, 7))} hitSlop={{ left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="الأسبوع الجاي" style={s.wArrow}>
         <Ionicons name="chevron-back" size={18} color={t.mute} />
       </Pressable>
     </View>
@@ -357,7 +356,7 @@ function TaskRow({ t, x, goal, today, last, showDate, onToggle, onOpen, subsOpen
   const c = x.priority === 3 ? t.ok : x.priority === 4 ? t.mute : PRIORITY[x.priority].color;
   const done = !!x.done;
   const meta: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; color?: string }[] = [];
-  if (showDate && x.due) meta.push({ icon: 'calendar-outline', text: dueAr(x.due, today), color: x.due < today && !done ? LATE : undefined });
+  if (showDate && x.due) meta.push({ icon: 'calendar-outline', text: dueAr(x.due, today), color: x.due < today && !done ? t.bad : undefined });
   if (x.time != null) meta.push({ icon: 'time-outline', text: timeAr(x.time) });
   if (x.repeat) meta.push({ icon: 'repeat', text: REPEAT_AR[x.repeat] });
   if (x.remind) meta.push({ icon: 'notifications-outline', text: '' });
@@ -401,7 +400,7 @@ function TaskRow({ t, x, goal, today, last, showDate, onToggle, onOpen, subsOpen
         {(meta.length || x.tag || goal) && !done ? (
           <View style={s.meta}>
             {goal ? (
-              <Pressable onPress={() => router.push(`/goals/${goal.id}`)} hitSlop={6} accessibilityRole="link" accessibilityLabel={`من هدف ${goal.name}`} style={({ pressed }) => [s.metaItem, { opacity: pressed ? 0.5 : 1 }]}>
+              <Pressable onPress={() => router.push(`/goals/${goal.id}`)} hitSlop={{ top: 3, bottom: 11, left: 6, right: 6 }} accessibilityRole="link" accessibilityLabel={`من هدف ${goal.name}`} style={({ pressed }) => [s.metaItem, { opacity: pressed ? 0.5 : 1 }]}>
                 <Ionicons name="flag" size={12} color={goal.color} />
                 <T style={{ fontSize: 12, color: t.mute }} numberOfLines={1}>{goal.name}</T>
               </Pressable>
@@ -417,7 +416,7 @@ function TaskRow({ t, x, goal, today, last, showDate, onToggle, onOpen, subsOpen
         ) : null}
       </Pressable>
       {!done && (x.subs.length || subsOpen) ? (
-        <Pressable onPress={onSubs} hitSlop={6} accessibilityRole="button" accessibilityLabel={`المهام الفرعية ${subsDone} من ${x.subs.length}`} accessibilityState={{ expanded: subsOpen }} style={({ pressed }) => [s.subBtn, { backgroundColor: subsOpen ? tint(t.ok, 0.14) : t.soft, opacity: pressed ? 0.7 : 1 }]}>
+        <Pressable onPress={onSubs} hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }} accessibilityRole="button" accessibilityLabel={`المهام الفرعية ${subsDone} من ${x.subs.length}`} accessibilityState={{ expanded: subsOpen }} style={({ pressed }) => [s.subBtn, { backgroundColor: subsOpen ? tint(t.ok, 0.14) : t.soft, opacity: pressed ? 0.7 : 1 }]}>
           <T w="numBold" style={{ fontSize: 12, color: subsOpen ? t.okText : t.mute }}>{`${subsDone}/${x.subs.length}`}</T>
           <Ionicons name={subsOpen ? 'chevron-up' : 'chevron-down'} size={14} color={subsOpen ? t.okText : t.mute} />
         </Pressable>
@@ -446,11 +445,11 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
     <View style={[s.subs, { borderColor: t.line }]}>
       {x.subs.map((y) => (
         <Item key={y.id}><View style={s.subRow}>
-          <Pressable onPress={() => { tap(); saveTask(toggleSub(x, y.id)); }} hitSlop={10} accessibilityRole="checkbox" accessibilityState={{ checked: y.done }} accessibilityLabel={y.title} style={[s.subCb, { borderColor: y.done ? t.mute : t.ok, backgroundColor: y.done ? t.mute : 'transparent' }]}>
+          <Pressable onPress={() => { tap(); saveTask(toggleSub(x, y.id)); }} hitSlop={{ top: 13, bottom: 13, left: 10, right: 10 }} accessibilityRole="checkbox" accessibilityState={{ checked: y.done }} accessibilityLabel={y.title} style={[s.subCb, { borderColor: y.done ? t.mute : t.ok, backgroundColor: y.done ? t.mute : 'transparent' }]}>
             {y.done ? <Pop value="done"><Ionicons name="checkmark" size={12} color={t.bg} /></Pop> : null}
           </Pressable>
           <T style={{ flex: 1, fontSize: 14.5, lineHeight: 21, color: y.done ? t.mute : t.fg, textDecorationLine: y.done ? 'line-through' : 'none' }}>{y.title}</T>
-          <Pressable onPress={() => { ease(); saveTask(removeSub(x, y.id)); }} hitSlop={10} accessibilityRole="button" accessibilityLabel={`امسح ${y.title}`} style={s.subX}>
+          <Pressable onPress={() => { ease(); saveTask(removeSub(x, y.id)); }} hitSlop={{ top: 7, bottom: 7, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={`امسح ${y.title}`} style={s.subX}>
             <Ionicons name="close" size={16} color={t.bad} />
           </Pressable>
         </View></Item>
@@ -472,7 +471,7 @@ function SubList({ t, x }: { t: Theme; x: Task }) {
           style={[INPUT, s.subIn, { color: t.fg, ...font('body') }]}
         />
         {text.trim() ? (
-          <Pressable onPress={add} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">
+          <Pressable onPress={add} hitSlop={10} accessibilityRole="button" accessibilityLabel="ضيف المهمة الفرعية">
             <Ionicons name="checkmark-circle" size={24} color={t.ok} />
           </Pressable>
         ) : null}
@@ -492,14 +491,15 @@ const s = StyleSheet.create({
   segBar: { flexDirection: 'row', padding: 2, borderRadius: 9, gap: 2 },
   segItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 32, borderRadius: 7 },
   secDot: { width: 7, height: 7, borderRadius: 4 },
-  monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 28, marginTop: 2 },
-  wArrow: { width: 24, height: 48, alignItems: 'center', justifyContent: 'center' },
+  monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 40, marginTop: 2 },
+  wArrow: { width: 40, height: 48, alignItems: 'center', justifyContent: 'center' },
   wd: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 12, borderWidth: 1.5, gap: 1 },
   dot: { width: 4, height: 4, borderRadius: 2 },
   seg: { flexDirection: 'row', padding: 4, borderRadius: 12, gap: 4 },
   segBtn: { flex: 1, flexDirection: 'row', gap: 6, height: 40, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   badge: { minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 5, alignItems: 'center', justifyContent: 'center' },
   sec: { flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 4, marginTop: 2 },
+  secFold: { minHeight: 28 },
   card: { borderRadius: 12, overflow: 'hidden' },
   task: { flexDirection: 'row', gap: 12, alignItems: 'center', paddingHorizontal: 14 },
   body: { flex: 1, minWidth: 0, flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 11, minHeight: 52 },
@@ -508,7 +508,7 @@ const s = StyleSheet.create({
   metaItem: { flexDirection: 'row', alignItems: 'center', gap: 3 },
   subBtn: { flexDirection: 'row', alignItems: 'center', gap: 2, height: 24, borderRadius: 12, paddingHorizontal: 7 },
   subs: { marginStart: 30, borderStartWidth: 2, paddingStart: 8, paddingBottom: 6, gap: 0 },
-  subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 32 },
+  subRow: { flexDirection: 'row', alignItems: 'center', gap: 8, minHeight: 44 },
   subCb: { width: 18, height: 18, borderRadius: 5, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   subX: { width: 26, height: 30, alignItems: 'center', justifyContent: 'center' },
   subIn: { flex: 1, minWidth: 0, height: 34, fontSize: 14, textAlign: 'right', outlineWidth: 0 },

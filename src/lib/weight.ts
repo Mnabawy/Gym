@@ -8,6 +8,7 @@
 // The rate is a least-squares line through the last 4 weeks of weigh-ins, so one salty dinner doesn't move it.
 import { addDays, daysBetween } from './gaps';
 import { LIMITS, type Goal } from './energy';
+import { keepExtra, keepUnreadDated } from './records';
 
 export type WeighIn = { date: string; kg: number };
 export const WEIGHTS_KEY = 'weights';
@@ -15,6 +16,15 @@ export const RATE_DAYS = 28;
 const DATE = /^\d{4}-\d{2}-\d{2}$/;
 
 export const validWeight = (kg: number | null): kg is number => kg != null && kg >= LIMITS.weight[0] && kg <= LIMITS.weight[1];
+
+const WEIGH_FIELDS = new Set(['date', 'kg']);
+/** One stored weigh-in, or null when this build can't read it. Fields it doesn't know ride along (records.ts). */
+function readWeighIn(x: unknown): WeighIn | null {
+  if (!x || typeof x !== 'object') return null;
+  const o = x as Record<string, unknown>;
+  if (typeof o.date !== 'string' || !DATE.test(o.date) || typeof o.kg !== 'number' || !validWeight(o.kg)) return null;
+  return keepExtra<WeighIn>(o, WEIGH_FIELDS, { date: o.date, kg: o.kg });
+}
 
 export function parseWeights(raw: string | null): WeighIn[] {
   if (!raw) return [];
@@ -25,16 +35,21 @@ export function parseWeights(raw: string | null): WeighIn[] {
     return [];
   }
   if (!Array.isArray(v)) return [];
-  const by = new Map<string, number>();
+  const by = new Map<string, WeighIn>();
   for (const x of v) {
-    if (x && typeof x === 'object' && typeof x.date === 'string' && DATE.test(x.date) && typeof x.kg === 'number' && validWeight(x.kg)) by.set(x.date, x.kg);
+    const w = readWeighIn(x);
+    if (w) by.set(w.date, w);
   }
-  return [...by].map(([date, kg]) => ({ date, kg })).sort((a, b) => (a.date < b.date ? -1 : 1));
+  return [...by.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
+
+/** The JSON to store for `next`: it plus the stored weigh-ins this build can't read (synced one per date, never dropped). */
+export const weightsJson = (raw: string | null, next: readonly WeighIn[]) => keepUnreadDated(raw, next, (x) => readWeighIn(x) != null);
 
 /** Adds or replaces the weigh-in for `date`, kept in date order. */
 export function addWeighIn(list: readonly WeighIn[], date: string, kg: number): WeighIn[] {
-  return [...list.filter((w) => w.date !== date), { date, kg: Math.round(kg * 10) / 10 }].sort((a, b) => (a.date < b.date ? -1 : 1));
+  const old = list.find((w) => w.date === date);
+  return [...list.filter((w) => w.date !== date), keepExtra<WeighIn>(old, WEIGH_FIELDS, { date, kg: Math.round(kg * 10) / 10 })].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 export const removeWeighIn = (list: readonly WeighIn[], date: string): WeighIn[] => list.filter((w) => w.date !== date);
@@ -114,6 +129,17 @@ export function latestParts(list: readonly Measure[]): Partial<Record<Part, numb
 export type Measure = { date: string } & Partial<Record<Part, number>>;
 const validCm = (v: unknown): v is number => typeof v === 'number' && v >= 10 && v <= 250;
 
+const MEASURE_FIELDS = new Set(['date', ...PARTS.map((p) => p.k)]);
+/** One stored measurement, or null when this build can't read it (no part it knows). Unknown fields ride along. */
+function readMeasure(x: unknown): Measure | null {
+  if (!x || typeof x !== 'object') return null;
+  const o = x as Record<string, unknown>;
+  if (typeof o.date !== 'string' || !DATE.test(o.date)) return null;
+  const m: Measure = { date: o.date };
+  for (const p of PARTS) if (validCm(o[p.k])) m[p.k] = o[p.k] as number;
+  return Object.keys(m).length > 1 ? keepExtra(o, MEASURE_FIELDS, m) : null;
+}
+
 export function parseMeasures(raw: string | null): Measure[] {
   let v: unknown;
   try {
@@ -124,20 +150,23 @@ export function parseMeasures(raw: string | null): Measure[] {
   if (!Array.isArray(v)) return [];
   const by = new Map<string, Measure>();
   for (const x of v) {
-    if (!x || typeof x !== 'object' || typeof x.date !== 'string' || !DATE.test(x.date)) continue;
-    const m: Measure = { date: x.date };
-    for (const p of PARTS) if (validCm(x[p.k])) m[p.k] = x[p.k];
-    if (Object.keys(m).length > 1) by.set(m.date, m);
+    const m = readMeasure(x);
+    if (m) by.set(m.date, m);
   }
   return [...by.values()].sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+/** The JSON to store for `next`: it plus the stored measurements this build can't read. */
+export const measuresJson = (raw: string | null, next: readonly Measure[]) => keepUnreadDated(raw, next, (x) => readMeasure(x) != null);
+
 /** Adds the measurements for a date (replacing that date's), rounded to 0.5 cm; an entry with nothing in it is dropped. */
 export function addMeasure(list: readonly Measure[], m: Measure): Measure[] {
-  const clean: Measure = { date: m.date };
+  let clean: Measure = { date: m.date };
   for (const p of PARTS) if (validCm(m[p.k])) clean[p.k] = Math.round((m[p.k] as number) * 2) / 2;
+  const n = Object.keys(clean).length;
+  clean = keepExtra(list.find((x) => x.date === m.date), MEASURE_FIELDS, clean);
   const rest = list.filter((x) => x.date !== m.date);
-  return (Object.keys(clean).length > 1 ? [...rest, clean] : rest).sort((a, b) => (a.date < b.date ? -1 : 1));
+  return (n > 1 ? [...rest, clean] : rest).sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
 /** Change per part from the first measurement of that part to the latest (null when measured once or never). */

@@ -30,7 +30,7 @@ export function MonthCalendar({ value, onPick, today, marks, color }: { value: s
           <T w="bold" style={{ fontSize: 16 }}>{`${MONTHS_AR[+ym.slice(5) - 1]} ${ym.slice(0, 4)}`}</T>
         </View>
         {!thisMonth ? (
-          <Pressable onPress={() => setYm(today.slice(0, 7))} hitSlop={6} accessibilityRole="button" style={[s.todayBtn, { backgroundColor: t.soft }]}>
+          <Pressable onPress={() => setYm(today.slice(0, 7))} hitSlop={{ top: 7, bottom: 7, left: 6, right: 6 }} accessibilityRole="button" style={[s.todayBtn, { backgroundColor: t.soft }]}>
             <T w="semi" style={{ fontSize: 12 }}>الشهر ده</T>
           </Pressable>
         ) : null}
@@ -108,7 +108,7 @@ export function RangeCalendar({ from, to, onChange, today, marks, color }: { fro
           <T w="bold" style={{ fontSize: 16 }}>{`${MONTHS_AR[+ym.slice(5) - 1]} ${ym.slice(0, 4)}`}</T>
         </View>
         {!thisMonth ? (
-          <Pressable onPress={() => setYm(today.slice(0, 7))} hitSlop={6} accessibilityRole="button" style={[s.todayBtn, { backgroundColor: t.soft }]}>
+          <Pressable onPress={() => setYm(today.slice(0, 7))} hitSlop={{ top: 7, bottom: 7, left: 6, right: 6 }} accessibilityRole="button" style={[s.todayBtn, { backgroundColor: t.soft }]}>
             <T w="semi" style={{ fontSize: 12 }}>الشهر ده</T>
           </Pressable>
         ) : null}

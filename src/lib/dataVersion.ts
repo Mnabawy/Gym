@@ -5,8 +5,12 @@
 // Pulls still apply. records.ts keeps unknown fields either way; this guards what a field list can't (new meanings).
 // Pure — unit tested in __tests__/dataVersion.test.ts.
 
-/** This build's data version. Never lower it. */
-export const DATA_VERSION = 1;
+/**
+ * This build's data version. Never lower it.
+ * 2: the food and body logs, notes, exercise names and settings sync one record per row (`water/<date>`,
+ *    `settings/<field>`…, cloudSync.ts SPLIT_META); a version-1 build would skip those rows and send whole values.
+ */
+export const DATA_VERSION = 2;
 export const DATA_VERSION_KEY = 'dataVersion';
 
 /** The stored version (a missing or broken value counts as 1: data written before versions existed). */

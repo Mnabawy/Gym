@@ -12,6 +12,8 @@ afterEach(() => sim.uninstall());
 const A = 'a@x.test';
 const B = 'b@x.test';
 const w = (kg: number) => JSON.stringify([{ date: '2026-11-01', kg }]);
+/** The weigh-in on the server (weights sync one row per date). */
+const onServer = (acct: string) => (sim.server.find(acct, 'meta', 'weights/2026-11-01')?.data as { kg: number } | undefined)?.kg;
 
 test('sign-out with unsent changes keeps them in the change log', async () => {
   const p = sim.device('P');
@@ -20,7 +22,7 @@ test('sign-out with unsent changes keeps them in the change log', async () => {
   p.setMeta('weights', w(80));
   expect(p.dirtyKeys().length).toBeGreaterThan(0);
   await p.signOut();
-  expect(p.dirtyKeys()).toContain('meta:weights');
+  expect(p.dirtyKeys()).toContain('meta:weights/2026-11-01');
 });
 
 test('signing back in to the same account sends them; the older server value does not win', async () => {
@@ -36,7 +38,7 @@ test('signing back in to the same account sends them; the older server value doe
   sim.advance(1000);
   await p.signIn(A);
   expect(p.meta('weights')).toBe(w(80));
-  expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(80));
+  expect(onServer(A)).toBe(80);
   await q.sync();
   expect(q.meta('weights')).toBe(w(80));
   expect(p.dirtyKeys()).toEqual([]);
@@ -49,8 +51,8 @@ test('a different account drops the old account\'s unsent changes', async () => 
   p.setMeta('weights', w(80));
   await p.signOut();
   await p.signIn(B);
-  expect(sim.server.find(B, 'meta', 'weights')?.data).toBe(w(80)); // phone-only data goes up whole on first sync
-  expect(sim.server.find(A, 'meta', 'weights')).toBeFalsy();
+  expect(onServer(B)).toBe(80); // phone-only data goes up on first sync
+  expect(onServer(A)).toBeUndefined();
   expect(p.dirtyKeys()).toEqual([]);
 });
 
@@ -71,13 +73,13 @@ test('edits and deletes made while signed out (with a kept log) survive signing 
   sim.advance(1000);
   p.setMeta('weights', w(90)); // existing key changed while signed out
   p.do(() => p.storage.clearDay('2026-11-01', ['bench'])); // existing set deleted while signed out
-  expect(p.dirtyKeys()).toEqual(expect.arrayContaining(['meta:weights', 'set:2026-11-01|bench|0']));
+  expect(p.dirtyKeys()).toEqual(expect.arrayContaining(['meta:weights/2026-11-01', 'set:2026-11-01|bench|0']));
   expect(await p.sync()).toBe('off'); // still off: nothing is sent while signed out
   sim.advance(1000);
   await p.signIn(A);
   expect(p.meta('weights')).toBe(w(90));
   expect(p.setKeys()).toEqual([]);
-  expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(90));
+  expect(onServer(A)).toBe(90);
   expect(p.dirtyKeys()).toEqual([]);
   await q.sync();
   expect(q.meta('weights')).toBe(w(90));
@@ -111,7 +113,7 @@ test('a sign-out with nothing unsent still keeps noting writes for the same acco
   sim.advance(1000);
   await p.signIn(A);
   expect(p.meta('weights')).toBe(w(90));
-  expect(sim.server.find(A, 'meta', 'weights')?.data).toBe(w(90));
+  expect(onServer(A)).toBe(90);
   await p.signOut({ wipe: true });
   expect(p.meta('sync.lastUid')).toBeFalsy();
   p.setMeta('weights', w(95));
