@@ -14,7 +14,7 @@
 //   and the time of day you slip most.
 // - A replacement behaviour for the same cue (competing response, from habit reversal training, Azrin & Nunn 1973).
 // - Milestones at 1, 3, 7, 14, 30, 60, 90, 180 and 365 days give near goals instead of one far one.
-import { dateKey } from './logic';
+import { dateKey } from './dates';
 import { isRec, keepExtra, parseList } from './records';
 
 export const QUITS_KEY = 'quits';

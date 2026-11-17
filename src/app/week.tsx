@@ -6,9 +6,8 @@ import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../data/program
 import { MEAL_ORDER } from '../data/nutrition';
 import { Card, Label, Progress, Ring, Screen, T } from '../components/ui';
 import { energyFor } from '../lib/energy';
-import { addDays, weekStart } from '../lib/gaps';
+import { addDays, dateKey, weekStart } from '../lib/dates';
 import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../lib/journal';
-import { dateKey } from '../lib/logic';
 import { isTrainingDay } from '../lib/schedule';
 import { readNumbers, readStrings } from '../lib/meta';
 import { weekReport } from '../lib/report';

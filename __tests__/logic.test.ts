@@ -2,7 +2,8 @@
 import { PLAN_WEEKDAYS, PROGRAM, dayFor, dayMuscles, dayTitle } from '../src/data/program';
 import { MEALS, MEAL_ORDER, TARGETS, WEEK_MENU, FOODS } from '../src/data/nutrition';
 import { SHOPPING } from '../src/data/shopping';
-import { addMonths, bestE1rm, countAr, TIMES, SETS, dateKey, dayStatus, epley, formatClock, mealMacros, monthCells, monthStats, parseNum, shopWeekKey, shouldIncrease, increaseTip, weekdayOf } from '../src/lib/logic';
+import { addMonths, dateKey, monthCells, weekdayOf } from '../src/lib/dates';
+import { bestE1rm, countAr, TIMES, SETS, dayStatus, epley, formatClock, mealMacros, monthStats, parseNum, shopWeekKey, shouldIncrease, increaseTip } from '../src/lib/logic';
 
 describe('program data matches the PDF', () => {
   test('training days are Mon, Tue, Wed, Fri (the two leg days are one since Nov 2026)', () => {

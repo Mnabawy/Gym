@@ -8,7 +8,7 @@ import { Ring, Screen, Sheet, Stepper, T } from '../components/ui';
 import { ACTION, Swipe } from '../components/Swipe';
 import { showUndo } from '../lib/undo';
 import { useDataVersion } from '../lib/bus';
-import { dateKey, weekdayOf } from '../lib/logic';
+import { dateKey, weekdayOf } from '../lib/dates';
 import { clock, countOn, KINDS, minAr, minutesOn, paused, PHASE_AR, phaseMs, remaining, running, streak, week, type Kind } from '../lib/focus';
 import { endPhase, pauseFocus, readCfg, readFocus, readSessions, resetFocus, saveCfg, setFocus, startFocus, tickFocus, writeSessions } from '../lib/focusStore';
 import { allView } from '../lib/tasks';

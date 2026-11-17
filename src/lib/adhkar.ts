@@ -2,6 +2,7 @@
 // Progress lives in meta `adhkar`: `date|time` → how many times each dhikr was said so far (by its id). Only the
 // last week is kept. Finishing the whole list ticks the matching part of the adhkar habit (habits.tsx / habitStore).
 import { ADHKAR, type AdhkarTime, type Dhikr } from '../data/adhkar';
+import { addDays } from './dates';
 import type { Habit } from './habits';
 
 export type AdhkarLog = Record<string, Record<string, number>>;
@@ -30,9 +31,7 @@ export function parseAdhkarLog(raw: string | null): AdhkarLog {
 
 /** Drops days older than a week before `today`. */
 export function pruneAdhkar(log: AdhkarLog, today: string): AdhkarLog {
-  const min = new Date(`${today}T00:00:00Z`);
-  min.setUTCDate(min.getUTCDate() - 7);
-  const cut = min.toISOString().slice(0, 10);
+  const cut = addDays(today, -7);
   return Object.fromEntries(Object.entries(log).filter(([k]) => k.slice(0, 10) >= cut));
 }
 

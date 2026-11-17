@@ -1,8 +1,8 @@
 /// <reference types="jest" />
 import { dayFor } from '../src/data/program';
-import { weekdayOf } from '../src/lib/logic';
+import { addDays, daysBetween, weekdayOf, weekStart } from '../src/lib/dates';
 import type { SetRow } from '../src/lib/storage.types';
-import { addDays, analyze, ctxOf, dayInfo, deloadDue, daysBetween, prSet, dueDates, exerciseAdherence, planSets, toSessions, trendOf, weekStart, weeksSinceLight } from '../src/lib/gaps';
+import { analyze, ctxOf, dayInfo, deloadDue, prSet, dueDates, exerciseAdherence, planSets, toSessions, trendOf, weeksSinceLight } from '../src/lib/gaps';
 
 const TODAY = '2026-11-04'; // Wednesday
 

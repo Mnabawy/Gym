@@ -3,7 +3,7 @@ import { View, type ViewStyle } from 'react-native';
 import { MONTHS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
 import { DB_RECOVERED_KEY, parseDbRecovery, type DbRecovery } from '../lib/dbOpen';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { storage } from '../lib/storage';
 import { useTheme } from '../theme';
 import { Btn, T } from './ui';

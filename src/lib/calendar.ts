@@ -1,6 +1,6 @@
 // One calendar for the whole app (/calendar): pick what it shows — the gym, habits, goals or quitting — and each day
 // gets a mark for how it went. Pure: the page reads the data and passes it in.
-import { addDays } from './gaps';
+import { addDays } from './dates';
 import { isDue, logKey, partsDone, type Habit, type Log, type PartsLog } from './habits';
 import { schedule, type Goal } from './goals';
 import type { Quit } from './quit';

@@ -3,8 +3,7 @@
 // Views: Today (overdue + today + done today), Calendar (a month with a dot per busy day, then that day's tasks), and
 // All (everything open, by day, then the ones with no day). Saved as JSON in storage meta `tasks`.
 // Pure — unit tested in __tests__/tasks.test.ts.
-import { addDays } from './gaps';
-import { weekdayOf } from './logic';
+import { addDays, weekdayOf } from './dates';
 import { isRec, keepExtra, parseList } from './records';
 
 export const TASKS_KEY = 'tasks';
@@ -293,9 +292,7 @@ export const toTrash = (trash: readonly Trashed[], task: Task, at: string): Tras
 
 /** Drops what was deleted more than 30 days before `today` and anything that's back in the list (undo, restore). */
 export function pruneTrash(trash: readonly Trashed[], tasks: readonly Task[], today: string): Trashed[] {
-  const cut = new Date(`${today}T12:00:00`);
-  cut.setDate(cut.getDate() - 30);
-  const k = cut.toISOString().slice(0, 10);
+  const k = addDays(today, -30);
   const live = new Set(tasks.map((t) => t.id));
   return trash.filter((x) => x.at >= k && !live.has(x.task.id));
 }

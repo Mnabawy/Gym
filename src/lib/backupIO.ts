@@ -5,7 +5,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';
 import { File, Paths } from 'expo-file-system';
 import { backupFileName, toBackup } from './backup';
-import { dateKey } from './logic';
+import { dateKey } from './dates';
 import { exportPhotos } from './photos';
 import { storage } from './storage';
 

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { AppState } from 'react-native';
-import { dateKey } from './logic';
+import { dateKey } from './dates';
 import { msUntilMidnight } from './rollover';
 import { useSettings } from './settings';
 

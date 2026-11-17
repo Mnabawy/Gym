@@ -10,7 +10,7 @@ import { showUndo } from '../lib/undo';
 import { NoteEditor, NoteView } from './NoteEditor';
 import { currentStage, duplicateStage, nextTask, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { tap } from '../lib/timer';
 import { tint, type Theme, font } from '../theme';
 
@@ -293,7 +293,7 @@ const shortAmt = (n: number) => {
   const r = (x: number) => String(Math.round(x * 10) / 10);
   return Math.abs(n) >= 1e6 ? `${r(n / 1e6)} مليون` : Math.abs(n) >= 1000 ? `${r(n / 1000)} ألف` : String(Math.round(n));
 };
-const dayShort = (d: string) => `${+d.slice(8)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]}${d.slice(0, 4) !== new Date().toISOString().slice(0, 4) ? ` ${d.slice(0, 4)}` : ''}`;
+const dayShort = (d: string) => `${+d.slice(8)} ${MONTHS_SHORT[+d.slice(5, 7) - 1]}${d.slice(0, 4) !== dateKey().slice(0, 4) ? ` ${d.slice(0, 4)}` : ''}`;
 
 /** Deletes a stage (with its tasks) or one task, with undo. */
 /** Duplicate a stage with its steps right under it (undoable). */

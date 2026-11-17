@@ -5,7 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';
 import { PHOTO_NAME, type PhotoData } from './backup';
-import { dateKey } from './logic';
+import { dateKey } from './dates';
 
 /** ≈ 150–300 KB per photo: enough to see the change, small enough for the backup file. */
 const MAX_SIDE = 1280;

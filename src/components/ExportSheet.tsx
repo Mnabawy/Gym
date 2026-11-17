@@ -7,7 +7,7 @@ import { bodyCsv, cardioCsv, goalsCsv, habitsCsv, setsCsv } from '../lib/csv';
 import { readGoals } from '../lib/goalStore';
 import { readHabitLog, readHabits } from '../lib/habitStore';
 import { HABITS_OFF } from '../lib/hidden';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { exerciseInfo, PAST_KEY, parsePast } from '../lib/programEdit';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';

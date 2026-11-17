@@ -4,7 +4,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { parseSteps, STEPS_GOAL, STEPS_KEY, CARDIO, CARDIO_KEY, cardioId, cardioKcal, cardioWeek, INTENSITY, parseCardio, WHO_MIN, type Cardio, type CardioType, type Intensity } from '../lib/cardio';
 import { useDataVersion } from '../lib/bus';
 import { showUndo } from '../lib/undo';
-import { weekStart } from '../lib/gaps';
+import { weekStart } from '../lib/dates';
 import { parseNum } from '../lib/logic';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';

@@ -2,7 +2,7 @@
 import { useDataVersion } from './bus';
 import { keepUnread } from './records';
 import { parseTask, parseTasks, parseTrash, parseTrashed, pruneTrash, revertTasks, toTrash, TASKS_KEY, TRASH_KEY, type Task, type Trashed } from './tasks';
-import { dateKey } from './logic';
+import { addDays, dateKey } from './dates';
 import { storage } from './storage';
 
 export const readTasks = () => parseTasks(storage.getMeta(TASKS_KEY));
@@ -63,9 +63,7 @@ export const emptyTrash = () => writeTrash([]);
 
 /** Clears tasks done more than 30 days ago, so the list doesn't grow forever (the weekly report only looks back a week or so). */
 export function pruneDone(today: string) {
-  const cut = new Date(`${today}T12:00:00`);
-  cut.setDate(cut.getDate() - 30);
-  const k = cut.toISOString().slice(0, 10);
+  const k = addDays(today, -30);
   const list = readTasks();
   const kept = list.filter((t) => !t.done || t.done >= k);
   if (kept.length !== list.length) writeTasks(kept);

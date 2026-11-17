@@ -9,7 +9,8 @@
 // - A light week every 6–8 weeks (see TRAINING_RULES).
 import { ALL_EXERCISES, MUSCLE_AR, PLAN_WEEKDAYS, PROGRAM, dayFor, exerciseById, type Muscle } from '../data/program';
 import type { SetRow } from './storage.types';
-import { dateKey, epley, weekdayOf, type DayStatus } from './logic';
+import { addDays, dateKey, daysBetween, weekdayOf, weekStart } from './dates';
+import { epley, type DayStatus } from './logic';
 
 export const MUSCLES = Object.keys(MUSCLE_AR) as Muscle[];
 export const WINDOW_DAYS = 28;
@@ -21,23 +22,6 @@ export const MEV = 4;
 export const DELOAD_WEEKS = 6;
 /** A trained day under this share of its planned sets shows as "ناقص". */
 export const PARTIAL = 0.8;
-
-export function addDays(key: string, n: number): string {
-  const [y, m, d] = key.split('-').map(Number);
-  return dateKey(new Date(y, m - 1, d + n));
-}
-
-/** Days from a to b (b − a). */
-export function daysBetween(a: string, b: string): number {
-  const p = (k: string) => {
-    const [y, m, d] = k.split('-').map(Number);
-    return Date.UTC(y, m - 1, d);
-  };
-  return Math.round((p(b) - p(a)) / 86_400_000);
-}
-
-/** Saturday that starts the week containing `key`. */
-export const weekStart = (key: string) => addDays(key, -((weekdayOf(key) + 1) % 7));
 
 /**
  * One exercise on one date. done = sets ticked; e1rm = best Epley over sets with weight and reps (ticked or not, like the progress chart).

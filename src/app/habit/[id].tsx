@@ -6,13 +6,12 @@ import { MONTHS_AR, WEEKDAY_LETTERS_AR, WEEKDAYS_AR } from '../../data/program';
 import { Btn, Card, Label, Progress, Ring, Screen, T } from '../../components/ui';
 import { HabitForm } from '../../components/HabitForm';
 import { useDataVersion } from '../../lib/bus';
-import { addDays, weekStart } from '../../lib/gaps';
+import { addDays, addMonths, dateKey, monthCells, weekStart } from '../../lib/dates';
 import { ALL_DAYS, dayState, FORM_DAYS, habitStats, logKey, nextMark, pausedNow, PHASES, phaseFill, phaseOf, togglePause, type DayState, type Habit, type Log } from '../../lib/habits';
 import { deleteHabit, readHabitLog, readHabitParts, readHabits, saveHabit, setMark } from '../../lib/habitStore';
 import { confirm } from '../../lib/confirm';
 import { partRates, partsDone, refAr } from '../../lib/habits';
 import { PRAYER_AR } from '../../lib/prayer';
-import { addMonths, dateKey, monthCells } from '../../lib/logic';
 import { tap } from '../../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';
 

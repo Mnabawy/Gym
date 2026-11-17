@@ -5,7 +5,7 @@
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { dayFor } from '../data/program';
-import { dateKey } from './logic';
+import { addDays, dateKey } from './dates';
 import { after, currentWorkout, reminderTimes } from './schedule';
 import { useSettings } from './settings';
 import { storage } from './storage';
@@ -23,7 +23,6 @@ import { HABITS_OFF } from './hidden';
 import { isDue, logKey, partsDone, pausedNow, prayerTime, type Habit } from './habits';
 import { ADHKAR_AR, adhkarOf } from './adhkar';
 import { readHabitLog, readHabitParts, readHabits } from './habitStore';
-import { addDays } from './gaps';
 import { report } from './errlog';
 
 const native = Platform.OS !== 'web';

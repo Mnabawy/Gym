@@ -3,9 +3,8 @@
 // and rebuilt whenever the app opens or something changes. Pure — unit tested in __tests__/brief.test.ts.
 import { dayFor, WEEKDAYS_AR } from '../data/program';
 import { MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, WEEK_MENU, type MealKey } from '../data/nutrition';
-import { daysBetween } from './gaps';
+import { daysBetween, weekdayOf } from './dates';
 import { dayKey, waterGoalMl } from './journal';
-import { weekdayOf } from './logic';
 import { projected, type Current } from './schedule';
 import { movesFor, splitShopping, tripDays } from './shop';
 import type { WeighIn } from './weight';

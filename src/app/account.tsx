@@ -3,7 +3,7 @@ import { Image, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { Btn, Card, Screen, T } from '../components/ui';
 import { backupInfo } from '../lib/backup';
 import { useDataVersion } from '../lib/bus';

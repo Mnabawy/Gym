@@ -6,8 +6,8 @@ import { GOAL_TEMPLATES, fromTemplate, type GoalTemplate } from '../data/goalTem
 import { activeKids, current, FOCUS_MAX, GOAL_COLORS, GOAL_ICONS, goalId, kidsOf, putLater, WEIGHTS, type Goal } from '../lib/goals';
 import { showUndo } from '../lib/undo';
 import { readGoals, saveGoal } from '../lib/goalStore';
-import { daysBetween } from '../lib/gaps';
-import { dateKey, parseNum } from '../lib/logic';
+import { dateKey, daysBetween } from '../lib/dates';
+import { parseNum } from '../lib/logic';
 import { tint, useTheme, font } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];

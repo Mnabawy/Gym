@@ -17,7 +17,7 @@ import { canOpenApps, openApp } from '../lib/appsIO';
 import { MY_HABITS } from '../data/habitTemplates';
 import { allowReminders } from '../lib/reminder';
 import { useSettings } from '../lib/settings';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { tap } from '../lib/timer';
 import { usePop } from '../lib/motion';
 import { font, ThemeProvider, tint, useTheme, useWarm, type Theme } from '../theme';

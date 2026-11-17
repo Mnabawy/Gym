@@ -12,7 +12,7 @@ import { useDataVersion } from '../lib/bus';
 import { ADHKAR_AR, ADHKAR_KEY, adhkarKey, adhkarNow, adhkarPart, adhkarProgress, countDhikr, doneDhikr, listFor, parseAdhkarLog, pruneAdhkar, said, type AdhkarLog } from '../lib/adhkar';
 import { partsDone } from '../lib/habits';
 import { readHabitLog, readHabitParts, readHabits, setPart } from '../lib/habitStore';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { storage } from '../lib/storage';
 import { tap } from '../lib/timer';
 import { useSettings } from '../lib/settings';

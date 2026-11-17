@@ -9,11 +9,10 @@ import { useDataVersion } from '../lib/bus';
 import { CAL_SOURCES, daysIn, quitLabel, goalMarks, goalSpans, weekPieces, type Span, gymMarks, habitMarks, monthSummary, quitMarks, type CalSource, type DayMark, type Marks } from '../lib/calendar';
 import { readGoals } from '../lib/goalStore';
 import { readHabitLog, readHabitParts, readHabits } from '../lib/habitStore';
-import { dateKey, weekdayOf } from '../lib/logic';
+import { addDays, dateKey, weekdayOf } from '../lib/dates';
 import { readQuits } from '../lib/quitStore';
 import { storage } from '../lib/storage';
 import { addMonths, monthGrid, WEEK_START } from '../lib/tasks';
-import { addDays } from '../lib/gaps';
 import { tap } from '../lib/timer';
 import { font, tint, useTheme } from '../theme';
 

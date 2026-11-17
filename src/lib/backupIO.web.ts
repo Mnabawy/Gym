@@ -1,7 +1,7 @@
 // Web preview: download the backup as a file, open one with the browser's file picker.
 import * as Clipboard from 'expo-clipboard';
 import { backupFileName, toBackup } from './backup';
-import { dateKey } from './logic';
+import { dateKey } from './dates';
 import { storage } from './storage';
 
 export async function saveBackup(): Promise<'shared' | 'copied'> {

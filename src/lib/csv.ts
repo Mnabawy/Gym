@@ -7,7 +7,7 @@ import type { Cardio } from './cardio';
 import { CARDIO, INTENSITY, metOf } from './cardio';
 import type { Habit, Log } from './habits';
 import { dayState } from './habits';
-import { addDays } from './gaps';
+import { addDays } from './dates';
 import type { Goal } from './goals';
 
 const BOM = '﻿';

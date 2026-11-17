@@ -11,7 +11,7 @@ import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
 import { deleteQuit, readQuits, saveQuit } from '../../lib/quitStore';
 import { clean, cleanDays, DAY_MS, longest, MILESTONES, riskyTime, runLabel, saved, target, TRIGGERS, triggerCounts, urgeScore, HABIT_TYPES } from '../../lib/quit';
-import { dateKey } from '../../lib/logic';
+import { dateKey } from '../../lib/dates';
 import { confirm } from '../../lib/confirm';
 import { showUndo } from '../../lib/undo';
 import { useNow } from '../../lib/useNow';

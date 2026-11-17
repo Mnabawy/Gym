@@ -17,9 +17,8 @@ import {
   bringBack, current, FOCUS_MAX, fmtAmount, IDLE_DAYS, idleDays, kidsOf, nextTask, parentOf, progress, putLater, reachDate,
   reviewDue, schedule, toggleTask, umbrellaProgress, WEIGHTS, type Goal,
 } from '../../lib/goals';
-import { daysBetween } from '../../lib/gaps';
+import { dateKey, daysBetween } from '../../lib/dates';
 import { confirm } from '../../lib/confirm';
-import { dateKey } from '../../lib/logic';
 import { showUndo } from '../../lib/undo';
 import { tap } from '../../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme } from '../../theme';

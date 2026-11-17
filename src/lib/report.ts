@@ -1,7 +1,8 @@
 // Weekly report (/week): one Saturday–Friday week of training, records, body weight and food in one place.
 // Pure — unit tested in __tests__/report.test.ts.
 import { exerciseById, MUSCLE_AR, PLAN_WEEKDAYS, type Muscle } from '../data/program';
-import { addDays, daysBetween, prSet, toSessions } from './gaps';
+import { addDays, daysBetween } from './dates';
+import { prSet, toSessions } from './gaps';
 import { adherence, foodHistory, waterDaysMet, type DayFood } from './journal';
 import type { MealCheck, SetRow } from './storage.types';
 import type { WeighIn } from './weight';

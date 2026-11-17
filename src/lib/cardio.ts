@@ -5,7 +5,7 @@
 //   Gross burn and a rough guide only: real burn varies a lot from person to person.
 // - Weekly target: WHO 2020 guidelines, 150–300 min of moderate activity a week, where a vigorous minute (6+ METs)
 //   counts double. Easy activity under 3 METs counts toward minutes but not toward the target.
-import { addDays } from './gaps';
+import { addDays } from './dates';
 
 export const CARDIO_KEY = 'cardio';
 export const WHO_MIN = 150;

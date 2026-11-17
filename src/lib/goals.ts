@@ -2,7 +2,7 @@
 // tasks, every bit of progress you log, wins (yours and the ones the app sees: 10/25/50/75/100% and each stage done),
 // a weekly review (what you did, what stopped you, the next step) and a nudge when nothing moved for a while.
 // Saved as JSON in storage meta `goals`. Pure — unit tested in __tests__/goals.test.ts.
-import { addDays, daysBetween } from './gaps';
+import { addDays, daysBetween } from './dates';
 import { keepExtra, parseList } from './records';
 
 export const GOALS_KEY = 'goals';

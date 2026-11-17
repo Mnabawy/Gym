@@ -7,7 +7,7 @@ import { ALL_DAYS, HABIT_COLORS, HABIT_ICONS, habitId, refAr, type Habit, type P
 import { readHabits, saveHabit } from '../lib/habitStore';
 import { PRAYER_AR, PRAYERS } from '../lib/prayer';
 import { useSettings } from '../lib/settings';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { allowReminders } from '../lib/reminder';
 import { tint, useTheme, font } from '../theme';
 import { INPUT, Btn, Pill, Sheet, Stepper, SwitchRow, T } from './ui';

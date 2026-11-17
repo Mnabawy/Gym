@@ -2,7 +2,7 @@
 // Plus the food history (meals ticked per day). Pure — unit tested in __tests__/journal.test.ts; reading and writing
 // storage is in src/lib/meta.ts.
 import type { SetEntry } from './logic';
-import { addDays } from './gaps';
+import { addDays } from './dates';
 import type { MealCheck } from './storage.types';
 import { keepExtra, keepUnreadMap } from './records';
 

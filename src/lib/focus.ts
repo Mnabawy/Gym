@@ -7,7 +7,7 @@
 // stops there (a break still running is kept; one that's over too lands you on a focus block, not started).
 // Sessions in meta `focus`, settings in `focusCfg`, the running clock in `focusState` (this phone only).
 // Pure — unit tested in __tests__/focus.test.ts.
-import { addDays } from './gaps';
+import { addDays } from './dates';
 import { isRec, keepExtra, parseList } from './records';
 
 export const FOCUS_KEY = 'focus';

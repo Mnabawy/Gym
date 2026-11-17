@@ -8,7 +8,7 @@ import { TAG_INFO } from '../data/rules';
 import { INPUT, Btn, Card, Pill, Screen, Sep, Sheet, Stepper, SwitchRow, T } from '../components/ui';
 import { WorkoutChips } from '../components/WorkoutChips';
 import { ACTION, Swipe, type SwipeAction } from '../components/Swipe';
-import { dateKey } from '../lib/logic';
+import { dateKey } from '../lib/dates';
 import { confirm } from '../lib/confirm';
 import { move, newId, parsePast, PAST_KEY, REPS_MAX, REPS_MIN, reservedIds } from '../lib/programEdit';
 import { currentWorkout, seqIndex } from '../lib/schedule';

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
+import { dateKey } from './dates';
 import { analyze } from './gaps';
-import { dateKey } from './logic';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
 import { SWAPS_KEY, swappedSet } from './journal';

@@ -3,8 +3,7 @@
 // A program day's id is still the weekday it was written for (`Day.weekday`), so logged data keeps its meaning.
 // Pure — unit tested in __tests__/schedule.test.ts.
 import { PLAN_WEEKDAYS, PROGRAM } from '../data/program';
-import { addDays, weekStart } from './gaps';
-import { weekdayOf } from './logic';
+import { addDays, weekdayOf, weekStart } from './dates';
 import type { TrainedDay } from './storage.types';
 
 /** Position of a program day in the sequence, -1 if unknown. */

@@ -4,8 +4,7 @@
 import { Platform } from 'react-native';
 import { aggregateRecord, getGrantedPermissions, getSdkStatus, initialize, openHealthConnectSettings, requestPermission, SdkAvailabilityStatus } from 'react-native-health-connect';
 import { useDataVersion } from './bus';
-import { addDays } from './gaps';
-import { dateKey } from './logic';
+import { addDays, dateKey } from './dates';
 import { STEPS_KEY, parseSteps } from './cardio';
 import { keepUnreadMap } from './records';
 import { storage } from './storage';

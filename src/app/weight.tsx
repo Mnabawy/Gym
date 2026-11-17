@@ -8,7 +8,8 @@ import { INPUT, Btn, Card, Label, Screen, Sep, Sheet, T } from '../components/ui
 import { E1rmChart } from '../components/E1rmChart';
 import { ACTION, Swipe } from '../components/Swipe';
 import { GOAL } from '../lib/energy';
-import { dateKey, parseNum } from '../lib/logic';
+import { dateKey } from '../lib/dates';
+import { parseNum } from '../lib/logic';
 import { confirm } from '../lib/confirm';
 import { showUndo } from '../lib/undo';
 import { useSettings } from '../lib/settings';

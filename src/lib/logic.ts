@@ -1,36 +1,10 @@
 // Pure logic — unit tested in __tests__/logic.test.ts
 import type { Exercise } from '../data/program';
 import { FOODS } from '../data/nutrition';
+import { dateKey, weekdayOf } from './dates';
 
 /** `rir`: reps you had left in the tank (0 = failure), if you said. `at`: when it was ticked (ms), for session length. */
 export type SetEntry = { kg: number | null; reps: number | null; done: boolean; rir?: number | null; at?: number | null };
-
-/** Local calendar date as YYYY-MM-DD. */
-export function dateKey(d: Date = new Date()): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-/** Weekday (0 = Sunday) of a YYYY-MM-DD key, local time. */
-export function weekdayOf(key: string): number {
-  const [y, m, d] = key.split('-').map(Number);
-  return new Date(y, m - 1, d).getDay();
-}
-
-/** Month `delta` months away; month is 0-based. */
-export function addMonths(year: number, month: number, delta: number): { y: number; m: number } {
-  const d = new Date(year, month + delta, 1);
-  return { y: d.getFullYear(), m: d.getMonth() };
-}
-
-/** Calendar grid for a month, weeks starting Saturday; null cells pad the first and last week. */
-export function monthCells(year: number, month: number): (string | null)[] {
-  const pad = (new Date(year, month, 1).getDay() + 1) % 7;
-  const days = new Date(year, month + 1, 0).getDate();
-  const cells: (string | null)[] = Array(pad).fill(null);
-  for (let d = 1; d <= days; d++) cells.push(dateKey(new Date(year, month, d)));
-  while (cells.length % 7) cells.push(null);
-  return cells;
-}
 
 /**
  * done: trained that day (any day, rest days too).

@@ -6,7 +6,7 @@
 // - Cut: −0.5% to −1% of body weight a week keeps muscle (Helms et al. 2014; Garthe et al. 2011).
 // - Maintain: within ±0.2 kg a week.
 // The rate is a least-squares line through the last 4 weeks of weigh-ins, so one salty dinner doesn't move it.
-import { addDays, daysBetween } from './gaps';
+import { addDays, daysBetween } from './dates';
 import { LIMITS, type Goal } from './energy';
 import { keepExtra, keepUnreadDated } from './records';
 

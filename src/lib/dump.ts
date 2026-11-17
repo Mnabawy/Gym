@@ -6,6 +6,7 @@
 // asleep about 9 minutes faster (Scullin et al. 2018, J Exp Psychol Gen 147(1) 139–146). The capture-then-sort
 // order and the two-minute rule are David Allen's (Getting Things Done, 2001). Saved in meta `dump`. Pure.
 
+import { addDays, weekdayOf } from './dates';
 import { isRec, keepExtra, parseList } from './records';
 
 export const DUMP_KEY = 'dump';
@@ -60,8 +61,5 @@ export function dumpView(items: readonly DumpItem[], today: string) {
 
 /** The next Friday after `today` (the week's quiet day to think things over); a week later if today is Friday. */
 export function nextFriday(today: string): string {
-  const d = new Date(`${today}T12:00:00`);
-  const add = ((5 - d.getDay() + 7) % 7) || 7;
-  d.setDate(d.getDate() + add);
-  return d.toISOString().slice(0, 10);
+  return addDays(today, ((5 - weekdayOf(today) + 7) % 7) || 7);
 }

@@ -3,8 +3,7 @@
 // Runs a few seconds after the app opens, once AUTO_DAYS have passed. Web: autoBackup.web.ts.
 import { Directory, File, Paths } from 'expo-file-system';
 import { hasData, LAST_BACKUP_KEY, toBackup } from './backup';
-import { daysBetween } from './gaps';
-import { dateKey } from './logic';
+import { dateKey, daysBetween } from './dates';
 import { useSettings } from './settings';
 import { report } from './errlog';
 import { exportPhotos } from './photos';

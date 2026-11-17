@@ -13,8 +13,7 @@
 // - Cue ("امتى وفين؟"): an if-then plan of when and where (implementation intention; Gollwitzer & Sheeran 2006
 //   meta-analysis) makes the situation itself the reminder.
 import { isPackage } from './apps';
-import { addDays, daysBetween } from './gaps';
-import { weekdayOf } from './logic';
+import { addDays, daysBetween, weekdayOf } from './dates';
 import { PRAYERS, timesFor, type Method, type PrayerKey } from './prayer';
 import { isRec, keepExtra, parseList } from './records';
 
