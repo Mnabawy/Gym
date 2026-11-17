@@ -5,6 +5,7 @@ import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';
 import { PHOTO_NAME, type PhotoData } from './backup';
+import { AREA, bumpAreas } from './bus';
 import { dateKey } from './dates';
 
 /** ≈ 150–300 KB per photo: enough to see the change, small enough for the backup file. */
@@ -31,6 +32,7 @@ export async function addPhoto(from: 'camera' | 'library'): Promise<boolean> {
   if (Math.max(a.width, a.height) > MAX_SIDE) ctx.resize(a.height >= a.width ? { height: MAX_SIDE } : { width: MAX_SIDE });
   const out = await (await ctx.renderAsync()).saveAsync({ compress: 0.7, format: SaveFormat.JPEG });
   await new File(out.uri).copy(new File(dir(), `${dateKey()}_${Date.now()}.jpg`));
+  bumpAreas(AREA.photos);
   return true;
 }
 
@@ -52,6 +54,7 @@ export function importPhotos(list: readonly PhotoData[]): number {
     f.writeSync(p.data, { encoding: 'base64' });
     n++;
   }
+  if (n) bumpAreas(AREA.photos);
   return n;
 }
 
@@ -67,6 +70,7 @@ export function listPhotos(): Photo[] {
 export function deletePhoto(p: Photo) {
   const f = new File(dir(), p.name);
   if (f.exists) f.delete();
+  bumpAreas(AREA.photos);
 }
 
 /** Deletes every progress photo on the phone (signing out with "wipe this phone"). */

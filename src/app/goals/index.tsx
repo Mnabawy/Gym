@@ -10,11 +10,12 @@ import { GoalForm } from '../../components/GoalForm';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { LogSheet } from './[id]';
 import { MONTHS_AR } from '../../data/program';
-import { useDataVersion } from '../../lib/bus';
+import { metaArea, useData } from '../../lib/bus';
+import { TASKS_KEY } from '../../lib/tasks';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
 import { tickStep } from '../../lib/goalTaskStore';
 import {
-  bringBack, current, FOCUS_MAX, fmtAmount, IDLE_DAYS, idleDays, kidsOf, nextTask, parentOf, progress, putLater, reachDate,
+  bringBack, current, FOCUS_MAX, fmtAmount, GOALS_KEY, IDLE_DAYS, idleDays, kidsOf, nextTask, parentOf, progress, putLater, reachDate,
   reviewDue, schedule, umbrellaProgress, WEIGHTS, type Goal,
 } from '../../lib/goals';
 import { dateKey, daysBetween } from '../../lib/dates';
@@ -48,7 +49,8 @@ export default function GoalsSection() {
  */
 function Goals() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  // The goals (and the tasks, which say which steps are already in مهامي).
+  useData(metaArea(GOALS_KEY), metaArea(TASKS_KEY));
   const today = dateKey();
   const goals = readGoals();
   const [tab, setTab] = useState<Tab>('today');

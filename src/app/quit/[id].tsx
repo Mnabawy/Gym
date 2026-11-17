@@ -8,9 +8,9 @@ import { ACTION, Swipe } from '../../components/Swipe';
 import { CleanRing, Clock, nextLine, NightCard } from '../../components/QuitHero';
 import { SlipSheet, UrgeScreen } from '../../components/QuitSheets';
 import { MONTHS_AR } from '../../data/program';
-import { useDataVersion } from '../../lib/bus';
+import { metaArea, useData } from '../../lib/bus';
 import { deleteQuit, readQuits, saveQuit } from '../../lib/quitStore';
-import { clean, cleanDays, DAY_MS, longest, MILESTONES, riskyTime, runLabel, saved, target, TRIGGERS, triggerCounts, urgeScore, HABIT_TYPES } from '../../lib/quit';
+import { clean, cleanDays, DAY_MS, QUITS_KEY, longest, MILESTONES, riskyTime, runLabel, saved, target, TRIGGERS, triggerCounts, urgeScore, HABIT_TYPES } from '../../lib/quit';
 import { dateKey } from '../../lib/dates';
 import { confirm } from '../../lib/confirm';
 import { showUndo } from '../../lib/undo';
@@ -34,7 +34,7 @@ export default function QuitScreen() {
 /** One habit you're quitting: the live clean counter, the urge button, milestones, what you saved, your triggers. */
 function QuitPage() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  useData(metaArea(QUITS_KEY));
   const { id } = useLocalSearchParams<{ id: string }>();
   const q = readQuits().find((x) => x.id === id);
   const now = useNow(1000);

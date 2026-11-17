@@ -7,11 +7,11 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Ring, Screen, Sheet, Stepper, T } from '../components/ui';
 import { ACTION, Swipe } from '../components/Swipe';
 import { showUndo } from '../lib/undo';
-import { useDataVersion } from '../lib/bus';
+import { metaArea, useData } from '../lib/bus';
 import { dateKey, weekdayOf } from '../lib/dates';
-import { clock, countOn, KINDS, minAr, minutesOn, paused, PHASE_AR, phaseMs, remaining, running, streak, week, type Kind } from '../lib/focus';
+import { clock, countOn, FOCUS_CFG_KEY, FOCUS_KEY, FOCUS_STATE_KEY, KINDS, minAr, minutesOn, paused, PHASE_AR, phaseMs, remaining, running, streak, week, type Kind } from '../lib/focus';
 import { endPhase, pauseFocus, readCfg, readFocus, readSessions, resetFocus, saveCfg, setFocus, startFocus, tickFocus, writeSessions } from '../lib/focusStore';
-import { allView } from '../lib/tasks';
+import { allView, TASKS_KEY } from '../lib/tasks';
 import { readTasks } from '../lib/taskStore';
 import { useNow } from '../lib/useNow';
 import { tap } from '../lib/timer';
@@ -41,7 +41,7 @@ export default function FocusSection() {
  */
 function Focus() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  useData(metaArea(FOCUS_CFG_KEY), metaArea(FOCUS_KEY), metaArea(FOCUS_STATE_KEY), metaArea(TASKS_KEY));
   const now = useNow(1000);
   const today = dateKey();
   const cfg = readCfg();

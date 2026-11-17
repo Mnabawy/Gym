@@ -10,7 +10,7 @@ import { ACTION, Swipe } from '../components/Swipe';
 import { ClockPicker } from '../components/ClockPicker';
 import { INPUT, Screen, SwitchRow, T } from '../components/ui';
 import { atomic } from '../lib/atomic';
-import { useDataVersion } from '../lib/bus';
+import { metaArea, useData, useDataVersion } from '../lib/bus';
 import { addLines, DUMP_KEY, dumpView, nextFriday, parseDump, parseDumpItem, removeItem, setKind, type DumpItem } from '../lib/dump';
 import { addDays, dateKey } from '../lib/dates';
 import { keepUnread } from '../lib/records';
@@ -41,7 +41,7 @@ export default function DumpScreen() {
 
 function Dump() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  useData(metaArea(DUMP_KEY), metaArea('taskSpace'));
   const today = dateKey();
   const items = read();
   const v = dumpView(items, today);

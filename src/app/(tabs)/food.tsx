@@ -18,7 +18,7 @@ import { weekdayOfKey } from '../../lib/rollover';
 import { useToday } from '../../lib/useToday';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
-import { useDataVersion } from '../../lib/bus';
+import { AREA, metaArea, useData } from '../../lib/bus';
 import { tint, useTheme, type Theme, font } from '../../theme';
 
 const l1 = (ml: number) => String(Math.round(ml / 100) / 10);
@@ -34,7 +34,8 @@ export default function Food() {
   const [showSwaps, setShowSwaps] = useState(false);
   const [swapMeal, setSwapMeal] = useState<MealKey | null>(null);
   const [extraForm, setExtraForm] = useState<{ name: string; kcal: string; p: string } | null>(null);
-  useDataVersion((x) => x.v); // re-read storage after every write
+  // Re-read storage after a write to what this tab shows: sets (training days), meals, and its meta keys.
+  useData(AREA.sets, AREA.meals, metaArea(food.REST_DAY_KEY), metaArea(MEAL_PICKS_KEY), metaArea(WATER_KEY), metaArea(SUPPS_KEY), metaArea(EXTRAS_KEY));
   // Your own targets once the calorie calculator has your data (side menu → حساب السعرات), else the plan's.
   const body = useSettings((s) => s.body);
   const goal = targetsFor(body);

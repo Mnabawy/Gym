@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useReducedMotion } from '../lib/motion';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported } from '../lib/google';
 import { syncStatus } from '../lib/cloud';
+import { AREA, metaArea, useData } from '../lib/bus';
 import { storage } from '../lib/storage';
 import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
@@ -124,6 +125,7 @@ export function MenuButton({ hub, color }: { hub?: boolean; color?: string } = {
 /** Your Google account at the top of the menu (name, photo, email), or a sign-in row. */
 function Account({ onPress }: { onPress: (to: '/account') => void }) {
   const t = useTheme();
+  useData(metaArea(GOOGLE_USER), metaArea(GOOGLE_NAME), metaArea(GOOGLE_PHOTO), AREA.sync);
   const email = storage.getMeta(GOOGLE_USER);
   const name = storage.getMeta(GOOGLE_NAME);
   const photo = storage.getMeta(GOOGLE_PHOTO);

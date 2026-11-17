@@ -3,6 +3,7 @@
 // Runs a few seconds after the app opens, once AUTO_DAYS have passed. Web: autoBackup.web.ts.
 import { Directory, File, Paths } from 'expo-file-system';
 import { hasData, LAST_BACKUP_KEY, toBackup } from './backup';
+import { bumpAreas, metaArea } from './bus';
 import { dateKey, daysBetween } from './dates';
 import { useSettings } from './settings';
 import { report } from './errlog';
@@ -71,6 +72,7 @@ export async function runAutoBackup(force = false): Promise<'saved' | 'skipped'>
     } catch {}
   }
   storage.setMeta(AUTO_KEY, today);
+  bumpAreas(metaArea(AUTO_KEY)); // the list of copies changed even when the date didn't (settings re-reads it)
   // AUTO_ERROR_KEY = the day the last run failed: the copy inside the app when it's not AUTO_KEY's day, else the folder's.
   if (!st.backupDir) storage.setMeta(AUTO_ERROR_KEY, '');
   if (st.backupDir) {

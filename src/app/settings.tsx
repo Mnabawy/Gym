@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
@@ -13,7 +13,7 @@ import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
-import { BACKUP_STALE_DAYS, backupInfo, infoText, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
+import { BACKUP_STALE_DAYS, BACKUP_AREAS, backupInfo, infoText, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
 import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
 import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, AUTO_KEY, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
 import { DbNotice } from '../components/DbNotice';
@@ -21,7 +21,7 @@ import { ErrLogRow } from '../components/ErrLogRow';
 import { BAR_CHOICES } from '../lib/plates';
 import { allowReminders } from '../lib/reminder';
 import { ExportSheet } from '../components/ExportSheet';
-import { useDataVersion } from '../lib/bus';
+import { AREA, metaArea, useData, useDataVersion } from '../lib/bus';
 import type { Dump } from '../lib/storage.types';
 import { listPhotos, photosSupported } from '../lib/photos';
 import { applyBackup, safetyText } from '../lib/restore';
@@ -53,7 +53,10 @@ export default function SettingsScreen() {
   const [confirm, setConfirm] = useState(false);
   const trips = splitShopping(st.shopTrips, undefined, movesFor(tripDays(st.shopTrips).length, st.shopMoves));
   const need = energyFor(st.body);
-  useDataVersion((x) => x.v);
+  // Re-reads what this page shows: backup dates, the account and its save status, the edited program flag.
+  useData(metaArea(AUTO_ERROR_KEY), metaArea(LAST_BACKUP_KEY), metaArea(AUTO_KEY), metaArea(GOOGLE_USER), metaArea('program'), AREA.sync);
+  // What's on the phone (the whole database): counted again only when something it counts changes, not on every render.
+  const dataV = useData(...BACKUP_AREAS);
   const today = dateKey();
   const autoError = storage.getMeta(AUTO_ERROR_KEY); // the day the last automatic backup failed (autoBackup.ts)
   const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
@@ -63,7 +66,8 @@ export default function SettingsScreen() {
   const [exporting, setExporting] = useState(false);
   const [lockMsg, setLockMsg] = useState<string | null>(null);
   const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
-  const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mine = useMemo(() => backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0), [dataV]);
 
   const run = async (f: () => Promise<void>) => {
     setMsg(null);

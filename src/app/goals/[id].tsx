@@ -9,9 +9,9 @@ import { BigGoalPage } from '../../components/BigGoal';
 import { GoalHeader } from '../../components/GoalHeader';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { MONTHS_AR } from '../../data/program';
-import { useDataVersion } from '../../lib/bus';
+import { metaArea, useData } from '../../lib/bus';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
-import { addNextStep, addReview, allWins, bringBack, current, currentStage, fmtAmount, goalId, IDLE_DAYS, idleDays, milestones, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
+import { addNextStep, addReview, allWins, bringBack, current, currentStage, fmtAmount, goalId, GOALS_KEY, IDLE_DAYS, idleDays, milestones, nextTask, pace, progress, reviewDue, type Goal, type Review } from '../../lib/goals';
 import { addDays, dateKey, daysBetween } from '../../lib/dates';
 import { parseNum } from '../../lib/logic';
 import { confirm } from '../../lib/confirm';
@@ -42,7 +42,7 @@ export default function GoalScreen() {
 /** One goal: how far you are, the pace, the road in stages (tick the tasks), wins, the weekly review and your log. */
 function GoalPage() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  useData(metaArea(GOALS_KEY));
   const { id } = useLocalSearchParams<{ id: string }>();
   const g = readGoals().find((x) => x.id === id);
   const today = dateKey();

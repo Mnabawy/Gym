@@ -10,20 +10,20 @@ import { T } from '../components/ui';
 import { MenuButton } from '../components/SideMenu';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { dayFor, PLAN_WEEKDAYS } from '../data/program';
-import { useDataVersion } from '../lib/bus';
+import { AREA, metaArea, useData } from '../lib/bus';
 import { readGoals } from '../lib/goalStore';
-import { kidsOf, nextTask, progress, umbrellaProgress } from '../lib/goals';
-import { habitStats, isDue, logKey } from '../lib/habits';
+import { GOALS_KEY, kidsOf, nextTask, progress, umbrellaProgress } from '../lib/goals';
+import { HABIT_LOG_KEY, HABITS_KEY, habitStats, isDue, logKey } from '../lib/habits';
 import { CALENDAR_OFF, HABITS_OFF } from '../lib/hidden';
 import { readHabitLog, readHabits } from '../lib/habitStore';
 import { addDays, dateKey, weekStart } from '../lib/dates';
 import { currentWorkout } from '../lib/schedule';
-import { hubSeen, lastSection, openSection, type Section } from '../lib/section';
+import { hubSeen, lastSection, openSection, SECTION_KEY, type Section } from '../lib/section';
 import { storage } from '../lib/storage';
 import { readQuits } from '../lib/quitStore';
 import { readTasks } from '../lib/taskStore';
-import { todayView } from '../lib/tasks';
-import { clean, runLabel } from '../lib/quit';
+import { TASKS_KEY, todayView } from '../lib/tasks';
+import { clean, QUITS_KEY, runLabel } from '../lib/quit';
 import { useNow } from '../lib/useNow';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -36,7 +36,8 @@ const IOS = {
 
 export default function Sections() {
   const c = useColorScheme() === 'dark' ? IOS.dark : IOS.light;
-  useDataVersion((s) => s.v);
+  // Re-reads only what the cards show (the habits only while that section is on).
+  useData(AREA.sets, metaArea(TASKS_KEY), metaArea(GOALS_KEY), metaArea(QUITS_KEY), metaArea(SECTION_KEY), ...(HABITS_OFF ? [] : [metaArea(HABITS_KEY), metaArea(HABIT_LOG_KEY)]));
   // The app has shown its home page: from now on the tabs open the gym instead of coming back here.
   useEffect(hubSeen, []);
   const today = dateKey();
@@ -50,9 +51,9 @@ export default function Sections() {
   const weekDone = trainedDays.filter((d) => d.date >= from && d.date <= addDays(from, 6)).length;
   const trainedToday = trainedDays.some((d) => d.date === today);
 
-  // Habits
-  const habits = readHabits();
-  const log = readHabitLog();
+  // Habits (hidden for now: no card, so nothing is computed)
+  const habits = HABITS_OFF ? [] : readHabits();
+  const log = HABITS_OFF ? {} : readHabitLog();
   const due = habits.filter((h) => isDue(h, today));
   const done = due.filter((h) => log[logKey(h.id, today)] === 'done').length;
   const streak = Math.max(0, ...habits.map((h) => habitStats(h, log, today).streak));

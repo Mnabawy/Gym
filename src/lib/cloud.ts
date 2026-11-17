@@ -4,7 +4,7 @@
 // what changed on the server since last time, merge (newest edit of each record wins, cloudSync.ts) and send ours.
 // The first sync on a phone pulls everything; the server wins where both have the same record, and anything only on the
 // phone goes up. Photos aren't synced. Setup (project, table, Google provider): docs/supabase-setup.md.
-import { useDataVersion } from './bus';
+import { AREA, bumpAreas, useDataVersion } from './bus';
 import { pullPage, pushRows, PAGE, PUSH_BATCH, refreshSession, signInWithGoogle, CloudError, type CloudConfig, type Session } from './cloudApi';
 import { ackBatch, advanceWindow, applyRows, clampDirty, emptyWindow, entry, expandWhole, isSplit, localRows, readCursor, readWindow, settleWhole, SKEW_MARGIN_MS, snapWhole, SPLIT_META, splitKey, pushItems, rowId, rowsPerEntry, type Pulled } from './cloudSync';
 import { DATA_VERSION_KEY, dataTooNew, readDataVersion, versionToWrite } from './dataVersion';
@@ -60,7 +60,11 @@ export class UpdateNeeded extends Error {
 }
 
 const meta = (k: string) => rawStorage().getMeta(k);
-const setMeta = (k: string, v: string) => rawStorage().setMeta(k, v);
+/** Sync bookkeeping (cursor, last sync, errors): written without the change log, so the account page is told here. */
+const setMeta = (k: string, v: string) => {
+  rawStorage().setMeta(k, v);
+  bumpAreas(AREA.sync);
+};
 
 /** Linked = sync on and a readable session saved (a broken one counts as none, everywhere). */
 export const cloudLinked = () => cloudConfigured && trackingOn() && !!readSession();
@@ -131,6 +135,7 @@ async function syncOnce() {
       if (changedMeta.some((k) => k === 'settings' || k === 'program')) useSettings.getState().reload();
       else useDataVersion.getState().bumpAll();
     } else useDataVersion.getState().bump();
+    bumpAreas(AREA.sync);
   };
   try {
     const token = await accessToken();

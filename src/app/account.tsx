@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { MONTHS_AR } from '../data/program';
 import { dateKey } from '../lib/dates';
 import { Btn, Card, Screen, T } from '../components/ui';
-import { backupInfo } from '../lib/backup';
-import { useDataVersion } from '../lib/bus';
+import { BACKUP_AREAS, backupInfo } from '../lib/backup';
+import { AREA, metaArea, useData } from '../lib/bus';
 import { cloudConfigured, cloudLinked, linkCloud, pendingChanges, syncCloud, syncStatus, unlinkCloud, UpdateNeeded } from '../lib/cloud';
 import { GOOGLE_NAME, GOOGLE_PHOTO, GOOGLE_USER, googleSupported, linkGoogle, unlinkGoogle } from '../lib/google';
 import { listPhotos, photosSupported } from '../lib/photos';
@@ -28,12 +28,15 @@ function whenAr(ms: number) {
 /** Your account (side menu → your name): who you're signed in as, Supabase sync, and sign-out. */
 export default function Account() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  // Re-reads the account and its save status; the counts of what's on the phone only when something they count changes.
+  useData(metaArea(GOOGLE_USER), metaArea(GOOGLE_NAME), metaArea(GOOGLE_PHOTO), AREA.sync);
+  const dataV = useData(...BACKUP_AREAS);
   const email = storage.getMeta(GOOGLE_USER);
   const name = storage.getMeta(GOOGLE_NAME);
   const photo = storage.getMeta(GOOGLE_PHOTO);
   const st = syncStatus();
-  const mine = backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const mine = useMemo(() => backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0), [dataV]);
   const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
   const [leaving, setLeaving] = useState(false);
   const [busy, setBusy] = useState(false);

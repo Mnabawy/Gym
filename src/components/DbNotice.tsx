@@ -1,7 +1,7 @@
 import React from 'react';
 import { View, type ViewStyle } from 'react-native';
 import { MONTHS_AR } from '../data/program';
-import { useDataVersion } from '../lib/bus';
+import { metaArea, useData, useDataVersion } from '../lib/bus';
 import { DB_RECOVERED_KEY, parseDbRecovery, type DbRecovery } from '../lib/dbOpen';
 import { dateKey } from '../lib/dates';
 import { storage } from '../lib/storage';
@@ -48,7 +48,7 @@ export function dbNoticeText(n: DbRecovery): { title: string; body: string } {
 /** The notice card, with «تمام» to hide it. Nothing when there's no note. */
 export function DbNotice({ style }: { style?: ViewStyle }) {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  useData(metaArea(DB_RECOVERED_KEY));
   const n = dbNote();
   if (!n) return null;
   const { title, body } = dbNoticeText(n);

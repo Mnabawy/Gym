@@ -9,10 +9,10 @@ import { QuitForm } from '../../components/QuitForm';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { NightCard, QuitCard } from '../../components/QuitHero';
 import { PasswordModal, SlipSheet, UrgeScreen } from '../../components/QuitSheets';
-import { useDataVersion } from '../../lib/bus';
+import { metaArea, useData } from '../../lib/bus';
 import { deleteQuit, readQuits } from '../../lib/quitStore';
 import { confirm } from '../../lib/confirm';
-import { type Quit } from '../../lib/quit';
+import { QUITS_KEY, type Quit } from '../../lib/quit';
 import { useNow } from '../../lib/useNow';
 import { ThemeProvider, useTheme, useWarm } from '../../theme';
 
@@ -27,7 +27,7 @@ export default function QuitSection() {
 /** بطّل: each bad habit you're quitting as a night card with its clean-time ring; the urge button right on it. */
 function QuitList() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  useData(metaArea(QUITS_KEY));
   const now = useNow(30000);
   const quits = readQuits();
   const [adding, setAdding] = useState(false);

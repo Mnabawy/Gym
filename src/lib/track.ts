@@ -4,6 +4,7 @@
 // dump() (backups) and survive restore().
 import { diffRows, entry, isLocalMeta, itemChanges, mealRow, noteTombs, readTombs, rowId, setRow, shopRow, isSplit, SYNC_PREFIX, TOMBS, type CloudRow, type Dirty } from './cloudSync';
 import type { Dump, Storage } from './storage.types';
+import { AREA, bumpAreas, bumpEverything, metaArea } from './bus';
 
 const ON = 'sync.on';
 const DIRTY = 'sync.dirty';
@@ -36,6 +37,7 @@ const recording = () => trackingOn() || raw.getMeta(LOG_ONLY) === '1';
  * syncCloud still see sync as off). Off without it: the log is dropped.
  */
 export function setTracking(on: boolean, keepLog = false) {
+  bumpAreas(AREA.sync);
   raw.setMeta(ON, on ? '1' : '');
   raw.setMeta(LOG_ONLY, !on && keepLog ? '1' : '');
   raw.setMeta(LOG_SINCE, !on && keepLog ? String(Date.now()) : '');
@@ -46,6 +48,7 @@ export function setTracking(on: boolean, keepLog = false) {
 }
 /** Drops the change log and stops "log only" noting (does not touch sync on/off). */
 export function clearLog() {
+  bumpAreas(AREA.sync);
   raw.setMeta(LOG_ONLY, '');
   raw.setMeta(LOG_SINCE, '');
   D = {};
@@ -64,6 +67,7 @@ export function dirty(): Dirty {
 }
 export function saveDirty() {
   raw.setMeta(DIRTY, JSON.stringify(dirty()));
+  bumpAreas(AREA.sync);
 }
 /**
  * Changing the log together with other writes in one transaction: change a copy (`{ ...dirty() }`), save it with
@@ -75,6 +79,7 @@ export function writeDirty(next: Dirty) {
 }
 export function adoptDirty(next: Dirty) {
   D = next;
+  bumpAreas(AREA.sync);
 }
 /** Called after each tracked change (the sync waits a few seconds, then sends). */
 export function onDirty(f: () => void) {
@@ -127,33 +132,44 @@ export function track(base: Storage): Storage {
     ...base,
     saveSet(r) {
       base.saveSet(r);
+      bumpAreas(AREA.sets);
       note([row(setRow(r, false, Date.now()))]);
     },
     clearDay(date, exIds) {
       const t = Date.now();
       const gone = exIds.flatMap((exId) => base.setsFor(date, exId).map((_, idx) => row(setRow({ date, weekday: 0, exId, idx, kg: null, reps: null, done: 0 }, true, t))));
       base.clearDay(date, exIds);
+      bumpAreas(AREA.sets);
       note(gone);
+    },
+    deleteSet(date, exId, idx) {
+      base.deleteSet(date, exId, idx);
+      bumpAreas(AREA.sets);
     },
     setMealCheck(date, meal, on) {
       base.setMealCheck(date, meal, on);
+      bumpAreas(AREA.meals);
       note([row(mealRow(date, meal, !on, Date.now()))]);
     },
     setShopCheck(week, item, on) {
       base.setShopCheck(week, item, on);
+      bumpAreas(AREA.shop);
       note([row(shopRow(week, item, !on, Date.now()))]);
     },
     clearShop(week) {
       const t = Date.now();
       const gone = base.shopChecks(week).map((item) => row(shopRow(week, item, true, t)));
       base.clearShop(week);
+      bumpAreas(AREA.shop);
       note(gone);
     },
     setMeta(key, value) {
+      const before = base.getMeta(key);
+      base.setMeta(key, value);
+      // Only a real change re-renders (a screen that writes the same value while it draws can't loop).
+      if (before !== value) bumpAreas(metaArea(key), ...(key.startsWith(SYNC_PREFIX) ? [AREA.sync] : []));
       if (isSplit(key)) {
         // Synced one record per row: note only the records that changed.
-        const before = base.getMeta(key);
-        base.setMeta(key, value);
         if (paused) return;
         const t = Date.now();
         const rows = itemChanges(key, before, value, t);
@@ -163,7 +179,6 @@ export function track(base: Storage): Storage {
         if (recording()) note(rows.map(row));
         return;
       }
-      base.setMeta(key, value);
       if (!isLocalMeta(key)) note([{ id: rowId('meta', key), t: Date.now() }]);
     },
     transaction(f) {
@@ -195,6 +210,7 @@ export function track(base: Storage): Storage {
       // One transaction (base.restore): the backup's data and this phone's own sync keys go in together, so a crash
       // can't leave the data replaced with the session, cursor or change log gone.
       base.restore({ ...d, meta: { ...Object.fromEntries(Object.entries(d.meta).filter(([k]) => !k.startsWith(SYNC_PREFIX))), ...keep } });
+      bumpEverything();
       if (!next) return;
       D = next;
       if (!trackingOn() && expireLogOnly()) return;

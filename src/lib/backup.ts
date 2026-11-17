@@ -1,4 +1,5 @@
 // Backup file: saved sets, meals, shopping ticks, settings and the rest of meta in one JSON file (photos too, in the files from the share sheet or the folder). Sync keeps a copy on your account, but this file is the copy you hold yourself. Pure, unit tested in __tests__/backup.test.ts.
+import { AREA, metaArea } from './bus';
 import { isLocalMeta, SPLIT_META } from './cloudSync';
 import type { Dump, MealCheck, SetRow, ShopCheck } from './storage.types';
 import { BUILD, type BuildInfo } from './buildInfo';
@@ -66,6 +67,9 @@ const NOT_DATA = new Set(['settings']);
  * a phone-only key (`isLocalMeta`).
  */
 export const DATA_KEYS: readonly string[] = [...new Set([...Object.keys(SPLIT_META), ...PLAIN_DATA_KEYS])].filter((k) => !isLocalMeta(k) && !NOT_DATA.has(k));
+
+/** The change areas (src/lib/bus.ts) `backupInfo` of the phone depends on: re-count when one of them changes. */
+export const BACKUP_AREAS: readonly string[] = [AREA.sets, AREA.meals, AREA.shop, AREA.photos, ...DATA_KEYS.map(metaArea)];
 
 /** Entries in one meta value: array length or object key count (0 for empty or broken). */
 function count(raw: string | undefined): number {

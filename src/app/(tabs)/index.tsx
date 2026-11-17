@@ -16,7 +16,7 @@ import { after, currentWorkout } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { confirm } from '../../lib/confirm';
 import { deloadOn, useSettings } from '../../lib/settings';
-import { useDataVersion } from '../../lib/bus';
+import { AREA, metaArea, useData, useDataVersion } from '../../lib/bus';
 import { BACKUP_STALE_DAYS, LAST_BACKUP_KEY } from '../../lib/backup';
 import { deloadDue } from '../../lib/gaps';
 import { isDaySwap, SWAPS_KEY, swappedSet } from '../../lib/journal';
@@ -44,10 +44,13 @@ function WorkoutScreen() {
   const date = view && view < today ? view : today;
   const live = date === today;
   const [picked, setPicked] = useState<{ date: string; id: number } | null>(null);
-  const { v, cards, bump, bumpAll } = useDataVersion();
+  // Re-renders when the sets, the day's swaps or the last backup date change (or the plan: `cards`).
+  const v = useData(AREA.sets, metaArea(SWAPS_KEY), metaArea(LAST_BACKUP_KEY));
+  const cards = useDataVersion((s) => s.cards);
+  const { bump, bumpAll } = useDataVersion.getState();
 
   // Workouts run in one sequence, not by weekday: open on the one after your last session (src/lib/schedule.ts).
-  // Re-read on every render; the screen re-renders when the data version (v) changes.
+  // Re-read on every render; the screen re-renders when its data version (v) changes.
   const trained = storage.trainedDays();
   const cur = currentWorkout(trained, date);
   // The day picker looks its 15 days up in the same list (no queries of its own; it used to run one per day per render).

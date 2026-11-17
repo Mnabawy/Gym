@@ -9,16 +9,16 @@ import { MenuButton } from '../components/SideMenu';
 import { MonthCalendar } from '../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../components/TaskSheet';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
-import { useDataVersion } from '../lib/bus';
+import { metaArea, useData } from '../lib/bus';
 import { storage } from '../lib/storage';
 import { addDays, dateKey, weekdayOf } from '../lib/dates';
-import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, type Task } from '../lib/tasks';
+import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, TASKS_KEY, TRASH_KEY, type Task } from '../lib/tasks';
 import { router } from 'expo-router';
 import { setFocus } from '../lib/focusStore';
 import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, undoable } from '../lib/taskStore';
 import { tickTask } from '../lib/goalTaskStore';
 import { readGoals } from '../lib/goalStore';
-import type { Goal } from '../lib/goals';
+import { GOALS_KEY, type Goal } from '../lib/goals';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
 import { ThemeProvider, tint, useTheme, useWarm, type Theme, font } from '../theme';
@@ -50,7 +50,8 @@ export default function TasksSection() {
  */
 function Tasks() {
   const t = useTheme();
-  useDataVersion((s) => s.v);
+  // The tasks, deleted tasks and goals (a task from a goal shows its name).
+  useData(metaArea(TASKS_KEY), metaArea(TRASH_KEY), metaArea(GOALS_KEY));
   const inset = useSafeAreaInsets();
   const kb = useKeyboardShown();
   const today = dateKey();
@@ -262,7 +263,7 @@ function Tasks() {
 
 /** المحذوفة: tasks deleted in the last 30 days (this list only), to put back or delete for good. */
 function TrashSheet({ t, space, onClose }: { t: Theme; space: Space; onClose: () => void }) {
-  useDataVersion((v) => v.v);
+  useData(metaArea(TASKS_KEY), metaArea(TRASH_KEY));
   const [sure, setSure] = useState(false);
   const today = dateKey();
   const items = readTrash().filter((x) => spaceOf(x.task) === space);

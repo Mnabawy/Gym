@@ -12,7 +12,7 @@ import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } fr
 import { useSettings } from '../../lib/settings';
 import { storage } from '../../lib/storage';
 import { confirm } from '../../lib/confirm';
-import { useDataVersion } from '../../lib/bus';
+import { AREA, useData, useDataVersion } from '../../lib/bus';
 import { tint, useTheme } from '../../theme';
 
 const daysText = (days: string[]) => (days.length === 7 ? 'كل يوم' : days.join('، '));
@@ -21,7 +21,8 @@ export default function Shop() {
   const t = useTheme();
   useToday(); // re-render at midnight so the week key follows
   const week = shopWeekKey();
-  const { bump } = useDataVersion();
+  useData(AREA.shop);
+  const { bump } = useDataVersion.getState();
   const [copied, setCopied] = useState(false);
   const [editing, setEditing] = useState(false);
 
