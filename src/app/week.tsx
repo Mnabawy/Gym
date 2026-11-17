@@ -4,20 +4,21 @@ import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../data/program';
 import { MEAL_ORDER } from '../data/nutrition';
-import { Card, Label, Progress, Ring, Screen, T } from '../components/ui';
+import { Card, Label, Progress, Screen, T } from '../components/ui';
 import { energyFor } from '../lib/energy';
 import { addDays, dateKey, weekStart } from '../lib/dates';
 import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../lib/journal';
 import { isTrainingDay } from '../lib/schedule';
 import { readNumbers, readStrings } from '../lib/meta';
 import { weekReport } from '../lib/report';
+import { weekDash } from '../lib/weekDash';
+import { DayRings, MetricList, WeekHero } from '../components/WeekDash';
 import { useSettings } from '../lib/settings';
 import { storage } from '../lib/storage';
 import { readGoals } from '../lib/goalStore';
 import { readQuits } from '../lib/quitStore';
 import { readTasks } from '../lib/taskStore';
 import { readSessions } from '../lib/focusStore';
-import { minAr } from '../lib/focus';
 import { fmtAmount } from '../lib/goals';
 import { useDataVersion } from '../lib/bus';
 import { parseWeights, WEIGHTS_KEY } from '../lib/weight';
@@ -46,27 +47,32 @@ export default function WeekScreen() {
   const baseWater = energyFor(body)?.water ?? null;
   const trained = new Set(storage.trainedDays().map((d) => d.date));
   const restDay = storage.getMeta('restDay') || null;
+  const checks = storage.allMealChecks();
+  const water = readNumbers(WATER_KEY);
+  const waterGoal = (d: string) => waterGoalMl(baseWater, isTrainingDay(d, today, trained, restDay));
+  const steps = parseSteps(storage.getMeta(STEPS_KEY));
+  const tasks = readTasks();
+  const focus = readSessions();
   const r = weekReport(from, today, {
     rows,
     swapped: swappedSet(readStrings(SWAPS_KEY)),
     weights: parseWeights(storage.getMeta(WEIGHTS_KEY)),
-    checks: storage.allMealChecks(),
-    water: readNumbers(WATER_KEY),
-    waterGoal: (d) => waterGoalMl(baseWater, isTrainingDay(d, today, trained, restDay)),
+    checks,
+    water,
+    waterGoal,
     mealsPerDay: MEAL_ORDER.length,
     habits: HABITS_OFF ? [] : readHabits(),
     habitLog: readHabitLog(),
     cardio: parseCardio(storage.getMeta(CARDIO_KEY)),
     weightKg: body.weight ?? 0,
-    steps: parseSteps(storage.getMeta(STEPS_KEY)),
+    steps,
     goals: readGoals(),
     quits: readQuits(),
-    tasks: readTasks(),
-    focus: readSessions(),
+    tasks,
+    focus,
   });
+  const dash = weekDash(from, today, { rows, checks, water, waterGoal, mealsPerDay: MEAL_ORDER.length, target: r.target, tasks, focus, steps });
   const live = from === thisWeek;
-  // prevVolume covers the same days of the week before, so a week in progress compares fairly too.
-  const change = r.prevVolume ? Math.round(((r.volume - r.prevVolume) / r.prevVolume) * 100) : null;
   const short = (Object.keys(MUSCLE_AR) as Muscle[]).filter((m) => r.perMuscle[m] < TARGET);
 
   return (
@@ -77,18 +83,15 @@ export default function WeekScreen() {
         <Nav icon="chevron-back" label="الأسبوع الجاي" disabled={live} onPress={() => setFrom(addDays(from, 7))} />
       </View>
 
-      <Card style={{ padding: 14, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-        <Ring value={r.sessions / r.target} size={64} stroke={5}>
-          <T w="numBold" style={{ fontSize: 15, color: t.okText }}>{`${r.sessions}/${r.target}`}</T>
-        </Ring>
-        <View style={{ flex: 1, gap: 3 }}>
-          <T w="bold" style={{ fontSize: 16 }}>{r.sessions >= r.target ? 'حضرت كل التمارين ✓' : live ? `حضرت ${r.sessions} لحد دلوقتي` : `حضرت ${r.sessions} من ${r.target}`}</T>
-          <T style={{ color: t.mute, fontSize: 12.5 }}>{`${r.sets} مجموعة · ${iso(r.volume.toLocaleString('en-US'))} كجم حجم${r.minutes ? ` · متوسط التمرين ${r.minutes} د` : ''}`}</T>
-          {change != null ? (
-            <T style={{ fontSize: 12.5, color: change >= 0 ? t.okText : t.warn }}>{`الحجم ${iso(`${signed(change)}%`)} ${live ? 'عن نفس الأيام من الأسبوع اللي فات' : 'عن الأسبوع اللي قبله'}`}</T>
-          ) : null}
-        </View>
-      </Card>
+      <WeekHero dash={dash} live={live} />
+      <DayRings rings={dash.rings} today={today} />
+      {dash.metrics.length ? (
+        <>
+          <Label>{live ? 'مقارنة بنفس الأيام من الأسبوع اللي فات' : 'مقارنة بالأسبوع اللي قبله'}</Label>
+          <MetricList dash={dash} target={r.target} live={live} />
+          <T style={{ color: t.mute, fontSize: 11.5, paddingHorizontal: 16 }}>الأعمدة أيام الأسبوع من السبت، والخط متوسط اليوم في الأسبوع اللي فات.</T>
+        </>
+      ) : null}
 
       <Label>مجموعات كل عضلة (الهدف {TARGET} أو أكتر)</Label>
       <Card style={{ padding: 14, gap: 8 }}>
@@ -157,24 +160,6 @@ export default function WeekScreen() {
         </>
       ) : null}
 
-      {r.tasksDone ? (
-        <>
-          <Label>مهامي</Label>
-          <Card style={{ padding: 14 }}>
-            <T style={{ fontSize: 13.5 }}>{`✓ خلّصت ${r.tasksDone} ${r.tasksDone === 1 ? 'مهمة' : 'مهام'} الأسبوع ده`}</T>
-          </Card>
-        </>
-      ) : null}
-
-      {r.focus.work + r.focus.study ? (
-        <>
-          <Label>بومودورو</Label>
-          <Card style={{ padding: 14 }}>
-            <T style={{ fontSize: 13.5 }}>{`⏱ ركّزت ${minAr(r.focus.work + r.focus.study)} الأسبوع ده${r.focus.work && r.focus.study ? ` (شغل ${minAr(r.focus.work)} · مذاكرة ${minAr(r.focus.study)})` : ''}`}</T>
-          </Card>
-        </>
-      ) : null}
-
       {r.quits.length ? (
         <>
           <Label>بطّل</Label>
@@ -189,11 +174,9 @@ export default function WeekScreen() {
         </>
       ) : null}
 
-      <Label>الجسم والأكل</Label>
+      <Label>الجسم</Label>
       <Card style={{ padding: 14, gap: 8 }}>
         <Line icon="scale-outline" label="الوزن" value={r.weight.end == null ? 'ما اتوزنتش' : `${iso(String(r.weight.end))} كجم${r.weight.change != null ? ` (${iso(signed(r.weight.change))})` : ''}`} />
-        <Line icon="restaurant-outline" label="الالتزام بالوجبات" value={r.meals == null ? 'مفيش تسجيل' : `${Math.round(r.meals * 100)}%`} />
-        <Line icon="water-outline" label="أيام كمّلت فيها المية" value={`${r.waterDays} من ${r.days}`} />
       </Card>
     </Screen>
   );
