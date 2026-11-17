@@ -1,51 +1,28 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Platform, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { MONTHS_AR, PROGRAM, WEEKDAYS_AR } from '../data/program';
+import { PROGRAM } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { useVersePopup } from '../components/VersePopup';
-import { dateKey, daysBetween } from '../lib/dates';
-import { countAr, DAYS, formatClock } from '../lib/logic';
 import { storage } from '../lib/storage';
 import { deloadOn, useSettings } from '../lib/settings';
 import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
 import { refreshPlace } from '../lib/place';
 import { METHODS, type Method } from '../lib/prayer';
-import { BACKUP_STALE_DAYS, BACKUP_AREAS, backupInfo, infoText, LAST_BACKUP_KEY, parseBackup, type BackupInfo, type PhotoData } from '../lib/backup';
-import { copyBackup, pasteBackup, pickBackup, saveBackup } from '../lib/backupIO';
-import { AUTO_DAYS, AUTO_ERROR_KEY, AUTO_KEEP, AUTO_KEY, autoSupported, listAutoBackups, pickBackupDir, readAutoBackup, runAutoBackup } from '../lib/autoBackup';
-import { DbNotice } from '../components/DbNotice';
 import { ErrLogRow } from '../components/ErrLogRow';
 import { BAR_CHOICES } from '../lib/plates';
-import { allowReminders } from '../lib/reminder';
-import { ExportSheet } from '../components/ExportSheet';
-import { AREA, metaArea, useData, useDataVersion } from '../lib/bus';
-import type { Dump } from '../lib/storage.types';
-import { listPhotos, photosSupported } from '../lib/photos';
-import { applyBackup, safetyText } from '../lib/restore';
-import { canLock, lockSupported, unlock } from '../lib/lock';
-import { GOOGLE_USER, googleSupported } from '../lib/google';
-import { syncStatus } from '../lib/cloud';
+import { metaArea, useData } from '../lib/bus';
 import { AccentPicker } from '../components/AccentPicker';
+import { BackupCard } from '../components/BackupCard';
+import { NotifySettings } from '../components/NotifySettings';
+import { GeneralSettings } from '../components/GeneralSettings';
+import { clock, deloadSub, placeText, programSub, STEPS, tripLines } from '../lib/settingsView';
 import { useTheme } from '../theme';
 import { BUILD, buildDateText } from '../lib/buildInfo';
 
 const phone = Platform.OS !== 'web';
-const clock = (sec: number) => formatClock(sec * 1000);
-const STEPS = [1, 1.25, 2.5, 5];
-const ITEMS: [string, string, string, string] = ['صنف واحد', 'صنفين', 'أصناف', 'صنف'];
-const itemsAr = (n: number) => (n ? countAr(n, ITEMS) : 'مفيش حاجة');
-/** Minutes after midnight → "7:30 م". */
-const timeAr = (m: number) => {
-  const h = Math.floor(m / 60), mm = m % 60;
-  return `${h % 12 || 12}:${String(mm).padStart(2, '0')} ${h < 12 ? 'ص' : 'م'}`;
-};
-const WEEK = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
-const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]} ${k.slice(0, 4)}`;
-const PHOTOS: [string, string, string, string] = ['صورة', 'صورتين', 'صور', 'صورة'];
-const infoAr = (i: BackupInfo) => (i.total ? `${infoText(i)}${i.from && i.to ? ` (تمارين من ${dayAr(i.from)} لـ ${dayAr(i.to)})` : ''}` : 'مفيش تسجيل لسه');
 
 export default function SettingsScreen() {
   const t = useTheme();
@@ -53,53 +30,8 @@ export default function SettingsScreen() {
   const [confirm, setConfirm] = useState(false);
   const trips = splitShopping(st.shopTrips, undefined, movesFor(tripDays(st.shopTrips).length, st.shopMoves));
   const need = energyFor(st.body);
-  // Re-reads what this page shows: backup dates, the account and its save status, the edited program flag.
-  useData(metaArea(AUTO_ERROR_KEY), metaArea(LAST_BACKUP_KEY), metaArea(AUTO_KEY), metaArea(GOOGLE_USER), metaArea('program'), AREA.sync);
-  // What's on the phone (the whole database): counted again only when something it counts changes, not on every render.
-  const dataV = useData(...BACKUP_AREAS);
-  const today = dateKey();
-  const autoError = storage.getMeta(AUTO_ERROR_KEY); // the day the last automatic backup failed (autoBackup.ts)
-  const lastBackup = storage.getMeta(LAST_BACKUP_KEY);
-  const since = lastBackup ? daysBetween(lastBackup, today) : null;
-  const [msg, setMsg] = useState<{ text: string; bad?: boolean } | null>(null);
-  const [denied, setDenied] = useState(false);
-  const [exporting, setExporting] = useState(false);
-  const [lockMsg, setLockMsg] = useState<string | null>(null);
-  const [pending, setPending] = useState<{ data: Dump; photos: PhotoData[]; info: BackupInfo; exportedAt: string | null } | null>(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const mine = useMemo(() => backupInfo(storage.dump(), photosSupported ? listPhotos().length : 0), [dataV]);
-
-  const run = async (f: () => Promise<void>) => {
-    setMsg(null);
-    try {
-      await f();
-    } catch (e) {
-      // The error text helps when Google sign-in isn't set up right (e.g. DEVELOPER_ERROR = wrong SHA-1 or package).
-      const why = String((e as { code?: string; message?: string })?.code ?? (e as Error)?.message ?? '').slice(0, 80);
-      setMsg({ text: `حصلت مشكلة، جرّب تاني.${why ? ` (${why})` : ''}`, bad: true });
-    }
-  };
-  const done = (text: string) => {
-    storage.setMeta(LAST_BACKUP_KEY, today);
-    useDataVersion.getState().bump();
-    setMsg({ text });
-  };
-  const load = (text: string | null) => {
-    if (text == null) return;
-    const p = parseBackup(text);
-    if (!p.ok) return setMsg({ text: p.error, bad: true });
-    setPending({ data: p.data, photos: p.photos, info: p.info, exportedAt: p.exportedAt });
-  };
-  const restore = async () => {
-    if (!pending) return;
-    try {
-      const added = await applyBackup(pending.data, pending.photos);
-      setPending(null);
-      setMsg({ text: added ? `رجّعت النسخة ✓ ومعاها ${countAr(added, PHOTOS)}` : 'رجّعت النسخة ✓' });
-    } catch (e) {
-      setMsg({ text: safetyText(e) ?? 'حصلت مشكلة وأنا برجّع النسخة، جرّب تاني.', bad: true });
-    }
-  };
+  // Re-reads the edited program flag (the backup card watches its own keys).
+  useData(metaArea('program'));
 
   return (
     <Screen title="الإعدادات" sub="التمرين والراحة والمشتريات والآية" onBack={() => router.back()}>
@@ -113,86 +45,12 @@ export default function SettingsScreen() {
       </Pressable>
 
       <Label>نسخة احتياطية</Label>
-      <Card>
-        <DbNotice style={{ marginHorizontal: 12, marginTop: 12 }} />
-        <View style={{ paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, gap: 3 }}>
-          <T w="medium" style={{ color: since == null || since >= BACKUP_STALE_DAYS ? t.warn : t.okText }}>
-            {since == null ? 'لسه ما عملتش نسخة احتياطية' : since === 0 ? 'آخر نسخة النهارده ✓' : `آخر نسخة من ${countAr(since, DAYS)}`}
-          </T>
-          <T style={{ color: t.mute, fontSize: 12.5, lineHeight: 19 }}>
-            {`حسابك بيحفظ كل حاجة غير صور التقدّم. احفظ ملف أو ابعته لنفسك عشان يبقى معاك نسخة فيها الصور كمان. عندك دلوقتي: ${infoAr(mine)}`}
-          </T>
-        </View>
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
-          <Btn label="احفظ نسخة" kind="solid" style={{ flexGrow: 1 }} onPress={() => run(async () => done((await saveBackup()) === 'copied' ? 'اتنسخت في الحافظة، الصقها في رسالة لنفسك' : 'اتحفظت ✓'))} />
-          <Btn label="انسخها" style={{ flexGrow: 1 }} onPress={() => run(async () => { await copyBackup(); done('اتنسخت من غير الصور، الصقها في رسالة لنفسك أو في ملاحظة'); })} />
-        </View>
-        <Sep />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
-          <Btn label="صدّر لـ Excel (CSV)" style={{ flexGrow: 1 }} onPress={() => setExporting(true)} />
-        </View>
-        <Sep />
-        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8, padding: 12 }}>
-          <Btn label="رجّع من ملف" style={{ flexGrow: 1 }} onPress={() => run(async () => load(await pickBackup()))} />
-          <Btn label="رجّع من الحافظة" style={{ flexGrow: 1 }} onPress={() => run(async () => load(await pasteBackup()))} />
-        </View>
-        {pending ? (
-          <View style={{ marginHorizontal: 12, marginBottom: 12, padding: 12, borderRadius: 12, backgroundColor: t.warnSoft, gap: 8 }}>
-            <T w="semi" style={{ color: t.warn }}>{`النسخة دي${pending.exportedAt ? ` (اتعملت ${dayAr(pending.exportedAt.slice(0, 10))})` : ''} فيها ${infoAr(pending.info)}`}</T>
-            <T style={{ fontSize: 12.5, lineHeight: 19 }}>هتمسح كل اللي على الموبايل دلوقتي (التمرين والأكل والإعدادات) وتحط النسخة دي مكانه. الصور اللي على الموبايل بتفضل، واللي في النسخة بتتضاف. متأكد؟</T>
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              <Btn label="أيوه رجّعها" kind="solid" style={{ flex: 1 }} onPress={restore} />
-              <Btn label="لا" onPress={() => setPending(null)} />
-            </View>
-          </View>
-        ) : null}
-        <Sep />
-        <Pressable onPress={() => router.push('/account')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1 })}>
-          <Row label="حسابك" sub={!googleSupported ? 'على الموبايل بس' : storage.getMeta(GOOGLE_USER) ? `${storage.getMeta(GOOGLE_USER)} · ${{ saved: 'بياناتك محفوظة ✓', waiting: 'بيحفظ…', failed: 'الحفظ واقف، افتح وشوف', off: 'الحفظ على حسابك مقفول' }[syncStatus().state]}` : 'ادخل بجوجل عشان بياناتك تتحفظ وترجع على أي موبايل'}>
-            <Ionicons name="chevron-back" size={20} color={t.mute} />
-          </Row>
-        </Pressable>
-        <Sep />
-        <SwitchRow
-          label="نسخة تلقائية كل أسبوع"
-          sub={autoSupported ? `بتتحفظ جوه التطبيق (آخر ${AUTO_KEEP} نسخ). اختار فولدر كمان عشان تفضل لو مسحت التطبيق` : 'على الموبايل بس'}
-          value={st.autoBackup}
-          disabled={!autoSupported}
-          onChange={(v) => st.setQuiet({ autoBackup: v })}
-        />
-        {autoSupported && st.autoBackup ? (
-          <>
-            <Sep />
-            <Row label="الفولدر" sub={st.backupDir ? decodeURIComponent(st.backupDir.split('/').pop() ?? '').replace(/^primary:/, '') || 'متحدد' : 'جوه التطبيق بس'}>
-              <Btn label={st.backupDir ? 'غيّر' : 'اختار'} onPress={() => run(async () => { const d = await pickBackupDir(); if (d) { st.setQuiet({ backupDir: d }); await runAutoBackup(true); useDataVersion.getState().bump(); setMsg({ text: 'اتحفظت نسخة في الفولدر ✓' }); } })} />
-            </Row>
-            {autoError ? (
-              <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 8 }}>
-                {autoError === storage.getMeta(AUTO_KEY)
-                  ? 'معرفتش أكتب في الفولدر آخر مرة. اختاره تاني.'
-                  : 'النسخة التلقائية ما اتحفظتش آخر مرة (ممكن مساحة الموبايل مليانة). فضّي شوية مساحة واحفظ نسخة بإيدك.'}
-              </T>
-            ) : null}
-            {listAutoBackups().length ? (
-              <View style={{ paddingHorizontal: 12, paddingBottom: 10, gap: 6 }}>
-                <T style={{ color: t.mute, fontSize: 12.5 }}>{`النسخ التلقائية (كل ${AUTO_DAYS} أيام):`}</T>
-                {listAutoBackups().map((f) => (
-                  <View key={f.name} style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                    <T style={{ flex: 1, fontSize: 13 }}>{dayAr(f.date)}</T>
-                    <Btn label="رجّعها" onPress={() => run(async () => load(await readAutoBackup(f.name)))} />
-                  </View>
-                ))}
-              </View>
-            ) : null}
-          </>
-        ) : null}
-        {msg ? <T accessibilityLiveRegion="polite" style={{ color: msg.bad ? t.bad : t.okText, fontSize: 13, paddingHorizontal: 14, paddingBottom: 12 }}>{msg.text}</T> : null}
-      </Card>
+      <BackupCard />
 
       <Label>البرنامج</Label>
       <Pressable onPress={() => router.push('/program')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
         <Card>
-          <Row label="عدّل البرنامج" sub={`التمارين والمجموعات والتكرارات · ${PROGRAM.length} أيام · ${PROGRAM.reduce((n, d) => n + d.exercises.length, 0)} تمرين${storage.getMeta('program') ? ' · متعدّل' : ''}`}>
+          <Row label="عدّل البرنامج" sub={programSub(PROGRAM, !!storage.getMeta('program'))}>
             <Ionicons name="chevron-back" size={20} color={t.mute} />
           </Row>
         </Card>
@@ -235,7 +93,7 @@ export default function SettingsScreen() {
       <Card>
         <Row
           label="أسبوع خفيف (ديلود)"
-          sub={deloadOn(st) ? `شغال لحد ${dayAr(st.deloadUntil)}: نص المجموعات في كل تمرين` : '7 أيام بنص المجموعات عشان جسمك يرتاح. التطبيق بيقترحه لوحده لما يحين وقته'}>
+          sub={deloadSub(deloadOn(st), st.deloadUntil)}>
           <Btn label={deloadOn(st) ? 'وقّفه' : 'ابدأه'} kind={deloadOn(st) ? 'ghost' : 'solid'} onPress={deloadOn(st) ? st.stopDeload : st.startDeload} />
         </Row>
         <Sep />
@@ -248,56 +106,7 @@ export default function SettingsScreen() {
       </Card>
 
       <Label>الإشعارات</Label>
-      <Card>
-        <SwitchRow
-          label="ملخص الصبح"
-          sub={phone ? 'كل يوم الصبح: التمرين أو الراحة، الوجبات ومواعيدها، المية، واللي تجهّزه' : 'على الموبايل بس'}
-          value={st.brief}
-          disabled={!phone}
-          onChange={async (v) => {
-            const ok = !v || (await allowReminders());
-            setDenied(!ok);
-            if (ok) st.setQuiet({ brief: v });
-          }}
-        />
-        {st.brief ? (
-          <Row label="ميعاد الملخص">
-            <Stepper value={st.briefTime} min={0} max={24 * 60 - 15} step={15} onChange={(v) => st.setQuiet({ briefTime: v })} label="ميعاد الملخص" format={timeAr} />
-          </Row>
-        ) : null}
-        <Sep />
-        <SwitchRow
-          label="فكّرني بالتمرين"
-          sub={phone ? 'إشعار في الميعاد فيه اسم التمرين اللي عليه الدور، ومش بيجي لو اتمرنت النهارده' : 'على الموبايل بس'}
-          value={st.reminder}
-          disabled={!phone}
-          onChange={async (v) => {
-            const ok = !v || (await allowReminders());
-            setDenied(!ok);
-            if (ok) st.setQuiet({ reminder: v });
-          }}
-        />
-        {st.reminder ? (
-          <Row label="ميعاد التمرين">
-            <Stepper value={st.reminderTime} min={0} max={24 * 60 - 15} step={15} onChange={(v) => st.setQuiet({ reminderTime: v })} label="ميعاد التذكير" format={timeAr} />
-          </Row>
-        ) : null}
-        {denied ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>اسمح للتطبيق بالإشعارات من إعدادات الموبايل الأول</T> : null}
-        {st.reminder || st.brief ? (
-          <>
-            <Sep />
-            <View style={{ padding: 14, gap: 10 }}>
-              <T w="medium">أيام التمرين</T>
-              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-                {WEEK.map((wd) => {
-                  const on = st.reminderDays.includes(wd);
-                  return <Pill key={wd} label={WEEKDAYS_AR[wd]} on={on} onPress={() => st.setQuiet({ reminderDays: on ? st.reminderDays.filter((d) => d !== wd) : [...st.reminderDays, wd].sort() })} />;
-                })}
-              </View>
-            </View>
-          </>
-        ) : null}
-      </Card>
+      <NotifySettings />
 
       <Label>المشتريات</Label>
       <Card>
@@ -306,13 +115,9 @@ export default function SettingsScreen() {
         </Row>
         <Sep />
         <View style={{ paddingHorizontal: 14, paddingVertical: 10, gap: 4 }}>
-          {trips.length === 1 ? (
-            <T style={{ color: t.mute, fontSize: 12.5 }}>مرة واحدة كل جمعة للأسبوع كله</T>
-          ) : (
-            trips.map((d, i) => (
-              <T key={i} style={{ color: t.mute, fontSize: 12.5 }}>{`المرة ${i + 1}: ${d.label} · ${itemsAr(d.groups.reduce((a, g) => a + g.items.length, 0))}`}</T>
-            ))
-          )}
+          {tripLines(trips).map((line, i) => (
+            <T key={i} style={{ color: t.mute, fontSize: 12.5 }}>{line}</T>
+          ))}
         </View>
       </Card>
 
@@ -350,7 +155,7 @@ export default function SettingsScreen() {
               </View>
             </View>
             <Sep />
-            <Row label="المكان" sub={st.place ? st.place.name ?? `${st.place.lat.toFixed(2)}, ${st.place.lng.toFixed(2)}` : 'لسه ما اتحددش'}>
+            <Row label="المكان" sub={placeText(st.place)}>
               <Btn label="حدّث" onPress={() => refreshPlace()} />
             </Row>
           </>
@@ -361,23 +166,7 @@ export default function SettingsScreen() {
       <AccentPicker />
 
       <Label>عام</Label>
-      <Card>
-        <SwitchRow
-          label="قفل التطبيق"
-          sub={lockSupported ? 'بالبصمة أو الوش (أو رقم الموبايل السري) لما تفتحه، أو ترجعله بعد دقيقة' : 'على الموبايل بس'}
-          value={st.appLock}
-          disabled={!lockSupported}
-          onChange={async (v) => {
-            setLockMsg(null);
-            if (!v) return st.setQuiet({ appLock: false });
-            if (!(await canLock())) return setLockMsg('فعّل البصمة أو قفل الشاشة في إعدادات الموبايل الأول');
-            if (await unlock()) st.setQuiet({ appLock: true });
-          }}
-        />
-        {lockMsg ? <T style={{ color: t.bad, fontSize: 12.5, paddingHorizontal: 14, paddingBottom: 10 }}>{lockMsg}</T> : null}
-        <Sep />
-        <SwitchRow label="اهتزاز خفيف" sub={phone ? 'مع ✓ ولما الراحة تخلص' : 'على الموبايل بس'} value={st.haptics} onChange={(v) => st.update({ haptics: v })} />
-      </Card>
+      <GeneralSettings />
       <ErrLogRow />
 
       <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center', marginTop: 6 }}>
@@ -397,7 +186,6 @@ export default function SettingsScreen() {
         <T style={{ color: t.mute, fontSize: 12, textAlign: 'center', writingDirection: 'ltr' }}>{`Brainy ${BUILD.version} · ${BUILD.sha}`}</T>
         {buildDateText(BUILD.date) ? <T style={{ color: t.mute, fontSize: 12, textAlign: 'center' }}>{`اتبنت ${buildDateText(BUILD.date)}`}</T> : null}
       </View>
-      {exporting ? <ExportSheet visible onClose={() => setExporting(false)} /> : null}
     </Screen>
   );
 }

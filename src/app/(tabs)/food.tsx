@@ -1,28 +1,28 @@
 import React, { useState } from 'react';
 import { Item } from '../../components/Motion';
-import { Pressable, StyleSheet, TextInput, View } from 'react-native';
-import Ionicons from '@expo/vector-icons/Ionicons';
-import { FOODS, MEAL_ORDER, MEAL_TIME, MEALS, SUPPLEMENTS, SWAPS, WEEK_MENU, type MealKey } from '../../data/nutrition';
+import { MEAL_ORDER, SUPPLEMENTS, WEEK_MENU, type MealKey } from '../../data/nutrition';
 import { WEEKDAY_LETTERS_AR } from '../../data/program';
-import { INPUT, Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } from '../../components/ui';
+import { Btn, DayChips, Screen } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
-import { ACTION, Swipe } from '../../components/Swipe';
+import { DayCard, MacroTiles, WaterCard } from '../../components/food/FoodTop';
+import { MealCard } from '../../components/food/MealCard';
+import { AdherenceCard, ExtrasCard, FoodLegend, SuppsCard } from '../../components/food/FoodLog';
+import { ExtraSheet, SwapSheet, type ExtraForm } from '../../components/food/FoodSheets';
+import { SwapsInfo } from '../../components/food/SwapsInfo';
 import { energyFor, targetsFor } from '../../lib/energy';
-import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY } from '../../lib/journal';
+import { adherence, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY } from '../../lib/journal';
+import { creatineDays, eatenTotal, mealsFor, pickOf, planTotal, swapOptions, WEEK_ORDER } from '../../lib/foodView';
 import { readNumbers } from '../../lib/meta';
 import * as food from '../../lib/foodStore';
 import { showUndo } from '../../lib/undo';
 import { useSettings } from '../../lib/settings';
-import { mealMacros, parseNum } from '../../lib/logic';
+import { parseNum } from '../../lib/logic';
 import { weekdayOfKey } from '../../lib/rollover';
 import { useToday } from '../../lib/useToday';
 import { dateInWeek, isTrainingDay } from '../../lib/schedule';
 import { storage } from '../../lib/storage';
 import { AREA, metaArea, useData } from '../../lib/bus';
-import { tint, useTheme, type Theme, font } from '../../theme';
-
-const l1 = (ml: number) => String(Math.round(ml / 100) / 10);
-const typeColor = (t: Theme, ty: string) => (ty === 'p' ? t.protein : ty === 'c' ? t.carbs : ty === 'f' ? t.fat : t.veg);
+import { useTheme } from '../../theme';
 
 export default function Food() {
   const t = useTheme();
@@ -33,7 +33,7 @@ export default function Food() {
   const sel = picked ?? today;
   const [showSwaps, setShowSwaps] = useState(false);
   const [swapMeal, setSwapMeal] = useState<MealKey | null>(null);
-  const [extraForm, setExtraForm] = useState<{ name: string; kcal: string; p: string } | null>(null);
+  const [extraForm, setExtraForm] = useState<ExtraForm | null>(null);
   // Re-read storage after a write to what this tab shows: sets (training days), meals, and its meta keys.
   useData(AREA.sets, AREA.meals, metaArea(food.REST_DAY_KEY), metaArea(MEAL_PICKS_KEY), metaArea(WATER_KEY), metaArea(SUPPS_KEY), metaArea(EXTRAS_KEY));
   // Your own targets once the calorie calculator has your data (side menu → حساب السعرات), else the plan's.
@@ -56,14 +56,7 @@ export default function Food() {
   const canLog = selDate <= date;
   const checks = new Set(storage.mealChecks(selDate)); // re-read when v changes
   const picks = readNumbers(MEAL_PICKS_KEY);
-  const pickOf = (m: MealKey) => {
-    const i = picks[dayKey(selDate, m)];
-    return i != null && MEALS.find((x) => x.meal === m)!.options[i] ? i : day.picks[m];
-  };
-  const meals = MEAL_ORDER.map((m) => {
-    const opt = MEALS.find((x) => x.meal === m)!.options[pickOf(m)];
-    return { meal: m, ...opt, mac: mealMacros(opt.items), swapped: pickOf(m) !== day.picks[m] };
-  });
+  const meals = mealsFor(day, picks, selDate);
   const setPick = (m: MealKey, i: number) => {
     setSwapMeal(null);
     food.setMealPick(selDate, m, i === day.picks[m] ? null : i);
@@ -83,13 +76,9 @@ export default function Food() {
   const waterGoalOn = (d: string) => waterGoalMl(baseWater, isTrainingDay(d, date, trained, restDay));
   const waterDays = waterDaysMet(history, waterGoalOn);
   const creatine = SUPPLEMENTS[0]?.name;
-  const creatineDays = creatine ? history.filter((d) => supps[dayKey(d.date, creatine)]).length : 0;
-  const total = meals.reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: 0, p: 0 });
   // Food outside the plan counts toward what you ate.
-  const extrasAll = parseExtras(storage.getMeta(EXTRAS_KEY));
-  const extras = extrasAll[selDate] ?? [];
-  const ext = extrasTotal(extras);
-  const eaten = meals.filter((m) => canLog && checks.has(m.meal)).reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: ext.kcal, p: ext.p });
+  const extras = parseExtras(storage.getMeta(EXTRAS_KEY))[selDate] ?? [];
+  const eaten = eatenTotal(meals, checks, canLog, extrasTotal(extras));
   const addExtra = () => {
     if (!extraForm) return;
     const kcal = parseNum(extraForm.kcal);
@@ -106,8 +95,7 @@ export default function Food() {
   const tickMeal = (m: MealKey, on: boolean) => void food.tickMeal(selDate, m, on);
   const tickSupp = (name: string, on: boolean) => void food.tickSupp(selDate, name, on);
 
-  const order = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
-  const chips = order.map((wd) => {
+  const chips = WEEK_ORDER.map((wd) => {
     const d = WEEK_MENU.find((x) => x.weekday === wd)!;
     return {
       key: wd,
@@ -118,302 +106,37 @@ export default function Food() {
     };
   });
 
-  const tiles = [
-    { v: goal.kcal.toLocaleString('en-US'), u: 'سعر', l: goal.mine ? 'احتياجك' : 'في اليوم', c: t.ink, solid: true },
-    { v: goal.protein, u: 'جم', l: 'بروتين', c: t.protein },
-    { v: goal.carbs, u: 'جم', l: 'كارب', c: t.carbs },
-    { v: goal.fat, u: 'جم', l: 'دهون', c: t.fat },
-  ];
-
   return (
     <Screen
       title="الأكل"
       sub={goal.mine ? 'أهدافك من حساب السعرات' : '183 سم · 82 كجم · زيادة عضل'}
       dense
       action={<MenuButton />}>
-      <View style={{ flexDirection: 'row', gap: 6 }}>
-        {tiles.map((x, i) => (
-          <View key={i} style={{ flex: 1, minWidth: 0, borderRadius: 12, paddingVertical: 6, paddingHorizontal: 9, backgroundColor: x.solid ? t.ink : tint(x.c, 0.15) }}>
-            <T w="numBold" style={{ fontSize: 15, color: x.solid ? t.onInk : t.fg }} numberOfLines={1}>{String(x.v)}</T>
-            <T style={{ fontSize: 11, color: x.solid ? t.onInk : t.mute }}>{`${x.u} · ${x.l}`}</T>
-          </View>
-        ))}
-      </View>
-
+      <MacroTiles goal={goal} />
       <DayChips dense days={chips} value={sel} today={today} onChange={setSel} />
-
-      <Card style={{ paddingVertical: 8, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-        <Ring value={canLog ? Math.min(1, eaten.kcal / goal.kcal) : 0} size={46} stroke={4}>
-          <T w="numBold" style={{ fontSize: 12, color: canLog ? t.okText : t.mute }}>{canLog ? `${Math.round((eaten.kcal / goal.kcal) * 100)}%` : '–'}</T>
-        </Ring>
-        <View style={{ flex: 1, gap: 1 }}>
-          <T style={{ color: t.mute, fontSize: 12.5 }}>{`أكل اليوم ${Math.round(total.kcal)} سعر · ${Math.round(total.p)} جم بروتين`}</T>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <T w="bold" style={{ fontSize: 16 }}>{day.day}</T>
-            {canSwitch ? (
-              <Pressable
-                onPress={switchToday}
-                hitSlop={10}
-                accessibilityRole="switch"
-                accessibilityState={{ checked: isTraining }}
-                accessibilityLabel={isTraining ? 'النهارده يوم تمرين، دوس تخليه يوم راحة' : 'النهارده يوم راحة، دوس تخليه يوم تمرين'}
-                style={({ pressed }) => [s.pill, { backgroundColor: isTraining ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 }]}>
-                <T w="semi" style={{ fontSize: 12, color: isTraining ? t.okText : t.mute }}>{isTraining ? 'يوم تمرين' : 'يوم راحة'}</T>
-                <Ionicons name="swap-horizontal" size={12} color={isTraining ? t.okText : t.mute} />
-              </Pressable>
-            ) : (
-              <T w="semi" style={{ fontSize: 12, color: isTraining ? t.okText : t.mute }}>{isTraining ? 'يوم تمرين' : 'يوم راحة'}</T>
-            )}
-          </View>
-          <T style={{ color: t.mute, fontSize: 12 }}>
-            {canLog ? `كلت ${Math.round(eaten.kcal)} من ${goal.kcal.toLocaleString('en-US')} سعر · ${Math.round(eaten.p)} من ${goal.protein} جم بروتين` : 'اليوم ده لسه مجاش. تقدر تعلّم على النهارده والأيام اللي فاتت.'}
-          </T>
-        </View>
-      </Card>
-
-      {canLog ? (
-        <Card style={{ paddingVertical: 8, paddingHorizontal: 12, gap: 6 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-            <Ionicons name="water-outline" size={18} color={t.protein} />
-            <View style={{ flex: 1, minWidth: 0 }}>
-              <T w="semi" style={{ fontSize: 13.5 }}>{`المية · \u2066${l1(waterMl)}\u2069 من \u2066${l1(waterGoal)}\u2069 لتر`}</T>
-              <T style={{ fontSize: 11.5, color: t.mute }}>{waterMl >= waterGoal ? 'كمّلت المية ✓' : `فاضل ${Math.ceil((waterGoal - waterMl) / CUP_ML)} كوباية`}</T>
-            </View>
-            <Pressable onPress={() => addWater(-CUP_ML)} disabled={!waterMl} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="شيل كوباية" style={({ pressed }) => [s.wbtn, { backgroundColor: t.soft, opacity: !waterMl ? 0.35 : pressed ? 0.7 : 1 }]}>
-              <Ionicons name="remove" size={18} color={t.fg} />
-            </Pressable>
-            <Pressable onPress={() => addWater(CUP_ML)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="زوّد كوباية مية" style={({ pressed }) => [s.wadd, { backgroundColor: tint(t.protein, 0.15), opacity: pressed ? 0.7 : 1 }]}>
-              <T w="semi" style={{ fontSize: 12.5, color: t.protein }} numberOfLines={1}>+ كوباية</T>
-            </Pressable>
-          </View>
-          <Progress value={waterMl / waterGoal} color={t.protein} height={6} />
-        </Card>
-      ) : null}
-
-      {meals.map((m) => {
-        const on = canLog && checks.has(m.meal);
-        return (
-          <Item key={m.meal}>
-          <Swipe
-            style={s.swipeCard}
-            start={canLog ? [on ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => tickMeal(m.meal, false) } : { icon: 'checkmark', label: 'أكلتها', color: ACTION.green, onPress: () => tickMeal(m.meal, true) }] : undefined}
-            end={[{ icon: 'swap-horizontal', label: 'بدّل', color: ACTION.blue, onPress: () => setSwapMeal(m.meal) }]}>
-          {/* Page background under the card, so the faded (eaten) card still hides the actions. */}
-          <View style={{ backgroundColor: t.bg }}>
-          <Card style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: 7, gap: 2, opacity: on ? 0.7 : 1 }}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-              {/* Full meal name (wraps if long), its time after it in small muted text. */}
-              <T w="bold" style={{ flex: 1, fontSize: 14 }}>
-                {`${m.meal} · ${m.name}  `}
-                <T style={{ color: t.mute, fontSize: 11.5 }}>{isTraining ? MEAL_TIME[m.meal].training : MEAL_TIME[m.meal].rest}</T>
-              </T>
-              <Pressable
-                onPress={() => setSwapMeal(m.meal)}
-                hitSlop={10}
-                accessibilityRole="button"
-                accessibilityLabel={`بدّل ${m.meal}`}
-                style={({ pressed }) => [s.swap, { backgroundColor: m.swapped ? t.warnSoft : t.soft, opacity: pressed ? 0.6 : 1 }]}>
-                <Ionicons name="swap-horizontal" size={15} color={m.swapped ? t.warn : t.mute} />
-              </Pressable>
-              {canLog ? <Check compact on={on} label={`أكلت ${m.meal}`} onPress={() => tickMeal(m.meal, !on)} /> : null}
-            </View>
-            {/* The meal's items as a list: colored dot (protein / carbs / fat / veg), item, its calories. */}
-            <View>
-              {m.items.map((it, i) => (
-                <View key={it} style={[s.item, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
-                  <View style={[s.dot, { backgroundColor: typeColor(t, FOODS[it]?.type ?? 'v') }]} />
-                  <T style={{ flex: 1, fontSize: 13 }} numberOfLines={1}>{it}</T>
-                  {FOODS[it] ? <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${Math.round(FOODS[it].kcal)} سعر`}</T> : null}
-                </View>
-              ))}
-            </View>
-            <View style={{ flexDirection: 'row', gap: 8, marginTop: 1 }}>
-              <T w="num" style={{ fontSize: 12 }}>{`${Math.round(m.mac.kcal)} سعر`}</T>
-              <T w="num" style={{ fontSize: 12, color: t.protein }}>{`${Math.round(m.mac.p)} بروتين`}</T>
-              <T w="num" style={{ fontSize: 12, color: t.carbsText }}>{`${Math.round(m.mac.c)} كارب`}</T>
-              <T w="num" style={{ fontSize: 12, color: t.fat }}>{`${Math.round(m.mac.f)} دهون`}</T>
-            </View>
-          </Card>
-          </View>
-          </Swipe>
-          </Item>
-        );
-      })}
-
-      {canLog ? (
-        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 4, overflow: 'hidden' }}>
-          <T w="bold" style={{ fontSize: 14 }}>أكل برة الخطة</T>
-          {extras.map((x, i) => (
-            <Item key={i}>
-            <Swipe style={s.swipeRow} end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => removeExtra(i) }]}>
-            <View style={[s.item, s.rowPad, { minHeight: 44, backgroundColor: t.card }, i ? { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: t.line } : null]}>
-              <T style={{ flex: 1, fontSize: 13.5 }} numberOfLines={1}>{x.name}</T>
-              <T w="num" style={{ fontSize: 11.5, color: t.mute }}>{`${x.kcal} سعر · ${x.p} بروتين`}</T>
-              <Pressable onPress={() => removeExtra(i)} hitSlop={{ top: 14, bottom: 14, left: 10, right: 10 }} accessibilityRole="button" accessibilityLabel={`امسح ${x.name}`}>
-                <Ionicons name="close" size={16} color={t.bad} />
-              </Pressable>
-            </View>
-            </Swipe>
-            </Item>
-          ))}
-          <Pressable onPress={() => setExtraForm({ name: '', kcal: '', p: '' })} hitSlop={{ top: 4, bottom: 4 }} accessibilityRole="button" style={({ pressed }) => ({ minHeight: 36, justifyContent: 'center', opacity: pressed ? 0.6 : 1 })}>
-            <T w="semi" style={{ fontSize: 13, color: t.okText }}>+ سجّل حاجة كلتها</T>
-          </Pressable>
-        </Card>
-      ) : null}
-
-      {canLog ? (
-        <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 2, overflow: 'hidden' }}>
-          <T w="bold" style={{ fontSize: 14 }}>المكملات</T>
-          {SUPPLEMENTS.map((x) => {
-            const on = !!supps[dayKey(selDate, x.name)];
-            return (
-              <Swipe
-                key={x.name}
-                style={s.swipeRow}
-                start={[on ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => tickSupp(x.name, false) } : { icon: 'checkmark', label: 'خدتها', color: ACTION.green, onPress: () => tickSupp(x.name, true) }]}>
-              <View style={[s.item, s.rowPad, { minHeight: 44, backgroundColor: t.card }]}>
-                <View style={{ flex: 1 }}>
-                  <T style={{ fontSize: 13.5 }}>{x.name}</T>
-                  <T style={{ fontSize: 11, color: t.mute }} numberOfLines={1}>{x.dose}</T>
-                </View>
-                <Check compact on={on} label={`خدت ${x.name}`} onPress={() => tickSupp(x.name, !on)} />
-              </View>
-              </Swipe>
-            );
-          })}
-        </Card>
-      ) : null}
-
-      <Sheet visible={extraForm != null} onClose={() => setExtraForm(null)} title="أكل برة الخطة" sub="السعرات والبروتين من على العلبة أو بالتقريب">
-        {extraForm ? (
-          <>
-            <TextInput value={extraForm.name} onChangeText={(v) => setExtraForm({ ...extraForm, name: v })} placeholder="إيه اللي كلته؟" placeholderTextColor={t.mute} maxLength={40} accessibilityLabel="اسم الأكل" style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body'), textAlign: 'right' }]} />
-            <View style={{ flexDirection: 'row', gap: 8 }}>
-              {(['kcal', 'p'] as const).map((k) => (
-                <View key={k} style={{ flex: 1, gap: 4 }}>
-                  <T w="medium" style={{ fontSize: 13 }}>{k === 'kcal' ? 'السعرات' : 'البروتين (جم)'}</T>
-                  <TextInput value={extraForm[k]} onChangeText={(v) => setExtraForm({ ...extraForm, [k]: v.replace(/[^0-9.,٠-٩۰-۹٫]/g, '') })} keyboardType="number-pad" placeholder="–" placeholderTextColor={t.mute} maxLength={5} accessibilityLabel={k === 'kcal' ? 'السعرات' : 'البروتين'} style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('numBold'), textAlign: 'center' }]} />
-                </View>
-              ))}
-            </View>
-            <Btn label="ضيفه" kind="solid" onPress={addExtra} />
-          </>
-        ) : null}
-      </Sheet>
-
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-        {[['بروتين', t.protein], ['كارب', t.carbs], ['دهون', t.fat], ['خضار', t.veg]].map(([l, c]) => (
-          <View key={l} style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
-            <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c }} />
-            <T style={{ color: t.mute, fontSize: 12 }}>{l}</T>
-          </View>
-        ))}
-      </View>
-
+      <DayCard dayName={day.day} goal={goal} total={planTotal(meals)} eaten={eaten} canLog={canLog} isTraining={isTraining} canSwitch={canSwitch} onSwitch={switchToday} />
+      {canLog ? <WaterCard ml={waterMl} goal={waterGoal} onAdd={addWater} /> : null}
+      {meals.map((m) => (
+        <Item key={m.meal}>
+          <MealCard m={m} on={canLog && checks.has(m.meal)} canLog={canLog} isTraining={isTraining} onTick={tickMeal} onSwap={setSwapMeal} />
+        </Item>
+      ))}
+      {canLog ? <ExtrasCard extras={extras} onRemove={removeExtra} onAdd={() => setExtraForm({ name: '', kcal: '', p: '' })} /> : null}
+      {canLog ? <SuppsCard isOn={(name) => !!supps[dayKey(selDate, name)]} onTick={tickSupp} /> : null}
+      <ExtraSheet form={extraForm} onChange={setExtraForm} onClose={() => setExtraForm(null)} onAdd={addExtra} />
+      <FoodLegend />
       {history.length ? (
-        <Card style={{ paddingVertical: 10, paddingHorizontal: 12, gap: 8 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
-            <T w="bold" style={{ fontSize: 14, flex: 1 }}>{`التزامك آخر ${history.length} يوم`}</T>
-            {adh != null ? <T w="numBold" style={{ fontSize: 14, color: adh >= 0.8 ? t.okText : t.warn }}>{`${Math.round(adh * 100)}%`}</T> : null}
-          </View>
-          <View style={{ flexDirection: 'row', gap: 3, height: 56, alignItems: 'flex-end' }}>
-            {history.map((d) => {
-              const f = Math.min(1, d.meals / MEAL_ORDER.length);
-              const full = d.meals >= MEAL_ORDER.length;
-              return (
-                <View key={d.date} style={{ flex: 1, alignItems: 'center', gap: 3 }} accessible accessibilityLabel={`${d.date}: ${d.meals} من ${MEAL_ORDER.length} وجبات`}>
-                  <View style={{ width: '100%', maxWidth: 16, height: 36, borderRadius: 4, backgroundColor: t.soft, justifyContent: 'flex-end', overflow: 'hidden' }}>
-                    <View style={{ height: `${f * 100}%`, backgroundColor: full ? t.ok : tint(t.ok, 0.5) }} />
-                  </View>
-                  <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: d.water >= waterGoalOn(d.date) ? t.protein : 'transparent' }} />
-                  <T w="num" style={{ fontSize: 9, color: d.date === date ? t.fg : t.mute }}>{String(+d.date.slice(8))}</T>
-                </View>
-              );
-            })}
-          </View>
-          <T style={{ fontSize: 11.5, color: t.mute }}>{`العمود = الوجبات اللي علّمت عليها · النقطة الزرقا = كمّلت المية (${waterDays} يوم)${creatine ? ` · ${creatine}: ${creatineDays} من ${history.length} يوم` : ''}`}</T>
-        </Card>
+        <AdherenceCard history={history} adh={adh} today={date} waterGoalOn={waterGoalOn} waterDays={waterDays} creatine={creatine} creatineDays={creatineDays(history, supps, creatine)} />
       ) : null}
-
-      <Sheet
-        visible={swapMeal != null}
+      <SwapSheet
+        meal={swapMeal}
+        dayName={day.day}
+        options={swapMeal ? swapOptions(swapMeal, day, pickOf(picks, selDate, swapMeal, day)) : []}
         onClose={() => setSwapMeal(null)}
-        title={swapMeal ? `بدّل ${swapMeal} · ${day.day}` : ''}
-        sub="أي اختيار من نفس الوجبة بماكروز قريبة. التبديل لليوم ده بس، وقايمة المشتريات زي ما هي">
-        {swapMeal
-          ? (() => {
-              const opts = MEALS.find((x) => x.meal === swapMeal)!.options;
-              const base = mealMacros(opts[day.picks[swapMeal]].items);
-              const cur = pickOf(swapMeal);
-              return opts
-                .map((o, i) => ({ o, i, mac: mealMacros(o.items) }))
-                .sort((a, b) => Math.abs(a.mac.kcal - base.kcal) - Math.abs(b.mac.kcal - base.kcal))
-                .map(({ o, i, mac }) => {
-                  const on = i === cur;
-                  const dk = Math.round(mac.kcal - base.kcal);
-                  return (
-                    <Pressable key={i} onPress={() => setPick(swapMeal, i)} accessibilityRole="button" accessibilityState={{ selected: on }} style={({ pressed }) => [s.opt, { backgroundColor: on ? t.okSoft : t.soft, opacity: pressed ? 0.7 : 1 }]}>
-                      <View style={{ flex: 1, gap: 1 }}>
-                        <T w="semi" style={{ fontSize: 14 }}>{`${o.name}${i === day.picks[swapMeal] ? ' · الأصلي' : ''}`}</T>
-                        <T style={{ fontSize: 11.5, color: t.mute }} numberOfLines={2}>{o.items.join('، ')}</T>
-                      </View>
-                      <View style={{ alignItems: 'flex-end' }}>
-                        <T w="num" style={{ fontSize: 12 }}>{`${Math.round(mac.kcal)} سعر`}</T>
-                        <T w="num" style={{ fontSize: 11, color: t.protein }}>{`${Math.round(mac.p)} بروتين`}</T>
-                        {dk ? <T w="num" style={{ fontSize: 10.5, color: t.mute }}>{`\u2066${dk > 0 ? '+' : ''}${dk}\u2069`}</T> : null}
-                      </View>
-                    </Pressable>
-                  );
-                });
-            })()
-          : null}
-      </Sheet>
-
+        onPick={setPick}
+      />
       <Btn label={showSwaps ? 'اخفي البدائل والمكملات' : 'البدائل والمكملات'} onPress={() => setShowSwaps(!showSwaps)} />
-      {showSwaps ? (
-        <>
-          {SWAPS.map((g, gi) => {
-            const c = [t.protein, t.carbs, t.fat][gi];
-            return (
-              <Card key={g.title} style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 2 }}>
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
-                  <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c }} />
-                  <T w="bold">{`${g.title} · ${g.unit}`}</T>
-                </View>
-                <T style={{ color: t.mute, fontSize: 12 }}>أي صنف هنا ينفع مكان أي صنف تاني في نفس المجموعة</T>
-                {g.items.map((x) => (
-                  <T key={x} style={{ fontSize: 13.5 }}>{`• ${x}`}</T>
-                ))}
-              </Card>
-            );
-          })}
-          <Card style={{ paddingHorizontal: 12, paddingVertical: 8, gap: 6 }}>
-            <T w="bold">المكملات</T>
-            {SUPPLEMENTS.map((s) => (
-              <View key={s.name}>
-                <T w="semi" style={{ fontSize: 14 }}>{s.name}</T>
-                <T style={{ fontSize: 13 }}>{s.dose}</T>
-                <T style={{ color: t.mute, fontSize: 12 }}>{s.note}</T>
-              </View>
-            ))}
-          </Card>
-        </>
-      ) : null}
+      {showSwaps ? <SwapsInfo /> : null}
     </Screen>
   );
 }
-
-const s = StyleSheet.create({
-  item: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingVertical: 2 },
-  swipeCard: { borderRadius: 12, overflow: 'hidden' },
-  swipeRow: { marginHorizontal: -12 },
-  rowPad: { paddingHorizontal: 12 },
-  dot: { width: 7, height: 7, borderRadius: 4 },
-  wbtn: { width: 36, height: 32, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
-  input: { height: 44, borderRadius: 12, paddingHorizontal: 12, fontSize: 15, outlineWidth: 0 },
-  wadd: { height: 32, borderRadius: 10, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  swap: { width: 30, height: 30, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  opt: { flexDirection: 'row', alignItems: 'center', gap: 10, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 8, minHeight: 48 },
-  pill: { flexDirection: 'row', alignItems: 'center', gap: 4, borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 },
-});
