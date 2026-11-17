@@ -87,6 +87,14 @@ function Tasks() {
     const undo = tickTask(x.id, today, taskId(stamp()));
     if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, undo);
   };
+  // Move every overdue task to today in one tap (the morning backlog), with one undo for all of them.
+  const bumpOverdue = () => {
+    tap();
+    ease();
+    const n = tv.overdue.length;
+    const undo = undoable(() => { for (const x of tv.overdue) saveTask({ ...x, due: today }); });
+    showUndo(`رحّلت ${n} ${n === 1 ? 'مهمة' : 'مهام'} للنهارده`, undo);
+  };
   const addQuick = () => {
     const title = quick.trim();
     if (!title) return;
@@ -104,15 +112,20 @@ function Tasks() {
   // Tasks made from a goal's step show the goal's name and open it.
   const goalsById = new Map(readGoals().map((g) => [g.id, g]));
   const row = (x: Task, last: boolean, showDate: boolean) => <Item key={x.id}><TaskRow t={t} x={x} goal={x.goal ? goalsById.get(x.goal.goal) : undefined} today={today} last={last} showDate={showDate} onToggle={() => toggle(x)} onOpen={() => setEditing(x)} subsOpen={openSubs === x.id} onSubs={() => { ease(); setOpenSubs(openSubs === x.id ? null : x.id); }} /></Item>;
-  const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean } = {}) =>
+  const group = (key: string, label: string, items: Task[], o: { color?: string; showDate?: boolean; fold?: boolean; action?: { label: string; onPress: () => void } } = {}) =>
     items.length ? (
       <View key={key} style={{ gap: 8 }}>
-        {label ? <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} hitSlop={o.fold ? 8 : undefined} style={[s.sec, o.fold ? s.secFold : null]}>
+        {label ? <View style={s.secRow}>
+          <Pressable onPress={o.fold ? () => { ease(); setShowDone(!showDone); } : undefined} disabled={!o.fold} accessibilityRole={o.fold ? 'button' : undefined} accessibilityState={o.fold ? { expanded: showDone } : undefined} hitSlop={o.fold ? 8 : undefined} style={[s.sec, o.fold ? s.secFold : null]}>
           {o.color ? <View style={[s.secDot, { backgroundColor: o.color }]} /> : null}
           <T w="semi" style={{ fontSize: 13.5, color: o.color ?? t.mute }}>{label}</T>
           <T w="num" style={{ fontSize: 12, color: o.color ?? t.mute }}>{String(items.length)}</T>
           {o.fold ? <Ionicons name={showDone ? 'chevron-up' : 'chevron-down'} size={14} color={t.mute} /> : null}
-        </Pressable> : null}
+          </Pressable>
+          {o.action ? <Pressable onPress={o.action.onPress} hitSlop={8} accessibilityRole="button" style={({ pressed }) => ({ paddingHorizontal: 4, opacity: pressed ? 0.6 : 1 })}>
+            <T w="semi" style={{ fontSize: 12.5, color: t.okText }}>{o.action.label}</T>
+          </Pressable> : null}
+        </View> : null}
         {o.fold && !showDone ? null : <View style={[s.card, { backgroundColor: t.card }]}>{items.map((x, i) => row(x, i === items.length - 1, !!o.showDate))}</View>}
       </View>
     ) : null;
@@ -206,7 +219,7 @@ function Tasks() {
       {tab === 'today' ? (
         todayAll ? (
           <>
-            {group('late', 'متأخرة', tv.overdue, { color: t.bad, showDate: true })}
+            {group('late', 'متأخرة', tv.overdue, { color: t.bad, showDate: true, action: { label: 'رحّل للنهارده', onPress: bumpOverdue } })}
             {tv.day.length ? group('day', tv.overdue.length ? 'النهارده' : '', tv.day) : !tv.overdue.length ? <Empty t={t} icon="checkmark-done-outline" title="خلّصت مهام النهارده" sub="برافو. لو فيه حاجة تانية اكتبها تحت" /> : null}
             {group('done', 'خلصت', tv.done, { fold: true })}
           </>
@@ -228,7 +241,7 @@ function Tasks() {
               <Ionicons name={month ? 'chevron-up' : 'chevron-down'} size={14} color={t.okText} />
             </Pressable>
           </View>
-          {day === today && tv.overdue.length ? group('late', 'متأخرة', tv.overdue, { color: t.bad, showDate: true }) : null}
+          {day === today && tv.overdue.length ? group('late', 'متأخرة', tv.overdue, { color: t.bad, showDate: true, action: { label: 'رحّل للنهارده', onPress: bumpOverdue } }) : null}
           {dayTasks(list, day).length || doneOn(list, day).length ? (
             <>
               {group('day', dueAr(day, today), dayTasks(list, day))}
@@ -490,6 +503,7 @@ const s = StyleSheet.create({
   segBar: { flexDirection: 'row', padding: 2, borderRadius: 9, gap: 2 },
   segItem: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, height: 32, borderRadius: 7 },
   secDot: { width: 7, height: 7, borderRadius: 4 },
+  secRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   monthBtn: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 4, height: 40, marginTop: 2 },
   wArrow: { width: 40, height: 48, alignItems: 'center', justifyContent: 'center' },
   wd: { flex: 1, alignItems: 'center', paddingVertical: 4, borderRadius: 12, borderWidth: 1.5, gap: 1 },

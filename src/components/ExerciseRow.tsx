@@ -66,7 +66,8 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   // a new plan). Its own writes keep its state, so ticks can animate.
   const [rows, setRows] = useState<Row[]>(() => {
     const cur = storage.setsFor(date, ex.id);
-    return Array.from({ length: ex.sets }, (_, i) => toRow(cur[i]));
+    // Keep any extra sets logged past the plan (idx ≥ ex.sets) so they survive a remount.
+    return Array.from({ length: Math.max(ex.sets, cur.length) }, (_, i) => toRow(cur[i]));
   });
   const [last] = useState<SetEntry[] | undefined>(() => lastFor(hist, date, ex.id, swaps, alt));
   // Best estimated 1RM before today (same variant), for the "new record" badge on the summary line.
@@ -219,6 +220,23 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
     onChange(false);
     showUndo(`اتمسحت مجموعة ${i + 1} · ${name}`, () => restoreSet(i, old));
   };
+  /** Add a set beyond the plan for today (dropset, extra). Saved once you type or tick it; doesn't change the program. */
+  const addSet = () => {
+    setRows((prev) => [...prev, { kg: '', reps: '', done: false, rir: null, at: null }]);
+    tap();
+  };
+  /** Remove the last set — only an extra one you added past the plan, with undo. */
+  const removeLastSet = () => {
+    const i = rows.length - 1;
+    if (i < ex.sets) return;
+    const old = rows[i];
+    setRows((prev) => prev.slice(0, -1));
+    storage.deleteSet(date, ex.id, i);
+    if (picked === i) setPicked(null);
+    if (rirAt === i) setRirAt(null);
+    onChange(false);
+    showUndo(`اترجعت مجموعة ${i + 1} · ${name}`, () => { setRows((prev) => [...prev, old]); save(i, old); onChange(false); });
+  };
   const setStart = (i: number): SwipeAction[] => [
     rows[i].done
       ? { icon: 'arrow-undo', label: 'رجّعها', color: ACTION.grey, onPress: () => toggle(i) }
@@ -357,6 +375,18 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
                   );
                 })}
               </View>
+              <View style={s.addRow}>
+                <Pressable onPress={addSet} accessibilityRole="button" accessibilityLabel={`زوّد مجموعة لـ ${name}`} hitSlop={8} style={({ pressed }) => [s.addBtn, { opacity: pressed ? 0.6 : 1 }]}>
+                  <Ionicons name="add" size={15} color={color} />
+                  <T w="semi" style={{ fontSize: 12.5, color }}>مجموعة</T>
+                </Pressable>
+                {rows.length > ex.sets ? (
+                  <Pressable onPress={removeLastSet} accessibilityRole="button" accessibilityLabel="امسح آخر مجموعة زيادة" hitSlop={8} style={({ pressed }) => [s.addBtn, { opacity: pressed ? 0.6 : 1 }]}>
+                    <Ionicons name="remove" size={15} color={t.mute} />
+                    <T w="semi" style={{ fontSize: 12.5, color: t.mute }}>الأخيرة</T>
+                  </Pressable>
+                ) : null}
+              </View>
               {rirAt != null && rows[rirAt]?.done ? (
                 <RirAsk at={rirAt} color={color} onPick={(n) => setRir(rirAt, n)} onClose={closeRir} />
               ) : null}
@@ -380,6 +410,8 @@ const s = StyleSheet.create({
   meta: { flexDirection: 'row', flexWrap: 'wrap', alignItems: 'center', gap: 6, rowGap: 16, marginTop: 3 },
   noteLine: { flexDirection: 'row', alignItems: 'center', gap: 6, borderRadius: 8, paddingHorizontal: 8, paddingVertical: 4, marginTop: 4 },
   sets: { gap: 4 },
+  addRow: { flexDirection: 'row', gap: 8, marginTop: 6, marginStart: 23 },
+  addBtn: { flexDirection: 'row', alignItems: 'center', gap: 3, minHeight: 30, paddingHorizontal: 4 },
   srow: { flexDirection: 'row', alignItems: 'center', gap: 5, height: 44, borderRadius: 10, borderWidth: 1, paddingHorizontal: 4 },
   sn: { width: 18, textAlign: 'center', fontSize: 12 },
 });

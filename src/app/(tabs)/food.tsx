@@ -48,7 +48,10 @@ export default function Food() {
   const isTraining = training(sel);
   // Today, before you log anything, you can switch it between training and rest.
   const canSwitch = isToday && !trained.has(date);
-  const switchToday = () => void food.setRestDay(date, isTraining);
+  const switchToday = () => {
+    const undo = food.setRestDay(date, isTraining);
+    if (undo) showUndo(isTraining ? 'النهارده بقى يوم راحة' : 'النهارده بقى يوم تمرين', undo);
+  };
 
   // A meal can be swapped for another option of the same meal, for that date only (meta mealPicks).
   const selDate = isToday ? date : dateInWeek(sel, date);
@@ -97,12 +100,14 @@ export default function Food() {
 
   const chips = WEEK_ORDER.map((wd) => {
     const d = WEEK_MENU.find((x) => x.weekday === wd)!;
+    // A future weekday hasn't happened yet: training/rest is only known once a workout is (or isn't) logged, so don't assert it.
+    const unknown = dateInWeek(wd, date) > date;
     return {
       key: wd,
       label: d.day,
       short: WEEKDAY_LETTERS_AR[wd],
-      colors: [training(wd) ? t.ok : t.line],
-      details: [training(wd) ? { color: t.ok, label: 'يوم تمرين' } : { label: 'راحة' }],
+      colors: [unknown ? t.line : training(wd) ? t.ok : t.line],
+      details: [unknown ? { label: 'لسه' } : training(wd) ? { color: t.ok, label: 'يوم تمرين' } : { label: 'راحة' }],
     };
   });
 

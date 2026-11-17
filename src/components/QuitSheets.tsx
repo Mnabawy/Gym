@@ -157,7 +157,7 @@ export function SlipSheet({ q, onClose }: { q: Quit; onClose: () => void }) {
 }
 
 /** Password verification modal to access quit details when protected. */
-export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, onClose }: { quitId: string; password: string; onPasswordChange: (v: string) => void; onConfirm: () => void; onClose: () => void }) {
+export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, onClose, error }: { quitId: string; password: string; onPasswordChange: (v: string) => void; onConfirm: () => void; onClose: () => void; error?: boolean }) {
   const t = useTheme();
   return (
     <Sheet visible onClose={onClose} title="محمية بكلمة سر" sub="ادخل كلمة السر للدخول">
@@ -170,8 +170,9 @@ export function PasswordModal({ quitId, password, onPasswordChange, onConfirm, o
         maxLength={40}
         accessibilityLabel="كلمة السر"
         textAlign="right"
-        style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, ...font('body') }]}
+        style={[INPUT, s.input, { color: t.fg, backgroundColor: t.soft, borderWidth: error ? 1 : 0, borderColor: error ? t.bad : 'transparent', ...font('body') }]}
       />
+      {error ? <T accessibilityLiveRegion="polite" style={{ fontSize: 12.5, color: t.bad, marginTop: -2 }}>كلمة السر غلط</T> : null}
       <Btn label="ادخل" kind="solid" onPress={onConfirm} />
     </Sheet>
   );

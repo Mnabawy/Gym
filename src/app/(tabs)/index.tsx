@@ -18,9 +18,11 @@ import { confirm } from '../../lib/confirm';
 import { deloadOn, useSettings } from '../../lib/settings';
 import { AREA, metaArea, useData, useDataVersion } from '../../lib/bus';
 import { BACKUP_STALE_DAYS, LAST_BACKUP_KEY } from '../../lib/backup';
+import { saveBackup } from '../../lib/backupIO';
 import { deloadDue } from '../../lib/gaps';
 import { isDaySwap, SWAPS_KEY, swappedSet } from '../../lib/journal';
-import { readStrings, removeEntries } from '../../lib/meta';
+import { readStrings, removeEntries, writeEntry } from '../../lib/meta';
+import { showUndo } from '../../lib/undo';
 import { sessionSummary, setCounts } from '../../lib/summary';
 import { useTheme } from '../../theme';
 
@@ -178,7 +180,22 @@ function WorkoutScreen() {
         </Pressable>
       ) : null}
       <View style={{ gap: 8, marginTop: 4 }}>
-        <Btn kind="danger" label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) { const ids = day.exercises.map((e) => e.id); storage.clearDay(date, ids); removeEntries(SWAPS_KEY, (k) => isDaySwap(k, date, ids)); bumpAll(); } }} />
+        <Btn kind="danger" label={live ? 'امسح تسجيل النهارده' : 'امسح تسجيل اليوم ده'} onPress={async () => { if (await confirm({ title: 'تمسح تسجيل اليوم ده؟', body: 'هيتشال كل اللي سجلته في اليوم ده.', confirmLabel: 'امسح', danger: true })) {
+          const ids = day.exercises.map((e) => e.id);
+          // Snapshot the logged sets and this day's swaps so the wipe can be undone.
+          const snap = ids.map((id) => ({ id, rows: storage.setsFor(date, id) })).filter((x) => x.rows.some((r) => r.kg != null || r.reps != null || r.done));
+          const swaps = Object.entries(readStrings(SWAPS_KEY)).filter(([k]) => isDaySwap(k, date, ids));
+          storage.clearDay(date, ids);
+          removeEntries(SWAPS_KEY, (k) => isDaySwap(k, date, ids));
+          bumpAll();
+          showUndo('اتمسح تسجيل اليوم', () => {
+            storage.transaction(() => {
+              for (const { id, rows } of snap) rows.forEach((r, idx) => { if (r.kg != null || r.reps != null || r.done) storage.saveSet({ date, weekday: sel, exId: id, idx, kg: r.kg, reps: r.reps, done: r.done ? 1 : 0, rir: r.rir ?? null, at: r.at ?? null }); });
+            });
+            for (const [k, name] of swaps) writeEntry(SWAPS_KEY, 'string', k, name, { all: true });
+            bumpAll();
+          });
+        } }} />
       </View>
     </Screen>
   );
@@ -228,9 +245,21 @@ function DoneCard({ date, weekday, next, v }: { date: string; weekday: number; n
       ) : null}
       {next != null ? <T style={{ fontSize: 12.5, color: t.mute }}>{`الجاي: ${next}`}</T> : null}
       {nudge ? (
-        <Pressable onPress={() => router.push('/settings')} accessibilityRole="button" style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.warnSoft, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
+        <Pressable
+          onPress={async () => {
+            try {
+              await saveBackup();
+              storage.setMeta(LAST_BACKUP_KEY, date);
+              useDataVersion.getState().bump();
+            } catch {
+              router.push('/settings'); // sharing not available: fall back to the backup card
+            }
+          }}
+          accessibilityRole="button"
+          style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: t.warnSoft, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 10, opacity: pressed ? 0.7 : 1 })}>
           <Ionicons name="cloud-upload-outline" size={15} color={t.warn} />
-          <T style={{ fontSize: 12.5, color: t.warn, flex: 1 }}>{since == null ? 'لسه ما عملتش نسخة احتياطية. اعملها من الإعدادات' : `آخر نسخة احتياطية من ${since} يوم. اعمل واحدة جديدة`}</T>
+          <T style={{ fontSize: 12.5, color: t.warn, flex: 1 }}>{since == null ? 'لسه ما عملتش نسخة احتياطية. احفظ واحدة دلوقتي' : `آخر نسخة من ${since} يوم. احفظ نسخة جديدة`}</T>
+          <Ionicons name="chevron-back" size={16} color={t.warn} />
         </Pressable>
       ) : null}
     </Card>

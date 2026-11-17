@@ -14,6 +14,7 @@ import { deleteQuit, readQuits } from '../../lib/quitStore';
 import { confirm } from '../../lib/confirm';
 import { QUITS_KEY, type Quit } from '../../lib/quit';
 import { useNow } from '../../lib/useNow';
+import { nope } from '../../lib/timer';
 import { ThemeProvider, useTheme, useWarm } from '../../theme';
 
 export default function QuitSection() {
@@ -36,11 +37,13 @@ function QuitList() {
 
   const [passwordFor, setPasswordFor] = useState<string | null>(null);
   const [passwordInput, setPasswordInput] = useState('');
+  const [passwordErr, setPasswordErr] = useState(false);
 
   const openQuit = (q: Quit) => {
     if (q.password) {
       setPasswordFor(q.id);
       setPasswordInput('');
+      setPasswordErr(false);
     } else {
       router.push(`/quit/${q.id}`);
     }
@@ -56,6 +59,10 @@ function QuitList() {
       const quitId = passwordFor;
       setPasswordFor(null);
       router.push(`/quit/${quitId}`);
+    } else {
+      nope();
+      setPasswordErr(true);
+      setPasswordInput('');
     }
   };
 
@@ -64,7 +71,7 @@ function QuitList() {
       {adding ? <QuitForm onClose={() => setAdding(false)} onSaved={(q) => router.push(`/quit/${q.id}`)} /> : null}
       {urge ? <UrgeScreen q={urge} onClose={() => setUrge(null)} onSlip={() => { setSlip(urge); setUrge(null); }} /> : null}
       {slip ? <SlipSheet q={slip} onClose={() => setSlip(null)} /> : null}
-      {passwordFor ? <PasswordModal quitId={passwordFor} password={passwordInput} onPasswordChange={setPasswordInput} onConfirm={checkPassword} onClose={() => setPasswordFor(null)} /> : null}
+      {passwordFor ? <PasswordModal quitId={passwordFor} password={passwordInput} error={passwordErr} onPasswordChange={(v) => { setPasswordInput(v); setPasswordErr(false); }} onConfirm={checkPassword} onClose={() => setPasswordFor(null)} /> : null}
 
       {!quits.length ? (
         <NightCard color={t.sec.quit} style={{ alignItems: 'center', gap: 8, paddingVertical: 21 }}>

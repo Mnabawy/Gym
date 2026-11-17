@@ -83,7 +83,10 @@ export const useTimer = create<TimerState>((set, get) => ({
   },
   add: (sec) => {
     const { endAt: e, total } = get();
-    if (e) set({ endAt: e + sec * 1000, total: total + sec });
+    if (!e) return;
+    // Never shrink the rest below ~5 s left (so −30 can't drop it into the past); total follows the real change.
+    const nextEnd = Math.max(Date.now() + 5000, e + sec * 1000);
+    set({ endAt: nextEnd, total: Math.max(1, total + (nextEnd - e) / 1000) });
   },
   stop: () => {
     set({ endAt: null });

@@ -48,7 +48,10 @@ export function TimerBar() {
         <T w="bold" style={{ color: over ? t.ok : '#FFFFFF', fontSize: 15 }}>{over ? 'يلا المجموعة الجاية' : 'راحة'}</T>
         <T w="num" style={{ color: '#FFFFFF', opacity: 0.75, fontSize: 12.5 }} numberOfLines={1}>{label}</T>
       </View>
-      <Pressable onPress={() => add(30)} style={s.btn} accessibilityRole="button">
+      <Pressable onPress={() => add(-30)} style={s.btn} accessibilityRole="button" accessibilityLabel="قلّل الراحة 30 ثانية">
+        <T w="semi" style={{ color: '#FFFFFF' }}>−30 ث</T>
+      </Pressable>
+      <Pressable onPress={() => add(30)} style={s.btn} accessibilityRole="button" accessibilityLabel="زوّد الراحة 30 ثانية">
         <T w="semi" style={{ color: '#FFFFFF' }}>+30 ث</T>
       </Pressable>
       <Pressable onPress={stop} style={[s.btn, { backgroundColor: t.ok, borderColor: t.ok, boxShadow: glow(t, t.ok, 10) }]} accessibilityRole="button">
@@ -59,6 +62,6 @@ export function TimerBar() {
 }
 
 const s = StyleSheet.create({
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: 12, marginBottom: 8, padding: 8, borderRadius: 12 },
-  btn: { minHeight: 44, paddingHorizontal: 12, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', justifyContent: 'center' },
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 12, marginBottom: 8, padding: 8, borderRadius: 12 },
+  btn: { minHeight: 44, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', justifyContent: 'center' },
 });

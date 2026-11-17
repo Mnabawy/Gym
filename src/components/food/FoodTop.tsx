@@ -88,6 +88,9 @@ export function WaterCard({ ml, goal, onAdd }: { ml: number; goal: number; onAdd
         <Pressable onPress={() => onAdd(-CUP_ML)} disabled={!ml} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="شيل كوباية" style={({ pressed }) => [fs.wbtn, { backgroundColor: t.soft, opacity: !ml ? 0.35 : pressed ? 0.7 : 1 }]}>
           <Ionicons name="remove" size={18} color={t.fg} />
         </Pressable>
+        <Pressable onPress={() => onAdd(500)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="زوّد إزازة نص لتر" style={({ pressed }) => [fs.wadd, { backgroundColor: t.soft, opacity: pressed ? 0.7 : 1 }]}>
+          <T w="semi" style={{ fontSize: 12.5, color: t.fg }} numberOfLines={1}>+ إزازة</T>
+        </Pressable>
         <Pressable onPress={() => onAdd(CUP_ML)} hitSlop={{ top: 6, bottom: 6, left: 4, right: 4 }} accessibilityRole="button" accessibilityLabel="زوّد كوباية مية" style={({ pressed }) => [fs.wadd, { backgroundColor: tint(t.protein, 0.15), opacity: pressed ? 0.7 : 1 }]}>
           <T w="semi" style={{ fontSize: 12.5, color: t.protein }} numberOfLines={1}>+ كوباية</T>
         </Pressable>
