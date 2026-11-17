@@ -1,6 +1,6 @@
 // Automatic weekly backup (settings → نسخة تلقائية): a backup file inside the app (last AUTO_KEEP kept) and, when you
 // picked one, in a folder of yours (Android: e.g. Download or a Drive folder), which stays if the app is deleted.
-// Runs a few seconds after the app opens, once AUTO_DAYS have passed. Web: autoBackup.web.ts.
+// Runs a few seconds after the app opens, once AUTO_DAYS have passed.
 import { Directory, File, Paths } from 'expo-file-system';
 import { hasData, LAST_BACKUP_KEY, toBackup } from './backup';
 import { bumpAreas, metaArea } from './bus';

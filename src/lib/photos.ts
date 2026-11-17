@@ -1,6 +1,6 @@
 // Progress photos (/weight): taken or picked on the phone, shrunk (longest side MAX_SIDE px, JPEG) and saved in the app's
 // own folder, one file per photo named by its date. They go into the backup file ("احفظ نسخة" and the automatic copy in
-// your folder) as base64, and come back on restore. Web: photos.web.ts.
+// your folder) as base64, and come back on restore.
 import * as ImagePicker from 'expo-image-picker';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Directory, File, Paths } from 'expo-file-system';

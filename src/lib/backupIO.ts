@@ -1,5 +1,5 @@
 // Saving and opening backup files on the phone: write a JSON file and open the share sheet (Drive, WhatsApp, Files…),
-// or pick a file back with the document picker. Web version: backupIO.web.ts.
+// or pick a file back with the document picker.
 import * as Clipboard from 'expo-clipboard';
 import * as DocumentPicker from 'expo-document-picker';
 import * as Sharing from 'expo-sharing';

@@ -1,16 +1,17 @@
 /// <reference types="jest" />
 // Store actions (one write path per area): the food tab's writes (src/lib/foodStore.ts), ticking a task or a goal's
 // step with the other side following (src/lib/goalTaskStore.ts), and the multi-key task writes (src/lib/taskStore.ts).
-// Real web storage (storage.web.ts, with its all-or-nothing transaction and the sync tracking wrapper) on a fake
-// localStorage, so a write that throws halfway really rolls back.
+// Real storage (storage.ts, with its all-or-nothing transaction and the sync tracking wrapper) on Node's built-in
+// SQLite (test-utils/nodeSqlite.ts), so a write that throws halfway really rolls back.
 jest.mock('../src/lib/storage', () => {
-  const mem = new Map<string, string>();
-  (globalThis as { localStorage?: unknown }).localStorage = {
-    getItem: (k: string) => mem.get(k) ?? null,
-    setItem: (k: string, v: string) => void mem.set(k, String(v)),
-    removeItem: (k: string) => void mem.delete(k),
-  };
-  return jest.requireActual('../src/lib/storage.web');
+  /* eslint-disable @typescript-eslint/no-require-imports */
+  const fs = require('fs') as typeof import('fs');
+  const os = require('os') as typeof import('os');
+  const path = require('path') as typeof import('path');
+  const { loadNativeStorage } = require('../test-utils/nodeSqlite') as typeof import('../test-utils/nodeSqlite');
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brainy-stores-'));
+  return loadNativeStorage(dir).mod;
+  /* eslint-enable @typescript-eslint/no-require-imports */
 });
 // eslint-disable-next-line import/first
 import { storage } from '../src/lib/storage';

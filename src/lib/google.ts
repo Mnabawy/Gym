@@ -1,5 +1,5 @@
 // Your account: one-tap Google sign-in (welcome screen, account page). It's who you are for Supabase sync (cloud.ts),
-// which signs in with the id token this gives. Setup (Android + Web clients): docs/supabase-setup.md. Web: google.web.ts.
+// which signs in with the id token this gives. Setup (Android + Web clients): docs/supabase-setup.md.
 // The meta keys keep their old names (from when this was the Drive backup) so phones that signed in back then stay in.
 import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
 import { useDataVersion } from './bus';

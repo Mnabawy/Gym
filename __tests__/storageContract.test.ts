@@ -1,13 +1,12 @@
 /// <reference types="jest" />
 /// <reference types="node" />
-// One set of `Storage` cases (src/lib/storage.types.ts) run against both real implementations, so web and phone can't
-// drift: storage.web.ts on a fake localStorage, and storage.ts (expo-sqlite) on Node's built-in SQLite
-// (test-utils/nodeSqlite.ts). Each case gets a fresh "phone"; `reopen()` starts the app again on the same saved data.
+// The `Storage` cases (src/lib/storage.types.ts) run against the real implementation: storage.ts (expo-sqlite) on
+// Node's built-in SQLite (test-utils/nodeSqlite.ts). Each case gets a fresh "phone"; `reopen()` starts the app again
+// on the same saved data.
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { DB_RECOVERED_KEY, parseDbRecovery } from '../src/lib/dbOpen';
-import type * as StorageMod from '../src/lib/storage';
 import type { Dump, SetRow, Storage } from '../src/lib/storage.types';
 import { isLocalMeta } from '../src/lib/cloudSync';
 import { migrate, SCHEMA_MIGRATIONS, SCHEMA_VERSION } from '../src/lib/dbMigrations';
@@ -15,24 +14,6 @@ import { META_MIGRATIONS, META_VERSION_KEY, runMetaMigrations } from '../src/lib
 import { loadNativeStorage, nodeSqlite } from '../test-utils/nodeSqlite';
 
 type Phone = { open(): Storage; breakIt(): void; cleanup(): void };
-
-function webPhone(): Phone {
-  const mem = new Map<string, string>();
-  const ls = { getItem: (k: string) => mem.get(k) ?? null, setItem: (k: string, v: string) => void mem.set(k, String(v)), removeItem: (k: string) => void mem.delete(k) };
-  return {
-    open() {
-      (globalThis as { localStorage?: unknown }).localStorage = ls;
-      let mod!: typeof StorageMod;
-      jest.isolateModules(() => {
-        mod = jest.requireActual<typeof StorageMod>('../src/lib/storage.web');
-      });
-      // storage.web.ts reads globalThis.localStorage on every write, so it stays in place for the phone's life.
-      return mod.storage;
-    },
-    breakIt: () => void mem.set('gym-app-v1', '{"sets": [ broken'),
-    cleanup: () => void delete (globalThis as { localStorage?: unknown }).localStorage,
-  };
-}
 
 function nativePhone(): Phone {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'brainy-contract-'));
@@ -57,7 +38,6 @@ const norm = (d: Dump) => ({
 });
 
 describe.each([
-  ['web (localStorage)', webPhone],
   ['native (SQLite)', nativePhone],
 ])('%s', (_name, make) => {
   let phone: Phone;
@@ -277,7 +257,6 @@ describe.each([
 });
 
 describe.each([
-  ['web (localStorage)', webPhone],
   ['native (SQLite)', nativePhone],
 ])('%s: meta migrations', (_name, make) => {
   let phone: Phone;

@@ -1,6 +1,6 @@
 // The safety net before anything that can destroy local data: the part that touches files (iOS / Android). Pure rules are
 // in src/lib/safety.ts. Everything here works offline and without any account: a snapshot is a file in the app's own
-// folder, and a recovery is a move of files inside it. Web: safetyIO.web.ts.
+// folder, and a recovery is a move of files inside it.
 //
 // Where things live (inside Paths.document, which the weekly automatic backup never rotates or deletes from):
 //   backups/safety/gym-safety-<reason>-<ms>-<hash>.json   snapshots (autoBackup.ts only reads files directly in backups/)

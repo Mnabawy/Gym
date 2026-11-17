@@ -1,5 +1,5 @@
 // One-time changes to the shape of saved meta values, run once per phone at start right after the database opens
-// (storage.ts / storage.web.ts). Meta `metaVersion` (phone-only, cloudSync `isLocalMeta`) = how many have run; each one
+// (storage.ts). Meta `metaVersion` (phone-only, cloudSync `isLocalMeta`) = how many have run; each one
 // and its bump go in one storage transaction, and a failed one leaves the version as it was (it runs again on the next
 // start; the app still starts). A migration writes through the tracked storage, so what it changes in synced keys is
 // sent like any edit. The version is part of the phone's data, not its account: a backup carries it (an older file

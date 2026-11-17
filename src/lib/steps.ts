@@ -1,6 +1,6 @@
 // Steps from the phone (Android Health Connect; settings → الخطوات من الموبايل). Daily totals for the last two weeks are
 // read when the app opens and saved in meta `steps` (date → count), so the workout tab and the weekly report can show
-// them offline. Web / iPhone: steps.web.ts (not available). Needs a native build (react-native-health-connect).
+// them offline. iPhone: not available. Needs a native build (react-native-health-connect).
 import { Platform } from 'react-native';
 import { aggregateRecord, getGrantedPermissions, getSdkStatus, initialize, openHealthConnectSettings, requestPermission, SdkAvailabilityStatus } from 'react-native-health-connect';
 import { useDataVersion } from './bus';

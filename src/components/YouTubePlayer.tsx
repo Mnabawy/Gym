@@ -1,4 +1,4 @@
-// YouTube player inside the app (phone). The web build uses YouTubePlayer.web.tsx (a plain iframe).
+// YouTube player inside the app (Android).
 // The embed sits in a small page with an https base URL: YouTube refuses embeds that come with no referrer.
 import { Linking } from 'react-native';
 import { WebView, type WebViewNavigation } from 'react-native-webview';
