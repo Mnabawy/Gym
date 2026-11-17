@@ -18,6 +18,9 @@ export async function canLock(): Promise<boolean> {
 }
 
 export async function unlock(): Promise<boolean> {
+  // A phone with no fingerprint/face and no screen lock has nothing to unlock with: the system prompt fails at once,
+  // which would lock you out of the app for good. Let you in; the lock can't protect anything on such a phone anyway.
+  if (!(await canLock())) return true;
   try {
     const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'افتح التطبيق', cancelLabel: 'إلغاء', disableDeviceFallback: false });
     return r.success;
