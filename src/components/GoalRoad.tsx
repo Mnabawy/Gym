@@ -5,10 +5,10 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { INPUT, Btn, Ring, Sheet, T } from './ui';
 import { ACTION, Swipe, type SwipeAction } from './Swipe';
 import { saveGoal } from '../lib/goalStore';
-import { taskFollowsStep } from '../lib/goalTaskStore';
+import { tickStep } from '../lib/goalTaskStore';
 import { showUndo } from '../lib/undo';
 import { NoteEditor, NoteView } from './NoteEditor';
-import { currentStage, duplicateStage, nextTask, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, toggleTask, type Goal, type Stage, type Task } from '../lib/goals';
+import { currentStage, duplicateStage, nextTask, duplicateTask, fmtAmount, goalId, moveStage, schedule, amountOf, setSplit, spreadMilestones, stageFill, unassigned, stageDone, type Goal, type Stage, type Task } from '../lib/goals';
 import { MonthCalendar } from './MonthCalendar';
 import { dateKey } from '../lib/dates';
 import { tap } from '../lib/timer';
@@ -218,10 +218,7 @@ export function GoalRoad({ g, t, today }: { g: Goal; t: Theme; today: string }) 
             </View>
           );
           // Ticking a step also ticks the task made from it in مهامي (src/lib/goalTasks.ts).
-          const flip = () => {
-            saveGoal(toggleTask(g, r.task.id, today));
-            taskFollowsStep(g.id, r.task.id, r.task.done ? null : today);
-          };
+          const flip = () => void tickStep(g.id, r.task.id, today);
           onPress = () => {
             tap();
             ease();

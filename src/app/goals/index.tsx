@@ -12,10 +12,10 @@ import { LogSheet } from './[id]';
 import { MONTHS_AR } from '../../data/program';
 import { useDataVersion } from '../../lib/bus';
 import { deleteGoal, readGoals, saveGoal } from '../../lib/goalStore';
-import { taskFollowsStep } from '../../lib/goalTaskStore';
+import { tickStep } from '../../lib/goalTaskStore';
 import {
   bringBack, current, FOCUS_MAX, fmtAmount, IDLE_DAYS, idleDays, kidsOf, nextTask, parentOf, progress, putLater, reachDate,
-  reviewDue, schedule, toggleTask, umbrellaProgress, WEIGHTS, type Goal,
+  reviewDue, schedule, umbrellaProgress, WEIGHTS, type Goal,
 } from '../../lib/goals';
 import { dateKey, daysBetween } from '../../lib/dates';
 import { confirm } from '../../lib/confirm';
@@ -138,12 +138,9 @@ function Today({ t, today, goals, running, later, onBack, onSteps }: { t: Theme;
   const slots = Math.max(n, FOCUS_MAX);
   const tick = (g: Goal, stepId: string) => {
     tap();
-    saveGoal(toggleTask(g, stepId, today));
-    taskFollowsStep(g.id, stepId, today);
-    showUndo('✓ خطوة خلصت', () => {
-      saveGoal(g);
-      taskFollowsStep(g.id, stepId, null);
-    });
+    // The task made from this step in مهامي follows; undo puts both back.
+    const undo = tickStep(g.id, stepId, today);
+    if (undo) showUndo('✓ خطوة خلصت', undo);
   };
   const review = running.filter((g) => reviewDue(g, today));
   const idle = running.filter((g) => idleDays(g, today) >= IDLE_DAYS);

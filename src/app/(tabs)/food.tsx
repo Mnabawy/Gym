@@ -8,8 +8,9 @@ import { INPUT, Btn, Card, Check, DayChips, Progress, Ring, Screen, Sheet, T } f
 import { MenuButton } from '../../components/SideMenu';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { energyFor, targetsFor } from '../../lib/energy';
-import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasJson, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY, type Extra } from '../../lib/journal';
-import { readNumbers, writeEntry } from '../../lib/meta';
+import { adherence, CUP_ML, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY } from '../../lib/journal';
+import { readNumbers } from '../../lib/meta';
+import * as food from '../../lib/foodStore';
 import { showUndo } from '../../lib/undo';
 import { useSettings } from '../../lib/settings';
 import { mealMacros, parseNum } from '../../lib/logic';
@@ -33,7 +34,7 @@ export default function Food() {
   const [showSwaps, setShowSwaps] = useState(false);
   const [swapMeal, setSwapMeal] = useState<MealKey | null>(null);
   const [extraForm, setExtraForm] = useState<{ name: string; kcal: string; p: string } | null>(null);
-  const { bump } = useDataVersion();
+  useDataVersion((x) => x.v); // re-read storage after every write
   // Your own targets once the calorie calculator has your data (side menu → حساب السعرات), else the plan's.
   const body = useSettings((s) => s.body);
   const goal = targetsFor(body);
@@ -41,15 +42,12 @@ export default function Food() {
   const isToday = sel === today;
   // Training or rest comes from the workout log, not fixed weekdays (src/lib/schedule.ts). Re-read when v changes.
   const trained = new Set(storage.trainedDays().map((d) => d.date));
-  const restDay = storage.getMeta('restDay') || null;
+  const restDay = storage.getMeta(food.REST_DAY_KEY) || null;
   const training = (wd: number) => isTrainingDay(dateInWeek(wd, date), date, trained, restDay);
   const isTraining = training(sel);
   // Today, before you log anything, you can switch it between training and rest.
   const canSwitch = isToday && !trained.has(date);
-  const switchToday = () => {
-    storage.setMeta('restDay', isTraining ? date : '');
-    bump();
-  };
+  const switchToday = () => void food.setRestDay(date, isTraining);
 
   // A meal can be swapped for another option of the same meal, for that date only (meta mealPicks).
   const selDate = isToday ? date : dateInWeek(sel, date);
@@ -67,7 +65,7 @@ export default function Food() {
   });
   const setPick = (m: MealKey, i: number) => {
     setSwapMeal(null);
-    writeEntry(MEAL_PICKS_KEY, 'number', dayKey(selDate, m), i === day.picks[m] ? undefined : i);
+    food.setMealPick(selDate, m, i === day.picks[m] ? null : i);
   };
 
   // Water (today only): cups of 250 ml against the calculator's goal (or 3 L), +0.5 L on a training day.
@@ -75,7 +73,7 @@ export default function Food() {
   const waterMl = waterMap[selDate] ?? 0;
   const baseWater = energyFor(body)?.water ?? null;
   const waterGoal = waterGoalMl(baseWater, isTraining);
-  const addWater = (ml: number) => writeEntry(WATER_KEY, 'number', selDate, Math.max(0, waterMl + ml) || undefined);
+  const addWater = (ml: number) => void food.addWater(selDate, ml);
   // Supplements ticked per day (meta supps).
   const supps = readNumbers(SUPPS_KEY);
   const history = foodHistory(storage.allMealChecks(), waterMap, date, 14);
@@ -91,42 +89,21 @@ export default function Food() {
   const extras = extrasAll[selDate] ?? [];
   const ext = extrasTotal(extras);
   const eaten = meals.filter((m) => canLog && checks.has(m.meal)).reduce((a, m) => ({ kcal: a.kcal + m.mac.kcal, p: a.p + m.mac.p }), { kcal: ext.kcal, p: ext.p });
-  const saveExtras = (list: Extra[]) => {
-    const next = { ...extrasAll, [selDate]: list };
-    if (!list.length) delete next[selDate];
-    storage.setMeta(EXTRAS_KEY, extrasJson(storage.getMeta(EXTRAS_KEY), next));
-    bump();
-  };
   const addExtra = () => {
     if (!extraForm) return;
     const kcal = parseNum(extraForm.kcal);
     if (kcal == null) return;
     setExtraForm(null);
-    saveExtras([...extras, { name: extraForm.name.trim() || 'أكل برة الخطة', kcal: Math.round(kcal), p: Math.round(parseNum(extraForm.p) ?? 0) }]);
+    food.addExtra(selDate, { name: extraForm.name.trim() || 'أكل برة الخطة', kcal: Math.round(kcal), p: Math.round(parseNum(extraForm.p) ?? 0) });
   };
   const removeExtra = (i: number) => {
     const gone = extras[i];
     if (!gone) return;
-    const day = selDate;
-    const write = (list: Extra[]) => {
-      const all = parseExtras(storage.getMeta(EXTRAS_KEY));
-      if (list.length) all[day] = list;
-      else delete all[day];
-      storage.setMeta(EXTRAS_KEY, extrasJson(storage.getMeta(EXTRAS_KEY), all));
-      bump();
-    };
-    write(extras.filter((_, j) => j !== i));
-    // Undo re-reads what is stored now and puts back only the removed item.
-    showUndo('اتمسح أكل', () => {
-      const cur = parseExtras(storage.getMeta(EXTRAS_KEY))[day] ?? [];
-      write([...cur.slice(0, i), gone, ...cur.slice(i)]);
-    });
+    const undo = food.removeExtra(selDate, i, gone);
+    if (undo) showUndo('اتمسح أكل', undo);
   };
-  const tickMeal = (m: MealKey, on: boolean) => {
-    storage.setMealCheck(selDate, m, on);
-    bump();
-  };
-  const tickSupp = (name: string, on: boolean) => writeEntry(SUPPS_KEY, 'number', dayKey(selDate, name), on ? 1 : undefined);
+  const tickMeal = (m: MealKey, on: boolean) => void food.tickMeal(selDate, m, on);
+  const tickSupp = (name: string, on: boolean) => void food.tickSupp(selDate, name, on);
 
   const order = [6, 0, 1, 2, 3, 4, 5]; // Sat → Fri
   const chips = order.map((wd) => {

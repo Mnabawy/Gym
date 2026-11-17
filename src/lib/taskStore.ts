@@ -1,4 +1,5 @@
 // Reading and writing tasks in storage meta (src/lib/tasks.ts), with a data-version bump so screens re-read.
+import { atomic } from './atomic';
 import { useDataVersion } from './bus';
 import { keepUnread } from './records';
 import { parseTask, parseTasks, parseTrash, parseTrashed, pruneTrash, revertTasks, toTrash, TASKS_KEY, TRASH_KEY, type Task, type Trashed } from './tasks';
@@ -19,10 +20,12 @@ export function writeTasks(list: readonly Task[]) {
  * whatever a sync merged in meanwhile.
  */
 export function undoable(change: () => void): () => void {
-  const before = readTasks();
-  change();
-  const after = readTasks();
-  return () => writeTasks(revertTasks(readTasks(), before, after));
+  return atomic(() => {
+    const before = readTasks();
+    change();
+    const after = readTasks();
+    return () => writeTasks(revertTasks(readTasks(), before, after));
+  });
 }
 
 export function saveTask(t: Task) {
@@ -33,12 +36,14 @@ export function saveTask(t: Task) {
   writeTasks(list);
 }
 
-/** Deleting keeps a copy in the trash (المحذوفة) for 30 days. */
+/** Deleting keeps a copy in the trash (المحذوفة) for 30 days. Both writes in one transaction. */
 export function deleteTask(id: string) {
-  const list = readTasks();
-  const gone = list.find((t) => t.id === id);
-  if (gone) storage.setMeta(TRASH_KEY, keepUnread(storage.getMeta(TRASH_KEY), toTrash(readTrash(), gone, dateKey()), parseTrashed));
-  writeTasks(list.filter((t) => t.id !== id));
+  atomic(() => {
+    const list = readTasks();
+    const gone = list.find((t) => t.id === id);
+    if (gone) storage.setMeta(TRASH_KEY, keepUnread(storage.getMeta(TRASH_KEY), toTrash(readTrash(), gone, dateKey()), parseTrashed));
+    writeTasks(list.filter((t) => t.id !== id));
+  });
 }
 
 /** The trash, without what's been put back (undo) or is older than 30 days. */
@@ -49,12 +54,14 @@ function writeTrash(list: readonly Trashed[]) {
   useDataVersion.getState().bump();
 }
 
-/** Puts a deleted task back in the list. */
+/** Puts a deleted task back in the list (and out of the trash), in one transaction. */
 export function restoreTask(id: string) {
-  const x = readTrash().find((y) => y.task.id === id);
-  if (!x) return;
-  saveTask(x.task);
-  writeTrash(readTrash());
+  atomic(() => {
+    const x = readTrash().find((y) => y.task.id === id);
+    if (!x) return;
+    saveTask(x.task);
+    writeTrash(readTrash());
+  });
 }
 
 /** Deletes one for good, or the whole trash. */

@@ -65,14 +65,15 @@ const base: Storage = {
     persist();
   },
   transaction(f) {
-    // All or nothing, like SQLite: a write that throws puts back what was there before (only the outermost one keeps a copy).
+    // All or nothing, like SQLite: a write that throws puts back what was there before. A nested one (a savepoint in
+    // storage.ts) keeps its own copy, so only its writes go back and the outer one can still commit.
     const outer = !batching;
-    const before = outer ? JSON.stringify(S) : '';
+    const before = JSON.stringify(S);
     batching = true;
     try {
       f();
     } catch (e) {
-      if (outer) S = JSON.parse(before) as State;
+      S = JSON.parse(before) as State;
       throw e;
     } finally {
       if (outer) {

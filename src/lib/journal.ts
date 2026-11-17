@@ -96,7 +96,8 @@ export const SUPPS_KEY = 'supps';
 export type Extra = { name: string; kcal: number; p: number };
 
 const EXTRA_FIELDS = new Set(['name', 'kcal', 'p']);
-const okExtra = (x: unknown): x is Extra => {
+/** An item this build can read. */
+export const okExtra = (x: unknown): x is Extra => {
   const o = x as Record<string, unknown> | null;
   return !!o && typeof o === 'object' && typeof o.name === 'string' && typeof o.kcal === 'number' && Number.isFinite(o.kcal) && o.kcal >= 0 && typeof o.p === 'number' && Number.isFinite(o.p) && o.p >= 0;
 };

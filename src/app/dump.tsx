@@ -9,6 +9,7 @@ import { Item } from '../components/Motion';
 import { ACTION, Swipe } from '../components/Swipe';
 import { ClockPicker } from '../components/ClockPicker';
 import { INPUT, Screen, SwitchRow, T } from '../components/ui';
+import { atomic } from '../lib/atomic';
 import { useDataVersion } from '../lib/bus';
 import { addLines, DUMP_KEY, dumpView, nextFriday, parseDump, parseDumpItem, removeItem, setKind, type DumpItem } from '../lib/dump';
 import { addDays, dateKey } from '../lib/dates';
@@ -67,14 +68,19 @@ function Dump() {
     tap();
     const before = read();
     const id = taskId(stamp());
-    saveTask({ id, title: x.text, due, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, ...(space === 'work' ? { space } : {}) });
-    write(removeItem(before, x.id));
+    // The task and the line leaving the dump go together (one transaction: never both, never neither).
+    atomic(() => {
+      saveTask({ id, title: x.text, due, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, ...(space === 'work' ? { space } : {}) });
+      write(removeItem(before, x.id));
+    });
     setTaskFor(null);
     // Undo takes the task back out of مهامي too (not into المحذوفة) and puts the line back here.
-    showUndo(`راحت مهامي · ${due === today ? 'النهارده' : due ? 'بكرة' : 'من غير ميعاد'}`, () => {
-      writeTasks(readTasks().filter((y) => y.id !== id));
-      write(before);
-    });
+    showUndo(`راحت مهامي · ${due === today ? 'النهارده' : due ? 'بكرة' : 'من غير ميعاد'}`, () =>
+      atomic(() => {
+        writeTasks(readTasks().filter((y) => y.id !== id));
+        write(before);
+      }),
+    );
   };
 
   const sortRow = (x: DumpItem) => (

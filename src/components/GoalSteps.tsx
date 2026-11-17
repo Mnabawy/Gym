@@ -6,10 +6,11 @@ import { Btn, MiniSwitch, Sheet, T } from './ui';
 import { RangeCalendar } from './MonthCalendar';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { readGoals } from '../lib/goalStore';
-import { plannedCounts, stepsBetween, stepsToTasks, taskFor, type PlannedStep } from '../lib/goalTasks';
+import { plannedCounts, stepsBetween, taskFor, type PlannedStep } from '../lib/goalTasks';
+import { stepsIntoTasks } from '../lib/goalTaskStore';
+import { readTasks } from '../lib/taskStore';
 import { addDays, dateKey, weekdayOf } from '../lib/dates';
 import { storage } from '../lib/storage';
-import { readTasks, undoable, writeTasks } from '../lib/taskStore';
 import { taskId, type Space } from '../lib/tasks';
 import { showUndo } from '../lib/undo';
 import { tap } from '../lib/timer';
@@ -62,11 +63,9 @@ export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
   const convert = () => {
     if (!picked.length) return;
     tap();
-    const before = readTasks();
     const stamp = nowMs();
-    const made = stepsToTasks(picked, before, today, space, (i) => taskId(stamp, i + 1));
-    const undo = undoable(() => writeTasks([...readTasks(), ...made]));
-    showUndo(`${made.length} ${made.length === 1 ? 'خطوة بقت مهمة' : 'خطوات بقوا مهام'} في «${space === 'work' ? 'شغل' : 'خاص'}»`, undo);
+    const { made: n, undo } = stepsIntoTasks(picked, today, space, (i) => taskId(stamp, i + 1));
+    showUndo(`${n} ${n === 1 ? 'خطوة بقت مهمة' : 'خطوات بقوا مهام'} في «${space === 'work' ? 'شغل' : 'خاص'}»`, undo);
     onClose();
   };
 

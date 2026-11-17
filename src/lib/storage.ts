@@ -95,6 +95,37 @@ if (opened.recovery) {
 
 type Row = { idx: number; kg: number | null; reps: number | null; done: number; rir: number | null; at: number | null };
 
+// How deep in transactions we are. The outermost is a real one; one opened inside it is a savepoint, so when it throws
+// only its own writes roll back (the outer one can catch that and still commit what it did itself).
+let txDepth = 0;
+function tx(f: () => void) {
+  if (!txDepth) {
+    txDepth++;
+    try {
+      db.withTransactionSync(f);
+    } finally {
+      txDepth--;
+    }
+    return;
+  }
+  const sp = `sp${txDepth}`;
+  db.execSync(`SAVEPOINT ${sp}`);
+  txDepth++;
+  try {
+    f();
+    db.execSync(`RELEASE ${sp}`);
+  } catch (e) {
+    // A failed ROLLBACK TO never hides the original error.
+    try {
+      db.execSync(`ROLLBACK TO ${sp}`);
+      db.execSync(`RELEASE ${sp}`);
+    } catch {}
+    throw e;
+  } finally {
+    txDepth--;
+  }
+}
+
 const base: Storage = {
   setsFor(date, exId) {
     return rowsToSets(db.getAllSync<Row>('SELECT idx, kg, reps, done, rir, at FROM set_logs WHERE date = ? AND ex_id = ? ORDER BY idx', date, exId));
@@ -123,7 +154,7 @@ const base: Storage = {
     db.runSync('DELETE FROM set_logs WHERE date = ? AND ex_id = ? AND idx = ?', date, exId, idx);
   },
   transaction(f) {
-    db.withTransactionSync(f);
+    tx(f);
   },
   history(exId) {
     // One query for every day (not one per date), grouped here; rows come sorted by date, then idx.
@@ -189,7 +220,7 @@ const base: Storage = {
     };
   },
   restore(d) {
-    db.withTransactionSync(() => {
+    tx(() => {
       db.execSync('DELETE FROM set_logs; DELETE FROM meal_checks; DELETE FROM shop_checks; DELETE FROM meta;');
       for (const r of d.sets) {
         db.runSync(

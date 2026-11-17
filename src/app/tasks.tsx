@@ -12,11 +12,11 @@ import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
 import { useDataVersion } from '../lib/bus';
 import { storage } from '../lib/storage';
 import { addDays, dateKey, weekdayOf } from '../lib/dates';
-import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, toggleTask, type Task } from '../lib/tasks';
+import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, type Task } from '../lib/tasks';
 import { router } from 'expo-router';
 import { setFocus } from '../lib/focusStore';
-import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, undoable, writeTasks } from '../lib/taskStore';
-import { stepFollowsTask } from '../lib/goalTaskStore';
+import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, undoable } from '../lib/taskStore';
+import { tickTask } from '../lib/goalTaskStore';
 import { readGoals } from '../lib/goalStore';
 import type { Goal } from '../lib/goals';
 import { showUndo } from '../lib/undo';
@@ -82,10 +82,9 @@ function Tasks() {
   const toggle = (x: Task) => {
     tap();
     ease();
-    const undo = undoable(() => writeTasks(toggleTask(readTasks(), x.id, today, taskId(stamp()))));
-    // A task made from a goal's step ticks the step too.
-    const goalBack = stepFollowsTask(x.id);
-    if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, () => { undo(); goalBack?.(); });
+    // A task made from a goal's step ticks the step too (one store action, one undo for both).
+    const undo = tickTask(x.id, today, taskId(stamp()));
+    if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, undo);
   };
   const addQuick = () => {
     const title = quick.trim();

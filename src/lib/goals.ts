@@ -304,10 +304,19 @@ export const idleDays = (g: Goal, today: string) => Math.max(0, daysBetween(last
 /** Whether the weekly review is due: a week since the last one (or since the start). */
 export const reviewDue = (g: Goal, today: string) => daysBetween(g.reviews[g.reviews.length - 1]?.date ?? g.startDate, today) >= REVIEW_EVERY;
 
-/** Ticks a task on (today) or off. */
-export function toggleTask(g: Goal, taskId: string, today: string): Goal {
-  return { ...g, stages: g.stages.map((s) => ({ ...s, tasks: s.tasks.map((t) => (t.id === taskId ? { ...t, done: t.done ? null : today } : t)) })) };
+/** Ticks a step on (today) or off. (Named apart from tasks.ts `toggleTask`, the to-do list's.) */
+export function toggleStep(g: Goal, stepId: string, today: string): Goal {
+  return { ...g, stages: g.stages.map((s) => ({ ...s, tasks: s.tasks.map((t) => (t.id === stepId ? { ...t, done: t.done ? null : today } : t)) })) };
 }
+
+/** A step's tick set to `done` (a date or null); the goal itself when that step isn't there or already is so. */
+export function setStepDone(g: Goal, stepId: string, done: string | null): Goal {
+  if (!g.stages.some((s) => s.tasks.some((t) => t.id === stepId && t.done !== done))) return g;
+  return { ...g, stages: g.stages.map((s) => ({ ...s, tasks: s.tasks.map((t) => (t.id === stepId ? { ...t, done } : t)) })) };
+}
+
+/** A step by id, wherever it is on the road. */
+export const findStep = (g: Goal, stepId: string): Task | undefined => g.stages.flatMap((s) => s.tasks).find((t) => t.id === stepId);
 
 /** Adds a review, replacing one already written today. */
 export function addReview(g: Goal, r: Review): Goal {

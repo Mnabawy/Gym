@@ -36,6 +36,21 @@ export function writeEntry<V extends string | number>(key: string, kind: 'string
   bumpBus(opts.all);
 }
 
+/** One entry exactly as stored (also a value this build can't read), or undefined when there's none. */
+export function readEntry(key: string, k: string): unknown {
+  const m = rawMap(storage.getMeta(key));
+  return m && Object.prototype.hasOwnProperty.call(m, k) ? m[k] : undefined;
+}
+
+/** Puts one entry back exactly as `readEntry` gave it (undefined removes it), for undo; the other entries stay. */
+export function restoreEntry(key: string, k: string, v: unknown, opts: { all?: boolean } = {}) {
+  const m: Record<string, unknown> = rawMap(storage.getMeta(key)) ?? {};
+  if (v === undefined) delete m[k];
+  else m[k] = v;
+  storage.setMeta(key, JSON.stringify(m));
+  bumpBus(opts.all);
+}
+
 /** Removes the entries whose keys `drop` picks (one write; nothing is written when none match). */
 export function removeEntries(key: string, drop: (k: string) => boolean, opts: { all?: boolean } = {}) {
   const m = rawMap(storage.getMeta(key));

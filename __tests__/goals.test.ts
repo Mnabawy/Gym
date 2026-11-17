@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleTask, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateStage, duplicateTask , bringBack, ifThen, putLater } from '../src/lib/goals';
+import { addNextStep, addReview, goalsWeek, allWins, autoWins, current, currentStage, fmtAmount, idleDays, milestones, moveStage, amountOf, reachDate, reached, setSplit, spreadMilestones, stageEnd, stageFill, unassigned, nextTask, pace, parseGoals, progress, reviewDue, schedule, stageDone, toggleStep, type Goal , activeKids, kidsOf, needsYou, parentOf, share, stalled, sumsUp, umbrellaProgress, umbrellaValue , duplicateStage, duplicateTask , bringBack, ifThen, putLater } from '../src/lib/goals';
 import { fromTemplate, GOAL_TEMPLATES } from '../src/data/goalTemplates';
 
 const base: Goal = {
@@ -30,10 +30,10 @@ test('where you are, stages and the next task', () => {
   expect(stageDone(base.stages[2])).toBe(false); // no tasks: not done
   expect(currentStage(base)).toBe(1);
   expect(nextTask(base)?.task.id).toBe('t3');
-  const all = toggleTask(toggleTask(base, 't3', '2026-03-02'), 't4', '2026-03-03');
+  const all = toggleStep(toggleStep(base, 't3', '2026-03-02'), 't4', '2026-03-03');
   expect(currentStage(all)).toBe(2);
   expect(nextTask(all)).toBeNull(); // the stage has no tasks yet
-  expect(toggleTask(all, 't3', '2026-03-04').stages[1].tasks[0].done).toBeNull();
+  expect(toggleStep(all, 't3', '2026-03-04').stages[1].tasks[0].done).toBeNull();
 });
 
 test('goals that go down', () => {
@@ -157,7 +157,7 @@ test('each stage has its own amount, filled in road order', () => {
   expect(stageDone(g.stages[0], g)).toBe(true);
   expect(autoWins(g).find((w) => w.id === 'ss1')?.date).toBe('2026-03-01');
   // Steps done but the amount isn't filled: the stage stays open.
-  const ticked = toggleTask(toggleTask(g, 't3', '2026-03-02'), 't4', '2026-03-03');
+  const ticked = toggleStep(toggleStep(g, 't3', '2026-03-02'), 't4', '2026-03-03');
   expect(stageDone(ticked.stages[1], ticked)).toBe(false);
   expect(currentStage(ticked)).toBe(1);
   // A first stage bigger than what you have keeps it open even with its steps done.

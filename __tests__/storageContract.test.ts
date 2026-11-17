@@ -203,6 +203,46 @@ describe.each([
     expect(s.getMeta('k')).toBe('v');
   });
 
+  test('a nested transaction that throws rolls back only its own writes; the outer one still commits', () => {
+    s.transaction(() => {
+      s.setMeta('outer', '1');
+      s.saveSet(row('2026-11-01', 'bench', 0));
+      expect(() =>
+        s.transaction(() => {
+          s.setMeta('inner', 'x');
+          s.setMeta('outer', 'changed');
+          s.saveSet(row('2026-11-01', 'squat', 0));
+          throw new Error('inner');
+        }),
+      ).toThrow('inner');
+      s.setMeta('after', '2');
+    });
+    expect(s.getMeta('inner')).toBeNull();
+    expect(s.getMeta('outer')).toBe('1');
+    expect(s.getMeta('after')).toBe('2');
+    expect(s.setsFor('2026-11-01', 'squat')).toEqual([]);
+    expect(s.setsFor('2026-11-01', 'bench')).toHaveLength(1);
+    // Depth is back to 0: the next one is a real transaction that rolls back as a whole.
+    expect(() => s.transaction(() => { s.setMeta('later', '1'); throw new Error('x'); })).toThrow('x');
+    expect(s.getMeta('later')).toBeNull();
+    s.transaction(() => s.setMeta('last', '1'));
+    expect(s.getMeta('last')).toBe('1');
+  });
+
+  test('a nested transaction that throws inside an outer one that also throws: nothing is kept', () => {
+    expect(() =>
+      s.transaction(() => {
+        s.setMeta('o', '1');
+        try {
+          s.transaction(() => { s.setMeta('i', '1'); throw new Error('inner'); });
+        } catch {}
+        throw new Error('outer');
+      }),
+    ).toThrow('outer');
+    expect(s.getMeta('o')).toBeNull();
+    expect(s.getMeta('i')).toBeNull();
+  });
+
   test('dump → restore puts back exactly the same data, replacing what was there', () => {
     s.saveSet(row('2026-11-01', 'bench', 0, 60, 1, { rir: 1, at: 99 }));
     s.setMealCheck('2026-11-01', 'lunch', true);
