@@ -34,7 +34,10 @@ export function nodeSqlite(dir: string) {
           f();
           db.exec('COMMIT');
         } catch (e) {
-          db.exec('ROLLBACK');
+          // Like expo-sqlite: a failed ROLLBACK (SQLite may have rolled back already) never hides the original error.
+          try {
+            db.exec('ROLLBACK');
+          } catch {}
           throw e;
         }
       },
@@ -83,13 +86,17 @@ export function nodeSqlite(dir: string) {
   };
 }
 
-/** The real storage.ts for one phone whose database folder is `dir`, in its own module registry. */
-export function loadNativeStorage(dir: string): { mod: typeof StorageMod; opened: string[] } {
+/**
+ * The real storage.ts for one phone whose database folder is `dir`, in its own module registry. `mocks`: more modules to
+ * replace in that registry (path relative to src/lib, e.g. './dbMigrations' → a factory).
+ */
+export function loadNativeStorage(dir: string, mocks: Record<string, () => unknown> = {}): { mod: typeof StorageMod; opened: string[] } {
   const fake = nodeSqlite(dir);
   let mod!: typeof StorageMod;
   jest.isolateModules(() => {
     jest.doMock('expo-sqlite', () => fake.sqlite);
     jest.doMock('expo-file-system', () => fake.files);
+    for (const [name, factory] of Object.entries(mocks)) jest.doMock(path.join(__dirname, '../src/lib', name), factory);
     mod = jest.requireActual<typeof StorageMod>('../src/lib/storage');
   });
   return { mod, opened: fake.opened };

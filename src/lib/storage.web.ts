@@ -1,5 +1,6 @@
 // Web storage: localStorage (used for the web preview; the phone app uses SQLite)
 import { brokenName, DB_RECOVERED_KEY, type DbRecovery } from './dbOpen';
+import { runMetaMigrations } from './metaMigrations';
 import { track } from './track';
 import { groupByDate, rowsToSets, type SetRow, type Storage } from './storage.types';
 
@@ -64,12 +65,20 @@ const base: Storage = {
     persist();
   },
   transaction(f) {
+    // All or nothing, like SQLite: a write that throws puts back what was there before (only the outermost one keeps a copy).
+    const outer = !batching;
+    const before = outer ? JSON.stringify(S) : '';
     batching = true;
     try {
       f();
+    } catch (e) {
+      if (outer) S = JSON.parse(before) as State;
+      throw e;
     } finally {
-      batching = false;
-      persist();
+      if (outer) {
+        batching = false;
+        persist();
+      }
     }
   },
   history(exId) {
@@ -140,3 +149,6 @@ const base: Storage = {
 
 /** Every write is noted for Supabase sync (src/lib/track.ts). */
 export const storage: Storage = track(base);
+
+/** One-time meta changes (metaMigrations.ts; web has no SQLite schema, only these). `error` is reported by the root layout. */
+export const metaMigrations = runMetaMigrations(storage);

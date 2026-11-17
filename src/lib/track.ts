@@ -166,6 +166,17 @@ export function track(base: Storage): Storage {
       base.setMeta(key, value);
       if (!isLocalMeta(key)) note([{ id: rowId('meta', key), t: Date.now() }]);
     },
+    transaction(f) {
+      // Writes noted inside go into the log in memory as they happen; if the transaction rolls back, so must the log
+      // (else it would send values the phone no longer has).
+      const before = { ...dirty() };
+      try {
+        base.transaction(f);
+      } catch (e) {
+        D = before;
+        throw e;
+      }
+    },
     dump(): Dump {
       const d = base.dump();
       for (const [k] of localKeys(d.meta)) delete d.meta[k];

@@ -24,13 +24,15 @@ import { cloudConfigured, keepSynced } from '../lib/cloud';
 import { onDirty } from '../lib/track';
 import { hasLocalData } from '../lib/safety';
 import { repairRecoveries } from '../lib/safetyIO';
-import { storage } from '../lib/storage';
+import { metaMigrations, storage } from '../lib/storage';
 import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
 import { crashBoundary } from '../components/CrashScreen';
 import { report } from '../lib/errlog';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
+// A one-time meta change that failed at start (src/lib/metaMigrations.ts) runs again on the next start; noted for a bug report.
+if (metaMigrations.error) report(metaMigrations.error, 'metaMigrations');
 
 // RTL: app.json sets forcesRTL for builds; this also covers dev clients.
 if (Platform.OS !== 'web' && !I18nManager.isRTL) {

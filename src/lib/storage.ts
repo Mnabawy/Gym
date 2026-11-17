@@ -2,28 +2,19 @@
 import { Directory, File } from 'expo-file-system';
 import * as SQLite from 'expo-sqlite';
 import { brokenName, carriedOver, DB_RECOVERED_KEY, markerName, openWithRecovery, parseDbRecovery, type DbRecovery } from './dbOpen';
+import { migrate } from './dbMigrations';
+import { runMetaMigrations } from './metaMigrations';
 import { track } from './track';
 import { groupByDate, rowsToSets, type Dump, type SetRow, type Storage } from './storage.types';
 
 const NAME = 'gym.db';
 
 function setup(db: SQLite.SQLiteDatabase) {
-  db.execSync(`
-    PRAGMA journal_mode = WAL;
-    CREATE TABLE IF NOT EXISTS set_logs (
-      date TEXT NOT NULL, weekday INTEGER NOT NULL, ex_id TEXT NOT NULL, idx INTEGER NOT NULL,
-      kg REAL, reps INTEGER, done INTEGER NOT NULL DEFAULT 0,
-      PRIMARY KEY (date, ex_id, idx)
-    );
-    CREATE INDEX IF NOT EXISTS set_logs_ex ON set_logs (ex_id, date);
-    CREATE TABLE IF NOT EXISTS meal_checks (date TEXT NOT NULL, meal TEXT NOT NULL, PRIMARY KEY (date, meal));
-    CREATE TABLE IF NOT EXISTS shop_checks (week TEXT NOT NULL, item TEXT NOT NULL, PRIMARY KEY (week, item));
-    CREATE TABLE IF NOT EXISTS meta (key TEXT PRIMARY KEY, value TEXT NOT NULL);
-  `);
-  // Columns added later: reps left in the tank (rir) and when the set was ticked (at, ms).
-  const cols = db.getAllSync<{ name: string }>('PRAGMA table_info(set_logs)').map((c) => c.name);
-  if (!cols.includes('rir')) db.execSync('ALTER TABLE set_logs ADD COLUMN rir INTEGER');
-  if (!cols.includes('at')) db.execSync('ALTER TABLE set_logs ADD COLUMN at INTEGER');
+  // Outside any transaction: SQLite can't change the journal mode inside one.
+  db.execSync('PRAGMA journal_mode = WAL;');
+  // Tables and columns: dbMigrations.ts, by PRAGMA user_version. Its errors come through as they are, so dbOpen.ts still
+  // moves only a corrupt file aside (a full disk mid-migration runs in memory with the file and its version untouched).
+  migrate(db);
   // Reading a row makes SQLite read the file: a broken one fails here, not later on a screen.
   db.getFirstSync('SELECT key FROM meta LIMIT 1');
 }
@@ -215,3 +206,6 @@ const base: Storage = {
 
 /** Every write is noted for Supabase sync (src/lib/track.ts). */
 export const storage: Storage = track(base);
+
+/** One-time meta changes (metaMigrations.ts), run once the database is open; `error` is reported by the root layout. */
+export const metaMigrations = runMetaMigrations(storage);
