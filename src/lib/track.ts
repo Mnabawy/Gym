@@ -67,13 +67,13 @@ export function saveDirty() {
 }
 /**
  * Changing the log together with other writes in one transaction: change a copy (`{ ...dirty() }`), save it with
- * `writeDirty` inside the transaction, and once it has committed make it the log with `useDirty`. If the transaction
+ * `writeDirty` inside the transaction, and once it has committed make it the log with `adoptDirty`. If the transaction
  * fails, the log in memory is still the one that matches what's stored.
  */
 export function writeDirty(next: Dirty) {
   raw.setMeta(DIRTY, JSON.stringify(next));
 }
-export function useDirty(next: Dirty) {
+export function adoptDirty(next: Dirty) {
   D = next;
 }
 /** Called after each tracked change (the sync waits a few seconds, then sends). */

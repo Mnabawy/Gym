@@ -14,7 +14,7 @@ import { hasAnythingToProtect, SafetyError } from './safety';
 import { createSnapshot } from './safetyIO';
 import { useSettings } from './settings';
 import { storage } from './storage';
-import { clearLog, dirty, expireLogOnly, LAST_UID, rawStorage, saveDirty, setTracking, trackingOn, useDirty, writeDirty } from './track';
+import { clearLog, dirty, expireLogOnly, LAST_UID, rawStorage, saveDirty, setTracking, trackingOn, adoptDirty, writeDirty } from './track';
 
 const CONFIG: CloudConfig = { url: process.env.EXPO_PUBLIC_SUPABASE_URL ?? '', key: process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY ?? '' };
 /** The build has a Supabase project (env vars at build time). */
@@ -194,7 +194,7 @@ async function syncOnce() {
         setMeta(CURSOR, String(cursor));
         setMeta(WINDOW, JSON.stringify(win));
       });
-      useDirty(d);
+      adoptDirty(d);
       for (const r of rows) {
         applied.add(r.rev);
         seen.add(rowId(r.kind, r.key));
@@ -225,7 +225,7 @@ async function syncOnce() {
         changedMeta.push(...keys);
         writeDirty(d);
       });
-      useDirty(d);
+      adoptDirty(d);
     }
     // Anything still noted as one value (edited again during the pull): one entry per record it holds.
     if (expandWhole(dirty(), (k) => rawStorage().getMeta(k))) saveDirty();
