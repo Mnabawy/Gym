@@ -1,28 +1,29 @@
 import React, { useState } from 'react';
-import { Item } from '../../components/Motion';
-import { MEAL_ORDER, SUPPLEMENTS, WEEK_MENU, type MealKey } from '../../data/nutrition';
-import { WEEKDAY_LETTERS_AR } from '../../data/program';
-import { Btn, DayChips, Screen } from '../../components/ui';
-import { MenuButton } from '../../components/SideMenu';
-import { DayCard, MacroTiles, WaterCard } from '../../components/food/FoodTop';
-import { MealCard } from '../../components/food/MealCard';
-import { AdherenceCard, ExtrasCard, FoodLegend, SuppsCard } from '../../components/food/FoodLog';
-import { ExtraSheet, SwapSheet, type ExtraForm } from '../../components/food/FoodSheets';
-import { SwapsInfo } from '../../components/food/SwapsInfo';
-import { energyFor, targetsFor } from '../../lib/energy';
-import { adherence, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY } from '../../lib/journal';
-import { creatineDays, eatenTotal, mealsFor, pickOf, planTotal, swapOptions, WEEK_ORDER } from '../../lib/foodView';
-import { readNumbers } from '../../lib/meta';
-import * as food from '../../lib/foodStore';
-import { showUndo } from '../../lib/undo';
-import { useSettings } from '../../lib/settings';
-import { parseNum } from '../../lib/logic';
-import { weekdayOfKey } from '../../lib/rollover';
-import { useToday } from '../../lib/useToday';
-import { dateInWeek, isTrainingDay } from '../../lib/schedule';
-import { storage } from '../../lib/storage';
-import { AREA, metaArea, useData } from '../../lib/bus';
-import { useTheme } from '../../theme';
+import { Item } from '../../../components/Motion';
+import { MEAL_ORDER, SUPPLEMENTS, WEEK_MENU, type MealKey } from '../../../data/nutrition';
+import { WEEKDAY_LETTERS_AR } from '../../../data/program';
+import { Btn, DayChips, Screen } from '../../../components/ui';
+import { MenuButton } from '../../../components/SideMenu';
+import { GymSwitch } from '../../../components/GymSwitch';
+import { DayCard, MacroTiles, WaterCard } from '../../../components/food/FoodTop';
+import { MealCard } from '../../../components/food/MealCard';
+import { AdherenceCard, ExtrasCard, FoodLegend, SuppsCard } from '../../../components/food/FoodLog';
+import { ExtraSheet, SwapSheet, type ExtraForm } from '../../../components/food/FoodSheets';
+import { SwapsInfo } from '../../../components/food/SwapsInfo';
+import { energyFor, targetsFor } from '../../../lib/energy';
+import { adherence, dayKey, EXTRAS_KEY, extrasTotal, foodHistory, MEAL_PICKS_KEY, parseExtras, SUPPS_KEY, waterDaysMet, waterGoalMl, WATER_KEY } from '../../../lib/journal';
+import { creatineDays, eatenTotal, mealsFor, pickOf, planTotal, swapOptions, WEEK_ORDER } from '../../../lib/foodView';
+import { readNumbers } from '../../../lib/meta';
+import * as food from '../../../lib/foodStore';
+import { showUndo } from '../../../lib/undo';
+import { useSettings } from '../../../lib/settings';
+import { parseNum } from '../../../lib/logic';
+import { weekdayOfKey } from '../../../lib/rollover';
+import { useToday } from '../../../lib/useToday';
+import { dateInWeek, isTrainingDay } from '../../../lib/schedule';
+import { storage } from '../../../lib/storage';
+import { AREA, metaArea, useData } from '../../../lib/bus';
+import { useTheme } from '../../../theme';
 
 export default function Food() {
   const t = useTheme();
@@ -117,6 +118,7 @@ export default function Food() {
       sub={goal.mine ? 'أهدافك من حساب السعرات' : '183 سم · 82 كجم · زيادة عضل'}
       dense
       action={<MenuButton />}>
+      <GymSwitch value="food" />
       <MacroTiles goal={goal} />
       <DayChips dense days={chips} value={sel} today={today} onChange={setSel} />
       <DayCard dayName={day.day} goal={goal} total={planTotal(meals)} eaten={eaten} canLog={canLog} isTraining={isTraining} canSwitch={canSwitch} onSwitch={switchToday} />

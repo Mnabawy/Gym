@@ -72,7 +72,7 @@ export default function CalendarScreen() {
   const empty = src === 'habits' ? 'مفيش عادات لسه' : src === 'goals' ? 'مفيش أهداف لسه' : src === 'quit' ? 'مفيش حاجة بتبطّلها لسه' : '';
 
   return (
-    <Screen title="التقويم" sub={monthSummary(src, marks, days, today)} onBack={() => (router.canGoBack() ? router.back() : router.replace('/sections'))}>
+    <Screen title="التقويم" sub={monthSummary(src, marks, days, today)} onBack={() => (router.canGoBack() ? router.back() : router.replace('/'))}>
       {/* What the calendar shows. */}
       <View style={[s.seg, { backgroundColor: t.segBar }]} accessibilityRole="tablist">
         {CAL_SOURCES.map((x) => {

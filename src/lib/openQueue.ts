@@ -1,5 +1,5 @@
 // Pages opened from a notification tap (`data.url`). On a cold start the tap arrives before the app has finished
-// its launch redirects (welcome, home page), so the page waits here until the app says it's ready, then opens once.
+// its launch redirect (welcome), so the page waits here until the app says it's ready, then opens once.
 // The same tap can come twice (the launch response and the listener): `first` tells them apart.
 
 export type OpenQueue = {

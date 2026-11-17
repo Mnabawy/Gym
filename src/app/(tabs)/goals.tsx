@@ -8,7 +8,7 @@ import { GoalStepsSheet } from '../../components/GoalSteps';
 import { MenuButton } from '../../components/SideMenu';
 import { GoalForm } from '../../components/GoalForm';
 import { ACTION, Swipe } from '../../components/Swipe';
-import { LogSheet } from './[id]';
+import { LogSheet } from '../goals/[id]';
 import { MONTHS_AR } from '../../data/program';
 import { metaArea, useData } from '../../lib/bus';
 import { TASKS_KEY } from '../../lib/tasks';

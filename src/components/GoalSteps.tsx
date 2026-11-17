@@ -120,7 +120,7 @@ export function GoalStepsSheet({ onClose }: { onClose: () => void }) {
           <Btn label={picked.length ? `حوّل ${picked.length} لمهام` : 'اختار خطوة الأول'} kind="solid" onPress={convert} style={{ opacity: picked.length ? 1 : 0.5 }} />
         </>
       ) : steps.length ? (
-        <Btn label="افتح مهامي" onPress={() => { onClose(); router.push('/tasks'); }} />
+        <Btn label="افتح مهامي" onPress={() => { onClose(); router.navigate('/tasks'); }} />
       ) : null}
     </Sheet>
   );

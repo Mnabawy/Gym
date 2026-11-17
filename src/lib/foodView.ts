@@ -1,4 +1,4 @@
-// Pure view model for the food tab (src/app/(tabs)/food.tsx): no React, no storage reads.
+// Pure view model for the food tab (src/app/(tabs)/(gym)/food.tsx): no React, no storage reads.
 // Unit tested in __tests__/foodView.test.ts.
 import { MEAL_ORDER, MEALS, type MealKey, type MenuDay } from '../data/nutrition';
 import { CUP_ML, dayKey, type DayFood } from './journal';

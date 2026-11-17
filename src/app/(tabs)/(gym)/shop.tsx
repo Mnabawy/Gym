@@ -1,19 +1,20 @@
 import React, { useMemo, useState } from 'react';
-import { Item } from '../../components/Motion';
+import { Item } from '../../../components/Motion';
 import { Pressable, StyleSheet, View } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
-import { SHOPPING } from '../../data/shopping';
-import { Btn, Card, HeaderBtn, Label, Ring, Screen, T } from '../../components/ui';
-import { MenuButton } from '../../components/SideMenu';
-import { ACTION, Swipe, type SwipeAction } from '../../components/Swipe';
-import { countAr, shopWeekKey, TIMES } from '../../lib/logic';
-import { useToday } from '../../lib/useToday';
-import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } from '../../lib/shop';
-import { useSettings } from '../../lib/settings';
-import { storage } from '../../lib/storage';
-import { confirm } from '../../lib/confirm';
-import { AREA, useData, useDataVersion } from '../../lib/bus';
-import { tint, useTheme } from '../../theme';
+import { SHOPPING } from '../../../data/shopping';
+import { Btn, Card, HeaderBtn, Label, Ring, Screen, T } from '../../../components/ui';
+import { MenuButton } from '../../../components/SideMenu';
+import { GymSwitch } from '../../../components/GymSwitch';
+import { ACTION, Swipe, type SwipeAction } from '../../../components/Swipe';
+import { countAr, shopWeekKey, TIMES } from '../../../lib/logic';
+import { useToday } from '../../../lib/useToday';
+import { assignTrips, daysLabel, movesFor, splitShopping, tripDays, tripFor } from '../../../lib/shop';
+import { useSettings } from '../../../lib/settings';
+import { storage } from '../../../lib/storage';
+import { confirm } from '../../../lib/confirm';
+import { AREA, useData, useDataVersion } from '../../../lib/bus';
+import { tint, useTheme } from '../../../theme';
 
 const daysText = (days: string[]) => (days.length === 7 ? 'كل يوم' : days.join('، '));
 
@@ -76,6 +77,7 @@ export default function Shop() {
           <MenuButton />
         </View>
       }>
+      <GymSwitch value="shop" />
       {split ? (
         <View style={{ flexDirection: 'row', gap: 6 }}>
           {trips.map((tr) => {

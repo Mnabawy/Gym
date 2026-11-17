@@ -12,35 +12,24 @@ import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type Item = { icon: IconName; label: string; path: '/dump' | '/progress' | '/week' | '/weight' | '/settings' | '/focus' | '/prayer' | '/calendar' };
+type Item = { icon: IconName; label: string; path: '/dump' | '/progress' | '/weight' | '/settings' | '/focus' | '/prayer' };
 
-// The menu on a section's pages: what you open from anywhere in it.
-const SECTION_ITEMS: Item[] = [
-  { icon: 'cloud-download-outline', label: 'فضّي دماغك', path: '/dump' },
-  { icon: 'stats-chart-outline', label: 'التقدم', path: '/progress' },
-  { icon: 'document-text-outline', label: 'تقرير الأسبوع', path: '/week' },
-  { icon: 'scale-outline', label: 'وزنك والقياسات', path: '/weight' },
-  { icon: 'settings-outline', label: 'الإعدادات', path: '/settings' },
-];
-// The menu on the home page (أقسامك): the sections are already its cards, so it holds the tools around them.
-const HUB_ITEMS: Item[] = [
+// The tools around the sections (the sections themselves are the bottom tabs; the weekly report is the أسبوعك tab).
+const ITEMS: Item[] = [
   { icon: 'cloud-download-outline', label: 'فضّي دماغك', path: '/dump' },
   { icon: 'timer-outline', label: 'ركّز (بومودورو)', path: '/focus' },
   { icon: 'moon-outline', label: 'مواقيت الصلاة', path: '/prayer' },
-  { icon: 'document-text-outline', label: 'تقرير الأسبوع', path: '/week' },
   { icon: 'stats-chart-outline', label: 'التقدم في الجيم', path: '/progress' },
+  { icon: 'scale-outline', label: 'وزنك والقياسات', path: '/weight' },
   { icon: 'settings-outline', label: 'الإعدادات', path: '/settings' },
 ];
 
 /**
- * The section button (the section you're in, tap to switch: الجيم، العادات، الأهداف، بطّل) and the ☰ header button on the main tabs. Opens a side menu that slides in from the end (left) edge, where the button is,
- * over a fading backdrop; its items slide in one after another. Tapping an item closes the menu, then opens the page.
+ * ☰ in the header of every tab (plain tint icon). Opens a side menu that slides in from the end (left) edge, where the
+ * button is, over a fading backdrop; its items slide in one after another. Tapping an item closes the menu, then opens
+ * the page. `color`: the icon color.
  */
-/**
- * The same on every page: the sections grid (أقسامك) and ☰ (the side menu), plain tint icons. `hub`: on the home page
- * itself, ☰ only (no grid: that's where you are), with the home page's own links. `color`: the icon color there.
- */
-export function MenuButton({ hub, color }: { hub?: boolean; color?: string } = {}) {
+export function MenuButton({ color }: { color?: string } = {}) {
   const t = useTheme();
   const reduce = useReducedMotion();
   const inset = useSafeAreaInsets();
@@ -49,7 +38,7 @@ export function MenuButton({ hub, color }: { hub?: boolean; color?: string } = {
   const [p] = useState(() => new Animated.Value(0));
   const panel = Math.min(300, Math.round(width * 0.8));
 
-  const items = hub ? HUB_ITEMS : SECTION_ITEMS;
+  const items = ITEMS;
 
   const run = (to: 0 | 1, done?: () => void) =>
     Animated.timing(p, {
@@ -69,10 +58,7 @@ export function MenuButton({ hub, color }: { hub?: boolean; color?: string } = {
 
   return (
     <>
-      <View style={{ flexDirection: 'row', gap: 8 }}>
-        {hub ? null : <HeaderBtn icon="apps-outline" label="أقسامك" onPress={() => router.push('/sections')} />}
-        <HeaderBtn icon="menu" label="القايمة" color={color} onPress={() => setOpen(true)} />
-      </View>
+      <HeaderBtn icon="menu" label="القايمة" color={color} onPress={() => setOpen(true)} />
       <Modal visible={open} transparent animationType="none" statusBarTranslucent navigationBarTranslucent onShow={() => run(1)} onRequestClose={() => close()}>
         <Animated.View style={[StyleSheet.absoluteFill, s.back, { opacity: p }]}>
           <Pressable style={StyleSheet.absoluteFill} onPress={() => close()} accessibilityRole="button" accessibilityLabel="اقفل القايمة" />

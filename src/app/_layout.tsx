@@ -85,7 +85,7 @@ export default function RootLayout() {
 function OpenFromNotification() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    // From a closed app the page waits until the launch redirects (welcome, home page) are done, so they can't replace it.
+    // From a closed app the page waits until the launch redirect (welcome) is done and the tabs show, so they can't replace it.
     const q = openQueue((url) => setTimeout(() => router.push(url as Href), 300));
     const go = (r: Notifications.NotificationResponse | null) => {
       if (!r || !q.first(`${r.notification.request.identifier}|${r.actionIdentifier}`)) return;
