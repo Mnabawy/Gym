@@ -7,7 +7,8 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { F, font, glow, tint, useTheme } from '../theme';
 import { usePop, useTween } from '../lib/motion';
 import { Fade, Press } from './Motion';
-import { useTabBarSpace } from './tabSpace';
+import Reanimated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
+import { BAR_SHIFT, useBarHidden, useHideOnScroll, useTabBarSpace } from './tabSpace';
 import { TAG_INFO } from '../data/rules';
 import type { Tag } from '../data/program';
 
@@ -64,17 +65,22 @@ export function HeaderBtn({ icon, label, onPress, style, color }: { icon: IconNa
 /** `aside`: small extra shown on the same line right after the title (e.g. the to-do page's date and count). */
 export function Screen({ title, sub, children, footer, onBack, action, dense, aside, header }: { title: string; sub?: string; children: React.ReactNode; footer?: React.ReactNode; onBack?: () => void; action?: React.ReactNode; dense?: boolean; aside?: React.ReactNode; header?: React.ReactNode }) {
   const t = useTheme();
-  // On a tab the bar floats over the bottom: the page scrolls on under it, and a footer sits just above it (the bar
-  // hides while the keyboard is up, so the footer drops to the keyboard then).
+  // On a tab the bar floats over the bottom: the page scrolls on under it, scrolling down slides the bar away, and a
+  // footer (the rest timer, the tasks + button) floats just above it and follows it down. With the keyboard up the bar
+  // steps aside, so the footer drops to the keyboard. The footer takes no room of its own: when it draws nothing
+  // (no rest running) the page shows right down to the bar.
   const bar = useTabBarSpace();
   const kb = useKeyboardShown();
   const room = kb ? 0 : bar;
+  const onScroll = useHideOnScroll(bar > 0);
+  const hidden = useBarHidden((x) => x.hidden);
+  const follow = useAnimatedStyle(() => ({ transform: [{ translateY: withTiming(bar && hidden && !kb ? BAR_SHIFT : 0, { duration: 200 }) }] }), [bar, hidden, kb]);
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={{ flex: 1, backgroundColor: t.bg }}>
       {/* The app draws edge to edge, so Android doesn't shrink the screen for the keyboard: this lifts the page and its
           footer (e.g. the to-do quick-add bar) above it, on both phones. */}
       <KeyboardAvoidingView behavior="padding" style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={[s.scroll, dense ? s.dense : null, footer ? null : { paddingBottom: Math.max(120, room + 24) }]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <ScrollView onScroll={onScroll} scrollEventThrottle={32} contentContainerStyle={[s.scroll, dense ? s.dense : null, { paddingBottom: Math.max(120, room + 24) + (footer ? 72 : 0) }]} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {/* A page can draw its own header instead (the to-do page). */}
         {header ?? <View style={s.head}>
           {/* RTL: back sits at the start (right) and points right. */}
@@ -94,7 +100,11 @@ export function Screen({ title, sub, children, footer, onBack, action, dense, as
         </View>}
         <Fade style={{ gap: dense ? 6 : 8 }}>{children}</Fade>
       </ScrollView>
-      {footer ? <View style={{ paddingBottom: room }}>{footer}</View> : null}
+      {footer ? (
+        <Reanimated.View pointerEvents="box-none" style={[{ position: 'absolute', start: 0, end: 0, bottom: room }, follow]}>
+          {footer}
+        </Reanimated.View>
+      ) : null}
       </KeyboardAvoidingView>
     </SafeAreaView>
   );

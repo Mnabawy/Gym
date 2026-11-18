@@ -4,6 +4,7 @@ import { router } from 'expo-router';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { T } from './ui';
 import { useTheme } from '../theme';
+import { useBarHidden } from './tabSpace';
 
 export type GymPage = 'workout' | 'food' | 'shop';
 
@@ -22,7 +23,11 @@ export function GymSwitch({ value }: { value: GymPage }) {
         return (
           <Pressable
             key={p.key}
-            onPress={() => (on ? null : router.navigate(p.path))}
+            onPress={() => {
+              if (on) return;
+              useBarHidden.getState().set(false);
+              router.navigate(p.path);
+            }}
             hitSlop={{ top: 6, bottom: 6 }}
             accessibilityRole="tab"
             accessibilityState={{ selected: on }}

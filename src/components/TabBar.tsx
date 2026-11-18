@@ -1,14 +1,17 @@
 // The app's bottom tab bar (the sections): a rounded capsule floating over the page, icons only, no animation. The
 // page scrolls under it and shows through its see-through background. The open tab is its filled icon in the app color
-// on a soft pill of that color; the rest are grey outlines. Each tab keeps its name for screen readers.
+// on a soft pill of that color; the rest are grey outlines. Each tab keeps its name for screen readers. It slides
+// away while you scroll down a page and comes back when you scroll up (tabSpace.tsx).
 // Pages make room for it with useTabBarSpace() in ./tabSpace (Screen does: scroll padding and footer).
 import * as Haptics from 'expo-haptics';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
+import { useEffect } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import Animated, { useAnimatedStyle, withTiming } from 'react-native-reanimated';
 import Svg, { Rect } from 'react-native-svg';
 import { useSettings } from '../lib/settings';
 import { tint, useTheme } from '../theme';
-import { BAR_H, useBarBottom } from './tabSpace';
+import { BAR_H, useBarBottom, useBarHidden } from './tabSpace';
 import { useKeyboardShown } from './ui';
 
 const ICON = 24;
@@ -21,13 +24,20 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTab
   const haptics = useSettings((x) => x.haptics);
   const bottom = useBarBottom();
   const kb = useKeyboardShown();
+  const hidden = useBarHidden((x) => x.hidden);
+  // A new tab starts with the bar showing.
+  useEffect(() => useBarHidden.getState().set(false), [state.index]);
+  // Scrolling down slides the bar away below the screen edge; scrolling up brings it back.
+  const slide = useAnimatedStyle(() => ({ transform: [{ translateY: withTiming(hidden ? bottom + BAR_H + 16 : 0, { duration: 200 }) }] }), [hidden, bottom]);
   // With the keyboard up the bar steps aside (the page's own input sits right above the keyboard).
   if (kb) return null;
   const dark = t.fg === '#FFFFFF';
   return (
-    <View
+    <Animated.View
       role="tablist"
+      pointerEvents={hidden ? 'none' : 'auto'}
       style={[
+        slide,
         s.bar,
         {
           bottom,
@@ -66,7 +76,7 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTab
           </Pressable>
         );
       })}
-    </View>
+    </Animated.View>
   );
 }
 

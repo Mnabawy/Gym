@@ -67,12 +67,10 @@ function Tasks() {
   const [day, setDay] = useState(today);
   const [editing, setEditing] = useState<Task | null>(null);
   const [adding, setAdding] = useState<{ title: string } | null>(null);
-  const [quick, setQuick] = useState('');
   const [openSubs, setOpenSubs] = useState<string | null>(null);
   const [showDone, setShowDone] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [month, setMonth] = useState(false);
-  const quickRef = useRef<React.ComponentRef<typeof TextInput>>(null);
   useEffect(() => pruneDone(dateKey()), []);
 
   // The day a new task goes to: today, the day picked on the calendar, or none on «الكل».
@@ -91,15 +89,6 @@ function Tasks() {
     const n = tv.overdue.length;
     const undo = undoable(() => { for (const x of tv.overdue) saveTask({ ...x, due: today }); });
     showUndo(`رحّلت ${n} ${n === 1 ? 'مهمة' : 'مهام'} للنهارده`, undo);
-  };
-  const addQuick = () => {
-    const title = quick.trim();
-    if (!title) return;
-    tap();
-    ease();
-    saveTask({ id: taskId(stamp()), title, due: target, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, ...(space === 'work' ? { space } : {}) });
-    setQuick('');
-    quickRef.current?.focus();
   };
 
   const c = counts(list, today);
@@ -133,7 +122,6 @@ function Tasks() {
     calendar: day === today ? `النهارده · ${dayLabel(day)}` : dayLabel(day),
     all: c.open ? `${c.open} مهمة مفتوحة` : 'مفيش حاجة مفتوحة',
   };
-  const placeholder = target == null ? 'مهمة جديدة (من غير تاريخ)' : target === today ? 'مهمة جديدة للنهارده' : `مهمة جديدة لـ ${dueAr(target, today)}`;
 
   return (
     <Screen
@@ -142,8 +130,9 @@ function Tasks() {
       sub={sub[tab]}
       header={
         <View style={s.header}>
-          {/* Bar: خاص / شغل on one side, sections and the menu on the other. */}
+          {/* Bar: the title at the start, خاص / شغل and the menu at the end. */}
           <View style={s.navBar}>
+            <T w="bold" style={{ flex: 1, fontSize: 24, lineHeight: 32 }} numberOfLines={1}>مهامي</T>
             <MiniSwitch options={[['personal', SPACES.personal], ['work', SPACES.work]]} value={space} onChange={setSpace} label="المهام" />
             <MenuButton />
           </View>
@@ -175,36 +164,13 @@ function Tasks() {
         </View>
       }
       footer={
-        <View style={[s.bar, { paddingBottom: 8, backgroundColor: t.bg }]}>
-          <View style={[s.quick, { backgroundColor: t.card, borderColor: t.border }]}>
-            <Ionicons name="add-circle-outline" size={22} color={t.mute} />
-            <TextInput
-              ref={quickRef}
-              value={quick}
-              onChangeText={setQuick}
-              onSubmitEditing={addQuick}
-              submitBehavior="submit"
-              returnKeyType="done"
-              placeholder={placeholder}
-              placeholderTextColor={t.mute}
-              maxLength={140}
-              accessibilityLabel="مهمة سريعة"
-              style={[INPUT, s.quickIn, { color: t.fg, ...font('body') }]}
-            />
-            {quick.trim() ? (
-              <Pressable onPress={addQuick} hitSlop={8} accessibilityRole="button" accessibilityLabel="ضيف">
-                <Ionicons name="arrow-up-circle" size={32} color={t.ok} />
-              </Pressable>
-            ) : null}
-          </View>
+        // Only a + button (no quick-add field): it opens a new task for the day you're on.
+        <View pointerEvents="box-none" style={s.bar}>
           <Pressable
-            onPress={() => {
-              setAdding({ title: quick });
-              setQuick('');
-            }}
+            onPress={() => setAdding({ title: '' })}
             accessibilityRole="button"
-            accessibilityLabel="مهمة جديدة بالتفاصيل"
-            style={({ pressed }) => [s.fab, { backgroundColor: t.ok, transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
+            accessibilityLabel="مهمة جديدة"
+            style={({ pressed }) => [s.fab, { backgroundColor: t.ok, boxShadow: '0px 6px 16px rgba(0, 0, 0, 0.22)', transform: [{ scale: pressed ? 0.94 : 1 }] }]}>
             <Ionicons name="add" size={30} color={t.onOk} />
           </Pressable>
         </View>
@@ -522,9 +488,7 @@ const s = StyleSheet.create({
   subCb: { width: 18, height: 18, borderRadius: 5, borderWidth: 2, alignItems: 'center', justifyContent: 'center' },
   subX: { width: 26, height: 30, alignItems: 'center', justifyContent: 'center' },
   subIn: { flex: 1, minWidth: 0, height: 34, fontSize: 14, textAlign: 'right', outlineWidth: 0 },
-  bar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingTop: 6 },
-  quick: { flex: 1, flexDirection: 'row', alignItems: 'center', gap: 8, height: 44, borderRadius: 12, paddingHorizontal: 12 },
-  quickIn: { flex: 1, minWidth: 0, fontSize: 15, textAlign: 'right', outlineWidth: 0, height: 44 },
-  fab: { width: 44, height: 44, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
+  bar: { flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingBottom: 10 },
+  fab: { width: 56, height: 56, borderRadius: 28, alignItems: 'center', justifyContent: 'center' },
   emptyIcon: { width: 64, height: 64, borderRadius: 12, alignItems: 'center', justifyContent: 'center', marginBottom: 6 },
 });
