@@ -25,6 +25,8 @@ import { isDaySwap, SWAPS_KEY, swappedSet } from '../../../lib/journal';
 import { readStrings, removeEntries, writeEntry } from '../../../lib/meta';
 import { showUndo } from '../../../lib/undo';
 import { sessionSummary, setCounts } from '../../../lib/summary';
+import { nextToOpen, quoteFor } from '../../../lib/workoutFlow';
+import { WorkoutDonePopup } from '../../../components/WorkoutDonePopup';
 import { useTheme } from '../../../theme';
 
 export default function Workout() {
@@ -64,8 +66,10 @@ function WorkoutScreen() {
   const lightDue = useMemo(() => !lightOn && deloadDue(storage.allSets(), today), [lightOn, today, cards, live ? -1 : v]); // eslint-disable-line react-hooks/exhaustive-deps
   const sel = picked?.date === date ? picked.id : cur.id; // a pick from yesterday doesn't stick
   const day = dayFor(sel)!;
-  // Which exercise is open: the one you tapped, else the first one not finished (it moves on by itself as you tick).
+  // Which exercise is open: the one you tapped (or the list moved on to), else the first one not finished.
   const [tapped, setTapped] = useState<string | null>(null);
+  // «خلصت التمرين» popup, opened when the last set of today's workout is ticked; its quote is picked then.
+  const [popup, setPopup] = useState<number | null>(null);
   const pick = (id: number) => {
     setPicked({ date, id });
     setTapped(null);
@@ -138,6 +142,13 @@ function WorkoutScreen() {
           <T w="num" style={{ color: t.mute, fontSize: 12 }}>{`\u2066${done} / ${total}\u2069 مجموعة · \u2066${minutes}\u2069 د`}</T>
         </View>
       </Card>
+      <WorkoutDonePopup
+        visible={popup != null}
+        title={day.titleAr}
+        next={sel === cur.id ? dayFor(after(cur.id))?.titleAr ?? null : null}
+        quote={quoteFor(popup ?? 0)}
+        onClose={() => setPopup(null)}
+      />
       {finished ? <DoneCard date={date} weekday={sel} next={live ? dayFor(after(cur.id))?.titleAr ?? '' : null} v={v} /> : null}
       {lightOn || lightDue ? <LightWeek today={today} /> : null}
       {sel !== cur.id ? (
@@ -158,10 +169,17 @@ function WorkoutScreen() {
             live={live}
             open={e.id === openId}
             onOpen={() => openOne(e.id)}
-            onChange={(fin) => {
-              // Last set ticked on the line: it drops to the bottom as a summary and the next exercise opens.
-              if (fin) {
-                setTapped(null);
+            onChange={(st) => {
+              if (st === 'hold') setTapped(e.id); // stays open while it asks how hard the last set was
+              else if (st === 'done') {
+                // Last set ticked: it drops to the bottom as a summary and the one after it opens (read fresh: just written).
+                const now: Record<string, number> = {};
+                for (const x of day.exercises) now[x.id] = storage.setsFor(date, x.id).slice(0, x.sets).filter((r) => r.done).length;
+                const nxt = nextToOpen(day.exercises, now, e.id);
+                LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
+                setTapped(nxt);
+                // The whole workout is done: the popup, with a hadith and a fact by turns (one more per session logged).
+                if (nxt == null && live) setPopup(storage.trainedDays().length);
               }
               bump();
             }}

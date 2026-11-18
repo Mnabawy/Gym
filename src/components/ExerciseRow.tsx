@@ -32,8 +32,11 @@ type Props = {
   first: boolean;
   /** Logging today (not a past day): ticks start the rest timer and save the time. */
   live: boolean;
-  /** `finished`: the open exercise's last set was just ticked, so the list can move on to the next exercise. */
-  onChange: (finished: boolean) => void;
+  /**
+   * After a write. `done`: the open exercise's last set was ticked (and its RIR answered), so the list moves on.
+   * `hold`: its last set was ticked but the RIR question is up, so keep it open until that's answered.
+   */
+  onChange: (state: 'done' | 'hold' | null) => void;
 };
 
 /** When a set was ticked (only called from the tap handler). */
@@ -147,7 +150,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
     // Last set: the list moves on once you've answered how hard it was (or closed the question).
     const fin = open && r.done && next.every((x) => x.done);
     setFinPending(fin && askRir);
-    onChange(fin && !askRir);
+    onChange(fin ? (askRir ? 'hold' : 'done') : null);
   };
 
   const tip = increaseTip(ex, last);
@@ -156,7 +159,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   const closeRir = () => {
     setRirAt(null);
     setFinPending(false);
-    onChange(finPending);
+    onChange(finPending ? 'done' : null);
   };
   const setRir = (i: number, n: number) => {
     put(i, { ...rows[i], rir: n });
@@ -207,7 +210,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
     });
     save(i, r);
     setDraft({ at: -1, kg: '', reps: '' }); // the fields read the set again
-    onChange(false);
+    onChange(null);
   };
   /** Empty a set's logged numbers (and its tick), with undo. */
   const clearSet = (i: number) => {
@@ -217,7 +220,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
     setMissing(null);
     setPicked(null);
     setDraft(suggest(lineAt(next), next, last));
-    onChange(false);
+    onChange(null);
     showUndo(`اتمسحت مجموعة ${i + 1} · ${name}`, () => restoreSet(i, old));
   };
   /** Add a set beyond the plan for today (dropset, extra). Saved once you type or tick it; doesn't change the program. */
@@ -234,8 +237,8 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
     storage.deleteSet(date, ex.id, i);
     if (picked === i) setPicked(null);
     if (rirAt === i) setRirAt(null);
-    onChange(false);
-    showUndo(`اترجعت مجموعة ${i + 1} · ${name}`, () => { setRows((prev) => [...prev, old]); save(i, old); onChange(false); });
+    onChange(null);
+    showUndo(`اترجعت مجموعة ${i + 1} · ${name}`, () => { setRows((prev) => [...prev, old]); save(i, old); onChange(null); });
   };
   const setStart = (i: number): SwipeAction[] => [
     rows[i].done
