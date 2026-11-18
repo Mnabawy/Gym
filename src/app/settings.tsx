@@ -14,7 +14,6 @@ import { METHODS, type Method } from '../lib/prayer';
 import { ErrLogRow } from '../components/ErrLogRow';
 import { BAR_CHOICES } from '../lib/plates';
 import { metaArea, useData } from '../lib/bus';
-import { AccentPicker } from '../components/AccentPicker';
 import { BackupCard } from '../components/BackupCard';
 import { NotifySettings } from '../components/NotifySettings';
 import { GeneralSettings } from '../components/GeneralSettings';
@@ -161,9 +160,6 @@ export default function SettingsScreen() {
           </>
         ) : null}
       </Card>
-
-      <Label>لون التطبيق</Label>
-      <AccentPicker />
 
       <Label>عام</Label>
       <GeneralSettings />

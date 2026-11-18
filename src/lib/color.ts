@@ -1,6 +1,5 @@
-// Your own app color (settings → لون التطبيق): any hex you type becomes the accent everywhere — buttons, ticks,
-// rings, links, glows. Text in that color is darkened (light themes) or lightened (dark themes) until it reads at
-// WCAG AA contrast (4.5:1) on the background. Pure — unit tested in __tests__/color.test.ts.
+// Color helpers: hex parsing, contrast (WCAG), mixing, and nudging a color until text in it reads on a background.
+// Pure — unit tested in __tests__/color.test.ts.
 
 /** "#abc", "abc", "#AABBCC", "aabbcc" (Arabic-Indic digits too) → "#AABBCC"; anything else → null. */
 export function normHex(input: string): string | null {
@@ -48,22 +47,3 @@ export function readable(color: string, bg: string, min = 4.5): string {
   return to;
 }
 
-export type AccentTokens = { ok: string; okText: string; onOk: string; okSoft: string };
-
-/** The theme's accent tokens for your color on a background. */
-export function accentTokens(hex: string, bg: string): AccentTokens {
-  const light = '#FFFFFF';
-  const dark = '#111111';
-  // Icons, rings and filled buttons need 3:1 on the background (WCAG 1.4.11, non-text): a near-black color on the
-  // dark theme (or a near-white one on the light theme) is lightened / darkened just enough to show.
-  const ok = readable(hex, bg, 3);
-  return {
-    ok,
-    okText: readable(hex, bg),
-    onOk: contrast(light, ok) >= contrast(dark, ok) ? light : dark,
-    okSoft: mix(ok, bg, isDark(bg) ? 0.22 : 0.16),
-  };
-}
-
-/** Ready colors under the color box. */
-export const ACCENT_PRESETS = ['#007AFF', '#B93435', '#1BA6A8', '#2563EB', '#7C3AED', '#DB2777', '#DC2626', '#EA580C', '#CA8A04', '#16A34A', '#1F1D1A'] as const;

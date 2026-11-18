@@ -1,8 +1,6 @@
-import { createContext, useContext, useMemo } from 'react';
+import { createContext, useContext } from 'react';
 import { Platform, useColorScheme, type TextStyle } from 'react-native';
 import type { Muscle } from '../data/program';
-import { accentTokens } from '../lib/color';
-import { useSettings } from '../lib/settings';
 
 // Style: Apple's own apps (iOS system colors, UIColor semantic colors). Grey grouped background, white cards with no
 // shadow, black text, grey secondary text and one tint (your app color, system blue by default) for what you tap.
@@ -15,7 +13,7 @@ const light = {
   soft: '#EEEEF0', // tertiarySystemFill on white
   ink: '#1C1C1E',
   onInk: '#FFFFFF',
-  ok: '#007AFF', // systemBlue (replaced by settings accent)
+  ok: '#007AFF', // systemBlue
   onOk: '#FFFFFF',
   okText: '#007AFF',
   okSoft: '#E5F1FF',
@@ -109,11 +107,8 @@ export const ThemeProvider = Forced.Provider;
 export function useTheme(): Theme {
   const forced = useContext(Forced);
   const scheme = useColorScheme();
-  const accent = useSettings((s) => s.accent);
-  const base = forced ?? (scheme === 'dark' ? dark : light);
-  // System blue is a touch lighter in dark mode, like iOS.
-  const hex = accent === '#007AFF' && base.bg === dark.bg ? '#0A84FF' : accent;
-  return useMemo(() => (hex ? { ...base, ...accentTokens(hex, base.bg) } : base), [base, hex]);
+  // One app color, system blue (a touch lighter in dark mode, like iOS); the old «لون التطبيق» setting is gone.
+  return forced ?? (scheme === 'dark' ? dark : light);
 }
 
 /** Glow around something in `color` — only in the bordered (warm) look. */

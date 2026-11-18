@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { accentTokens, contrast, isDark, mix, normHex, readable } from '../src/lib/color';
+import { contrast, isDark, mix, normHex, readable } from '../src/lib/color';
 
 test('hex input', () => {
   expect(normHex('#1ba6a8')).toBe('#1BA6A8');
@@ -25,14 +25,3 @@ test('text in your color always reads', () => {
   expect(readable('#1F1D1A', '#FFFFFF')).toBe('#1F1D1A'); // already fine
 });
 
-test('accent tokens', () => {
-  expect(accentTokens('#FFE600', '#FFFFFF').onOk).toBe('#111111'); // dark text on yellow
-  expect(accentTokens('#2563EB', '#FFFFFF').onOk).toBe('#FFFFFF');
-  expect(accentTokens('#2563EB', '#FFFFFF').ok).toBe('#2563EB');
-  // A near-black app color still shows as icons and buttons on the dark theme (3:1), and keeps readable text on it.
-  const d = accentTokens('#1F1D1A', '#000000');
-  expect(contrast(d.ok, '#000000')).toBeGreaterThanOrEqual(3);
-  expect(contrast(d.onOk, d.ok)).toBeGreaterThanOrEqual(4.5);
-  expect(accentTokens('#1F1D1A', '#FFFFFF').ok).toBe('#1F1D1A'); // the light theme keeps it as is
-  expect(contrast(accentTokens('#FAFAF0', '#F2F2F7').ok, '#F2F2F7')).toBeGreaterThanOrEqual(3);
-});

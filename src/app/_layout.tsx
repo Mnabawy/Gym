@@ -1,6 +1,7 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { AppState, I18nManager, Platform } from 'react-native';
-import { router, Stack, type Href } from 'expo-router';
+import { DarkTheme, DefaultTheme, ThemeProvider as NavTheme, router, Stack, type Href } from 'expo-router';
+import * as SystemUI from 'expo-system-ui';
 import { StatusBar } from 'expo-status-bar';
 import * as Notifications from 'expo-notifications';
 import * as SplashScreen from 'expo-splash-screen';
@@ -29,6 +30,7 @@ import { syncSteps } from '../lib/steps';
 import { useSettings } from '../lib/settings';
 import { crashBoundary } from '../components/CrashScreen';
 import { report } from '../lib/errlog';
+import { useTheme } from '../theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // A one-time meta change that failed at start (src/lib/metaMigrations.ts) runs again on the next start; noted for a bug report.
@@ -67,8 +69,10 @@ export default function RootLayout() {
     <GestureHandlerRootView style={{ flex: 1 }}>
     <SafeAreaProvider>
       <StatusBar style="auto" />
+      <AppTheme>
       {/* iOS-style push on both phones; swipe back from anywhere on the page (iPhone). */}
       <Stack screenOptions={{ headerShown: false, animation: Platform.OS === 'android' ? 'ios_from_right' : 'default', fullScreenGestureEnabled: true }} />
+      </AppTheme>
       <VersePopup />
       <ReminderSync />
       <OpenFromNotification />
@@ -174,4 +178,22 @@ function CloudSync() {
     };
   }, []);
   return null;
+}
+
+/**
+ * Light or dark for the whole app, from the phone's setting: the navigators' own colors (page backgrounds while a page
+ * slides in, the tabs' scene) and the app's root background (behind the keyboard and between pages) follow the theme
+ * tokens, so dark mode never flashes a light frame.
+ */
+function AppTheme({ children }: { children: React.ReactNode }) {
+  const t = useTheme();
+  const dark = t.bg === '#000000';
+  const nav = useMemo(
+    () => ({ ...(dark ? DarkTheme : DefaultTheme), colors: { ...(dark ? DarkTheme : DefaultTheme).colors, primary: t.ok, background: t.bg, card: t.card, text: t.fg, border: t.line, notification: t.bad } }),
+    [dark, t],
+  );
+  useEffect(() => {
+    SystemUI.setBackgroundColorAsync(t.bg).catch(() => {});
+  }, [t.bg]);
+  return <NavTheme value={nav}>{children}</NavTheme>;
 }
