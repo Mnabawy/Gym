@@ -15,8 +15,8 @@ import { BAR_H, useBarBottom, useBarHidden } from './tabSpace';
 import { useKeyboardShown } from './ui';
 
 const ICON = 24;
-const PILL_W = 58;
-const PILL_H = 42;
+const PILL_W = 50;
+const PILL_H = 36;
 
 /** Pass as `tabBar` on the sections' `Tabs`. Each screen sets `title` (read aloud) and `tabBarIcon` (drawn in the color it's given). */
 export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
@@ -83,14 +83,14 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTab
 const s = StyleSheet.create({
   bar: {
     position: 'absolute',
-    start: 20,
-    end: 20,
+    start: 36,
+    end: 36,
     height: BAR_H,
     borderRadius: BAR_H / 2,
     borderWidth: StyleSheet.hairlineWidth,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
+    paddingHorizontal: 4,
   },
   tab: { flex: 1, height: BAR_H, alignItems: 'center', justifyContent: 'center' },
   pill: { width: PILL_W, height: PILL_H, alignItems: 'center', justifyContent: 'center' },

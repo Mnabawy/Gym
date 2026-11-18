@@ -6,7 +6,7 @@ import type { NativeScrollEvent, NativeSyntheticEvent } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { create } from 'zustand';
 
-export const BAR_H = 64;
+export const BAR_H = 54;
 /** How far the bar (and what floats on it: the rest timer, the tasks + button) moves down to hide. */
 export const BAR_SHIFT = BAR_H + 8;
 
