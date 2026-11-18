@@ -188,7 +188,7 @@ function WorkoutScreen() {
         ))}
       </Card>
       {live && weekdayOf(today) === 5 ? (
-        <Pressable onPress={() => router.navigate('/')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
+        <Pressable onPress={() => router.navigate('/week')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.8 : 1 })}>
           <Card style={{ paddingVertical: 10, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 10 }}>
             <Ionicons name="document-text-outline" size={20} color={t.okText} />
             <View style={{ flex: 1 }}>

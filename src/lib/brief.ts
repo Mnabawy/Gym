@@ -12,6 +12,7 @@ import { isDue, type Habit } from './habits';
 import { IDLE_DAYS, idleDays, ifThen, nextTask, reviewDue, type Goal } from './goals';
 import { clean, runLabel, type Quit } from './quit';
 import { todayView, type Task } from './tasks';
+import { topFor } from './dayPlan';
 
 export type BriefInput = {
   /** Today (the day the app schedules from). */
@@ -77,6 +78,9 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
     if (plan && idleDays(g, date) >= IDLE_DAYS) lines.push(`🛡 ${plan}`);
     if (reviewDue(g, date)) lines.push(`📝 مراجعة الأسبوع لـ ${g.name}: دقيقتين`);
   }
+  // «أهم ٣» picked for that day (يومي / خطّط بكرة).
+  const top = x.tasks ? topFor(x.tasks, date).filter((t) => !t.done) : [];
+  if (top.length) lines.push(`⭐ أهم ${top.length === 3 ? '٣' : top.length}: ${top.map((t) => t.title).join('، ')}`);
   if (x.tasks?.length) {
     const v = todayView(x.tasks, date);
     const open = [...v.day].sort((a, b) => a.priority - b.priority);

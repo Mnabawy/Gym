@@ -36,6 +36,10 @@ export type Task = {
   goal?: GoalLink;
   /** Monthly repeat: the day of the month it's meant for (so the 31st comes back after a short month). */
   anchor?: number;
+  /** How long it takes, in minutes (a block on يومي's timeline, from its `time`). */
+  mins?: number;
+  /** The day it's one of «أهم ٣» for (يومي, src/lib/dayPlan.ts). */
+  top?: string;
 };
 
 /** A task that came from a goal's step: the goal's id and the step's id. */
@@ -65,7 +69,7 @@ export function tagColor(tag: string): string {
 const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const str = (s: unknown) => (typeof s === 'string' ? s : '');
 
-const TASK_FIELDS = new Set(['id', 'title', 'due', 'time', 'priority', 'tag', 'note', 'subs', 'repeat', 'remind', 'done', 'created', 'from', 'wasDue', 'space', 'anchor', 'goal']);
+const TASK_FIELDS = new Set(['id', 'title', 'due', 'time', 'priority', 'tag', 'note', 'subs', 'repeat', 'remind', 'done', 'created', 'from', 'wasDue', 'space', 'anchor', 'goal', 'mins', 'top']);
 const SUB_FIELDS = new Set(['id', 'title', 'done']);
 
 /** One stored task, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
@@ -94,6 +98,8 @@ export function parseTask(x: unknown): Task | null {
     ...(o.space === 'work' ? { space: 'work' as const } : {}),
     ...(typeof o.anchor === 'number' && o.anchor >= 1 && o.anchor <= 31 ? { anchor: Math.round(o.anchor) } : {}),
     ...(isRec(o.goal) && typeof o.goal.goal === 'string' && typeof o.goal.step === 'string' ? { goal: { goal: o.goal.goal, step: o.goal.step } } : {}),
+    ...(typeof o.mins === 'number' && o.mins >= 5 && o.mins <= 720 ? { mins: Math.round(o.mins) } : {}),
+    ...(isDate(o.top) ? { top: o.top } : {}),
   });
 }
 
@@ -151,6 +157,7 @@ export function toggleTask(list: readonly Task[], id: string, today: string, new
     const moved: Task = { ...t, due: next, subs: t.subs.map((s) => ({ ...s, done: false })) };
     if (anchor != null && anchor > 28) moved.anchor = anchor;
     else delete moved.anchor;
+    delete moved.top; // «أهم ٣» was for that day: the done copy keeps it, the next one starts fresh
     return [...list.map((x) => (x.id === id ? moved : x)), copy];
   }
   return list.map((x) => (x.id === id ? { ...x, done: today } : x));

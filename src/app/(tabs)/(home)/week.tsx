@@ -1,31 +1,32 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../../data/program';
-import { MEAL_ORDER } from '../../data/nutrition';
-import { Card, Label, Progress, Screen, T } from '../../components/ui';
-import { MenuButton } from '../../components/SideMenu';
-import { energyFor } from '../../lib/energy';
-import { addDays, dateKey, weekStart } from '../../lib/dates';
-import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../../lib/journal';
-import { isTrainingDay } from '../../lib/schedule';
-import { readNumbers, readStrings } from '../../lib/meta';
-import { weekReport } from '../../lib/report';
-import { weekDash } from '../../lib/weekDash';
-import { DayRings, MetricList, WeekHero } from '../../components/WeekDash';
-import { useSettings } from '../../lib/settings';
-import { storage } from '../../lib/storage';
-import { readGoals } from '../../lib/goalStore';
-import { readQuits } from '../../lib/quitStore';
-import { readTasks } from '../../lib/taskStore';
-import { readSessions } from '../../lib/focusStore';
-import { fmtAmount } from '../../lib/goals';
-import { useDataVersion } from '../../lib/bus';
-import { parseWeights, WEIGHTS_KEY } from '../../lib/weight';
-import { readHabitLog, readHabits } from '../../lib/habitStore';
-import { HABITS_OFF } from '../../lib/hidden';
-import { CARDIO_KEY, parseCardio, parseSteps, STEPS_KEY } from '../../lib/cardio';
-import { useTheme } from '../../theme';
+import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../../../data/program';
+import { MEAL_ORDER } from '../../../data/nutrition';
+import { Card, Label, Progress, Screen, T } from '../../../components/ui';
+import { MenuButton } from '../../../components/SideMenu';
+import { HomeSwitch } from '../../../components/GymSwitch';
+import { energyFor } from '../../../lib/energy';
+import { addDays, dateKey, weekStart } from '../../../lib/dates';
+import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../../../lib/journal';
+import { isTrainingDay } from '../../../lib/schedule';
+import { readNumbers, readStrings } from '../../../lib/meta';
+import { weekReport } from '../../../lib/report';
+import { weekDash } from '../../../lib/weekDash';
+import { DayRings, MetricList, WeekHero } from '../../../components/WeekDash';
+import { useSettings } from '../../../lib/settings';
+import { storage } from '../../../lib/storage';
+import { readGoals } from '../../../lib/goalStore';
+import { readQuits } from '../../../lib/quitStore';
+import { readTasks } from '../../../lib/taskStore';
+import { readSessions } from '../../../lib/focusStore';
+import { fmtAmount } from '../../../lib/goals';
+import { useDataVersion } from '../../../lib/bus';
+import { parseWeights, WEIGHTS_KEY } from '../../../lib/weight';
+import { readHabitLog, readHabits } from '../../../lib/habitStore';
+import { HABITS_OFF } from '../../../lib/hidden';
+import { CARDIO_KEY, parseCardio, parseSteps, STEPS_KEY } from '../../../lib/cardio';
+import { useTheme } from '../../../theme';
 
 /** Weekly target sets per muscle (same as the progress page). */
 const TARGET = 10;
@@ -33,7 +34,7 @@ const iso = (s: string) => `⁦${s}⁩`;
 const dayAr = (k: string) => `${+k.slice(8)} ${MONTHS_AR[+k.slice(5, 7) - 1]}`;
 const signed = (n: number) => `${n > 0 ? '+' : ''}${n}`;
 
-/** أسبوعك (the first tab, what the app opens on): one Saturday–Friday week — the dashboard (src/components/WeekDash.tsx), then sets per muscle, records, habits, goals, quits and weight. */
+/** أسبوعك (`/week`, on the first tab next to يومي): one Saturday–Friday week — the dashboard (src/components/WeekDash.tsx), then sets per muscle, records, habits, goals, quits and weight. */
 export default function WeekScreen() {
   const t = useTheme();
   useDataVersion((s) => s.v);
@@ -77,6 +78,7 @@ export default function WeekScreen() {
 
   return (
     <Screen title="أسبوعك" sub="من السبت للجمعة" action={<MenuButton />}>
+      <HomeSwitch value="week" />
       <View style={s.nav}>
         <Nav icon="chevron-forward" label="الأسبوع اللي فات" disabled={!canPrev} onPress={() => setFrom(addDays(from, -7))} />
         <T w="bold" style={{ flex: 1, textAlign: 'center', fontSize: 15 }}>{`${dayAr(r.from)} – ${dayAr(r.to)}${live ? ' · الأسبوع ده' : ''}`}</T>

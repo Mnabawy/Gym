@@ -1,0 +1,118 @@
+import { buildDay, hm, leftovers, mealAt, mealsOn, moveTo, nextItem, nowItem, placeAt, slotStarts, spanAr, topFor, unscheduled, type Fixed } from '../src/lib/dayPlan';
+import { parseTask, toggleTask, type Task } from '../src/lib/tasks';
+
+const D = '2026-11-18';
+const task = (p: Partial<Task> & { id: string }): Task => ({ title: p.id, due: D, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: '2026-11-01', ...p });
+
+describe('mealAt', () => {
+  it('reads the plan times', () => {
+    expect(mealAt('الفطار', true, null)).toBe(8 * 60);
+    expect(mealAt('الغدا', false, null)).toBe(13 * 60);
+  });
+  it('ties the smoothie and dinner to the workout', () => {
+    const gym = { at: 19 * 60, end: 20 * 60 + 30 };
+    expect(mealAt('السموزي', true, gym)).toBe(18 * 60);
+    expect(mealAt('العشا', true, gym)).toBe(20 * 60 + 30);
+    expect(mealAt('السموزي', true, null)).toBeNull();
+  });
+  it('night meals and «أي وقت»', () => {
+    expect(mealAt('العشا', false, null)).toBe(20 * 60);
+    expect(mealAt('السناك', false, null)).toBe(22 * 60);
+    expect(mealAt('السموزي', false, null)).toBeNull();
+  });
+  it('mealsOn skips untimed ones and marks ticked ones', () => {
+    const m = mealsOn(false, null, { الغدا: 'فراخ' }, new Set(['الفطار']));
+    expect(m.map((x) => x.title)).toEqual(['الفطار', 'الغدا', 'العشا', 'السناك']);
+    expect(m[0].done).toBe(true);
+    expect(m[1].sub).toBe('فراخ');
+  });
+});
+
+describe('buildDay', () => {
+  const fixed: Fixed[] = [
+    { kind: 'prayer', id: 'p:dhuhr', at: 700, mins: 0, title: 'الضهر' },
+    { kind: 'meal', id: 'meal:الغدا', at: 780, mins: 30, title: 'الغدا' },
+    { kind: 'gym', id: 'gym', at: 1140, mins: 90, title: 'الجيم' },
+  ];
+  const tasks = [task({ id: 'a', time: 900, mins: 120 }), task({ id: 'b' }), task({ id: 'c', time: 600, due: '2026-11-19' })];
+  const day = buildDay({ date: D, fixed, tasks, now: null, start: 600, end: 1320 });
+
+  it('sorts fixed items and timed tasks of that day', () => {
+    expect(day.filter((i) => i.kind !== 'free').map((i) => i.id)).toEqual(['p:dhuhr', 'meal:الغدا', 'a', 'gym']);
+  });
+  it('finds free gaps of 30 minutes or more', () => {
+    const free = day.filter((i) => i.kind === 'free').map((i) => [i.at, i.end]);
+    // 10:00–11:40, 11:55–13:00, 13:30–15:00, 17:00–19:00, 20:30–22:00
+    expect(free).toEqual([[600, 700], [715, 780], [810, 900], [1020, 1140], [1230, 1320]]);
+  });
+  it('starts free time from now on today', () => {
+    const d = buildDay({ date: D, fixed, tasks, now: 1003, start: 600, end: 1320 });
+    // The block runs till 17:00, so the first free time after now starts then.
+    expect(d.filter((i) => i.kind === 'free').map((i) => i.at)).toEqual([1020, 1230]);
+  });
+  it('keeps a task finished that day, drops one finished before', () => {
+    const d = buildDay({ date: D, fixed: [], tasks: [task({ id: 'x', time: 600, done: D }), task({ id: 'y', time: 700, done: '2026-11-17' })], now: null });
+    expect(d.filter((i) => i.kind === 'task').map((i) => [i.id, i.done])).toEqual([['x', true]]);
+  });
+  it('now and next', () => {
+    expect(nowItem(day, 950)?.id).toBe('a');
+    expect(nowItem(day, 1100)).toBeNull();
+    expect(nextItem(day, 1100)?.id).toBe('gym');
+  });
+});
+
+describe('top 3 and moving tasks', () => {
+  const list = [
+    task({ id: 'a', top: D, priority: 2 }),
+    task({ id: 'b', top: D, priority: 1, done: D }),
+    task({ id: 'c', top: D, priority: 1 }),
+    task({ id: 'd', top: '2026-11-17' }),
+    task({ id: 'e', due: null }),
+    task({ id: 'f', due: '2026-11-15' }),
+    task({ id: 'g', time: 600 }),
+  ];
+  it('topFor: open first, by priority, max 3', () => {
+    expect(topFor(list, D).map((t) => t.id)).toEqual(['c', 'a', 'b']);
+  });
+  it('unscheduled: no time, late or no day; top picks first', () => {
+    expect(unscheduled(list, D).map((t) => t.id)).toEqual(['c', 'a', 'd', 'f', 'e']);
+  });
+  it('leftovers: open, today or before', () => {
+    expect(leftovers(list, D).map((t) => t.id)).toEqual(['a', 'c', 'd', 'f', 'g']);
+  });
+  it('moveTo drops time, reminder and the top mark', () => {
+    const m = moveTo(task({ id: 'z', time: 600, remind: true, top: D, mins: 50 }), '2026-11-19');
+    expect(m).toMatchObject({ due: '2026-11-19', time: null, remind: false, mins: 50 });
+    expect(m.top).toBeUndefined();
+    expect(moveTo(task({ id: 'z' }), null).due).toBeNull();
+  });
+  it('placeAt sets the day, time and length', () => {
+    expect(placeAt(task({ id: 'z', due: null }), D, 720, 50)).toMatchObject({ due: D, time: 720, mins: 50 });
+  });
+  it('a repeating top task: the done copy keeps the mark, the next one drops it', () => {
+    const l = toggleTask([task({ id: 'r', repeat: 'daily', top: D })], 'r', D, 'r2');
+    expect(l.find((t) => t.id === 'r')?.top).toBeUndefined();
+    expect(l.find((t) => t.id === 'r2')?.top).toBe(D);
+  });
+  it('parseTask keeps mins and top, drops bad ones', () => {
+    expect(parseTask({ id: 'a', title: 'x', mins: 50, top: D })).toMatchObject({ mins: 50, top: D });
+    const bad = parseTask({ id: 'a', title: 'x', mins: 2, top: 'soon' })!;
+    expect(bad.mins).toBeUndefined();
+    expect(bad.top).toBeUndefined();
+  });
+});
+
+describe('helpers', () => {
+  it('slotStarts', () => {
+    expect(slotStarts(715, 780)).toEqual([715, 720, 750]);
+    expect(slotStarts(720, 750)).toEqual([720]);
+  });
+  it('spanAr and hm', () => {
+    expect(spanAr(25)).toBe('25 د');
+    expect(spanAr(90)).toBe('ساعة ونص');
+    expect(spanAr(120)).toBe('ساعتين');
+    expect(hm(900)).toBe('3:00');
+    expect(hm(705)).toBe('11:45');
+    expect(hm(0)).toBe('12:00');
+  });
+});

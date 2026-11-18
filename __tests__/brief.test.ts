@@ -103,3 +103,11 @@ test('clock: noon, midnight and the half hours', () => {
   expect(clock(30)).toBe('12:30 الصبح');
   expect(clock(23 * 60 + 59)).toBe('11:59 بالليل');
 });
+
+test('«أهم ٣» picked for the day get their own line (open ones only)', () => {
+  const t = (title: string, extra: object) => ({ id: title, title, due: TODAY, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: TODAY, ...extra });
+  const tasks = [t('سي في', { top: TODAY, priority: 1 }), t('كود', { top: TODAY }), t('خلصت', { top: TODAY, done: TODAY }), t('بكرة', { top: '2026-11-30' })];
+  const body = morningBrief(TODAY, { ...base, tasks: tasks as never }).body;
+  expect(body).toContain('⭐ أهم 2: سي في، كود');
+  expect(morningBrief(TODAY, { ...base, tasks: [] }).body).not.toContain('⭐');
+});
