@@ -5,12 +5,15 @@
 import * as Haptics from 'expo-haptics';
 import type { BottomTabBarProps } from 'expo-router/js-tabs';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import Svg, { Rect } from 'react-native-svg';
 import { useSettings } from '../lib/settings';
 import { tint, useTheme } from '../theme';
 import { BAR_H, useBarBottom } from './tabSpace';
 import { useKeyboardShown } from './ui';
 
 const ICON = 24;
+const PILL_W = 58;
+const PILL_H = 42;
 
 /** Pass as `tabBar` on the sections' `Tabs`. Each screen sets `title` (read aloud) and `tabBarIcon` (drawn in the color it's given). */
 export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTabBarProps) {
@@ -51,7 +54,13 @@ export function TabBar({ state, descriptors, emitter, navigateToTab }: BottomTab
             }}
             onLongPress={() => emitter.emit({ type: 'tabLongPress', target: route.key })}
             style={s.tab}>
-            <View style={[s.pill, focused ? { backgroundColor: tint(t.ok, dark ? 0.28 : 0.14) } : null]}>
+            <View style={s.pill}>
+              {/* The pill is drawn (SVG), not a rounded View background: on Android that came out as a square. */}
+              {focused ? (
+                <Svg width={PILL_W} height={PILL_H} style={StyleSheet.absoluteFill} pointerEvents="none">
+                  <Rect width={PILL_W} height={PILL_H} rx={PILL_H / 2} ry={PILL_H / 2} fill={tint(t.ok, dark ? 0.28 : 0.14)} />
+                </Svg>
+              ) : null}
               {options.tabBarIcon?.({ focused, color: focused ? t.okText : t.mute, size: ICON })}
             </View>
           </Pressable>
@@ -74,5 +83,5 @@ const s = StyleSheet.create({
     paddingHorizontal: 6,
   },
   tab: { flex: 1, height: BAR_H, alignItems: 'center', justifyContent: 'center' },
-  pill: { width: 58, height: 42, borderRadius: 21, alignItems: 'center', justifyContent: 'center' },
+  pill: { width: PILL_W, height: PILL_H, alignItems: 'center', justifyContent: 'center' },
 });
