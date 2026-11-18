@@ -125,7 +125,7 @@ function Bars({ m, today }: { m: Metric; today: number }) {
           />
         );
       })}
-      {m.prevAvg ? <View pointerEvents="none" style={[s.avg, { bottom: Math.min(BAR_H, (m.prevAvg / top) * BAR_H), backgroundColor: t.fg }]} /> : null}
+      {m.prevAvg ? <View pointerEvents="none" style={[s.avg, { bottom: Math.min(BAR_H, (m.prevAvg / top) * BAR_H), backgroundColor: t.mute }]} /> : null}
     </View>
   );
 }
@@ -172,5 +172,5 @@ const s = StyleSheet.create({
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingVertical: 8 },
   icon: { width: 34, height: 34, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   trend: { width: 58, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: 2 },
-  avg: { position: 'absolute', start: -2, end: -2, height: 1.5, opacity: 0.35, borderRadius: 1 },
+  avg: { position: 'absolute', start: -2, end: -2, height: 1.5, opacity: 0.8, borderRadius: 1 },
 });

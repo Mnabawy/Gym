@@ -133,7 +133,7 @@ export default function Shop() {
                               hitSlop={4}
                               onPress={() => !on && moveTo(item.id, tr.index)}
                               style={[s.opt, { backgroundColor: on ? (tr.index === k ? t.ok : t.ink) : t.soft }]}>
-                              <T w="numBold" style={{ fontSize: 13, color: on ? '#FFFFFF' : t.mute }}>{String(tr.index + 1)}</T>
+                              <T w="numBold" style={{ fontSize: 13, color: on ? (tr.index === k ? t.onOk : t.onInk) : t.mute }}>{String(tr.index + 1)}</T>
                             </Pressable>
                           );
                         })}

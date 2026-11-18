@@ -7,6 +7,9 @@ import { useTween } from '../lib/motion';
 import { Ring, T } from './ui';
 import { glow, useTheme } from '../theme';
 
+/** The bar is always dark, so it uses the dark theme's app color (white), whatever the phone's theme. */
+const ON_BAR = '#F2F2F7';
+
 export function TimerBar() {
   const t = useTheme();
   const { endAt, total, label, add, stop } = useTimer();
@@ -41,11 +44,11 @@ export function TimerBar() {
         { opacity: enter, transform: [{ translateY: enter.interpolate({ inputRange: [0, 1], outputRange: [40, 0] }) }] },
       ]}
       accessibilityLiveRegion="polite">
-      <Ring animated={false} value={over ? 1 : left / (total * 1000)} size={48} stroke={4} color={t.ok} track="rgba(255,255,255,0.14)">
+      <Ring animated={false} value={over ? 1 : left / (total * 1000)} size={48} stroke={4} color={ON_BAR} track="rgba(255,255,255,0.14)">
         <T w="numBold" style={{ color: '#FFFFFF', fontSize: 12.5 }}>{formatClock(left)}</T>
       </Ring>
       <View style={{ flex: 1, minWidth: 0 }}>
-        <T w="bold" style={{ color: over ? t.ok : '#FFFFFF', fontSize: 15 }}>{over ? 'يلا المجموعة الجاية' : 'راحة'}</T>
+        <T w="bold" style={{ color: '#FFFFFF', fontSize: 15 }}>{over ? 'يلا المجموعة الجاية' : 'راحة'}</T>
         <T w="num" style={{ color: '#FFFFFF', opacity: 0.75, fontSize: 12.5 }} numberOfLines={1}>{label}</T>
       </View>
       <Pressable onPress={() => add(-30)} style={s.btn} accessibilityRole="button" accessibilityLabel="قلّل الراحة 30 ثانية">
@@ -54,8 +57,8 @@ export function TimerBar() {
       <Pressable onPress={() => add(30)} style={s.btn} accessibilityRole="button" accessibilityLabel="زوّد الراحة 30 ثانية">
         <T w="semi" style={{ color: '#FFFFFF' }}>+30 ث</T>
       </Pressable>
-      <Pressable onPress={stop} style={[s.btn, { backgroundColor: t.ok, borderColor: t.ok, boxShadow: glow(t, t.ok, 10) }]} accessibilityRole="button">
-        <T w="semi" style={{ color: t.onOk }}>خلاص</T>
+      <Pressable onPress={stop} style={[s.btn, { backgroundColor: ON_BAR, borderColor: ON_BAR, boxShadow: glow(t, ON_BAR, 10) }]} accessibilityRole="button">
+        <T w="semi" style={{ color: '#000000' }}>خلاص</T>
       </Pressable>
     </Animated.View>
   );

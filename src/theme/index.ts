@@ -3,7 +3,7 @@ import { Platform, useColorScheme, type TextStyle } from 'react-native';
 import type { Muscle } from '../data/program';
 
 // Style: Apple's own apps (iOS system colors, UIColor semantic colors). Grey grouped background, white cards with no
-// shadow, black text, grey secondary text and one tint (your app color, system blue by default) for what you tap.
+// shadow, black text, grey secondary text and one tint for what you tap: Apple's black and white (black here, white on the dark theme).
 const light = {
   bg: '#F2F2F7', // systemGroupedBackground
   card: '#FFFFFF', // secondarySystemGroupedBackground
@@ -13,10 +13,11 @@ const light = {
   soft: '#EEEEF0', // tertiarySystemFill on white
   ink: '#1C1C1E',
   onInk: '#FFFFFF',
-  ok: '#007AFF', // systemBlue
+  // The app color: Apple's black and white (black here, white on the dark theme).
+  ok: '#1C1C1E',
   onOk: '#FFFFFF',
-  okText: '#007AFF',
-  okSoft: '#E5F1FF',
+  okText: '#1C1C1E',
+  okSoft: '#DCDCE0',
   warn: '#C93400', // systemOrange, darkened for text
   warnSoft: '#FFF2E0',
   bad: '#FF3B30', // systemRed — missing input (a set ticked without weight or reps)
@@ -57,10 +58,10 @@ const dark: typeof light = {
   soft: '#2C2C2E',
   ink: '#E5E5EA',
   onInk: '#000000',
-  ok: '#0A84FF',
-  onOk: '#FFFFFF',
-  okText: '#0A84FF',
-  okSoft: '#0A2A4D',
+  ok: '#F2F2F7',
+  onOk: '#000000',
+  okText: '#F2F2F7',
+  okSoft: '#3A3A3C',
   warn: '#FF9F0A',
   warnSoft: '#3A2A10',
   bad: '#FF453A',
@@ -107,7 +108,7 @@ export const ThemeProvider = Forced.Provider;
 export function useTheme(): Theme {
   const forced = useContext(Forced);
   const scheme = useColorScheme();
-  // One app color, system blue (a touch lighter in dark mode, like iOS); the old «لون التطبيق» setting is gone.
+  // One app color, Apple's black and white (see `ok` in the tokens); the old «لون التطبيق» setting is gone.
   return forced ?? (scheme === 'dark' ? dark : light);
 }
 
