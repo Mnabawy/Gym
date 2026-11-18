@@ -8,6 +8,7 @@ import { storage } from '../../lib/storage';
 import { hubSeen } from '../../lib/section';
 import { crashBoundary } from '../../components/CrashScreen';
 import { TabBar } from '../../components/TabBar';
+import { TabBarSpace } from '../../components/tabSpace';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -22,7 +23,7 @@ function icon(name: string) {
 export const ErrorBoundary = crashBoundary('tabs');
 
 /**
- * The app's sections as tabs at the bottom (classic bar, no animation: src/components/TabBar.tsx): أسبوعك (the weekly
+ * The app's sections as tabs at the bottom (a floating icon-only bar, no animation: src/components/TabBar.tsx): أسبوعك (the weekly
  * dashboard, `/`, what the app opens on), الجيم (src/app/(tabs)/(gym): التمرين · الأكل · المشتريات as a segmented
  * control at the top), مهامي, الأهداف, بطّل.
  */
@@ -35,6 +36,8 @@ export default function TabsLayout() {
   // First launch on the phone: the sign-in screen, until you sign in or skip it.
   if (welcome) return <Redirect href="/welcome" />;
   return (
+    // The bar floats over the pages (absolute), so each page leaves room for it (TabBarSpace → Screen).
+    <TabBarSpace>
     <Tabs tabBar={(p) => <TabBar {...p} />} screenOptions={{ headerShown: false, animation: 'none' }}>
       <Tabs.Screen name="index" options={{ title: 'أسبوعك', tabBarIcon: icon('speedometer') }} />
       <Tabs.Screen name="(gym)" options={{ title: 'الجيم', tabBarIcon: icon('barbell') }} />
@@ -42,5 +45,6 @@ export default function TabsLayout() {
       <Tabs.Screen name="goals" options={{ title: 'الأهداف', tabBarIcon: icon('flag') }} />
       <Tabs.Screen name="quit" options={{ title: 'بطّل', tabBarIcon: icon('hand-left') }} />
     </Tabs>
+    </TabBarSpace>
   );
 }

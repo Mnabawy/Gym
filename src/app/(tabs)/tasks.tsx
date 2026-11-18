@@ -3,8 +3,7 @@ import { Item, Pop } from '../../components/Motion';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Btn, INPUT, MiniSwitch, Ring, Screen, Sheet, T, useKeyboardShown } from '../../components/ui';
+import { Btn, INPUT, MiniSwitch, Ring, Screen, Sheet, T } from '../../components/ui';
 import { MenuButton } from '../../components/SideMenu';
 import { MonthCalendar } from '../../components/MonthCalendar';
 import { dueAr, TaskSheet } from '../../components/TaskSheet';
@@ -52,8 +51,6 @@ function Tasks() {
   const t = useTheme();
   // The tasks, deleted tasks and goals (a task from a goal shows its name).
   useData(metaArea(TASKS_KEY), metaArea(TRASH_KEY), metaArea(GOALS_KEY));
-  const inset = useSafeAreaInsets();
-  const kb = useKeyboardShown();
   const today = dateKey();
   const [space, setSpaceState] = useState<Space>(() => (storage.getMeta('taskSpace') === 'work' ? 'work' : 'personal'));
   const setSpace = (v: Space) => {
@@ -178,7 +175,7 @@ function Tasks() {
         </View>
       }
       footer={
-        <View style={[s.bar, { paddingBottom: kb ? 8 : Math.max(inset.bottom, 10) + 4, backgroundColor: t.bg }]}>
+        <View style={[s.bar, { paddingBottom: 8, backgroundColor: t.bg }]}>
           <View style={[s.quick, { backgroundColor: t.card, borderColor: t.border }]}>
             <Ionicons name="add-circle-outline" size={22} color={t.mute} />
             <TextInput
