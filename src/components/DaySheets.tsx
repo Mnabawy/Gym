@@ -13,8 +13,8 @@ import { useDataVersion } from '../lib/bus';
 import { allowReminders } from '../lib/reminder';
 import { useTheme } from '../theme';
 
-/** What the block sheet is for: a free slot to fill, or a block already on the timeline. */
-export type BlockTarget = { slot: { at: number; end: number } } | { task: Task };
+/** What the block sheet is for: a free slot to fill (`pick`: the task to start with), or a block already on the timeline. */
+export type BlockTarget = { slot: { at: number; end: number }; pick?: string } | { task: Task };
 
 /** A task's row in a sheet: its priority ring, title and list; ticked = picked. */
 function PickRow({ x, on, onPress, note }: { x: Task; on: boolean; onPress: () => void; note?: string }) {
@@ -41,12 +41,16 @@ function BlockBody({ date, target, onClose }: { date: string; target: BlockTarge
   const t = useTheme();
   const editing = 'task' in target ? target.task : null;
   const slot = 'slot' in target ? target.slot : null;
-  const choices = slot ? unscheduled(readTasks(), date).slice(0, 6) : [];
-  const [pick, setPick] = useState<string | null>(editing?.id ?? choices[0]?.id ?? null);
+  const want = 'pick' in target ? target.pick : undefined;
+  const open = slot ? unscheduled(readTasks(), date) : [];
+  const first = open.slice(0, 6);
+  const wanted = want ? open.find((x) => x.id === want) : undefined;
+  const choices = wanted && !first.includes(wanted) ? [wanted, ...first.slice(0, 5)] : first;
+  const [pick, setPick] = useState<string | null>(editing?.id ?? wanted?.id ?? choices[0]?.id ?? null);
   const [title, setTitle] = useState('');
   const starts = slot ? slotStarts(slot.at, slot.end) : [editing!.time! - 30, editing!.time!, editing!.time! + 30, editing!.time! + 60].filter((m) => m >= 0 && m < 1440);
   const [at, setAt] = useState(slot ? starts[0] : editing!.time!);
-  const [mins, setMins] = useState<number>(editing?.mins ?? (slot ? Math.min(50, slot.end - slot.at) : DEFAULT_MINS));
+  const [mins, setMins] = useState<number>(editing?.mins ?? wanted?.mins ?? (slot ? Math.min(50, slot.end - slot.at) : DEFAULT_MINS));
   const [remind, setRemind] = useState(editing?.remind ?? false);
   const lengths = [...new Set([...BLOCK_MINS, mins])].sort((a, b) => a - b);
   const typed = title.trim();

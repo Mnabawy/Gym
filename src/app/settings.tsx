@@ -16,6 +16,7 @@ import { BAR_CHOICES } from '../lib/plates';
 import { metaArea, useData } from '../lib/bus';
 import { BackupCard } from '../components/BackupCard';
 import { NotifySettings } from '../components/NotifySettings';
+import { DaySettings } from '../components/DaySettings';
 import { GeneralSettings } from '../components/GeneralSettings';
 import { clock, deloadSub, placeText, programSub, STEPS, tripLines } from '../lib/settingsView';
 import { useTheme } from '../theme';
@@ -106,6 +107,9 @@ export default function SettingsScreen() {
 
       <Label>الإشعارات</Label>
       <NotifySettings />
+
+      <Label>يومي</Label>
+      <DaySettings />
 
       <Label>المشتريات</Label>
       <Card>

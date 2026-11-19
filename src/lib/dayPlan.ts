@@ -7,10 +7,10 @@ import { weekdayOf } from './dates';
 import { dayKey } from './journal';
 import type { Task } from './tasks';
 
-export type PlanKind = 'prayer' | 'meal' | 'gym' | 'task' | 'free';
+export type PlanKind = 'prayer' | 'work' | 'meal' | 'gym' | 'task' | 'free';
 
 /** Something with a fixed time that the app knows about (a prayer, a meal, the workout). */
-export type Fixed = { kind: 'prayer' | 'meal' | 'gym'; id: string; at: number; mins: number; title: string; sub?: string; done?: boolean };
+export type Fixed = { kind: 'prayer' | 'work' | 'meal' | 'gym'; id: string; at: number; mins: number; title: string; sub?: string; done?: boolean };
 
 /** One line on the timeline. `at` / `end` are minutes after midnight. */
 export type PlanItem = { kind: PlanKind; id: string; at: number; end: number; title: string; sub?: string; done: boolean; task?: Task };
@@ -31,8 +31,9 @@ export const TOP_MAX = 3;
 /** Lengths offered for a block. */
 export const BLOCK_MINS = [25, 50, 90, 120] as const;
 
-const ORDER: Record<PlanKind, number> = { prayer: 0, meal: 1, gym: 2, task: 3, free: 4 };
-const ceil5 = (m: number) => Math.ceil(m / 5) * 5;
+const ORDER: Record<PlanKind, number> = { prayer: 0, work: 1, meal: 2, gym: 3, task: 4, free: 5 };
+/** Free time starts on a quarter hour (12:15, not 12:01 after a prayer). */
+const ceil15 = (m: number) => Math.ceil(m / 15) * 15;
 
 /** A task's block: from its time for its length (or `DEFAULT_MINS`). */
 export const taskEnd = (t: Pick<Task, 'time' | 'mins'>) => (t.time ?? 0) + (t.mins ?? DEFAULT_MINS);
@@ -91,21 +92,58 @@ export function buildDay(x: { date: string; fixed: readonly Fixed[]; tasks: read
     if (t.time == null || t.due !== x.date || (t.done && t.done !== x.date)) continue;
     items.push({ kind: 'task', id: t.id, at: t.time, end: taskEnd(t), title: t.title, done: !!t.done, task: t });
   }
-  // Free time: walk the busy spans in order and keep the gaps.
+  // Free time: walk the busy spans in order and keep the gaps (work hours are busy too: their own row opens a slot).
   const busy = items.map((i) => [i.at, i.kind === 'prayer' ? i.at + PRAYER_MINS : i.end] as const).sort((a, b) => a[0] - b[0]);
-  let from = x.now != null ? Math.max(start, ceil5(x.now)) : start;
+  let from = x.now != null ? Math.max(start, x.now) : start;
   for (const [a, b] of [...busy, [end, end] as const]) {
     const to = Math.min(a, end);
-    if (to - from >= MIN_FREE) items.push({ kind: 'free', id: `free:${from}`, at: from, end: to, title: '', done: false });
+    const at = ceil15(from);
+    if (to - at >= MIN_FREE) items.push({ kind: 'free', id: `free:${at}`, at, end: to, title: '', done: false });
     from = Math.max(from, b);
     if (from >= end) break;
   }
   return items.sort((a, b) => a.at - b.at || ORDER[a.kind] - ORDER[b.kind]);
 }
 
-/** What's on now (a block, the workout or a meal you haven't ticked), or null. */
-export const nowItem = (items: readonly PlanItem[], now: number) =>
-  items.find((i) => i.kind !== 'prayer' && i.kind !== 'free' && !i.done && i.at <= now && now < i.end) ?? null;
+/** What's on now (a block, the workout or a meal you haven't ticked; work hours only when nothing else is), or null. */
+export function nowItem(items: readonly PlanItem[], now: number): PlanItem | null {
+  const on = items.filter((i) => i.kind !== 'prayer' && i.kind !== 'free' && !i.done && i.at <= now && now < i.end);
+  return on.find((i) => i.kind !== 'work') ?? on[0] ?? null;
+}
+
+/** Past lines folded under «فات»: prayers, work hours, and what's done. A meal not ticked or a task not done stays. */
+export function splitPast(items: readonly PlanItem[], now: number): { past: PlanItem[]; rest: PlanItem[] } {
+  const past: PlanItem[] = [];
+  const rest: PlanItem[] = [];
+  for (const i of items) {
+    const over = (i.kind === 'prayer' ? i.at + PRAYER_MINS : i.end) <= now;
+    if (over && (i.kind === 'prayer' || i.kind === 'work' || i.done)) past.push(i);
+    else rest.push(i);
+  }
+  return { past, rest };
+}
+
+/** The first free slot that fits `mins` (else the first long enough to start in), for «حط وقت». */
+export function firstFree(items: readonly PlanItem[], mins: number): { at: number; end: number } | null {
+  const free = items.filter((i) => i.kind === 'free');
+  const fit = free.find((i) => i.end - i.at >= mins) ?? free[0];
+  return fit ? { at: fit.at, end: fit.end } : null;
+}
+
+/**
+ * What to do with the time you have now: when nothing is on (or only work hours) and there's a free stretch of at
+ * least 25 min starting within a quarter hour, the first open «أهم ٣» pick that has no time yet (a work one first
+ * during work hours). Null otherwise.
+ */
+export function suggest(items: readonly PlanItem[], top: readonly Task[], now: number, date: string): { task: Task; at: number; end: number } | null {
+  const cur = nowItem(items, now);
+  if (cur && cur.kind !== 'work') return null;
+  const slot = cur ? { at: now, end: cur.end } : items.find((i) => i.kind === 'free' && i.at <= now + 15 && i.end - Math.max(i.at, now) >= 25);
+  if (!slot) return null;
+  const open = top.filter((t) => !t.done && (t.time == null || t.due !== date));
+  const task = (cur ? open.find((t) => t.space === 'work') : null) ?? open[0];
+  return task ? { task, at: Math.max(slot.at, now), end: slot.end } : null;
+}
 
 /** The next thing that starts after now (free time doesn't count). */
 export const nextItem = (items: readonly PlanItem[], now: number) => items.find((i) => i.kind !== 'free' && i.at > now) ?? null;

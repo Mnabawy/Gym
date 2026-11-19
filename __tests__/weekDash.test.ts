@@ -1,5 +1,5 @@
 /// <reference types="jest" />
-import { scoreLabel, weekDash, type DashInput } from '../src/lib/weekDash';
+import { boost, scoreLabel, weekDash, type DashInput } from '../src/lib/weekDash';
 import type { SetRow } from '../src/lib/storage.types';
 import type { Task } from '../src/lib/tasks';
 
@@ -91,4 +91,44 @@ test('score labels', () => {
   expect(scoreLabel(70)).toBe('أسبوع كويس');
   expect(scoreLabel(55)).toBe('أسبوع نص نص');
   expect(scoreLabel(10)).toBe('محتاج تشد حيلك');
+});
+
+describe('«أهم ٣» in the score', () => {
+  const task = (id: string, extra: Partial<Task>): Task => ({ id, title: id, due: null, time: null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: FROM, ...extra });
+  const tasks = [
+    task('a', { top: '2026-11-03', done: '2026-11-03' }),
+    task('b', { top: '2026-11-03', done: '2026-11-03' }),
+    task('c', { top: '2026-11-03' }),
+    task('d', { top: '2026-11-04', done: '2026-11-05' }), // done the next day: doesn't count for its day
+    task('e', { top: TODAY }), // today, nothing done yet: today not counted
+  ];
+  it('is the share of picks done on their day, over the days you picked', () => {
+    const w = weekDash(FROM, TODAY, { ...base, tasks });
+    expect(w.pillars.find((p) => p.key === 'top')?.share).toBeCloseTo(2 / 4);
+    expect(w.rings.find((d) => d.date === '2026-11-03')).toBeTruthy();
+  });
+  it('no picks all week = not tracked', () => {
+    expect(weekDash(FROM, TODAY, base).pillars.some((p) => p.key === 'top')).toBe(false);
+  });
+});
+
+describe('boost', () => {
+  const meals = ['الفطار', 'الغدا', 'السموزي', 'العشا', 'السناك'];
+  it('picks the change today that raises the score most', () => {
+    const b = boost(FROM, TODAY, base, { trainToday: true, meals });
+    expect(b?.key).toBe('workouts');
+    expect(b!.gain).toBeGreaterThan(0);
+    const w = weekDash(FROM, TODAY, base).score!;
+    const trained = weekDash(FROM, TODAY, { ...base, rows: [...base.rows, r(TODAY, 'x', 0, 0, 0)] }).score!;
+    expect(b!.gain).toBe(trained - w);
+  });
+  it('without a workout today, another part', () => {
+    const b = boost(FROM, TODAY, base, { trainToday: false, meals });
+    expect(['meals', 'water']).toContain(b?.key);
+  });
+  it('null for a past week or when everything is done', () => {
+    expect(boost('2026-10-24', TODAY, base, { trainToday: true, meals })).toBeNull();
+    const full: DashInput = { ...base, rows: [...base.rows, r(TODAY, 'x', 0, 0, 0)], checks: [...base.checks, ...meals.map((meal) => ({ date: TODAY, meal }))], water: { ...base.water, [TODAY]: 3000 } };
+    expect(boost(FROM, TODAY, full, { trainToday: true, meals })).toBeNull();
+  });
 });

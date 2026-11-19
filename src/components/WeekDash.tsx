@@ -2,11 +2,11 @@
 // against the same days of the week before (trend arrow + seven small bars with last week's daily average as a line).
 // Logic: src/lib/weekDash.ts.
 import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { Card, Progress, Ring, T } from './ui';
+import { Btn, Card, Progress, Ring, T } from './ui';
 import { minAr } from '../lib/focus';
-import { scoreLabel, type DayRing, type Metric, type MetricKey, type WeekDash } from '../lib/weekDash';
+import { scoreLabel, type Boost, type BoostKey, type DayRing, type Metric, type MetricKey, type WeekDash } from '../lib/weekDash';
 import { useTheme } from '../theme';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
@@ -15,7 +15,15 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const iso = (s: string) => `⁦${s}⁩`;
 const DAY_LETTERS = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج']; // Saturday → Friday
 
-const PILLAR_AR: Record<string, string> = { workouts: 'التمرين', meals: 'الأكل', water: 'المية', steps: 'الخطوات' };
+const PILLAR_AR: Record<string, string> = { workouts: 'التمرين', meals: 'الأكل', water: 'المية', steps: 'الخطوات', top: 'أهم ٣' };
+
+/** The hero card's advice: what to do today and its button. */
+const BOOST_AR: Record<BoostKey, { text: string; btn: string }> = {
+  workouts: { text: 'اتمرن النهارده', btn: 'افتح التمرين' },
+  meals: { text: 'علّم وجبات النهارده', btn: 'افتح الأكل' },
+  water: { text: 'اشرب مية النهارده لحد الهدف', btn: '+ كوباية' },
+  top: { text: 'خلّص أهم ٣ النهارده', btn: 'افتح يومي' },
+};
 
 const METRIC: Record<MetricKey, { name: string; icon: IconName; value: (v: number, target: number) => string }> = {
   workouts: { name: 'التمارين', icon: 'barbell-outline', value: (v, target) => `${v} من ${target}` },
@@ -28,7 +36,7 @@ const METRIC: Record<MetricKey, { name: string; icon: IconName; value: (v: numbe
 };
 
 /** The week's score: a big ring, a word for it, the change from last week and the parts it's made of. */
-export function WeekHero({ dash, live }: { dash: WeekDash; live: boolean }) {
+export function WeekHero({ dash, live, boost, onBoost }: { dash: WeekDash; live: boolean; boost?: Boost | null; onBoost?: (k: BoostKey) => void }) {
   const t = useTheme();
   if (dash.score == null)
     return (
@@ -65,13 +73,22 @@ export function WeekHero({ dash, live }: { dash: WeekDash; live: boolean }) {
             </View>
           ))}
         </View>
+        {boost ? (
+          <View style={{ marginTop: 6, gap: 6 }}>
+            <T w="medium" style={{ fontSize: 13 }}>{`أسهل حاجة: ${BOOST_AR[boost.key].text}`}</T>
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+              <Btn kind="solid" label={BOOST_AR[boost.key].btn} onPress={() => onBoost?.(boost.key)} />
+              <T w="num" style={{ fontSize: 12.5, color: t.green }}>{`+${boost.gain} ${boost.gain === 1 ? 'نقطة' : 'نقط'}`}</T>
+            </View>
+          </View>
+        ) : null}
       </View>
     </Card>
   );
 }
 
 /** One ring per day, Saturday → Friday; a barbell inside on a workout day, today's letter highlighted. */
-export function DayRings({ rings, today }: { rings: DayRing[]; today: string }) {
+export function DayRings({ rings, today, onOpen }: { rings: DayRing[]; today: string; onOpen?: (date: string) => void }) {
   const t = useTheme();
   return (
     <Card style={{ paddingVertical: 14, paddingHorizontal: 10, flexDirection: 'row', justifyContent: 'space-between' }}>
@@ -79,7 +96,13 @@ export function DayRings({ rings, today }: { rings: DayRing[]; today: string }) 
         const isToday = d.date === today;
         const label = `${DAY_LETTERS[i]}${d.share == null ? '، لسه' : `، ${Math.round(d.share * 100)}%${d.trained ? '، اتمرنت' : ''}`}`;
         return (
-          <View key={d.date} accessible accessibilityLabel={label} style={{ alignItems: 'center', gap: 6, width: 40 }}>
+          <Pressable
+            key={d.date}
+            disabled={!onOpen}
+            onPress={() => onOpen?.(d.date)}
+            accessibilityRole="button"
+            accessibilityLabel={label}
+            style={({ pressed }) => ({ alignItems: 'center', gap: 6, width: 40, opacity: pressed ? 0.6 : 1 })}>
             <View style={{ opacity: d.share == null ? 0.45 : 1 }}>
               <Ring value={d.share ?? 0} size={36} stroke={4}>
                 {d.trained ? <Ionicons name="barbell" size={13} color={t.okText} /> : null}
@@ -88,7 +111,7 @@ export function DayRings({ rings, today }: { rings: DayRing[]; today: string }) 
             <View style={[s.letter, isToday ? { backgroundColor: t.ok } : null]}>
               <T w={isToday ? 'bold' : 'medium'} style={{ fontSize: 12, color: isToday ? t.onOk : t.mute }}>{DAY_LETTERS[i]}</T>
             </View>
-          </View>
+          </Pressable>
         );
       })}
     </Card>

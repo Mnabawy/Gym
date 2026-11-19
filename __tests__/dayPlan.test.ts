@@ -1,4 +1,4 @@
-import { buildDay, hm, leftovers, mealAt, mealsOn, moveTo, nextItem, nowItem, pickFor, placeAt, slotStarts, spanAr, topFor, unscheduled, type Fixed } from '../src/lib/dayPlan';
+import { buildDay, firstFree, hm, leftovers, splitPast, suggest, mealAt, mealsOn, moveTo, nextItem, nowItem, pickFor, placeAt, slotStarts, spanAr, topFor, unscheduled, type Fixed } from '../src/lib/dayPlan';
 import { parseTask, toggleTask, type Task } from '../src/lib/tasks';
 
 const D = '2026-11-18';
@@ -42,8 +42,8 @@ describe('buildDay', () => {
   });
   it('finds free gaps of 30 minutes or more', () => {
     const free = day.filter((i) => i.kind === 'free').map((i) => [i.at, i.end]);
-    // 10:00–11:40, 11:55–13:00, 13:30–15:00, 17:00–19:00, 20:30–22:00
-    expect(free).toEqual([[600, 700], [715, 780], [810, 900], [1020, 1140], [1230, 1320]]);
+    // 10:00–11:40, 12:00–13:00 (after the prayer, on the quarter), 13:30–15:00, 17:00–19:00, 20:30–22:00
+    expect(free).toEqual([[600, 700], [720, 780], [810, 900], [1020, 1140], [1230, 1320]]);
   });
   it('starts free time from now on today', () => {
     const d = buildDay({ date: D, fixed, tasks, now: 1003, start: 600, end: 1320 });
@@ -58,6 +58,48 @@ describe('buildDay', () => {
     expect(nowItem(day, 950)?.id).toBe('a');
     expect(nowItem(day, 1100)).toBeNull();
     expect(nextItem(day, 1100)?.id).toBe('gym');
+  });
+});
+
+describe('work hours, the past, suggestions', () => {
+  const work: Fixed = { kind: 'work', id: 'work', at: 600, mins: 480, title: 'الشغل' };
+  const fixed: Fixed[] = [
+    { kind: 'prayer', id: 'p:fajr', at: 300, mins: 0, title: 'الفجر' },
+    { kind: 'meal', id: 'meal:الفطار', at: 480, mins: 30, title: 'الفطار', done: true },
+    { kind: 'meal', id: 'meal:الغدا', at: 780, mins: 30, title: 'الغدا' },
+    work,
+  ];
+  it('work hours are busy: no free time inside them', () => {
+    const d = buildDay({ date: D, fixed, tasks: [], now: null, start: 480, end: 1320 });
+    expect(d.filter((i) => i.kind === 'free').map((i) => [i.at, i.end])).toEqual([[510, 600], [1080, 1320]]);
+  });
+  it('nowItem prefers a block over work hours', () => {
+    const d = buildDay({ date: D, fixed, tasks: [task({ id: 'a', time: 660, mins: 60 })], now: null });
+    expect(nowItem(d, 670)?.id).toBe('a');
+    expect(nowItem(d, 900)?.id).toBe('work');
+  });
+  it('splitPast folds prayers, work and done things; keeps an unticked meal and an open task', () => {
+    const d = buildDay({ date: D, fixed, tasks: [task({ id: 'late', time: 500 })], now: 1100 });
+    const { past, rest } = splitPast(d, 1100);
+    expect(past.map((i) => i.id)).toEqual(['p:fajr', 'meal:الفطار', 'work']);
+    expect(rest.map((i) => i.id).slice(0, 2)).toEqual(['late', 'meal:الغدا']);
+  });
+  it('firstFree: the first slot that fits, else the first one', () => {
+    const d = buildDay({ date: D, fixed, tasks: [], now: null, start: 480, end: 1320 });
+    expect(firstFree(d, 60)).toEqual({ at: 510, end: 600 });
+    expect(firstFree(d, 120)).toEqual({ at: 1080, end: 1320 });
+    expect(firstFree(d, 600)).toEqual({ at: 510, end: 600 });
+  });
+  it('suggest: a top pick with no time, in free time or work hours', () => {
+    const top = [task({ id: 'p', top: D, space: 'personal' }), task({ id: 'w', top: D, space: 'work' }), task({ id: 't', top: D, time: 900 })];
+    const d = buildDay({ date: D, fixed, tasks: top, now: 1085 });
+    expect(suggest(d, top, 1085, D)).toMatchObject({ task: { id: 'p' }, at: 1095 });
+    // during work hours, a work pick first
+    const w = buildDay({ date: D, fixed, tasks: top, now: 700 });
+    expect(suggest(w, top, 700, D)).toMatchObject({ task: { id: 'w' }, at: 700, end: 1080 });
+    // a block running now: nothing to suggest
+    expect(suggest(w, top, 905, D)).toBeNull();
+    expect(suggest(d, [], 1085, D)).toBeNull();
   });
 });
 

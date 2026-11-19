@@ -66,6 +66,11 @@ export type Settings = {
   stepsSync: boolean;
   /** Ask how many reps were left after ticking a set (RIR). */
   askRir: boolean;
+  /** Work hours on يومي (src/lib/dayFixed.ts): a fixed block from `workFrom` to `workTo` (minutes after midnight) on `workDays` (0 = Sunday). */
+  workOn: boolean;
+  workFrom: number;
+  workTo: number;
+  workDays: number[];
   /** Weekly automatic backup file (src/lib/autoBackup.ts). */
   autoBackup: boolean;
   /** Folder you picked for the automatic backups (Android content URI); empty = inside the app only. */
@@ -98,6 +103,10 @@ export const DEFAULT_SETTINGS: Settings = {
   reminderTime: 19 * 60,
   reminderDays: [...PLAN_WEEKDAYS],
   askRir: true,
+  workOn: false,
+  workFrom: 10 * 60,
+  workTo: 18 * 60,
+  workDays: [0, 1, 2, 3, 4],
   brief: false,
   briefTime: 6 * 60,
   dumpRemind: false,
@@ -133,7 +142,7 @@ function obj(raw: string | null | undefined): Rec | null {
  * sets them). Without it (saved before the split) they come from `raw`.
  */
 export function parseSettings(raw: string | null, device?: string | null): Settings {
-  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY }, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays] };
+  const out: Settings = { ...DEFAULT_SETTINGS, sets: {}, body: { ...DEFAULT_BODY }, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays], workDays: [...DEFAULT_SETTINGS.workDays] };
   let o: Rec | null = obj(raw);
   if (device != null) {
     const dev = obj(device) ?? {};
@@ -142,7 +151,7 @@ export function parseSettings(raw: string | null, device?: string | null): Setti
   }
   if (!o) return out;
   for (const k of Object.keys(DEFAULT_SETTINGS) as (keyof Settings)[]) {
-    if (['sets', 'body', 'place', 'prayerMethod', 'shopMoves', 'reminderDays'].includes(k)) continue;
+    if (['sets', 'body', 'place', 'prayerMethod', 'shopMoves', 'reminderDays', 'workDays'].includes(k)) continue;
     if (typeof o[k] === typeof DEFAULT_SETTINGS[k]) (out as Record<string, unknown>)[k] = o[k];
   }
   if (o.sets && typeof o.sets === 'object') {
@@ -156,6 +165,11 @@ export function parseSettings(raw: string | null, device?: string | null): Setti
     for (const [key, t] of Object.entries(o.shopMoves as Record<string, unknown>)) if (typeof t === 'number' && Number.isInteger(t) && t >= 0) out.shopMoves[key] = t;
   }
   if (Array.isArray(o.reminderDays)) out.reminderDays = [...new Set(o.reminderDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+  if (Array.isArray(o.workDays)) out.workDays = [...new Set(o.workDays.filter((d): d is number => Number.isInteger(d) && d >= 0 && d <= 6))].sort();
+  if (!(out.workFrom >= 0 && out.workTo <= 24 * 60 && out.workFrom < out.workTo)) {
+    out.workFrom = DEFAULT_SETTINGS.workFrom;
+    out.workTo = DEFAULT_SETTINGS.workTo;
+  }
   if (!(out.reminderTime >= 0 && out.reminderTime < 24 * 60)) out.reminderTime = DEFAULT_SETTINGS.reminderTime;
   if (!(out.briefTime >= 0 && out.briefTime < 24 * 60)) out.briefTime = DEFAULT_SETTINGS.briefTime;
   if (!(out.dumpTime >= 0 && out.dumpTime < 24 * 60)) out.dumpTime = DEFAULT_SETTINGS.dumpTime;
@@ -174,7 +188,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save prayer settings / location (doesn't touch the plan). */
-  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'dumpRemind' | 'dumpTime' | 'appLock' | 'stepsSync' | 'accent'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'prayer' | 'prayerMethod' | 'place' | 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime' | 'dumpRemind' | 'dumpTime' | 'appLock' | 'stepsSync' | 'accent' | 'workOn' | 'workFrom' | 'workTo' | 'workDays'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;
@@ -269,7 +283,7 @@ export const useSettings = create<Store>((set, get) => {
     setBody: (p) => save({ ...pick(get()), body: { ...get().body, ...p } }),
     setQuiet: (p) => save({ ...pick(get()), ...p }),
     // Body data and the saved location aren't "settings" to reset.
-    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays] }),
+    reset: () => commit({ ...DEFAULT_SETTINGS, sets: {}, body: get().body, place: get().place, shopMoves: {}, reminderDays: [...DEFAULT_SETTINGS.reminderDays], workDays: [...DEFAULT_SETTINGS.workDays] }),
     setProgram: (edit) => {
       const keep = edit && !isPdf(edit) ? edit : null;
       // Remember every exercise you had, so a deleted one keeps its name on the progress page.

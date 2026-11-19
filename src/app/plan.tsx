@@ -44,6 +44,7 @@ export default function PlanScreen() {
   const meals = fixed.filter((f) => f.kind === 'meal').length;
   const prayers = fixed.filter((f) => f.kind === 'prayer').length;
   const gym = fixed.find((f) => f.kind === 'gym');
+  const work = fixed.find((f) => f.kind === 'work');
 
   const move = (x: Task, to: 'tomorrow' | 'later') => {
     const undo = undoable(() => saveTask(moveTo(x, to === 'tomorrow' ? tomorrow : null)));
@@ -114,6 +115,12 @@ export default function PlanScreen() {
 
       <Label>شكل بكرة</Label>
       <Card style={{ paddingVertical: 0 }}>
+        {work ? (
+          <>
+            <Fact color={t.mute} label="الشغل" value={`${hm(work.at)} – ${hm(work.at + work.mins)}`} />
+            <Sep />
+          </>
+        ) : null}
         <Fact color={t.sec.gym} label={gym ? `الجيم · ${gymTitle}` : 'يوم راحة من الجيم'} value={gym ? hm(gym.at) : ''} />
         <Sep />
         <Fact color={t.sec.tasks} label={`${blocks.length} ${blocks.length === 1 ? 'مهمة' : 'مهام'} في الجدول`} value={blockMin ? spanAr(blockMin) : ''} />

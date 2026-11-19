@@ -1,18 +1,21 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { router } from 'expo-router';
 import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../../../data/program';
 import { MEAL_ORDER } from '../../../data/nutrition';
 import { Card, Label, Progress, Screen, T } from '../../../components/ui';
 import { MenuButton } from '../../../components/SideMenu';
 import { HomeSwitch } from '../../../components/GymSwitch';
 import { energyFor } from '../../../lib/energy';
-import { addDays, dateKey, weekStart } from '../../../lib/dates';
+import { addDays, dateKey, weekdayOf, weekStart } from '../../../lib/dates';
+import { addWater } from '../../../lib/foodStore';
+import { showUndo } from '../../../lib/undo';
 import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../../../lib/journal';
 import { isTrainingDay } from '../../../lib/schedule';
 import { readNumbers, readStrings } from '../../../lib/meta';
 import { weekReport } from '../../../lib/report';
-import { weekDash } from '../../../lib/weekDash';
+import { boost, weekDash, type BoostKey } from '../../../lib/weekDash';
 import { DayRings, MetricList, WeekHero } from '../../../components/WeekDash';
 import { useSettings } from '../../../lib/settings';
 import { storage } from '../../../lib/storage';
@@ -51,7 +54,9 @@ export default function WeekScreen() {
   const checks = storage.allMealChecks();
   const water = readNumbers(WATER_KEY);
   const waterGoal = (d: string) => waterGoalMl(baseWater, isTrainingDay(d, today, trained, restDay));
-  const steps = parseSteps(storage.getMeta(STEPS_KEY));
+  // Steps only count while the phone reads them (the switch is in settings): old synced days don't drag the score.
+  const stepsOn = useSettings((s) => s.stepsSync);
+  const steps = stepsOn ? parseSteps(storage.getMeta(STEPS_KEY)) : undefined;
   const tasks = readTasks();
   const focus = readSessions();
   const r = weekReport(from, today, {
@@ -72,12 +77,22 @@ export default function WeekScreen() {
     tasks,
     focus,
   });
-  const dash = weekDash(from, today, { rows, checks, water, waterGoal, mealsPerDay: MEAL_ORDER.length, target: r.target, tasks, focus, steps });
+  const dashIn = { rows, checks, water, waterGoal, mealsPerDay: MEAL_ORDER.length, target: r.target, tasks, focus, steps };
+  const dash = weekDash(from, today, dashIn);
   const live = from === thisWeek;
+  // Today's easiest win for the score (only this week): train on a planned day, meals, water or «أهم ٣».
+  const planDays = useSettings((s) => s.reminderDays);
+  const tip = live ? boost(from, today, dashIn, { trainToday: planDays.includes(weekdayOf(today)) && restDay !== today, meals: MEAL_ORDER }) : null;
+  const onBoost = (k: BoostKey) => {
+    if (k === 'workouts') router.navigate('/workout');
+    else if (k === 'meals') router.navigate('/food');
+    else if (k === 'top') router.navigate('/');
+    else showUndo('+ كوباية مية', addWater(today, 250));
+  };
   const short = (Object.keys(MUSCLE_AR) as Muscle[]).filter((m) => r.perMuscle[m] < TARGET);
 
   return (
-    <Screen title="أسبوعك" sub="من السبت للجمعة" action={<MenuButton />}>
+    <Screen title="أسبوعك" action={<MenuButton />}>
       <HomeSwitch value="week" />
       <View style={s.nav}>
         <Nav icon="chevron-forward" label="الأسبوع اللي فات" disabled={!canPrev} onPress={() => setFrom(addDays(from, -7))} />
@@ -85,8 +100,8 @@ export default function WeekScreen() {
         <Nav icon="chevron-back" label="الأسبوع الجاي" disabled={live} onPress={() => setFrom(addDays(from, 7))} />
       </View>
 
-      <WeekHero dash={dash} live={live} />
-      <DayRings rings={dash.rings} today={today} />
+      <WeekHero dash={dash} live={live} boost={tip} onBoost={onBoost} />
+      <DayRings rings={dash.rings} today={today} onOpen={(d) => router.navigate(d === today ? '/' : { pathname: '/', params: { date: d } })} />
       {dash.metrics.length ? (
         <>
           <Label>{live ? 'مقارنة بنفس الأيام من الأسبوع اللي فات' : 'مقارنة بالأسبوع اللي قبله'}</Label>
