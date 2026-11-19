@@ -4,13 +4,11 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { exerciseById, MONTHS_AR, MUSCLE_AR, type Muscle } from '../../../data/program';
 import { MEAL_ORDER } from '../../../data/nutrition';
-import { Card, Label, Progress, Screen, T } from '../../../components/ui';
+import { Btn, Card, Label, Progress, Screen, T } from '../../../components/ui';
 import { MenuButton } from '../../../components/SideMenu';
 import { HomeSwitch } from '../../../components/GymSwitch';
 import { energyFor } from '../../../lib/energy';
 import { addDays, dateKey, weekdayOf, weekStart } from '../../../lib/dates';
-import { addWater } from '../../../lib/foodStore';
-import { showUndo } from '../../../lib/undo';
 import { SWAPS_KEY, swappedSet, waterGoalMl, WATER_KEY } from '../../../lib/journal';
 import { isTrainingDay } from '../../../lib/schedule';
 import { readNumbers, readStrings } from '../../../lib/meta';
@@ -77,18 +75,19 @@ export default function WeekScreen() {
     tasks,
     focus,
   });
-  const dashIn = { rows, checks, water, waterGoal, mealsPerDay: MEAL_ORDER.length, target: r.target, tasks, focus, steps };
+  const dashIn = { rows, checks, water, waterGoal, mealsPerDay: MEAL_ORDER.length, target: r.target, tasks, focus, steps, quits: readQuits(), goals: readGoals() };
   const dash = weekDash(from, today, dashIn);
   const live = from === thisWeek;
-  // Today's easiest win for the score (only this week): train on a planned day, meals, water or «أهم ٣».
+  // Today's easiest win for the score (only this week): train on a planned day, «أهم ٣», or move an idle goal.
   const planDays = useSettings((s) => s.reminderDays);
-  const tip = live ? boost(from, today, dashIn, { trainToday: planDays.includes(weekdayOf(today)) && restDay !== today, meals: MEAL_ORDER }) : null;
+  const tip = live ? boost(from, today, dashIn, { trainToday: planDays.includes(weekdayOf(today)) && restDay !== today }) : null;
   const onBoost = (k: BoostKey) => {
     if (k === 'workouts') router.navigate('/workout');
-    else if (k === 'meals') router.navigate('/food');
     else if (k === 'top') router.navigate('/');
-    else showUndo('+ كوباية مية', addWater(today, 250));
+    else router.navigate('/goals');
   };
+  // «وقتك لنفسك» nudge: from Thursday on, nothing for yourself yet this week.
+  const meNone = live && weekdayOf(today) >= 4 && weekdayOf(today) <= 5 && !dash.metrics.some((m) => m.key === 'me' && m.value > 0);
   const short = (Object.keys(MUSCLE_AR) as Muscle[]).filter((m) => r.perMuscle[m] < TARGET);
 
   return (
@@ -101,6 +100,13 @@ export default function WeekScreen() {
       </View>
 
       <WeekHero dash={dash} live={live} boost={tip} onBoost={onBoost} />
+      {meNone ? (
+        <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 12 }}>
+          <Ionicons name="sunny-outline" size={22} color={t.sec.focus} />
+          <T style={{ flex: 1, fontSize: 14 }}>ما عملتش حاجة لنفسك الأسبوع ده. خطّط خروجة أو زيارة أو هواية قبل ما الأسبوع يخلص.</T>
+          <Btn label="+ خطة" onPress={() => router.navigate({ pathname: '/', params: { plan: '1' } })} />
+        </Card>
+      ) : null}
       <DayRings rings={dash.rings} today={today} onOpen={(d) => router.navigate(d === today ? '/' : { pathname: '/', params: { date: d } })} />
       {dash.metrics.length ? (
         <>

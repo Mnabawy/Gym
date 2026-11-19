@@ -111,3 +111,10 @@ test('«أهم ٣» picked for the day get their own line (open ones only)', () 
   expect(body).toContain('⭐ أهم 2: سي في، كود');
   expect(morningBrief(TODAY, { ...base, tasks: [] }).body).not.toContain('⭐');
 });
+
+test('the intention of the day goes first, and plans get a line', () => {
+  const plan = { id: 'p', title: 'السينما', due: TODAY, time: 20 * 60, priority: 3, subs: [], repeat: null, remind: false, done: null, created: TODAY, kind: 'outing' };
+  const body = morningBrief(TODAY, { ...base, intents: { [TODAY]: 'أخلّص شاشة العقود' }, tasks: [plan] as never }).body;
+  expect(body.split('\n')[0]).toBe('🧭 أخلّص شاشة العقود');
+  expect(body).toContain('📍 خروجة: السينما (8 بالليل)');
+});

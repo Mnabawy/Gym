@@ -1,13 +1,17 @@
 // Weekly dashboard (top of /week): one score for the week, a ring per day, and each metric against the same days of the
 // week before. Pure — unit tested in __tests__/weekDash.test.ts.
-// The score only counts what has a target: training (sessions vs the plan, pro rata in a week in progress), meals,
-// water, steps (when the phone syncs them) and «أهم ٣» (the share of the day's three picks done, on days you picked
-// them: يومي, src/lib/dayPlan.ts). Tasks, focus and volume have no target, so they're compared, not scored.
+// The score is about training, your days and what you're building — not food (the owner's choice, Nov 2026): training
+// (sessions vs the plan, pro rata in a week in progress), «أهم ٣» (the share of the day's three picks done, on days you
+// picked them: يومي, src/lib/dayPlan.ts), بطّل (clean days of every quit running that span), goals (the share of running
+// goals you moved: a step ticked or progress logged in the span) and steps (only when the phone syncs them). Each part
+// nobody tracked is left out. Meals, water, tasks, focus, volume and «وقتك لنفسك» are compared, not scored.
 // `boost` = the one thing today that would raise the score most (the hero card's advice).
-import { addDays, daysBetween } from './dates';
+import { addDays, dateKey, daysBetween } from './dates';
 import { STEPS_GOAL } from './cardio';
 import { minutesOn, type Session } from './focus';
-import { doneOn, type Task } from './tasks';
+import { doneOn, ME_KINDS, type Task } from './tasks';
+import type { Quit } from './quit';
+import { progress, type Goal } from './goals';
 import type { MealCheck, SetRow } from './storage.types';
 
 export type DashInput = {
@@ -23,9 +27,11 @@ export type DashInput = {
   tasks?: readonly Task[];
   focus?: readonly Session[];
   steps?: Record<string, number>;
+  quits?: readonly Quit[];
+  goals?: readonly Goal[];
 };
 
-export type MetricKey = 'workouts' | 'volume' | 'meals' | 'water' | 'tasks' | 'focus' | 'steps';
+export type MetricKey = 'workouts' | 'volume' | 'meals' | 'water' | 'tasks' | 'focus' | 'steps' | 'me';
 
 export type Metric = {
   key: MetricKey;
@@ -51,7 +57,7 @@ export type DayRing = {
   trained: boolean;
 };
 
-export type Pillar = { key: 'workouts' | 'meals' | 'water' | 'steps' | 'top'; share: number };
+export type Pillar = { key: 'workouts' | 'top' | 'quit' | 'goals' | 'steps'; share: number };
 
 export type WeekDash = {
   from: string;
@@ -82,6 +88,16 @@ function span(from: string, end: string, x: DashInput) {
   const ml = dates.map((d) => x.water[d] ?? 0);
   const waterGoals = dates.map((d) => x.waterGoal(d));
   const tasks = dates.map((d) => (x.tasks ? doneOn(x.tasks, d).length : 0));
+  // «وقتك لنفسك»: plans for yourself done that day (خروجة، زيارة، هواية، راحة).
+  const me = dates.map((d) => (x.tasks ? doneOn(x.tasks, d).filter((t) => t.kind && ME_KINDS.includes(t.kind)).length : 0));
+  // بطّل: for each day, how many quits were running and how many stayed clean.
+  const quitDays = dates.map((d) => {
+    const on = (x.quits ?? []).filter((q) => dateKey(new Date(q.start)) <= d);
+    return { on: on.length, clean: on.filter((q) => !q.slips.some((sl) => dateKey(new Date(sl.at)) === d)).length };
+  });
+  // Goals moved in the span: a step ticked or progress logged.
+  const runningGoals = (x.goals ?? []).filter((g) => !g.umbrella && !g.later && progress(g) < 1);
+  const moved = (g: Goal) => g.entries.some((e) => e.date >= from && e.date <= end) || g.stages.some((st) => st.tasks.some((t) => t.done != null && t.done >= from && t.done <= end));
   const focus = dates.map((d) => (x.focus ? minutesOn(x.focus, d) : 0));
   // «أهم ٣»: picks for each day and how many of them were done that day.
   const picks = dates.map((d) => (x.tasks ? x.tasks.filter((t) => t.top === d) : []));
@@ -101,17 +117,20 @@ function span(from: string, end: string, x: DashInput) {
   // Nothing ticked all span = not tracked (no score part), not a zero.
   const mealShare = sum(meals) > 0 && mealDays.length ? sum(mealDays) / (mealDays.length * x.mealsPerDay) : null;
   const waterShare = sum(ml) > 0 && waterDays.length ? waterDays.filter((d) => d.v >= d.g).length / waterDays.length : null;
+  const quitTotal = sum(quitDays.map((q) => q.on));
+  const quitShare = quitTotal ? sum(quitDays.map((q) => q.clean)) / quitTotal : null;
+  const goalShare = runningGoals.length ? runningGoals.filter(moved).length / runningGoals.length : null;
   const topShare = topDays.length ? sum(topDays.map((x) => x.d)) / sum(topDays.map((x) => x.n)) : null;
   const stepShare = stepDays.length ? stepDays.filter((d) => (d.v ?? 0) >= STEPS_GOAL).length / stepDays.length : null;
   // Sessions the plan expects by now (a whole week: the full target).
   const expected = Math.max(1, Math.ceil((x.target * n) / 7));
 
   const pillars: Pillar[] = [{ key: 'workouts', share: clamp01(sessions / expected) }];
-  if (mealShare != null) pillars.push({ key: 'meals', share: mealShare });
-  if (waterShare != null) pillars.push({ key: 'water', share: waterShare });
-  if (stepShare != null) pillars.push({ key: 'steps', share: stepShare });
   if (topShare != null) pillars.push({ key: 'top', share: topShare });
-  const anything = sessions > 0 || mealShare != null || sum(ml) > 0 || stepShare != null || topShare != null;
+  if (quitShare != null) pillars.push({ key: 'quit', share: quitShare });
+  if (goalShare != null) pillars.push({ key: 'goals', share: goalShare });
+  if (stepShare != null) pillars.push({ key: 'steps', share: stepShare });
+  const anything = sessions > 0 || stepShare != null || topShare != null || quitShare != null || goalShare != null;
   const score = anything ? Math.round((mean(pillars.map((p) => p.share)) ?? 0) * 100) : null;
 
   const stepsLogged = stepsRaw.filter((s): s is number => s != null);
@@ -126,15 +145,19 @@ function span(from: string, end: string, x: DashInput) {
       water: { value: ml.some((v) => v > 0) ? sum(ml) / n : null, days: ml },
       tasks: { value: sum(tasks), days: tasks },
       focus: { value: sum(focus), days: focus },
+      me: { value: sum(me), days: me },
       steps: { value: stepsLogged.length ? Math.round(sum(stepsLogged) / stepsLogged.length) : null, days: steps },
     } as Record<MetricKey, { value: number | null; days: number[] }>,
     waterGoals,
     picks: picks.map((ps) => ps.length),
     topDone,
+    quitDays,
+    mealShare,
+    waterShare,
   };
 }
 
-const ORDER: MetricKey[] = ['workouts', 'volume', 'meals', 'water', 'steps', 'tasks', 'focus'];
+const ORDER: MetricKey[] = ['workouts', 'volume', 'tasks', 'focus', 'me', 'steps'];
 
 /** Change against last week: meal share in points, everything else in percent. */
 function change(key: MetricKey, value: number, prev: number | null): number | null {
@@ -177,9 +200,11 @@ export function weekDash(from: string, today: string, x: DashInput): WeekDash {
     if (date > end) return { date, share: null, trained: false };
     const s = cur.series;
     const trained = s.workouts.days[i] > 0;
-    const parts = [s.meals.days[i] / x.mealsPerDay, clamp01(s.water.days[i] / cur.waterGoals[i])];
+    const parts: number[] = [];
     if (x.steps?.[date] != null) parts.push(clamp01(s.steps.days[i] / STEPS_GOAL));
     if (cur.picks[i]) parts.push(cur.topDone[i] / cur.picks[i]);
+    if (cur.quitDays[i].on) parts.push(cur.quitDays[i].clean / cur.quitDays[i].on);
+    if (s.me.days[i] > 0) parts.push(1);
     if (trained) parts.push(1);
     return { date, share: mean(parts) ?? 0, trained };
   });
@@ -187,26 +212,25 @@ export function weekDash(from: string, today: string, x: DashInput): WeekDash {
   return { from, to, end, score: cur.score, prevScore: old?.score ?? null, pillars: cur.pillars, rings, metrics };
 }
 
-export type BoostKey = 'workouts' | 'meals' | 'water' | 'top';
+export type BoostKey = 'workouts' | 'top' | 'goals';
 export type Boost = { key: BoostKey; gain: number };
 
 /**
  * The one thing left today that would raise the week's score most, and by how many points: train (when today is a
- * planned day you haven't trained), tick all of today's meals, drink the day's water, or finish today's «أهم ٣».
- * Each is tried on a copy of the inputs; null when nothing would add a point. Only for the week in progress.
+ * planned day you haven't trained), finish today's «أهم ٣», or move a goal you haven't touched this week. Each is tried
+ * on a copy of the inputs; null when nothing would add a point. Only for the week in progress.
  */
-export function boost(from: string, today: string, x: DashInput, opts: { trainToday: boolean; meals: readonly string[] }): Boost | null {
+export function boost(from: string, today: string, x: DashInput, opts: { trainToday: boolean }): Boost | null {
   const to = addDays(from, 6);
   if (today < from || today > to) return null;
   const base = weekDash(from, today, x).score ?? 0;
   const tries: [BoostKey, DashInput][] = [];
   if (opts.trainToday && !x.rows.some((r) => r.date === today && r.done))
     tries.push(['workouts', { ...x, rows: [...x.rows, { date: today, weekday: 0, exId: '~', idx: 0, kg: 0, reps: 0, done: 1 } satisfies SetRow] }]);
-  const ticked = new Set(x.checks.filter((c) => c.date === today).map((c) => c.meal));
-  if (opts.meals.some((m) => !ticked.has(m))) tries.push(['meals', { ...x, checks: [...x.checks, ...opts.meals.filter((m) => !ticked.has(m)).map((meal) => ({ date: today, meal }) satisfies MealCheck)] }]);
-  if ((x.water[today] ?? 0) < x.waterGoal(today)) tries.push(['water', { ...x, water: { ...x.water, [today]: x.waterGoal(today) } }]);
   const open = (x.tasks ?? []).filter((t) => t.top === today && !t.done);
   if (open.length) tries.push(['top', { ...x, tasks: (x.tasks ?? []).map((t) => (t.top === today && !t.done ? { ...t, done: today } : t)) }]);
+  const idle = (x.goals ?? []).find((g) => !g.umbrella && !g.later && progress(g) < 1 && !g.entries.some((e) => e.date >= from) && !g.stages.some((st) => st.tasks.some((t) => t.done != null && t.done >= from)));
+  if (idle) tries.push(['goals', { ...x, goals: (x.goals ?? []).map((g) => (g.id === idle.id ? { ...g, entries: [...g.entries, { id: '~', date: today, amount: 0 }] } : g)) }]);
   let best: Boost | null = null;
   for (const [key, input] of tries) {
     const gain = (weekDash(from, today, input).score ?? 0) - base;

@@ -2,6 +2,7 @@
 // scheduled ahead as one-off notifications (the workout that's due; the day's plan from src/lib/brief.ts), and
 // re-planned whenever the app opens, the settings change or you log something; only rescheduled when the plan changed,
 // the OS lost some of ours, or the day changed (meta `reminders.applied`).
+import { INTENTS_KEY } from './plans';
 import { Platform } from 'react-native';
 import * as Notifications from 'expo-notifications';
 import { dayFor } from '../data/program';
@@ -16,7 +17,7 @@ import { readTasks } from './taskStore';
 import { timeAr } from './tasks';
 import { clean, DAY_MS, milestone } from './quit';
 import { MEAL_PICKS_KEY } from './journal';
-import { readNumbers } from './meta';
+import { readNumbers, readStrings } from './meta';
 import { energyFor } from './energy';
 import { parseWeights, WEIGHTS_KEY } from './weight';
 import { HABITS_OFF } from './hidden';
@@ -65,6 +66,7 @@ function briefInput(today: string): BriefInput {
     goals: readGoals(),
     quits: readQuits(),
     tasks: readTasks(),
+    intents: readStrings(INTENTS_KEY),
   };
 }
 

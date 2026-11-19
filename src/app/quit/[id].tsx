@@ -35,10 +35,11 @@ export default function QuitScreen() {
 function QuitPage() {
   const t = useTheme();
   useData(metaArea(QUITS_KEY));
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, urge: urgeParam } = useLocalSearchParams<{ id: string; urge?: string }>();
   const q = readQuits().find((x) => x.id === id);
   const now = useNow(1000);
-  const [urge, setUrge] = useState(false);
+  // `?urge=1` (يومي's «جاتلي رغبة») opens the urge screen right away.
+  const [urge, setUrge] = useState(urgeParam === '1');
   const [slip, setSlip] = useState(false);
   const [editing, setEditing] = useState(false);
 

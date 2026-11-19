@@ -15,14 +15,13 @@ type IconName = React.ComponentProps<typeof Ionicons>['name'];
 const iso = (s: string) => `⁦${s}⁩`;
 const DAY_LETTERS = ['س', 'ح', 'ن', 'ث', 'ر', 'خ', 'ج']; // Saturday → Friday
 
-const PILLAR_AR: Record<string, string> = { workouts: 'التمرين', meals: 'الأكل', water: 'المية', steps: 'الخطوات', top: 'أهم ٣' };
+const PILLAR_AR: Record<string, string> = { workouts: 'التمرين', top: 'أهم ٣', quit: 'بطّل', goals: 'أهدافك', steps: 'الخطوات' };
 
 /** The hero card's advice: what to do today and its button. */
 const BOOST_AR: Record<BoostKey, { text: string; btn: string }> = {
   workouts: { text: 'اتمرن النهارده', btn: 'افتح التمرين' },
-  meals: { text: 'علّم وجبات النهارده', btn: 'افتح الأكل' },
-  water: { text: 'اشرب مية النهارده لحد الهدف', btn: '+ كوباية' },
   top: { text: 'خلّص أهم ٣ النهارده', btn: 'افتح يومي' },
+  goals: { text: 'حرّك هدف ما اتحركش الأسبوع ده', btn: 'افتح أهدافك' },
 };
 
 const METRIC: Record<MetricKey, { name: string; icon: IconName; value: (v: number, target: number) => string }> = {
@@ -33,6 +32,7 @@ const METRIC: Record<MetricKey, { name: string; icon: IconName; value: (v: numbe
   steps: { name: 'خطوات في اليوم', icon: 'footsteps-outline', value: (v) => iso(v.toLocaleString('en-US')) },
   tasks: { name: 'مهام خلصت', icon: 'checkbox-outline', value: (v) => String(v) },
   focus: { name: 'ركّزت', icon: 'timer-outline', value: (v) => minAr(v) },
+  me: { name: 'وقتك لنفسك', icon: 'sunny-outline', value: (v) => (v === 1 ? 'مرة' : v === 2 ? 'مرتين' : `${v} مرات`) },
 };
 
 /** The week's score: a big ring, a word for it, the change from last week and the parts it's made of. */

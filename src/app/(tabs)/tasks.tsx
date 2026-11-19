@@ -11,7 +11,7 @@ import { MONTHS_AR, WEEKDAYS_AR } from '../../data/program';
 import { metaArea, useData } from '../../lib/bus';
 import { storage } from '../../lib/storage';
 import { addDays, dateKey, weekdayOf } from '../../lib/dates';
-import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, TASKS_KEY, TRASH_KEY, type Task } from '../../lib/tasks';
+import { addSub, allView, counts, inSpace, SPACES, spaceOf, type Space, removeSub, toggleSub, dayTasks, doneOn, dueCounts, PRIORITY, REPEAT_AR, taskId, timeAr, todayView, TASKS_KEY, TRASH_KEY, type Task, PLAN_KINDS } from '../../lib/tasks';
 import { router } from 'expo-router';
 import { setFocus } from '../../lib/focusStore';
 import { deleteTask, emptyTrash, pruneDone, purgeTask, readTasks, readTrash, restoreTask, saveTask, undoable } from '../../lib/taskStore';
@@ -331,6 +331,8 @@ function TaskRow({ t, x, goal, today, last, showDate, onToggle, onOpen, subsOpen
   const c = x.priority === 3 ? t.ok : x.priority === 4 ? t.mute : PRIORITY[x.priority].color;
   const done = !!x.done;
   const meta: { icon: React.ComponentProps<typeof Ionicons>['name']; text: string; color?: string }[] = [];
+  // A plan from يومي (مشوار، خروجة، زيارة، هواية، راحة): its kind first.
+  if (x.kind) meta.push({ icon: PLAN_KINDS[x.kind].icon, text: PLAN_KINDS[x.kind].label });
   if (showDate && x.due) meta.push({ icon: 'calendar-outline', text: dueAr(x.due, today), color: x.due < today && !done ? t.bad : undefined });
   if (x.time != null) meta.push({ icon: 'time-outline', text: timeAr(x.time) });
   if (x.repeat) meta.push({ icon: 'repeat', text: REPEAT_AR[x.repeat] });

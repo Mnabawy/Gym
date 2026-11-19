@@ -40,7 +40,22 @@ export type Task = {
   mins?: number;
   /** The day it's one of «أهم ٣» for (يومي, src/lib/dayPlan.ts). */
   top?: string;
+  /** A plan for your day rather than a to-do: مشوار، خروجة، زيارة، هواية، راحة (يومي's «+ خطة»; `PLAN_KINDS`). */
+  kind?: PlanKindKey;
 };
+
+/** Kinds of plans for a day (Task.kind): what they're called and their icon. «وقتك لنفسك» counts the last four. */
+export const PLAN_KINDS = {
+  errand: { label: 'مشوار', icon: 'car-outline' },
+  outing: { label: 'خروجة', icon: 'sunny-outline' },
+  visit: { label: 'زيارة', icon: 'people-outline' },
+  hobby: { label: 'هواية', icon: 'color-palette-outline' },
+  rest: { label: 'راحة', icon: 'cafe-outline' },
+} as const;
+export type PlanKindKey = keyof typeof PLAN_KINDS;
+export const isPlanKind = (k: unknown): k is PlanKindKey => typeof k === 'string' && k in PLAN_KINDS;
+/** Kinds that are time for yourself (not an errand). */
+export const ME_KINDS: readonly PlanKindKey[] = ['outing', 'visit', 'hobby', 'rest'];
 
 /** A task that came from a goal's step: the goal's id and the step's id. */
 export type GoalLink = { goal: string; step: string };
@@ -69,7 +84,7 @@ export function tagColor(tag: string): string {
 const isDate = (s: unknown): s is string => typeof s === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(s);
 const str = (s: unknown) => (typeof s === 'string' ? s : '');
 
-const TASK_FIELDS = new Set(['id', 'title', 'due', 'time', 'priority', 'tag', 'note', 'subs', 'repeat', 'remind', 'done', 'created', 'from', 'wasDue', 'space', 'anchor', 'goal', 'mins', 'top']);
+const TASK_FIELDS = new Set(['id', 'title', 'due', 'time', 'priority', 'tag', 'note', 'subs', 'repeat', 'remind', 'done', 'created', 'from', 'wasDue', 'space', 'anchor', 'goal', 'mins', 'top', 'kind']);
 const SUB_FIELDS = new Set(['id', 'title', 'done']);
 
 /** One stored task, or null when this build can't read it. Fields it doesn't know are kept (records.ts). */
@@ -100,6 +115,7 @@ export function parseTask(x: unknown): Task | null {
     ...(isRec(o.goal) && typeof o.goal.goal === 'string' && typeof o.goal.step === 'string' ? { goal: { goal: o.goal.goal, step: o.goal.step } } : {}),
     ...(typeof o.mins === 'number' && o.mins >= 5 && o.mins <= 720 ? { mins: Math.round(o.mins) } : {}),
     ...(isDate(o.top) ? { top: o.top } : {}),
+    ...(isPlanKind(o.kind) ? { kind: o.kind } : {}),
   });
 }
 

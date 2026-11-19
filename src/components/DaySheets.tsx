@@ -6,7 +6,9 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, INPUT, Sheet, SwitchRow, T } from './ui';
 import { Segmented } from './GymSwitch';
 import { BLOCK_MINS, DEFAULT_MINS, hm, pickFor, placeAt, slotStarts, spanAr, TOP_MAX, topFor, unscheduled } from '../lib/dayPlan';
-import { PRIORITY, SPACES, spaceOf, taskId, type Task } from '../lib/tasks';
+import { PLAN_KINDS, PRIORITY, SPACES, spaceOf, taskId, type PlanKindKey, type Task } from '../lib/tasks';
+import { addIdea, readIdeas, removeIdea } from '../lib/plans';
+import { addDays, weekdayOf } from '../lib/dates';
 import { readTasks, saveTask, undoable } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
 import { useDataVersion } from '../lib/bus';
@@ -136,4 +138,88 @@ export function TopSheet({ date, visible, onClose, label }: { date: string; visi
       <Btn kind="solid" label="تمام" onPress={() => { setFull(false); onClose(); }} />
     </Sheet>
   );
+}
+
+const KIND_ASK: Record<PlanKindKey, string> = {
+  errand: 'رايح فين؟ (البنك، المكوجي…)',
+  outing: 'هتخرج فين؟',
+  visit: 'هتزور مين؟',
+  hobby: 'هتعمل إيه؟',
+  rest: 'هترتاح إزاي؟',
+};
+
+/**
+ * «+ خطة»: a plan for a day (مشوار، خروجة، زيارة، هواية، راحة), saved as a task with that `kind` so it's in مهامي too.
+ * Pick the kind, write it (or tap one of your ideas of that kind), the day, a time or none, and how long. «احفظها فكرة»
+ * keeps it in your ideas for another time. `start` fills it in (from a suggestion).
+ */
+export function PlanSheet({ visible, onClose, today, slots, start }: { visible: boolean; onClose: () => void; today: string; slots: (date: string) => number[]; start?: { kind: PlanKindKey; title: string; date?: string; at?: number } }) {
+  return visible ? <PlanBody key={start ? `${start.kind}|${start.title}` : 'new'} onClose={onClose} today={today} slots={slots} start={start} /> : null;
+}
+
+function PlanBody({ onClose, today, slots, start }: { onClose: () => void; today: string; slots: (date: string) => number[]; start?: { kind: PlanKindKey; title: string; date?: string; at?: number } }) {
+  const t = useTheme();
+  useDataVersion((s) => s.v);
+  const [kind, setKind] = useState<PlanKindKey>(start?.kind ?? 'outing');
+  const [title, setTitle] = useState(start?.title ?? '');
+  const tomorrow = addDays(today, 1);
+  const friday = nextWeekday(today, 5);
+  const days: (readonly [string, string])[] = [[today, 'النهارده'], [tomorrow, 'بكرة'], ...(friday !== today && friday !== tomorrow ? [[friday, 'الجمعة'] as const] : [])];
+  const [date, setDate] = useState(start?.date ?? today);
+  const starts = slots(date);
+  const [at, setAt] = useState<number>(start?.at ?? -1);
+  const [mins, setMins] = useState(kind === 'errand' ? 60 : 120);
+  const [keep, setKeep] = useState(false);
+  const ideas = readIdeas().filter((i) => i.kind === kind);
+  const ok = !!title.trim();
+  const times = [...new Set([...(at >= 0 && !starts.includes(at) ? [at] : []), ...starts])].slice(0, 3);
+
+  const save = () => {
+    if (!ok) return;
+    const task: Task = { id: taskId(), title: title.trim(), due: date, time: at >= 0 ? at : null, priority: 3, subs: [], repeat: null, remind: false, done: null, created: today, kind, ...(at >= 0 ? { mins } : {}) };
+    const undo = undoable(() => saveTask(task));
+    const undoIdea = keep && !ideas.some((i) => i.title === task.title) ? addIdea(kind, task.title) : null;
+    showUndo(`${PLAN_KINDS[kind].label}: ${task.title}`, () => {
+      undo();
+      undoIdea?.();
+    });
+    onClose();
+  };
+  const forget = (id: string, name: string) => showUndo(`«${name}» اتشالت من الأفكار`, removeIdea(id));
+
+  return (
+    <Sheet visible onClose={onClose} title="خطة" sub="بتظهر في يومي وفي مهامي">
+      <Segmented small={false} options={(Object.keys(PLAN_KINDS) as PlanKindKey[]).map((k) => [k, PLAN_KINDS[k].label] as const)} value={kind} onChange={(k) => { setKind(k); setMins(k === 'errand' ? 60 : 120); }} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44, borderRadius: 12, paddingHorizontal: 12, backgroundColor: t.soft }}>
+        <Ionicons name={PLAN_KINDS[kind].icon} size={20} color={t.mute} />
+        <TextInput value={title} onChangeText={setTitle} placeholder={KIND_ASK[kind]} placeholderTextColor={t.mute} style={[INPUT, { flex: 1, fontSize: 15, color: t.fg, textAlign: 'right', minHeight: 40 }]} returnKeyType="done" />
+      </View>
+      {ideas.length ? (
+        <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+          {ideas.map((i) => (
+            <Pressable key={i.id} onPress={() => setTitle(i.title)} onLongPress={() => forget(i.id, i.title)} accessibilityRole="button" accessibilityHint="ضغطة طويلة تشيلها من الأفكار" style={({ pressed }) => ({ height: 32, paddingHorizontal: 12, borderRadius: 16, backgroundColor: title === i.title ? t.okSoft : t.soft, justifyContent: 'center', opacity: pressed ? 0.7 : 1 })}>
+              <T style={{ fontSize: 13 }}>{i.title}</T>
+            </Pressable>
+          ))}
+        </View>
+      ) : null}
+      <T style={{ fontSize: 12.5, color: t.mute, marginTop: 4 }}>إمتى</T>
+      <Segmented options={days} value={date} onChange={(d) => { setDate(d); setAt(-1); }} />
+      <Segmented options={[[-1, 'من غير وقت'] as const, ...times.map((m) => [m, hm(m)] as const)]} value={at} onChange={setAt} />
+      {at >= 0 ? <Segmented options={[60, 120, 180, 240].map((m) => [m, spanAr(m)] as const)} value={mins} onChange={setMins} /> : null}
+      <View style={{ backgroundColor: t.soft, borderRadius: 12, paddingHorizontal: 12, marginTop: 4 }}>
+        <SwitchRow label="احفظها في أفكارك كمان" value={keep} onChange={setKeep} />
+      </View>
+      <Btn kind="solid" label={ok ? `حطها ${days.find(([d]) => d === date)?.[1] ?? ''}${at >= 0 ? ` ${hm(at)}` : ''}` : 'اكتب الخطة'} onPress={save} />
+    </Sheet>
+  );
+}
+
+/** The next date on a weekday (0 = Sunday), today included. */
+function nextWeekday(from: string, wd: number): string {
+  for (let i = 0; i < 7; i++) {
+    const d = addDays(from, i);
+    if (weekdayOf(d) === wd) return d;
+  }
+  return from;
 }

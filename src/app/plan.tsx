@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { Pressable, View } from 'react-native';
+import { Pressable, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { MONTHS_AR, WEEKDAYS_AR } from '../data/program';
-import { Btn, Card, Label, Ring, Screen, Sep, T } from '../components/ui';
+import { Btn, Card, INPUT, Label, Ring, Screen, Sep, T } from '../components/ui';
+import { readIntent, setIntent } from '../lib/plans';
 import { Segmented } from '../components/GymSwitch';
 import { TopSheet } from '../components/DaySheets';
 import { Item } from '../components/Motion';
@@ -13,7 +14,7 @@ import { addDays, weekdayOf } from '../lib/dates';
 import { useDataVersion } from '../lib/bus';
 import { readTasks, saveTask, undoable } from '../lib/taskStore';
 import { readSessions } from '../lib/focusStore';
-import { PRIORITY, type Task } from '../lib/tasks';
+import { PLAN_KINDS, PRIORITY, type Task } from '../lib/tasks';
 import { showUndo } from '../lib/undo';
 import { useToday } from '../lib/useToday';
 import { useTheme } from '../theme';
@@ -41,7 +42,7 @@ export default function PlanScreen() {
   const blocks = day.filter((i) => i.kind === 'task');
   const blockMin = blocks.reduce((a, i) => a + i.end - i.at, 0);
   const freeMin = day.filter((i) => i.kind === 'free').reduce((a, i) => a + i.end - i.at, 0);
-  const meals = fixed.filter((f) => f.kind === 'meal').length;
+  const plansTomorrow = tasks.filter((x) => x.kind && x.due === tomorrow && !x.done);
   const prayers = fixed.filter((f) => f.kind === 'prayer').length;
   const gym = fixed.find((f) => f.kind === 'gym');
   const work = fixed.find((f) => f.kind === 'work');
@@ -87,6 +88,21 @@ export default function PlanScreen() {
         </>
       ) : null}
 
+      <Label>نيّة بكرة</Label>
+      <Card style={{ paddingVertical: 0 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 48, paddingHorizontal: 12 }}>
+          <Ionicons name="compass-outline" size={20} color={t.mute} />
+          <TextInput
+            defaultValue={readIntent(tomorrow)}
+            onEndEditing={(e) => setIntent(tomorrow, e.nativeEvent.text)}
+            placeholder="بكرة هركز على…"
+            placeholderTextColor={t.mute}
+            returnKeyType="done"
+            style={[INPUT, { flex: 1, fontSize: 15, color: t.fg, textAlign: 'right', minHeight: 40 }]}
+          />
+        </View>
+      </Card>
+
       <Label>أهم ٣ بكرة · لو عملتهم بس، يومك نجح</Label>
       <Card style={{ paddingVertical: 0 }}>
         {topTomorrow.map((x, i) => (
@@ -125,14 +141,25 @@ export default function PlanScreen() {
         <Sep />
         <Fact color={t.sec.tasks} label={`${blocks.length} ${blocks.length === 1 ? 'مهمة' : 'مهام'} في الجدول`} value={blockMin ? spanAr(blockMin) : ''} />
         <Sep />
-        <Fact color={t.sec.focus} label={prayers ? `${meals} وجبات · ${prayers} صلوات` : `${meals} وجبات`} value="ثابتين" />
-        <Sep />
+        {prayers ? (
+          <>
+            <Fact color={t.mute} label={`${prayers} صلوات`} value="ثابتين" />
+            <Sep />
+          </>
+        ) : null}
+        {plansTomorrow.length ? (
+          <>
+            <Fact color={t.sec.focus} label={plansTomorrow.map((x) => `${PLAN_KINDS[x.kind!].label}: ${x.title}`).join('، ')} value="" />
+            <Sep />
+          </>
+        ) : null}
         <Fact label="فاضي" value={freeMin ? spanAr(freeMin) : 'مفيش'} />
       </Card>
 
       <View style={{ gap: 6, marginTop: 8 }}>
+ <Btn label="+ خطة لبكرة (خروجة، زيارة، مشوار…)" onPress={() => router.navigate({ pathname: '/', params: { date: tomorrow, plan: '1' } })} />
         <Btn kind="solid" label="تمام، بكرة جاهز" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
-        <T style={{ fontSize: 12, color: t.mute, textAlign: 'center' }}>الموجز الصباحي هيبعتلك أهم ٣ أول ما تصحى</T>
+        <T style={{ fontSize: 12, color: t.mute, textAlign: 'center' }}>الموجز الصباحي هيبعتلك نيّتك وأهم ٣ أول ما تصحى</T>
       </View>
 
       <TopSheet date={tomorrow} label="بكرة" visible={topOpen} onClose={() => setTopOpen(false)} />

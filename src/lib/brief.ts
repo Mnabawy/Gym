@@ -11,7 +11,7 @@ import type { WeighIn } from './weight';
 import { isDue, type Habit } from './habits';
 import { IDLE_DAYS, idleDays, ifThen, nextTask, reviewDue, type Goal } from './goals';
 import { clean, runLabel, type Quit } from './quit';
-import { todayView, type Task } from './tasks';
+import { PLAN_KINDS, todayView, type Task } from './tasks';
 import { topFor } from './dayPlan';
 
 export type BriefInput = {
@@ -37,6 +37,8 @@ export type BriefInput = {
   quits?: readonly Quit[];
   /** Your tasks (مهامي): that day's count, the most important ones, and what's overdue. */
   tasks?: readonly Task[];
+  /** «نيّة النهارده» per date (يومي, src/lib/plans.ts): goes first. */
+  intents?: Record<string, string>;
 };
 
 /** Food items that need taking out of the freezer the morning before. */
@@ -60,6 +62,8 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   });
 
   const lines: string[] = [];
+  const intent = x.intents?.[date]?.trim();
+  if (intent) lines.push(`🧭 ${intent}`);
   if (day) {
     const sets = day.exercises.reduce((a, e) => a + e.sets, 0);
     const minutes = Math.round(day.exercises.reduce((a, e) => a + e.sets * (e.restSec + 45), 0) / 60);
@@ -81,6 +85,9 @@ export function morningBrief(date: string, x: BriefInput): { title: string; body
   // «أهم ٣» picked for that day (يومي / خطّط بكرة).
   const top = x.tasks ? topFor(x.tasks, date).filter((t) => !t.done) : [];
   if (top.length) lines.push(`⭐ أهم ${top.length === 3 ? '٣' : top.length}: ${top.map((t) => t.title).join('، ')}`);
+  // Plans for the day (مشوار، خروجة، زيارة، هواية، راحة).
+  const plans = (x.tasks ?? []).filter((t) => t.kind && t.due === date && !t.done);
+  if (plans.length) lines.push(`📍 ${plans.map((t) => `${PLAN_KINDS[t.kind!].label}: ${t.title}${t.time != null ? ` (${clock(t.time)})` : ''}`).join('، ')}`);
   if (x.tasks?.length) {
     const v = todayView(x.tasks, date);
     const open = [...v.day].sort((a, b) => a.priority - b.priority);

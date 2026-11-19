@@ -16,7 +16,7 @@ const FIVE: PrayerKey[] = ['fajr', 'dhuhr', 'asr', 'maghrib', 'isha'];
 const mins = (d: Date) => d.getHours() * 60 + d.getMinutes();
 
 /** A day's prayers, workout and meals, for the timeline. `today` decides what counts as already done. */
-export function dayFixed(date: string, today: string): { fixed: Fixed[]; gymTitle: string | null } {
+export function dayFixed(date: string, today: string, opts: { meals?: boolean } = {}): { fixed: Fixed[]; gymTitle: string | null } {
   const st = useSettings.getState();
   const out: Fixed[] = [];
   if (st.prayer && st.place) {
@@ -42,7 +42,7 @@ export function dayFixed(date: string, today: string): { fixed: Fixed[]; gymTitl
       out.push({ kind: 'gym', id: 'gym', at: gym.at, mins: length, title: `الجيم · ${day.titleAr}`, sub: `${hm(gym.at)} – ${hm(gym.end)} · ${day.exercises.length} تمارين`, done: trainedThatDay });
     }
   }
-  const ticked = new Set(storage.mealChecks(date));
-  out.push(...mealsOn(training, gym, mealNames(date, readNumbers(MEAL_PICKS_KEY)), ticked));
+  // يومي and خطّط بكرة leave the meals out (the owner wants the day about his plans, not food); `meals: true` adds them.
+  if (opts.meals) out.push(...mealsOn(training, gym, mealNames(date, readNumbers(MEAL_PICKS_KEY)), new Set(storage.mealChecks(date))));
   return { fixed: out, gymTitle };
 }
