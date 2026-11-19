@@ -21,7 +21,7 @@ import { clean, milestone, runLabel } from '../../../lib/quit';
 import { quitLabel } from '../../../lib/calendar';
 import { readGoals } from '../../../lib/goalStore';
 import { nextTask, progress } from '../../../lib/goals';
-import { PLAN_KINDS, PRIORITY, REPEAT_AR, taskId, type PlanKindKey, type Task } from '../../../lib/tasks';
+import { isPlanKind, PLAN_KINDS, PRIORITY, REPEAT_AR, taskId, type PlanKindKey, type Task } from '../../../lib/tasks';
 import { setFocus } from '../../../lib/focusStore';
 import { showUndo } from '../../../lib/undo';
 import { useToday } from '../../../lib/useToday';
@@ -45,7 +45,7 @@ function useMinute(): number {
 
 /**
  * يومي (`/`, what the app opens on; أسبوعك is next to it on the switch; `?date=` shows another day, from the week's
- * rings; `?plan=1` opens «+ خطة»). About your day, not food (the owner's choice): «نيّة النهارده», what's on now (or
+ * rings; `?plan=1` opens «+ خطة», with `planKind` / `planTitle` filled in from دفتر الأفكار). About your day, not food (the owner's choice): «نيّة النهارده», what's on now (or
  * what to start in the free time you have: a «أهم ٣» pick, or one of your ideas when there's a long stretch), late
  * tasks, «أهم ٣», بطّل (clean days, «جاتلي رغبة»), the next step of each running goal, and the day as one timeline —
  * prayers, work hours and the workout put themselves on it, tasks and plans (مشوار، خروجة، زيارة، هواية، راحة) with a
@@ -58,7 +58,7 @@ export default function DayScreen() {
   // Settings that move things on the timeline.
   useSettings((s) => `${s.prayer}|${s.place?.lat}|${s.prayerMethod}|${s.reminderTime}|${s.reminderDays.join()}|${s.workOn}|${s.workFrom}|${s.workTo}|${s.workDays.join()}`);
   const today = useToday();
-  const params = useLocalSearchParams<{ date?: string; plan?: string }>();
+  const params = useLocalSearchParams<{ date?: string; plan?: string; planKind?: string; planTitle?: string }>();
   const q = params.date;
   const date = typeof q === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(q) ? q : today;
   const isToday = date === today;
@@ -71,7 +71,7 @@ export default function DayScreen() {
   const planOpen = plan != null || params.plan === '1';
   const closePlan = () => {
     setPlan(null);
-    if (params.plan) router.setParams({ plan: undefined });
+    if (params.plan) router.setParams({ plan: undefined, planKind: undefined, planTitle: undefined });
   };
 
   const tasks = readTasks();
@@ -265,7 +265,7 @@ export default function DayScreen() {
 
       <BlockSheet date={date} target={block} onClose={() => setBlock(null)} />
       <TopSheet date={date} label={isToday ? 'النهارده' : 'لليوم ده'} visible={topOpen} onClose={() => setTopOpen(false)} />
-      <PlanSheet visible={planOpen} onClose={closePlan} today={today} slots={slotsOn} start={plan?.start ?? (date !== today ? { kind: 'outing', title: '', date } : undefined)} />
+      <PlanSheet visible={planOpen} onClose={closePlan} today={today} slots={slotsOn} start={plan?.start ?? (params.planTitle ? { kind: isPlanKind(params.planKind) ? params.planKind : 'outing', title: params.planTitle, date } : date !== today ? { kind: 'outing', title: '', date } : undefined)} />
     </Screen>
   );
 

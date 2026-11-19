@@ -1,9 +1,13 @@
-// يومي's own things beyond tasks: «نيّة النهارده» (one line for the day, meta `intents`: date → text) and أفكار
-// (ideas for outings, visits, hobbies, rest you'd like to do some day; meta `ideas`: id → "kind|title"). Both are maps,
-// synced one row per entry (SPLIT_META in cloudSync.ts) and in backups. Plans themselves are tasks with a `kind`
-// (src/lib/tasks.ts PLAN_KINDS), so they show in مهامي too.
+// يومي's own things beyond tasks: «نيّة النهارده» (one line for the day, meta `intents`: date → text) and the ideas
+// offered for plans: the open فسحة ideas of دفتر الأفكار (src/lib/notebook.ts), plus any left in the older meta
+// `ideas` (id → "kind|title", from the first build of plans). Both metas are maps synced one row per entry
+// (SPLIT_META in cloudSync.ts) and in backups. Plans themselves are tasks with a `kind` (src/lib/tasks.ts PLAN_KINDS),
+// so they show in مهامي too.
 import { readEntry, readStrings, restoreEntry, writeEntry } from './meta';
 import { isPlanKind, type PlanKindKey } from './tasks';
+import { newIdea } from './notebook';
+import { readNotebook, saveIdea } from './notebookStore';
+import { dateKey } from './dates';
 
 export const INTENTS_KEY = 'intents';
 export const IDEAS_KEY = 'ideas';
@@ -42,18 +46,28 @@ export function setIntent(date: string, text: string): () => void {
   return () => restoreEntry(INTENTS_KEY, date, was);
 }
 
-export const readIdeas = (): Idea[] => parseIdeas(readStrings(IDEAS_KEY));
+/** Ideas for plans: open فسحة ideas from the notebook (as خروجة unless they say), then the older map's. */
+export function readIdeas(): Idea[] {
+  const book = readNotebook()
+    .filter((x) => x.type === 'fun' && (x.status === 'idea' || x.status === 'study'))
+    .map((x) => ({ id: x.id, kind: x.kind ?? 'outing', title: x.title }));
+  return [...book, ...parseIdeas(readStrings(IDEAS_KEY))];
+}
 
 export const ideaId = (now: number = Date.now()) => `i${now.toString(36)}`;
 
-export function addIdea(kind: PlanKindKey, title: string): () => void {
-  const id = ideaId();
-  writeEntry(IDEAS_KEY, 'string', id, `${kind}|${title.trim()}`);
-  return () => restoreEntry(IDEAS_KEY, id, undefined);
+/** Keeps a plan as an idea: a فسحة in دفتر الأفكار. */
+export function addIdea(kind: PlanKindKey, title: string, now: number = Date.now()): () => void {
+  return saveIdea(newIdea(title, dateKey(new Date(now)), now, { type: 'fun', kind }), now);
 }
 
+/** Drops an idea from the plan sheet: an old map entry goes; a notebook one is marked «اتلغت» (its details stay). */
 export function removeIdea(id: string): () => void {
   const was = readEntry(IDEAS_KEY, id);
-  writeEntry(IDEAS_KEY, 'string', id, undefined);
-  return () => restoreEntry(IDEAS_KEY, id, was);
+  if (was !== undefined) {
+    writeEntry(IDEAS_KEY, 'string', id, undefined);
+    return () => restoreEntry(IDEAS_KEY, id, was);
+  }
+  const x = readNotebook().find((y) => y.id === id);
+  return x ? saveIdea({ ...x, status: 'dropped' }) : () => {};
 }

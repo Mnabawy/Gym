@@ -62,6 +62,8 @@ export const SPLIT_META: Readonly<Record<string, 'list' | 'ordered' | 'map' | 'd
   // يومي: the day's intention (date → text) and ideas for plans (id → "kind|title"), src/lib/plans.ts.
   intents: 'map',
   ideas: 'map',
+  // دفتر الأفكار (src/lib/notebook.ts): one row per idea.
+  notebook: 'list',
   // Per exercise: id → note / name and muscle.
   notes: 'map',
   pastExercises: 'map',

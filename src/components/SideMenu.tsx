@@ -12,11 +12,12 @@ import { tint, useTheme } from '../theme';
 import { HeaderBtn, T } from './ui';
 
 type IconName = React.ComponentProps<typeof Ionicons>['name'];
-type Item = { icon: IconName; label: string; path: '/dump' | '/progress' | '/weight' | '/settings' | '/focus' | '/prayer' };
+type Item = { icon: IconName; label: string; path: '/dump' | '/ideas' | '/progress' | '/weight' | '/settings' | '/focus' | '/prayer' };
 
 // The tools around the sections (the sections themselves are the bottom tabs; the weekly report is the أسبوعك tab).
 const ITEMS: Item[] = [
   { icon: 'cloud-download-outline', label: 'فضّي دماغك', path: '/dump' },
+  { icon: 'bulb-outline', label: 'دفتر الأفكار', path: '/ideas' },
   { icon: 'timer-outline', label: 'ركّز (بومودورو)', path: '/focus' },
   { icon: 'moon-outline', label: 'مواقيت الصلاة', path: '/prayer' },
   { icon: 'stats-chart-outline', label: 'التقدم في الجيم', path: '/progress' },

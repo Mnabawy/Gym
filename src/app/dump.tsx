@@ -9,6 +9,8 @@ import { Item } from '../components/Motion';
 import { ACTION, Swipe } from '../components/Swipe';
 import { ClockPicker } from '../components/ClockPicker';
 import { INPUT, Screen, SwitchRow, T } from '../components/ui';
+import { newIdea } from '../lib/notebook';
+import { saveIdea } from '../lib/notebookStore';
 import { atomic } from '../lib/atomic';
 import { metaArea, useData, useDataVersion } from '../lib/bus';
 import { addLines, DUMP_KEY, dumpView, nextFriday, parseDump, parseDumpItem, removeItem, setKind, type DumpItem } from '../lib/dump';
@@ -83,6 +85,25 @@ function Dump() {
     );
   };
 
+  // «فكرة»: the line moves to دفتر الأفكار (one transaction), where its details get written; undo brings it back here.
+  const toNotebook = (x: DumpItem, open = false) => {
+    tap();
+    const before = read();
+    const idea = newIdea(x.text, today, stamp());
+    let undoIdea = () => {};
+    atomic(() => {
+      undoIdea = saveIdea(idea);
+      write(removeItem(before, x.id));
+    });
+    showUndo('راحت دفتر الأفكار', () =>
+      atomic(() => {
+        undoIdea();
+        write(before);
+      }),
+    );
+    if (open) router.push({ pathname: '/ideas/[id]', params: { id: idea.id } });
+  };
+
   const sortRow = (x: DumpItem) => (
     <Item key={x.id}>
       <View style={[s.item, { backgroundColor: t.card }]}>
@@ -99,7 +120,7 @@ function Dump() {
           <View style={s.chips}>
             <Chip t={t} icon="checkbox-outline" label="مهمة" onPress={() => setTaskFor(x.id)} />
             <Chip t={t} icon="cloud-outline" label="قلق" onPress={() => { tap(); undoable('اتحط في القلق', (l) => setKind(l, x.id, 'worry')); }} />
-            <Chip t={t} icon="bulb-outline" label="فكرة" onPress={() => { tap(); undoable('اتحفظت في أفكارك', (l) => setKind(l, x.id, 'idea')); }} />
+            <Chip t={t} icon="bulb-outline" label="فكرة" onPress={() => toNotebook(x)} />
             <Chip t={t} icon="flash-outline" label="عملتها (دقيقتين)" onPress={() => { tap(); undoable('برافو، خلصت ✓', (l) => removeItem(l, x.id)); }} />
           </View>
         )}
@@ -130,7 +151,10 @@ function Dump() {
     <Item key={x.id}>
       <Swipe
         style={s.swipe}
-        start={[{ icon: 'checkbox-outline', label: 'مهمة', color: ACTION.blue, onPress: () => toTask(x, null) }]}
+        start={[
+          { icon: 'book-outline', label: 'للدفتر', color: ACTION.orange, onPress: () => toNotebook(x, true) },
+          { icon: 'checkbox-outline', label: 'مهمة', color: ACTION.blue, onPress: () => toTask(x, null) },
+        ]}
         end={[{ icon: 'trash', label: 'امسح', color: ACTION.red, onPress: () => undoable('اتمسحت', (l) => removeItem(l, x.id)) }]}>
         <View style={[s.idea, { backgroundColor: t.card }]}>
           <Ionicons name="bulb-outline" size={16} color="#E0A030" />
@@ -187,7 +211,7 @@ function Dump() {
       ) : null}
       {v.ideas.length ? (
         <>
-          <T w="semi" style={{ fontSize: 13, color: t.mute, marginTop: 6 }}>{`أفكارك · ${v.ideas.length}`}</T>
+          <T w="semi" style={{ fontSize: 13, color: t.mute, marginTop: 6 }}>{`أفكار قديمة · ${v.ideas.length} · اسحبها للدفتر عشان تكتب تفاصيلها`}</T>
           {v.ideas.map(ideaRow)}
         </>
       ) : null}
