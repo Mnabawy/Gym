@@ -1,4 +1,4 @@
-import { buildDay, hm, leftovers, mealAt, mealsOn, moveTo, nextItem, nowItem, placeAt, slotStarts, spanAr, topFor, unscheduled, type Fixed } from '../src/lib/dayPlan';
+import { buildDay, hm, leftovers, mealAt, mealsOn, moveTo, nextItem, nowItem, pickFor, placeAt, slotStarts, spanAr, topFor, unscheduled, type Fixed } from '../src/lib/dayPlan';
 import { parseTask, toggleTask, type Task } from '../src/lib/tasks';
 
 const D = '2026-11-18';
@@ -85,6 +85,12 @@ describe('top 3 and moving tasks', () => {
     expect(m).toMatchObject({ due: '2026-11-19', time: null, remind: false, mins: 50 });
     expect(m.top).toBeUndefined();
     expect(moveTo(task({ id: 'z' }), null).due).toBeNull();
+  });
+  it('pickFor: same day keeps the time, an earlier task moves over without its time', () => {
+    expect(pickFor(task({ id: 'z', time: 600, remind: true }), D)).toMatchObject({ top: D, due: D, time: 600, remind: true });
+    expect(pickFor(task({ id: 'z', time: 600, remind: true }), '2026-11-19')).toMatchObject({ top: '2026-11-19', due: '2026-11-19', time: null, remind: false });
+    expect(pickFor(task({ id: 'z', due: null }), D)).toMatchObject({ due: D, time: null });
+    expect(pickFor(task({ id: 'z', due: '2026-11-25', time: 600 }), D)).toMatchObject({ top: D, due: '2026-11-25', time: 600 });
   });
   it('placeAt sets the day, time and length', () => {
     expect(placeAt(task({ id: 'z', due: null }), D, 720, 50)).toMatchObject({ due: D, time: 720, mins: 50 });

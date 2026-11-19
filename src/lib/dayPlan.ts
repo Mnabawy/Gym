@@ -130,6 +130,15 @@ export function moveTo(t: Task, day: string | null): Task {
   return { ...rest, due: day, time: null, remind: false };
 }
 
+/**
+ * Marks a task as one of «أهم ٣» for a day. A task from before that day moves to it; its time and reminder were for
+ * the old day, so they go (you set a new time on يومي).
+ */
+export function pickFor(t: Task, date: string): Task {
+  if (t.due != null && t.due >= date) return { ...t, top: date };
+  return { ...t, top: date, due: date, time: null, remind: false };
+}
+
 /** Puts a task in a slot: that day, at that time, for that long. */
 export const placeAt = (t: Task, date: string, at: number, mins: number): Task => ({ ...t, due: date, time: at, mins });
 

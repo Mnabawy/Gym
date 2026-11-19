@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Item } from '../../../components/Motion';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
@@ -68,7 +68,7 @@ function WorkoutScreen() {
   const day = dayFor(sel)!;
   // Which exercise is open: the one you tapped (or the list moved on to), else the first one not finished.
   const [tapped, setTapped] = useState<string | null>(null);
-  // «خلصت التمرين» popup, opened when the last set of today's workout is ticked; its quote is picked then.
+  // «خلصت التمرين» popup (see `wasDone` below); its quote is picked when it opens.
   const [popup, setPopup] = useState<number | null>(null);
   const pick = (id: number) => {
     setPicked({ date, id });
@@ -94,6 +94,15 @@ function WorkoutScreen() {
   // Rough session length: each set's work (~45 s) plus its rest.
   const minutes = Math.round(day.exercises.reduce((a, e) => a + e.sets * (e.restSec + 45), 0) / 60);
   const finished = cur.started && sel === cur.id && total > 0 && done >= total;
+  // «خلصت التمرين» popup: when today's workout goes from not finished to finished while the screen is open, however
+  // the last set got ticked (open card, summary row, RIR answered or not). Opening a finished day doesn't show it.
+  const wasDone = useRef<{ key: string; done: boolean } | null>(null);
+  const doneKey = `${date}|${sel}`;
+  useEffect(() => {
+    const prev = wasDone.current;
+    wasDone.current = { key: doneKey, done: finished };
+    if (live && finished && prev?.key === doneKey && !prev.done) setPopup(storage.trainedDays().length);
+  }, [doneKey, finished, live]);
 
   return (
     <Screen
@@ -178,8 +187,6 @@ function WorkoutScreen() {
                 const nxt = nextToOpen(day.exercises, now, e.id);
                 LayoutAnimation.configureNext(LayoutAnimation.create(180, 'easeInEaseOut', 'opacity'));
                 setTapped(nxt);
-                // The whole workout is done: the popup, with a hadith and a fact by turns (one more per session logged).
-                if (nxt == null && live) setPopup(storage.trainedDays().length);
               }
               bump();
             }}

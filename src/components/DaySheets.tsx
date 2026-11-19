@@ -5,7 +5,7 @@ import { Pressable, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { Btn, INPUT, Sheet, SwitchRow, T } from './ui';
 import { Segmented } from './GymSwitch';
-import { BLOCK_MINS, DEFAULT_MINS, hm, placeAt, slotStarts, spanAr, TOP_MAX, topFor, unscheduled } from '../lib/dayPlan';
+import { BLOCK_MINS, DEFAULT_MINS, hm, pickFor, placeAt, slotStarts, spanAr, TOP_MAX, topFor, unscheduled } from '../lib/dayPlan';
 import { PRIORITY, SPACES, spaceOf, taskId, type Task } from '../lib/tasks';
 import { readTasks, saveTask, undoable } from '../lib/taskStore';
 import { showUndo } from '../lib/undo';
@@ -111,19 +111,25 @@ export function TopSheet({ date, visible, onClose, label }: { date: string; visi
   const list = readTasks();
   const picked = topFor(list, date);
   const options = [...picked.filter((x) => !x.done), ...unscheduled(list, date).filter((x) => x.top !== date), ...list.filter((x) => !x.done && x.due === date && x.time != null && x.top !== date)].slice(0, 12);
+  const [full, setFull] = useState(false);
   const toggle = (x: Task) => {
     const on = x.top === date;
-    if (!on && picked.length >= TOP_MAX) return;
-    const undo = undoable(() => saveTask(on ? { ...x, top: undefined } : { ...x, top: date, due: x.due != null && x.due >= date ? x.due : date }));
+    if (!on && picked.length >= TOP_MAX) {
+      setFull(true);
+      return;
+    }
+    setFull(false);
+    const undo = undoable(() => saveTask(on ? { ...x, top: undefined } : pickFor(x, date)));
     if (on) showUndo(`${x.title} خرجت من أهم ٣`, undo);
   };
   return (
-    <Sheet visible={visible} onClose={onClose} title={`أهم ٣ ${label}`} sub={`لو عملتهم بس، يومك نجح · ${picked.length} / ${TOP_MAX}`}>
+    <Sheet visible={visible} onClose={() => { setFull(false); onClose(); }} title={`أهم ٣ ${label}`} sub={`لو عملتهم بس، يومك نجح · ${picked.length} / ${TOP_MAX}`}>
       {options.length ? null : <T style={{ fontSize: 13.5, color: t.mute }}>مفيش مهام مفتوحة. ضيف من مهامي.</T>}
+      {full ? <T w="medium" style={{ fontSize: 13.5, color: t.warn }}>{`اخترت ${TOP_MAX} خلاص. شيل واحدة الأول عشان تحط دي.`}</T> : null}
       {options.map((x) => (
         <PickRow key={x.id} x={x} on={x.top === date} onPress={() => toggle(x)} note={x.time != null && x.due === date ? hm(x.time) : undefined} />
       ))}
-      <Btn kind="solid" label="تمام" onPress={onClose} />
+      <Btn kind="solid" label="تمام" onPress={() => { setFull(false); onClose(); }} />
     </Sheet>
   );
 }
