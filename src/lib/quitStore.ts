@@ -29,3 +29,9 @@ export function addSlip(q: Quit, s: Slip) {
 export function addUrge(q: Quit, u: Urge) {
   saveQuit({ ...q, urges: [...q.urges, u].sort((a, b) => a.at - b.at) });
 }
+
+// A quit with a password opens only after it's typed: whoever checked it (the بطّل tab, يومي) hands the page a one-time
+// pass. The page takes it on opening, so any other way in (a link, a notification, back again later) asks again.
+const passes = new Set<string>();
+export const passQuit = (id: string) => void passes.add(id);
+export const takeQuitPass = (id: string) => passes.delete(id);

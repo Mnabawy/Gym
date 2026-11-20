@@ -16,8 +16,9 @@ import { useDataVersion } from '../../../lib/bus';
 import { useSettings } from '../../../lib/settings';
 import { tickStep, tickTask } from '../../../lib/goalTaskStore';
 import { ideaFor, readIdeas, readIntent, setIntent } from '../../../lib/plans';
-import { readQuits } from '../../../lib/quitStore';
-import { clean, milestone, runLabel } from '../../../lib/quit';
+import { passQuit, readQuits } from '../../../lib/quitStore';
+import { PasswordModal, SlipSheet, UrgeScreen } from '../../../components/QuitSheets';
+import { clean, milestone, runLabel, type Quit } from '../../../lib/quit';
 import { quitLabel } from '../../../lib/calendar';
 import { readGoals } from '../../../lib/goalStore';
 import { nextTask, progress } from '../../../lib/goals';
@@ -322,12 +323,37 @@ function IntentCard({ date, label }: { date: string; label: string }) {
   );
 }
 
-/** بطّل on يومي: each running quit (by its code name, never its real one), its clean run, and «جاتلي رغبة». */
+/**
+ * بطّل on يومي: each running quit by its code name (never its real one), its clean run, and «جاتلي رغبة» (the urge
+ * screen right here, like on the بطّل tab). Opening a quit with a password asks for it first, like the tab.
+ */
 function QuitStrip() {
   const t = useTheme();
   const now = useNow(60_000);
+  const [urge, setUrge] = useState<Quit | null>(null);
+  const [slip, setSlip] = useState<Quit | null>(null);
+  const [lockFor, setLockFor] = useState<Quit | null>(null);
+  const [pw, setPw] = useState('');
+  const [pwErr, setPwErr] = useState(false);
   const quits = readQuits();
   if (!quits.length) return null;
+  const openQuit = (q: Quit) => {
+    if (!q.password) return router.push({ pathname: '/quit/[id]', params: { id: q.id } });
+    setPw('');
+    setPwErr(false);
+    setLockFor(q);
+  };
+  const check = () => {
+    if (lockFor && pw === lockFor.password) {
+      const id = lockFor.id;
+      setLockFor(null);
+      passQuit(id);
+      router.push({ pathname: '/quit/[id]', params: { id } });
+    } else {
+      setPwErr(true);
+      setPw('');
+    }
+  };
   return (
     <Card style={{ paddingVertical: 0 }}>
       {quits.map((q, i) => {
@@ -337,22 +363,25 @@ function QuitStrip() {
           <React.Fragment key={q.id}>
             {i ? <Sep /> : null}
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 12 }}>
-              <Pressable onPress={() => router.push({ pathname: '/quit/[id]', params: { id: q.id } })} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.7 : 1 })}>
+              <Pressable onPress={() => openQuit(q)} accessibilityRole="button" style={({ pressed }) => ({ flex: 1, flexDirection: 'row', alignItems: 'center', gap: 10, opacity: pressed ? 0.7 : 1 })}>
                 <Ring value={m.share} size={34} stroke={3.5} color={q.color}>
-                  <Ionicons name="shield-checkmark" size={13} color={q.color} />
+                  <Ionicons name={q.password ? 'lock-closed' : 'shield-checkmark'} size={13} color={q.color} />
                 </Ring>
                 <View style={{ flex: 1 }}>
                   <T w="semi" style={{ fontSize: 14.5 }} numberOfLines={1}>{`نضيف ${runLabel(c.ms)}`}</T>
                   <T style={{ fontSize: 12, color: t.mute }} numberOfLines={1}>{`${quitLabel(q, i)} · الجاية ${m.next} يوم`}</T>
                 </View>
               </Pressable>
-              <Pressable onPress={() => router.push({ pathname: '/quit/[id]', params: { id: q.id, urge: '1' } })} accessibilityRole="button" style={({ pressed }) => ({ height: 32, paddingHorizontal: 10, borderRadius: 8, backgroundColor: q.color, justifyContent: 'center', opacity: pressed ? 0.8 : 1 })}>
+              <Pressable onPress={() => setUrge(q)} accessibilityRole="button" style={({ pressed }) => ({ height: 32, paddingHorizontal: 10, borderRadius: 8, backgroundColor: q.color, justifyContent: 'center', opacity: pressed ? 0.8 : 1 })}>
                 <T w="semi" style={{ fontSize: 12.5, color: '#FFFFFF' }}>جاتلي رغبة</T>
               </Pressable>
             </View>
           </React.Fragment>
         );
       })}
+      {urge ? <UrgeScreen q={urge} onClose={() => setUrge(null)} onSlip={() => { setSlip(urge); setUrge(null); }} /> : null}
+      {slip ? <SlipSheet q={slip} onClose={() => setSlip(null)} /> : null}
+      {lockFor ? <PasswordModal quitId={lockFor.id} password={pw} error={pwErr} onPasswordChange={(v) => { setPw(v); setPwErr(false); }} onConfirm={check} onClose={() => setLockFor(null)} /> : null}
     </Card>
   );
 }

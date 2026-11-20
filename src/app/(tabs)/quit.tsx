@@ -10,7 +10,7 @@ import { ACTION, Swipe } from '../../components/Swipe';
 import { NightCard, QuitCard } from '../../components/QuitHero';
 import { PasswordModal, SlipSheet, UrgeScreen } from '../../components/QuitSheets';
 import { metaArea, useData } from '../../lib/bus';
-import { deleteQuit, readQuits } from '../../lib/quitStore';
+import { deleteQuit, readQuits, passQuit } from '../../lib/quitStore';
 import { confirm } from '../../lib/confirm';
 import { QUITS_KEY, type Quit } from '../../lib/quit';
 import { useNow } from '../../lib/useNow';
@@ -58,6 +58,7 @@ function QuitList() {
     if (q && q.password === passwordInput) {
       const quitId = passwordFor;
       setPasswordFor(null);
+      if (quitId) passQuit(quitId);
       router.push(`/quit/${quitId}`);
     } else {
       nope();

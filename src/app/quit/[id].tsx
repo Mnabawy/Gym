@@ -6,10 +6,10 @@ import { Btn, Card, HeaderBtn, Label, Screen, T } from '../../components/ui';
 import { QuitForm } from '../../components/QuitForm';
 import { ACTION, Swipe } from '../../components/Swipe';
 import { CleanRing, Clock, nextLine, NightCard } from '../../components/QuitHero';
-import { SlipSheet, UrgeScreen } from '../../components/QuitSheets';
+import { PasswordModal, SlipSheet, UrgeScreen } from '../../components/QuitSheets';
 import { MONTHS_AR } from '../../data/program';
 import { metaArea, useData } from '../../lib/bus';
-import { deleteQuit, readQuits, saveQuit } from '../../lib/quitStore';
+import { deleteQuit, readQuits, saveQuit, takeQuitPass } from '../../lib/quitStore';
 import { clean, cleanDays, DAY_MS, QUITS_KEY, longest, MILESTONES, riskyTime, runLabel, saved, target, TRIGGERS, triggerCounts, urgeScore, HABIT_TYPES } from '../../lib/quit';
 import { dateKey } from '../../lib/dates';
 import { confirm } from '../../lib/confirm';
@@ -35,11 +35,14 @@ export default function QuitScreen() {
 function QuitPage() {
   const t = useTheme();
   useData(metaArea(QUITS_KEY));
-  const { id, urge: urgeParam } = useLocalSearchParams<{ id: string; urge?: string }>();
+  const { id } = useLocalSearchParams<{ id: string }>();
   const q = readQuits().find((x) => x.id === id);
   const now = useNow(1000);
-  // `?urge=1` (يومي's «جاتلي رغبة») opens the urge screen right away.
-  const [urge, setUrge] = useState(urgeParam === '1');
+  // A protected quit shows nothing until its password is typed here or was just checked by whoever opened it.
+  const [open, setOpen] = useState(() => !q?.password || takeQuitPass(id));
+  const [pw, setPw] = useState('');
+  const [pwErr, setPwErr] = useState(false);
+  const [urge, setUrge] = useState(false);
   const [slip, setSlip] = useState(false);
   const [editing, setEditing] = useState(false);
 
@@ -50,6 +53,30 @@ function QuitPage() {
       </Screen>
     );
   }
+  if (q.password && !open) {
+    return (
+      <Screen title="بطّل" onBack={() => router.back()}>
+        <PasswordModal
+          quitId={q.id}
+          password={pw}
+          error={pwErr}
+          onPasswordChange={(v) => {
+            setPw(v);
+            setPwErr(false);
+          }}
+          onConfirm={() => {
+            if (pw === q.password) setOpen(true);
+            else {
+              setPwErr(true);
+              setPw('');
+            }
+          }}
+          onClose={() => router.back()}
+        />
+      </Screen>
+    );
+  }
+
 
   const c = clean(q, now);
   const tg = target(q, now);
