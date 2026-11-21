@@ -30,8 +30,13 @@ export function addUrge(q: Quit, u: Urge) {
   saveQuit({ ...q, urges: [...q.urges, u].sort((a, b) => a.at - b.at) });
 }
 
-// A quit with a password opens only after it's typed: whoever checked it (the بطّل tab, يومي) hands the page a one-time
-// pass. The page takes it on opening, so any other way in (a link, a notification, back again later) asks again.
-const passes = new Set<string>();
-export const passQuit = (id: string) => void passes.add(id);
-export const takeQuitPass = (id: string) => passes.delete(id);
+// A quit with a password opens only after it's typed: the بطّل tab, having checked it, hands the page a pass that is
+// good for a few seconds, so the page opening (even twice, if the navigator mounts it again) gets in, and any other way
+// in later (a link, a notification, back again after a while) asks again.
+const passes = new Map<string, number>();
+const PASS_MS = 15_000;
+export const passQuit = (id: string, now: number = Date.now()) => void passes.set(id, now);
+export const takeQuitPass = (id: string, now: number = Date.now()) => {
+  const at = passes.get(id);
+  return at != null && now - at < PASS_MS;
+};
