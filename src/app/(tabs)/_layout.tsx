@@ -25,7 +25,7 @@ export const ErrorBoundary = crashBoundary('tabs');
 /**
  * The app's sections as tabs at the bottom (a floating icon-only bar, no animation: src/components/TabBar.tsx): النهارده
  * (src/app/(tabs)/(home): يومي, `/`, what the app opens on · أسبوعك, `/week`), الجيم (src/app/(tabs)/(gym): التمرين · الأكل · المشتريات as a segmented
- * control at the top), مهامي, الأهداف, بطّل.
+ * control at the top), مهامي, الأهداف, الفلوس, بطّل.
  */
 export default function TabsLayout() {
   const welcome = googleSupported && !storage.getMeta(WELCOME_KEY) && !storage.getMeta(GOOGLE_USER);
@@ -43,6 +43,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="(gym)" options={{ title: 'الجيم', tabBarIcon: icon('barbell') }} />
       <Tabs.Screen name="tasks" options={{ title: 'مهامي', tabBarIcon: icon('checkbox') }} />
       <Tabs.Screen name="goals" options={{ title: 'الأهداف', tabBarIcon: icon('flag') }} />
+      <Tabs.Screen name="money" options={{ title: 'الفلوس', tabBarIcon: icon('wallet') }} />
       <Tabs.Screen name="quit" options={{ title: 'بطّل', tabBarIcon: icon('hand-left') }} />
     </Tabs>
     </TabBarSpace>

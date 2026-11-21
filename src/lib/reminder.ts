@@ -25,6 +25,8 @@ import { isDue, logKey, partsDone, pausedNow, prayerTime, type Habit } from './h
 import { ADHKAR_AR, adhkarOf } from './adhkar';
 import { readHabitLog, readHabitParts, readHabits } from './habitStore';
 import { report } from './errlog';
+import { readFixed } from './moneyStore';
+import { money, nextFixedDate } from './money';
 
 const native = Platform.OS !== 'web';
 const KIND = 'workout-reminder';
@@ -33,6 +35,7 @@ const DUMP = 'brain-dump';
 const HABIT = 'habit-reminder';
 const QUIT = 'quit-milestone';
 const TASK = 'task-reminder';
+const MONEY = 'money-fixed';
 
 /** Asks for notification permission (when turning the reminder on). */
 export async function allowReminders(): Promise<boolean> {
@@ -166,6 +169,18 @@ export function planReminders(now = new Date()): Planned[] {
       const m = milestone(c.ms);
       const date = new Date(nowMs + m.next * DAY_MS - c.ms);
       add('quits', `${m.next === 1 ? 'أول يوم' : `${m.next} يوم`} نضيف 🏅`, 'وصلت محطة جديدة. كمّل، انت أقوى من الرغبة', date, { kind: QUIT });
+    }
+  });
+  // الفلوس: a fixed monthly item (rent, a bill, the salary) the evening before its day, at 8 pm.
+  block('money', () => {
+    for (const f of readFixed()) {
+      if (!f.remind || f.off) continue;
+      let d = nextFixedDate(f, today);
+      for (let i = 0; i < 2; i++) {
+        const at = new Date(`${addDays(d, -1)}T20:00:00`);
+        if (at.getTime() > nowMs) add('money', `بكرة: ${f.title}`, `${f.kind === 'in' ? 'هيدخل' : 'هيتدفع'} ${money(f.amount, f.cur)}`, at, { kind: MONEY, url: '/money/debts' });
+        d = nextFixedDate(f, addDays(d, 1));
+      }
     }
   });
   if (!HABITS_OFF) block('habits', () => planHabits(today, now, add));

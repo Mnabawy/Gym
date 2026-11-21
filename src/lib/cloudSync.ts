@@ -64,6 +64,13 @@ export const SPLIT_META: Readonly<Record<string, 'list' | 'ordered' | 'map' | 'd
   ideas: 'map',
   // دفتر الأفكار (src/lib/notebook.ts): one row per idea.
   notebook: 'list',
+  // الفلوس (src/lib/money.ts, moneyStore.ts): one row per transaction, pocket, fixed item, debt, جمعية, project.
+  moneyTx: 'list',
+  moneyPockets: 'list',
+  moneyFixed: 'list',
+  moneyDebts: 'list',
+  moneyJamiya: 'list',
+  moneyProjects: 'list',
   // Per exercise: id → note / name and muscle.
   notes: 'map',
   pastExercises: 'map',

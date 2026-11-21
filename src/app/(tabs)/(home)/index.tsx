@@ -3,6 +3,7 @@ import { Pressable, TextInput, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { MONTHS_AR, WEEKDAYS_AR } from '../../../data/program';
+import { TxSheet, type TxDraft } from '../../../components/MoneySheets';
 import { Btn, Card, HeaderBtn, INPUT, Ring, Screen, Sep, T } from '../../../components/ui';
 import { MenuButton } from '../../../components/SideMenu';
 import { HomeSwitch } from '../../../components/GymSwitch';
@@ -92,6 +93,7 @@ export default function DayScreen() {
   const late = isToday ? tasks.filter((x) => !x.done && x.due != null && x.due < today).length : 0;
   const plansNoTime = tasks.filter((x) => x.kind && x.due === date && x.time == null && (!x.done || x.done === date));
 
+  const [spend, setSpend] = useState<TxDraft | null>(null);
   const tick = (x: Task) => {
     const undo = tickTask(x.id, date, taskId());
     if (!x.done) showUndo(x.repeat ? `✓ ${x.title} · الجاية ${REPEAT_AR[x.repeat]}` : `✓ ${x.title}`, undo);
@@ -125,11 +127,13 @@ export default function DayScreen() {
       sub={dayAr(date)}
       action={
         <View style={{ flexDirection: 'row', gap: 8 }}>
+          {isToday ? <HeaderBtn icon="wallet-outline" label="سجّل صرف" onPress={() => setSpend({ kind: 'out' })} /> : null}
           {isToday ? <HeaderBtn icon="moon-outline" label="خطّط بكرة" onPress={() => router.push('/plan')} /> : <HeaderBtn icon="today-outline" label="ارجع للنهارده" onPress={() => router.replace('/')} />}
           <MenuButton />
         </View>
       }>
       <HomeSwitch value="day" />
+      <TxSheet visible={!!spend} draft={spend} onClose={() => setSpend(null)} />
 
       {date >= today ? <IntentCard date={date} label={isToday ? 'نيّة النهارده' : 'نيّة اليوم ده'} /> : null}
 

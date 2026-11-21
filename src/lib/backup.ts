@@ -56,7 +56,7 @@ export type BackupInfo = {
  * Meta keys that hold things you logged and that sync keeps as one value: not settings (`settings`, `focusCfg`), not
  * the app's own bookkeeping, not small UI state (`restDay`). A new key of that kind goes here.
  */
-export const PLAIN_DATA_KEYS = ['weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps', 'adhkar'] as const;
+export const PLAIN_DATA_KEYS = ['weights', 'measures', 'cardio', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'steps', 'adhkar', 'moneyCfg'] as const;
 
 /** Split for sync (one row per field) but not something you logged. */
 const NOT_DATA = new Set(['settings']);
