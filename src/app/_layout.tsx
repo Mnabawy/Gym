@@ -18,6 +18,8 @@ import { useSettings } from '../lib/settings';
 import { crashBoundary } from '../components/CrashScreen';
 import { report } from '../lib/errlog';
 import { useTheme } from '../theme';
+import { cloudOn, getSession } from '../lib/cloud';
+import { syncUp } from '../lib/sync';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 // A one-time meta change that failed at start (src/lib/metaMigrations.ts) runs again on the next start; noted for a bug report.
@@ -56,6 +58,7 @@ export default function RootLayout() {
       {/* iOS-style push on both phones; swipe back from anywhere on the page (iPhone). */}
       <Stack screenOptions={{ headerShown: false, animation: Platform.OS === 'android' ? 'ios_from_right' : 'default', fullScreenGestureEnabled: true }} />
       </AppTheme>
+      <CloudSync />
       <ReminderSync />
       <RepairRecoveries />
       <UndoBar />
@@ -86,6 +89,28 @@ function ReminderSync() {
       if (st !== 'active') return;
       clearTimeout(id);
       id = setTimeout(() => syncReminders(), 1000);
+    });
+    return () => {
+      clearTimeout(id);
+      sub.remove();
+    };
+  }, []);
+  return null;
+}
+
+/** Signed in to the cloud (src/lib/sync.ts): send the copy and the coach summary a little after opening and each time the app comes back, at most once an hour. */
+function CloudSync() {
+  useEffect(() => {
+    if (!cloudOn()) return;
+    let last = 0;
+    const go = () => {
+      if (!getSession() || Date.now() - last < 3_600_000) return;
+      last = Date.now();
+      void syncUp();
+    };
+    const id = setTimeout(go, 8000);
+    const sub = AppState.addEventListener('change', (st) => {
+      if (st === 'active') go();
     });
     return () => {
       clearTimeout(id);

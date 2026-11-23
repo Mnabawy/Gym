@@ -17,6 +17,8 @@ const numOrNull = (v: unknown): v is number | null => v === null || num(v);
 
 /** A progress photo inside a backup file: its file name (date_time.jpg) and the JPEG as base64. */
 export type PhotoData = { name: string; data: string };
+/** Meta keys a backup never carries. */
+export const SECRET_META: readonly string[] = ['auth'];
 export const PHOTO_NAME = /^\d{4}-\d{2}-\d{2}_\d+\.jpg$/;
 
 /**
@@ -30,7 +32,8 @@ export function toBackup(d: Dump, now: Date = new Date(), photos: readonly Photo
     version: BACKUP_VERSION,
     build: { version: build.version, sha: build.sha },
     exportedAt: now.toISOString(),
-    data: d,
+    // Never the cloud sign-in (meta `auth`): a backup file gets shared, a session must not travel with it.
+    data: SECRET_META.some((k) => k in d.meta) ? { ...d, meta: Object.fromEntries(Object.entries(d.meta).filter(([k]) => !SECRET_META.includes(k))) } : d,
     ...(photos.length ? { photos } : null),
   });
 }

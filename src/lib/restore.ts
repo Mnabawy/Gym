@@ -8,8 +8,8 @@ import { createSnapshot } from './safetyIO';
 import { useSettings } from './settings';
 import { storage } from './storage';
 
-/** Kept as it is on this phone: `device` (this phone's own settings: backup folder…). */
-const KEEP = ['device'];
+/** Kept as it is on this phone: `device` (this phone's own settings: backup folder…) and `auth` (the cloud sign-in). */
+const KEEP = ['device', 'auth'];
 
 /**
  * Returns how many photos were added. A safety copy of what's on the phone is saved first; if it cannot be made this

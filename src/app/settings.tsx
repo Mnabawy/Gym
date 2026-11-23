@@ -6,6 +6,7 @@ import { PROGRAM } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { storage } from '../lib/storage';
 import { TEMPLATE_KEY } from '../lib/template';
+import { cloudOn, getSession } from '../lib/cloud';
 import { confirm as confirmDialog } from '../lib/confirm';
 import { deloadOn, useSettings } from '../lib/settings';
 import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
@@ -42,6 +43,16 @@ export default function SettingsScreen() {
           </Row>
         </Card>
       </Pressable>
+
+      {cloudOn() ? (
+        <Pressable onPress={() => router.push('/account')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+          <Card>
+            <Row label="الحساب" sub={getSession()?.user.email ?? 'نسخة أونلاين من بياناتك، والكوتش'}>
+              <Ionicons name="chevron-back" size={20} color={t.mute} />
+            </Row>
+          </Card>
+        </Pressable>
+      ) : null}
 
       <Label>نسخة احتياطية</Label>
       <BackupCard />
