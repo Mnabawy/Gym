@@ -53,7 +53,7 @@ export type BackupInfo = {
  * Meta keys that hold things you logged: not settings (`settings`), not the app's own bookkeeping, not small UI state
  * (`restDay`). A new key of that kind goes here.
  */
-export const DATA_KEYS: readonly string[] = ['weights', 'measures', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises'].filter((k) => !isLocalMeta(k));
+export const DATA_KEYS: readonly string[] = ['weights', 'measures', 'water', 'notes', 'swaps', 'extras', 'supps', 'mealPicks', 'program', 'pastExercises', 'template', 'pastDays'].filter((k) => !isLocalMeta(k));
 
 /** The change areas (src/lib/bus.ts) `backupInfo` of the phone depends on: re-count when one of them changes. */
 export const BACKUP_AREAS: readonly string[] = [AREA.sets, AREA.meals, AREA.shop, AREA.photos, ...DATA_KEYS.map(metaArea)];

@@ -1,8 +1,8 @@
 // Your own program, edited in the app (/program): exercises per program day, saved as JSON under meta key `program`.
-// The five program days themselves stay (their ids are stored with every logged set); what's in them is yours.
+// The base's program days themselves stay (their ids are stored with every logged set); what's in them is yours.
 // Pure — unit tested in __tests__/programEdit.test.ts. Applying it: applyProgram (src/data/program.ts) via src/lib/settings.ts.
 import { keepExtra, keepUnreadMap } from './records';
-import { MUSCLE_AR, PDF_PROGRAM, RETIRED_EXERCISES, SETS_MAX, SETS_MIN, slug, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
+import { BASE_PROGRAM, MUSCLE_AR, PDF_PROGRAM, RETIRED_EXERCISES, SETS_MAX, SETS_MIN, slug, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
 
 export const PROGRAM_KEY = 'program';
 export const REPS_MIN = 1;
@@ -21,7 +21,7 @@ export function parseDef(v: unknown): ExerciseDef | null {
   return { id: o.id, name: o.name.trim(), muscle: o.muscle as Muscle, sets: o.sets, repLow: o.repLow, repHigh: o.repHigh, tag: (o.tag ?? null) as Tag, perLeg: o.perLeg === true };
 }
 
-/** Saved program → edit, or null when there's none (the PDF's). Unknown days, broken exercises and repeated ids are dropped; a day left empty keeps the PDF's. */
+/** Saved program → edit, or null when there's none (the base's). Days not in the base, broken exercises and repeated ids are dropped; a day left empty keeps the PDF's. */
 export function parseProgram(raw: string | null): ProgramEdit | null {
   if (!raw) return null;
   let v: unknown;
@@ -35,7 +35,7 @@ export function parseProgram(raw: string | null): ProgramEdit | null {
   const seen = new Set<string>();
   for (const [k, list] of Object.entries(v as Record<string, unknown>)) {
     const wd = Number(k);
-    if (!(wd in PDF_PROGRAM) || !Array.isArray(list)) continue;
+    if (!(wd in BASE_PROGRAM) || !Array.isArray(list)) continue;
     const defs: ExerciseDef[] = [];
     for (const x of list) {
       const d = parseDef(x);
@@ -61,12 +61,12 @@ export function newId(name: string, taken: Iterable<string>): string {
 
 /** Ids a new exercise must not take: the PDF's, retired ones and ones you had before (they'd bring their old history back). */
 export function reservedIds(past: Record<string, PastExercise>): string[] {
-  return [...Object.values(PDF_PROGRAM).flat().map((e) => e.id), ...RETIRED_EXERCISES.map((e) => e.id), ...Object.keys(past)];
+  return [...Object.values(PDF_PROGRAM).flat().map((e) => e.id), ...Object.values(BASE_PROGRAM).flat().map((e) => e.id), ...RETIRED_EXERCISES.map((e) => e.id), ...Object.keys(past)];
 }
 
-/** True when the edit is the same as the PDF program (so it can be dropped). */
+/** True when the edit is the same as the base program (the PDF or your generated plan), so it can be dropped. */
 export function isPdf(edit: ProgramEdit): boolean {
-  return Object.entries(PDF_PROGRAM).every(([wd, defs]) => {
+  return Object.entries(BASE_PROGRAM).every(([wd, defs]) => {
     const mine = edit[Number(wd)] ?? defs;
     return mine.length === defs.length && mine.every((d, i) => JSON.stringify({ ...d, perLeg: !!d.perLeg }) === JSON.stringify({ ...defs[i], perLeg: !!defs[i].perLeg }));
   });
@@ -120,6 +120,6 @@ export function exerciseInfo(id: string, current: readonly { id: string; name: s
   const c = current.find((e) => e.id === id);
   if (c) return { name: c.name, muscle: c.muscle };
   if (past[id]) return past[id];
-  const pdf = [...Object.values(PDF_PROGRAM).flat(), ...RETIRED_EXERCISES].find((e) => e.id === id);
+  const pdf = [...Object.values(BASE_PROGRAM).flat(), ...Object.values(PDF_PROGRAM).flat(), ...RETIRED_EXERCISES].find((e) => e.id === id);
   return pdf ? { name: pdf.name, muscle: pdf.muscle } : null;
 }

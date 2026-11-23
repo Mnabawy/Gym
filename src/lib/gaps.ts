@@ -73,7 +73,14 @@ export type Vol = { done: number; planned: number };
 /** Ticked sets per muscle in [from, to] against the sets owed on those dates. */
 export function muscleVolume(sess: readonly Session[], from: string, to: string, c: Ctx): Record<Muscle, Vol> {
   const out = Object.fromEntries(MUSCLES.map((m) => [m, { done: 0, planned: 0 }])) as Record<Muscle, Vol>;
-  for (const d of dueDates(from, to, c)) for (const e of dayFor(weekdayOf(d))?.exercises ?? []) out[e.muscle].planned += e.sets;
+  // The PDF's days are written for weekdays; a generated plan's aren't (ids 100+), so each due date owes an average day of it.
+  const avg = (m: Muscle) => PROGRAM.reduce((a, d) => a + planSets(d.weekday, m), 0) / Math.max(1, PROGRAM.length);
+  for (const d of dueDates(from, to, c)) {
+    const day = dayFor(weekdayOf(d));
+    if (day) for (const e of day.exercises) out[e.muscle].planned += e.sets;
+    else for (const m of MUSCLES) out[m].planned += avg(m);
+  }
+  for (const m of MUSCLES) out[m].planned = Math.round(out[m].planned);
   for (const s of sess) {
     if (s.date < from || s.date > to) continue;
     const e = exerciseById(s.exId);

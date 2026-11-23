@@ -2,7 +2,8 @@
 // Two meta keys: `settings` and `device` (this phone only: DEVICE_SETTINGS, e.g. the backup folder; a backup put back on
 // another phone keeps that phone's). Fields this build doesn't know are kept in `settings` (records.ts rule).
 import { create } from 'zustand';
-import { ALL_EXERCISES, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, PLAN_WEEKDAYS, type ProgramEdit } from '../data/program';
+import { ALL_EXERCISES, applyBase, applyPlan, applyProgram, DEFAULT_REST, DEFAULT_SETS, PAST_DAYS, PLAN_WEEKDAYS, PROGRAM, type ProgramEdit, type Template } from '../data/program';
+import { parsePastDays, parseTemplate, PAST_DAYS_KEY, TEMPLATE_KEY } from './template';
 import { isPdf, PAST_KEY, parsePast, pastJson, parseProgram, PROGRAM_KEY, remember } from './programEdit';
 import { storage } from './storage';
 import { useDataVersion } from './bus';
@@ -138,8 +139,13 @@ type Store = Settings & {
   setBody: (p: Partial<Body>) => void;
   /** Save settings that don't touch the plan. */
   setQuiet: (p: Partial<Pick<Settings, 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoProgress' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime'>>) => void;
-  /** Save your own program (null = back to the PDF's) and apply it everywhere. */
+  /** Save your own program (null = back to the base's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
+  /**
+   * Switch to a generated plan (null = back to the PDF): your edits on the old one go, its days and exercises are
+   * remembered for old sessions, and your training days become the plan's.
+   */
+  setTemplate: (t: Template | null) => void;
   reset: () => void;
   /** Re-read saved settings (after restoring a backup). */
   reload: () => void;
@@ -150,8 +156,15 @@ type Store = Settings & {
   refreshPlan: () => void;
 };
 
-// Your edited program first: the saved sets overrides are checked against its exercises.
-applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
+/** Base program (the PDF or your generated plan), then your edits on it: the saved sets overrides are checked against its exercises. */
+function applySaved() {
+  const past = parsePastDays(storage.getMeta(PAST_DAYS_KEY));
+  for (const k of Object.keys(PAST_DAYS)) delete PAST_DAYS[Number(k)];
+  Object.assign(PAST_DAYS, past);
+  applyBase(parseTemplate(storage.getMeta(TEMPLATE_KEY)));
+  applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
+}
+applySaved();
 /** A light week is on today. */
 export const deloadOn = (s: Pick<Settings, 'deloadUntil'>, today: string = dateKey()) => !!s.deloadUntil && today <= s.deloadUntil;
 /** The plan with the light week applied when it's on. */
@@ -236,8 +249,20 @@ export const useSettings = create<Store>((set, get) => {
       const sets = Object.fromEntries(Object.entries(get().sets).filter(([id]) => id in DEFAULT_SETS));
       commit({ ...pick(get()), sets });
     },
+    setTemplate: (t) => {
+      // Old days and exercises keep their names where their logged sets show up.
+      const pastRaw = storage.getMeta(PAST_KEY);
+      storage.setMeta(PAST_KEY, pastJson(pastRaw, remember(parsePast(pastRaw), ALL_EXERCISES)));
+      const days = { ...parsePastDays(storage.getMeta(PAST_DAYS_KEY)), ...Object.fromEntries(PROGRAM.map((d) => [d.weekday, d.titleAr])) };
+      storage.setMeta(PAST_DAYS_KEY, JSON.stringify(days));
+      storage.setMeta(TEMPLATE_KEY, t ? JSON.stringify(t) : '');
+      storage.setMeta(PROGRAM_KEY, '');
+      applySaved();
+      const sets = Object.fromEntries(Object.entries(get().sets).filter(([id]) => id in DEFAULT_SETS));
+      commit({ ...pick(get()), sets, reminderDays: [...PLAN_WEEKDAYS] });
+    },
     reload: () => {
-      applyProgram(parseProgram(storage.getMeta(PROGRAM_KEY)));
+      applySaved();
       const next = load();
       set(next);
       applyPlan(plan(next));

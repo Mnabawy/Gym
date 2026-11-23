@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { ALL_EXERCISES, MUSCLE_AR, PROGRAM, WEEKDAYS_AR, type Muscle } from '../data/program';
+import { ALL_EXERCISES, MUSCLE_AR, PROGRAM, type Muscle } from '../data/program';
 import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { dateKey } from '../lib/dates';
@@ -78,9 +78,9 @@ export default function ProgressScreen() {
       </Card>
 
       <T w="bold" style={{ fontSize: 17, marginTop: 6 }}>تمرين بتمرين</T>
-      {PROGRAM.map((d) => (
+      {PROGRAM.map((d, i) => (
         <View key={d.weekday} style={{ gap: 8 }}>
-          <Label>{`${WEEKDAYS_AR[d.weekday]} · ${d.titleAr}`}</Label>
+          <Label>{`تمرين ${i + 1} · ${d.titleAr}`}</Label>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
             {d.exercises.map((e) => (
               <Pill key={e.id} label={e.name} num on={e.id === sel} onPress={() => setSel(e.id)} />

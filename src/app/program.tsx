@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, TextInput, View } from 'react-native';
 import { router } from 'expo-router';
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { DEFAULT_SETS, MUSCLE_AR, PDF_PROGRAM, PROGRAM, SETS_MAX, SETS_MIN, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
+import { DEFAULT_SETS, MUSCLE_AR, BASE_PROGRAM, PROGRAM, SETS_MAX, SETS_MIN, type ExerciseDef, type Muscle, type ProgramEdit, type Tag } from '../data/program';
 import { ALTERNATIVES } from '../data/alternatives';
 import { TAG_INFO } from '../data/rules';
 import { INPUT, Btn, Card, Pill, Screen, Sep, Sheet, Stepper, SwitchRow, T } from '../components/ui';
@@ -36,7 +36,7 @@ export default function ProgramScreen() {
   const plan = PROGRAM.find((d) => d.weekday === day)!;
   const total = plan.exercises.reduce((a, e) => a + e.sets, 0);
   const edited = !!storage.getMeta('program');
-  const dayEdited = JSON.stringify(currentEdit()[day]) !== JSON.stringify(PDF_PROGRAM[day].map((d) => ({ ...d })));
+  const dayEdited = JSON.stringify(currentEdit()[day]) !== JSON.stringify(BASE_PROGRAM[day].map((d) => ({ ...d })));
 
   const save = (list: ExerciseDef[]) => st.setProgram({ ...currentEdit(), [day]: list });
   const defs = () => currentEdit()[day];
@@ -72,7 +72,7 @@ export default function ProgramScreen() {
         </View>
         {plan.exercises.map((e, i) => {
           const base = DEFAULT_SETS[e.id];
-          const pdf = PDF_PROGRAM[day].find((x) => x.id === e.id);
+          const pdf = BASE_PROGRAM[day].find((x) => x.id === e.id);
           const first = i === 0;
           const lastOne = i === plan.exercises.length - 1;
           const only = plan.exercises.length === 1;
@@ -127,7 +127,7 @@ export default function ProgramScreen() {
       </T>
 
       <View style={{ flexDirection: 'row', gap: 8 }}>
-        {dayEdited ? <Btn label="رجّع اليوم ده للأصلي" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: `ترجّع ${plan.titleAr} زي الأصلي؟`, confirmLabel: 'رجّع' })) st.setProgram({ ...currentEdit(), [day]: PDF_PROGRAM[day].map((d) => ({ ...d })) }); }} /> : null}
+        {dayEdited ? <Btn label="رجّع اليوم ده للأصلي" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: `ترجّع ${plan.titleAr} زي الأصلي؟`, confirmLabel: 'رجّع' })) st.setProgram({ ...currentEdit(), [day]: BASE_PROGRAM[day].map((d) => ({ ...d })) }); }} /> : null}
         {edited ? <Btn label="رجّع البرنامج كله" style={{ flex: 1 }} onPress={async () => { if (await confirm({ title: 'ترجّع البرنامج كله للأصلي؟', confirmLabel: 'رجّع' })) st.setProgram(null); }} /> : null}
       </View>
 

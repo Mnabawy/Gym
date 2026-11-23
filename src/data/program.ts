@@ -110,10 +110,15 @@ export const RETIRED_EXERCISES: readonly { id: string; name: string; muscle: Mus
   { id: 'barbell-hip-thrust', name: 'Barbell Hip Thrust', muscle: 'hams' },
   { id: 'seated-calf-raise', name: 'Seated Calf Raise', muscle: 'calves' },
 ];
+/** Days of programs you used before (a generated plan you replaced), id → name: filled from meta `pastDays` by settings.ts. */
+export const PAST_DAYS: Record<number, string> = {};
 /** A program day's name, also for a day that left the program (old logged sessions). */
-export const dayTitle = (weekday: number): string => dayFor(weekday)?.titleAr ?? RETIRED_DAYS[weekday] ?? '';
-/** Training weekdays, in program order. */
-export const PLAN_WEEKDAYS = PROGRAM.map((d) => d.weekday);
+export const dayTitle = (weekday: number): string => dayFor(weekday)?.titleAr ?? RETIRED_DAYS[weekday] ?? PAST_DAYS[weekday] ?? '';
+/**
+ * Training weekdays (0 = Sunday): the PDF's Mon, Tue, Wed, Fri, or the days you picked for a generated plan. Sets the
+ * weekly attendance/volume target and the default reminder days. Updated in place by applyBase.
+ */
+export const PLAN_WEEKDAYS: number[] = PROGRAM.map((d) => d.weekday);
 
 /** An exercise as written in the program (without the rest time, which comes from the settings). */
 export type ExerciseDef = Omit<Exercise, 'restSec'>;
@@ -123,8 +128,42 @@ export type ProgramEdit = Record<number, ExerciseDef[]>;
 const toDef = ({ restSec: _r, ...d }: Exercise): ExerciseDef => ({ ...d });
 /** The program as written in the PDF, before any edit. */
 export const PDF_PROGRAM: Readonly<Record<number, readonly ExerciseDef[]>> = Object.fromEntries(PROGRAM.map((d) => [d.weekday, d.exercises.map(toDef)]));
-/** Program days you can't change: their ids are stored with every logged set (Day.weekday). */
+/** The PDF's day names. */
 export const PDF_TITLES: Readonly<Record<number, string>> = Object.fromEntries(PROGRAM.map((d) => [d.weekday, d.titleAr]));
+const PDF_WEEKDAYS = PROGRAM.map((d) => d.weekday);
+
+/**
+ * A program built by the setup (src/lib/generator.ts), saved as meta `template`: its own days (ids from 100 up, so they
+ * never mix with the PDF's 1–6 in logged sets) and the weekdays you train on. Replaces the PDF as the base your edits
+ * (meta `program`) start from.
+ */
+export type TemplateDay = { id: number; titleAr: string; exercises: ExerciseDef[] };
+export type Template = { days: TemplateDay[]; weekdays: number[]; goal: string; level: string };
+/** First id a generated day can take. */
+export const FIRST_TEMPLATE_DAY = 100;
+
+/**
+ * The program your edits start from: the PDF, or your generated plan (applyBase). Program days are fixed within a
+ * base: their ids are stored with every logged set (Day.weekday).
+ */
+export const BASE_PROGRAM: Record<number, ExerciseDef[]> = Object.fromEntries(Object.entries(PDF_PROGRAM).map(([k, v]) => [k, v.map((d) => ({ ...d }))]));
+export const BASE_TITLES: Record<number, string> = { ...PDF_TITLES };
+
+/**
+ * Makes `t` (or the PDF, for null) the base program: PROGRAM gets its days, in order, with its exercises; BASE_* and
+ * PLAN_WEEKDAYS follow. Call applyProgram afterwards (edits on top) and applyPlan. Done by src/lib/settings.ts.
+ */
+export function applyBase(t: Template | null): void {
+  const days = t ? t.days : Object.keys(PDF_PROGRAM).map(Number).sort((a, b) => a - b).map((id) => ({ id, titleAr: PDF_TITLES[id], exercises: PDF_PROGRAM[id].map((d) => ({ ...d })) }));
+  for (const k of Object.keys(BASE_PROGRAM)) delete BASE_PROGRAM[Number(k)];
+  for (const k of Object.keys(BASE_TITLES)) delete BASE_TITLES[Number(k)];
+  for (const d of days) {
+    BASE_PROGRAM[d.id] = d.exercises.map((x) => ({ ...x }));
+    BASE_TITLES[d.id] = d.titleAr;
+  }
+  PROGRAM.splice(0, PROGRAM.length, ...days.map((d) => ({ weekday: d.id, titleAr: d.titleAr, exercises: [] as Exercise[] })));
+  PLAN_WEEKDAYS.splice(0, PLAN_WEEKDAYS.length, ...(t ? [...t.weekdays].sort((a, b) => a - b) : PDF_WEEKDAYS));
+}
 /** Muscles trained on a weekday, in order, without repeats. */
 export const dayMuscles = (weekday: number): Muscle[] => [...new Set((dayFor(weekday)?.exercises ?? []).map((e) => e.muscle))];
 /** Every exercise in the current program (updated in place by applyProgram). */
@@ -155,12 +194,12 @@ export function applyPlan(p: PlanSettings): void {
 }
 
 /**
- * Puts your edited program (or the PDF's, for `null` or a missing day) into PROGRAM, ALL_EXERCISES and DEFAULT_SETS
+ * Puts your edited program (or the base's — the PDF or your generated plan — for `null` or a missing day) into PROGRAM, ALL_EXERCISES and DEFAULT_SETS
  * in place, so every screen reads it. Call applyPlan afterwards for sets overrides and rest. Done by src/lib/settings.ts.
  */
 export function applyProgram(edit: ProgramEdit | null): void {
   for (const d of PROGRAM) {
-    const defs = edit?.[d.weekday] ?? PDF_PROGRAM[d.weekday];
+    const defs = edit?.[d.weekday] ?? BASE_PROGRAM[d.weekday] ?? [];
     d.exercises.splice(0, d.exercises.length, ...defs.map((x) => ({ ...x, restSec: x.tag === 'heavy' ? DEFAULT_REST.heavy : DEFAULT_REST.normal })));
   }
   ALL_EXERCISES.splice(0, ALL_EXERCISES.length, ...PROGRAM.flatMap((d) => d.exercises));
