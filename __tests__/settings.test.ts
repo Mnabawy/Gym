@@ -5,8 +5,10 @@ jest.mock('../src/lib/storage', () => ({
   storage: { getMeta: (k: string) => saved[k] ?? null, setMeta: (k: string, v: string) => (saved[k] = v) },
 }));
 
-import { ALL_EXERCISES, applyPlan, DEFAULT_REST, DEFAULT_SETS, exerciseById, SETS_MAX } from '../src/data/program';
+import { ALL_EXERCISES, applyPlan, DEFAULT_REST, DEFAULT_SETS, exerciseById, PROGRAM, SETS_MAX } from '../src/data/program';
 import { DEFAULT_SETTINGS, parseSettings, useSettings } from '../src/lib/settings';
+import { generate } from '../src/lib/generator';
+import { needsSetup } from '../src/lib/template';
 
 const defaults = { sets: {}, restHeavy: DEFAULT_REST.heavy, restNormal: DEFAULT_REST.normal };
 afterEach(() => useSettings.getState().reset());
@@ -63,6 +65,29 @@ describe('settings store', () => {
     useSettings.getState().reset();
     expect(useSettings.getState().askRir).toBe(true);
     expect(exerciseById('lat-pulldown')!.restSec).toBe(DEFAULT_REST.normal);
+  });
+});
+
+describe('generated plan', () => {
+  test('setTemplate switches the plan and your training days; old days keep their names; null brings the PDF back', () => {
+    useSettings.getState().setSets('deadlift', 4);
+    const t = generate({ goal: 'muscle', level: 'beginner', weekdays: [0, 2, 4] }, 100);
+    useSettings.getState().setTemplate(t);
+    expect(PROGRAM.map((d) => d.weekday)).toEqual([100, 101, 102]);
+    expect(useSettings.getState().reminderDays).toEqual([0, 2, 4]);
+    expect(useSettings.getState().sets).toEqual({}); // deadlift isn't in the new plan
+    expect(JSON.parse(saved.pastDays)).toMatchObject({ 1: 'ظهر', 3: 'رجل وسمانة' });
+    expect(JSON.parse(saved.pastExercises).deadlift).toEqual({ name: 'Deadlift', muscle: 'back' });
+    expect(saved.program).toBe('');
+    useSettings.getState().setTemplate(null);
+    expect(PROGRAM.map((d) => d.weekday)).toEqual([1, 2, 3, 5]);
+    expect(saved.template).toBe('');
+    expect(JSON.parse(saved.pastDays)[100]).toBe('جسم كامل أ');
+  });
+  test('the setup opens by itself only the first time with nothing logged', () => {
+    expect(needsSetup(null, 0)).toBe(true);
+    expect(needsSetup(null, 3)).toBe(false);
+    expect(needsSetup('1', 0)).toBe(false);
   });
 });
 

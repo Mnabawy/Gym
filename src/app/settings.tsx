@@ -5,6 +5,8 @@ import { router } from 'expo-router';
 import { PROGRAM } from '../data/program';
 import { Btn, Card, Label, Pill, Row, Screen, Sep, Stepper, SwitchRow, T } from '../components/ui';
 import { storage } from '../lib/storage';
+import { TEMPLATE_KEY } from '../lib/template';
+import { confirm as confirmDialog } from '../lib/confirm';
 import { deloadOn, useSettings } from '../lib/settings';
 import { movesFor, splitShopping, tripDays, TRIPS_MAX, TRIPS_MIN } from '../lib/shop';
 import { energyFor } from '../lib/energy';
@@ -28,6 +30,7 @@ export default function SettingsScreen() {
   const need = energyFor(st.body);
   // Re-reads the edited program flag (the backup card watches its own keys).
   useData(metaArea('program'));
+  useData(metaArea(TEMPLATE_KEY));
 
   return (
     <Screen title="الإعدادات" sub="التمرين والراحة والمشتريات" onBack={() => router.back()}>
@@ -51,6 +54,21 @@ export default function SettingsScreen() {
           </Row>
         </Card>
       </Pressable>
+      <Card>
+        <Pressable onPress={() => router.push('/setup')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+          <Row label="ابني برنامج جديد" sub="من هدفك ومستواك وأيام تمرينك">
+            <Ionicons name="chevron-back" size={20} color={t.mute} />
+          </Row>
+        </Pressable>
+        {storage.getMeta(TEMPLATE_KEY) ? (
+          <>
+            <Sep />
+            <Row label="ارجع لبرنامج الـ PDF" sub="برنامج الكوتش الأصلي (4 أيام)">
+              <Btn label="ارجع" onPress={async () => { if (await confirmDialog({ title: 'ترجع لبرنامج الـ PDF؟', body: 'البرنامج اللي اتعمل لك هيتشال. كل اللي سجلته بيفضل.', confirmLabel: 'ارجع' })) st.setTemplate(null); }} />
+            </Row>
+          </>
+        ) : null}
+      </Card>
 
       <Label>الراحة</Label>
       <Card>

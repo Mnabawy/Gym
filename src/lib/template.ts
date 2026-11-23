@@ -54,3 +54,9 @@ export function parsePastDays(raw: string | null): Record<number, string> {
 export function nextDayId(past: Record<number, string>, current: readonly number[]): number {
   return Math.max(FIRST_TEMPLATE_DAY, ...Object.keys(past).map(Number).map((n) => n + 1), ...current.map((n) => n + 1));
 }
+
+/** Meta `setupDone`: the setup was finished or skipped once, so it doesn't open by itself again. */
+export const SETUP_KEY = 'setupDone';
+
+/** The setup opens by itself only the first time, on a phone with nothing logged. */
+export const needsSetup = (setupDone: string | null, trainedDays: number) => !setupDone && trainedDays === 0;
