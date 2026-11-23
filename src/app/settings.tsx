@@ -94,6 +94,13 @@ export default function SettingsScreen() {
         </Row>
         <Sep />
         <SwitchRow
+          label="زوّد الأوزان تلقائي"
+          sub="المجموعات تبدأ بهدف المرة دي: تكرار زيادة لحد آخر المدى، وبعدها وزن زيادة. لو قفلته، تبدأ بأرقام آخر مرة"
+          value={st.autoProgress}
+          onChange={(v) => st.setQuiet({ autoProgress: v })}
+        />
+        <Sep />
+        <SwitchRow
           label="اسألني كان فاضل كام تكرار"
           sub="بعد كل مجموعة (RIR). لو كان فاضلك 3 أو أكتر في كل المجموعات، التطبيق يقولك تزوّد الوزن حتى لو ما وصلتش لآخر التكرارات"
           value={st.askRir}

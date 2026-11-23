@@ -24,6 +24,11 @@ describe('parseSettings', () => {
     expect(s.shopTrips).toBe(2);
     expect(s.sets).toEqual({ deadlift: 4 });
   });
+  test('auto progression: on by default, off is kept, a wrong type falls back to on', () => {
+    expect(parseSettings(null).autoProgress).toBe(true);
+    expect(parseSettings(JSON.stringify({ autoProgress: false })).autoProgress).toBe(false);
+    expect(parseSettings(JSON.stringify({ autoProgress: 'no' })).autoProgress).toBe(true);
+  });
   test('keeps valid trip moves only', () => {
     const s = parseSettings(JSON.stringify({ shopMoves: { '3:بيض': 1, '3:لبن': -1, '3:عيش': 'x' } }));
     expect(s.shopMoves).toEqual({ '3:بيض': 1 });

@@ -58,6 +58,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   const weightStep = useSettings((s) => s.weightStep);
   const barKg = useSettings((s) => s.barKg);
   const askRir = useSettings((s) => s.askRir);
+  const autoProgress = useSettings((s) => s.autoProgress);
   const deloadUntil = useSettings((s) => s.deloadUntil);
   // Set just ticked: asks how many reps were left (RIR) until you answer or tick the next one.
   const [rirAt, setRirAt] = useState<number | null>(null);
@@ -77,8 +78,8 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
   // The last two sessions (same variant), newest first: last time's numbers, and what auto progression builds on.
   const [recent] = useState<SetEntry[][]>(() => recentFor(hist, date, ex.id, swaps, alt, 2));
   const last: SetEntry[] | undefined = recent[0];
-  // Auto progression (progression.ts): this session's target per set. Unticked sets start from it.
-  const plan = progressFor(ex, recent, weightStep, deloadOn({ deloadUntil }));
+  // Auto progression (progression.ts): this session's target per set. Unticked sets start from it. Off in settings: last time's numbers.
+  const plan = autoProgress ? progressFor(ex, recent, weightStep, deloadOn({ deloadUntil })) : null;
   const target = plan?.sets ?? last;
   // Best estimated 1RM before today (same variant), for the "new record" badge on the summary line.
   const [prevBest] = useState(() => prevBestFor(hist, date, ex.id, swaps, alt));

@@ -46,6 +46,8 @@ export type Settings = {
   deloadUntil: string;
   /** Ask how many reps were left after ticking a set (RIR). */
   askRir: boolean;
+  /** Auto progression (progression.ts): sets start from this session's target and the card shows why. Off: last time's numbers, no chip. */
+  autoProgress: boolean;
   /** Weekly automatic backup file (src/lib/autoBackup.ts). */
   autoBackup: boolean;
   /** Folder you picked for the automatic backups (Android content URI); empty = inside the app only. */
@@ -69,6 +71,7 @@ export const DEFAULT_SETTINGS: Settings = {
   reminderTime: 19 * 60,
   reminderDays: [...PLAN_WEEKDAYS],
   askRir: true,
+  autoProgress: true,
   brief: false,
   briefTime: 6 * 60,
   deloadUntil: '',
@@ -134,7 +137,7 @@ type Store = Settings & {
   /** Save body data (doesn't touch the plan, so typing doesn't re-render the workout). */
   setBody: (p: Partial<Body>) => void;
   /** Save settings that don't touch the plan. */
-  setQuiet: (p: Partial<Pick<Settings, 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime'>>) => void;
+  setQuiet: (p: Partial<Pick<Settings, 'shopMoves' | 'barKg' | 'reminder' | 'reminderTime' | 'reminderDays' | 'askRir' | 'autoProgress' | 'autoBackup' | 'backupDir' | 'brief' | 'briefTime'>>) => void;
   /** Save your own program (null = back to the PDF's) and apply it everywhere. */
   setProgram: (edit: ProgramEdit | null) => void;
   reset: () => void;
