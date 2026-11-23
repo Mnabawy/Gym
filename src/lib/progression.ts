@@ -96,3 +96,20 @@ export function progressWhy(p: Progress, ex: Exercise, step: number): { title: s
         : { title: 'نفس الأرقام', body: `وصلت آخر المدى. كرّر نفس الأرقام.` };
   }
 }
+
+/**
+ * First time on an exercise (no history as this variant): how to pick the starting weight. Picking a weight you could
+ * lift for a few more reps than the top of the range (RIR 2–3) is the usual way to start (Helms et al. 2016); auto
+ * progression takes it from there.
+ */
+export function firstTimeHint(ex: Exercise): string {
+  return `أول مرة: اختار وزن تعمل بيه ${ex.repHigh} تكرار وانت لسه قادر تعمل 2–3 كمان. لو تقيل نزّل، لو سهل زوّد. التطبيق هيظبط الأوزان بعد كده.`;
+}
+
+/** The first workout ever: what to do, in order. */
+export const FIRST_WORKOUT_TIPS: readonly string[] = [
+  'اتحمّى 5 دقايق مشي أو عجلة، وابدأ كل تمرين بمجموعة خفيفة.',
+  'ابدأ بأوزان خفيفة النهارده: الهدف تتعلم الحركة صح. دوس «فيديو» على أي تمرين تشوف الطريقة.',
+  'اكتب الوزن والتكرارات ودوس ✓ بعد كل مجموعة، وقول كان فاضلك كام تكرار.',
+  'المرة الجاية التطبيق هيقولك تشيل كام بالظبط.',
+];

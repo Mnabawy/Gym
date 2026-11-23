@@ -9,7 +9,7 @@ import { dayKey, NOTES_KEY, recentFor, SWAPS_KEY } from '../lib/journal';
 import { readStrings, writeEntry } from '../lib/meta';
 import { barFor } from '../lib/plates';
 import { parseNum, type SetEntry } from '../lib/logic';
-import { progressChip, progressFor, progressWhy } from '../lib/progression';
+import { firstTimeHint, progressChip, progressFor, progressWhy } from '../lib/progression';
 import { bestBySet, doneLine, doneSets, isRecord, iso, lineAt, missingOf, prevBestFor, setHint, stepValue, suggest, tickedRow, toRow, type Draft, type Row } from '../lib/setRows';
 import { storage } from '../lib/storage';
 import { deloadOn, useSettings } from '../lib/settings';
@@ -337,6 +337,7 @@ export function ExerciseRow({ ex, index, date, weekday, open, onOpen, first, liv
                 </T>
               </View>
               {alt ? <T style={{ fontSize: 11, color: t.warn, marginTop: 3 }} numberOfLines={1}>{`بدل ${iso(ex.name)} النهارده`}</T> : null}
+              {!last && doneCount === 0 ? <T style={{ fontSize: 11.5, color: t.mute, marginTop: 3 }}>{firstTimeHint(ex)}</T> : null}
               {note ? (
                 <Pressable onPress={() => { setNoteDraft(note); setSheet('note'); }} accessibilityRole="button" accessibilityLabel={`ملاحظة: ${note}، دوس تعدّلها`} style={[s.noteLine, { backgroundColor: t.soft }]}>
                   <Ionicons name="document-text-outline" size={12} color={t.mute} />

@@ -2,7 +2,7 @@
 import type { Exercise } from '../src/data/program';
 import { recentFor, dayKey } from '../src/lib/journal';
 import type { SetEntry } from '../src/lib/logic';
-import { progressChip, progressFor, progressWhy, toStep } from '../src/lib/progression';
+import { firstTimeHint, progressChip, progressFor, progressWhy, toStep } from '../src/lib/progression';
 
 const ex: Exercise = { id: 'bench', name: 'Bench Press', muscle: 'chest', sets: 3, repLow: 6, repHigh: 10, tag: null, restSec: 90 } as Exercise;
 const s = (kg: number | null, reps: number | null, rir?: number): SetEntry => ({ kg, reps, done: true, ...(rir != null ? { rir } : {}) });
@@ -89,4 +89,8 @@ test('recentFor: newest first, same variant, strictly before the date', () => {
   const swaps = { [dayKey('2026-10-08', 'deadlift')]: 'Trap Bar Deadlift' };
   expect(recentFor(hist, '2026-10-12', 'deadlift', swaps, null, 2)).toEqual([[s(105, 5)], [s(100, 5)]]);
   expect(recentFor(hist, '2026-10-20', 'deadlift', swaps, 'Trap Bar Deadlift', 2)).toEqual([[s(120, 5)]]);
+});
+
+test('first time on an exercise: start where you could do 2–3 more than the top of the range', () => {
+  expect(firstTimeHint(ex)).toContain('10 تكرار');
 });

@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Item } from '../../../components/Motion';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { FIRST_WORKOUT_TIPS } from '../../../lib/progression';
 import { dayFor, dayTitle, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../../data/program';
 import { ExerciseRow } from '../../../components/ExerciseRow';
 import { WorkoutChips } from '../../../components/WorkoutChips';
@@ -159,6 +160,18 @@ function WorkoutScreen() {
         onClose={() => setPopup(null)}
       />
       {finished ? <DoneCard date={date} weekday={sel} next={live ? dayFor(after(cur.id))?.titleAr ?? '' : null} v={v} /> : null}
+      {/* First workout ever: stays all of that day, so it doesn't vanish on the first tick. */}
+      {live && !trained.some((d) => d.date < today) ? (
+        <Card style={{ paddingVertical: 10, paddingHorizontal: 12, gap: 6 }}>
+          <T w="bold" style={{ fontSize: 15 }}>أول تمرين ليك 💪</T>
+          {FIRST_WORKOUT_TIPS.map((tip, i) => (
+            <View key={i} style={{ flexDirection: 'row', gap: 6 }}>
+              <T w="numBold" style={{ fontSize: 13, color: t.okText }}>{i + 1}</T>
+              <T style={{ flex: 1, fontSize: 13 }}>{tip}</T>
+            </View>
+          ))}
+        </Card>
+      ) : null}
       {lightOn || lightDue ? <LightWeek today={today} /> : null}
       {sel !== cur.id ? (
         <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
