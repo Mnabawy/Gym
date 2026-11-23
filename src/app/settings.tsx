@@ -54,6 +54,14 @@ export default function SettingsScreen() {
         </Pressable>
       ) : null}
 
+      <Pressable onPress={() => router.push('/premium')} accessibilityRole="button" style={({ pressed }) => ({ opacity: pressed ? 0.85 : 1 })}>
+        <Card>
+          <Row label="GymApp Pro" sub="كوتش يتابعك، نسخة أونلاين، وكشف الثبات">
+            <Ionicons name="chevron-back" size={20} color={t.mute} />
+          </Row>
+        </Card>
+      </Pressable>
+
       <Label>نسخة احتياطية</Label>
       <BackupCard />
 
