@@ -1,0 +1,71 @@
+import React, { useEffect, useRef, useState } from 'react';
+import { Pressable, StyleSheet, View } from 'react-native';
+import Reanimated, { FadeInDown } from 'react-native-reanimated';
+
+import { buzz, useTimer } from '../lib/timer';
+import { formatClock } from '../lib/logic';
+import { Ring, T } from './ui';
+import { glow, useTheme } from '../theme';
+
+/** The bar is always dark, so it uses the dark theme's app color (white), whatever the phone's theme. */
+const ON_BAR = '#F2F2F7';
+const ENTER = FadeInDown.duration(260);
+
+export function TimerBar() {
+  const t = useTheme();
+  const { endAt, total, label, add, stop } = useTimer();
+  const [now, setNow] = useState(() => Date.now());
+  const fired = useRef<number | null>(null);
+  // Slides up when a rest starts. A mount animation (Reanimated `entering`), not an RN Animated opacity kept across
+  // rests: that native value could stay at 0 after the bar unmounted mid-animation, so a later rest ran but stayed invisible.
+
+  useEffect(() => {
+    if (!endAt) return;
+    const id = setInterval(() => setNow(Date.now()), 250);
+    return () => clearInterval(id);
+  }, [endAt]);
+
+  useEffect(() => {
+    if (endAt && now >= endAt && fired.current !== endAt) {
+      fired.current = endAt;
+      buzz();
+    }
+  }, [now, endAt]);
+
+  if (!endAt) return null;
+  const left = endAt - now;
+  const over = left <= 0;
+  return (
+    <Reanimated.View
+      entering={ENTER}
+      style={[
+        s.bar,
+        // Always a dark bar with white text (like iOS's floating player): `ink` is near-black in light mode, but it turns
+        // light in dark mode, which hid the white clock and text there; dark mode uses the raised dark grey instead.
+        { backgroundColor: t.fg === '#FFFFFF' ? '#2C2C2E' : '#1C1C1E', boxShadow: '0px 6px 20px rgba(0, 0, 0, 0.25)' },
+      ]}
+      accessibilityLiveRegion="polite">
+      <Ring animated={false} value={over ? 1 : left / (total * 1000)} size={48} stroke={4} color={ON_BAR} track="rgba(255,255,255,0.14)">
+        <T w="numBold" style={{ color: '#FFFFFF', fontSize: 12.5 }}>{formatClock(left)}</T>
+      </Ring>
+      <View style={{ flex: 1, minWidth: 0 }}>
+        <T w="bold" style={{ color: '#FFFFFF', fontSize: 15 }}>{over ? 'يلا المجموعة الجاية' : 'راحة'}</T>
+        <T w="num" style={{ color: '#FFFFFF', opacity: 0.75, fontSize: 12.5 }} numberOfLines={1}>{label}</T>
+      </View>
+      <Pressable onPress={() => add(-30)} style={s.btn} accessibilityRole="button" accessibilityLabel="قلّل الراحة 30 ثانية">
+        <T w="semi" style={{ color: '#FFFFFF' }}>−30 ث</T>
+      </Pressable>
+      <Pressable onPress={() => add(30)} style={s.btn} accessibilityRole="button" accessibilityLabel="زوّد الراحة 30 ثانية">
+        <T w="semi" style={{ color: '#FFFFFF' }}>+30 ث</T>
+      </Pressable>
+      <Pressable onPress={stop} style={[s.btn, { backgroundColor: ON_BAR, borderColor: ON_BAR, boxShadow: glow(t, ON_BAR, 10) }]} accessibilityRole="button">
+        <T w="semi" style={{ color: '#000000' }}>خلاص</T>
+      </Pressable>
+    </Reanimated.View>
+  );
+}
+
+const s = StyleSheet.create({
+  bar: { flexDirection: 'row', alignItems: 'center', gap: 7, marginHorizontal: 12, marginBottom: 8, padding: 8, borderRadius: 12 },
+  btn: { minHeight: 44, paddingHorizontal: 10, borderRadius: 12, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.35)', justifyContent: 'center' },
+});

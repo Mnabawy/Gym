@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=375, initial-scale=1" />
+<title>Card options</title>
+<link href="https://fonts.googleapis.com/css2?family=Readex+Pro:wght@400;500;600;700&family=Inter:wght@500;600;700&display=swap" rel="stylesheet" />
+<script type="module" src="https://unpkg.com/ionicons@7.1.0/dist/ionicons/ionicons.esm.js"></script>
+<style>
+  :root { --bg:#05070c; --card:#0c111c; --soft:#121a2a; --border:#1a2638; --fg:#e9f1ff; --mute:#7d8aa3; --dim:#4a5670;
+    --neon:#22f3e4; --glow:0 0 10px rgba(34,243,228,.55),0 0 22px rgba(34,243,228,.22); --back:#ff7a1a; --backglow:0 0 10px rgba(255,122,26,.55);
+    --sh:#7fd8ff; --pink:#ff3dcb; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #000; }
+  .phone { width: 375px; height: 812px; background: var(--bg); color: var(--fg); font-family: 'Readex Pro', sans-serif; position: relative; overflow: hidden; display: none; }
+  .phone.show { display: block; }
+  .num { font-family: 'Inter', sans-serif; display: inline-block; direction: ltr; }
+  .scroll { padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+  .head { display: flex; align-items: center; justify-content: space-between; height: 40px; }
+  .head h1 { font-size: 18px; font-weight: 700; }
+  .ib { width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center; border: 1px solid rgba(34,243,228,.35); color: var(--neon); font-size: 18px; box-shadow: 0 0 8px rgba(34,243,228,.18); }
+  .icons { display: flex; gap: 8px; }
+  .chips { display: flex; gap: 5px; height: 46px; }
+  .chip { width: 36px; border-radius: 11px; background: var(--card); border: 1px solid var(--border); display: grid; place-items: center; font-family: 'Inter'; font-weight: 600; font-size: 13px; color: var(--mute); }
+  .chip.on { flex: 1; display: flex; align-items: center; justify-content: space-between; padding: 0 12px; border-color: var(--neon); box-shadow: var(--glow); color: var(--fg); font-family: 'Readex Pro'; }
+  .chip.on b { font-size: 13.5px; } .chip.on small { font-size: 11px; color: var(--mute); }
+  .sum { display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--mute); padding: 0 2px; }
+  .sum b { color: var(--fg); font-size: 15px; }
+  .pbar { flex: 1; height: 4px; border-radius: 2px; background: var(--soft); overflow: hidden; } .pbar i { display: block; height: 100%; background: var(--neon); box-shadow: var(--glow); }
+  .tag { font-size: 10.5px; font-weight: 600; border-radius: 999px; padding: 0 7px; line-height: 17px; flex: none; }
+  .tag.h { background: var(--back); color: #120600; box-shadow: var(--backglow); } .tag.f { border: 1px solid var(--pink); color: var(--pink); }
+  .vid { width: 26px; height: 26px; border-radius: 50%; border: 1px solid rgba(34,243,228,.5); color: var(--neon); display: grid; place-items: center; font-size: 12px; flex: none; }
+  .idx { width: 20px; height: 20px; border-radius: 50%; display: grid; place-items: center; font-family: 'Inter'; font-weight: 700; font-size: 11px; flex: none; background: rgba(255,122,26,.16); color: var(--back); }
+  .name { font-family: 'Inter'; font-weight: 600; font-size: 14.5px; direction: ltr; text-align: right; }
+  .meta { font-size: 11px; color: var(--mute); }
+  .cnt { font-family: 'Inter'; font-weight: 700; font-size: 12.5px; direction: ltr; flex: none; }
+  .label { white-space: nowrap; position: absolute; bottom: 72px; left: 50%; transform: translateX(-50%); background: var(--neon); color: #001614; font-weight: 700; font-size: 12px; border-radius: 999px; padding: 2px 10px; box-shadow: var(--glow); z-index: 5; }
+  .tabs { position: absolute; left: 0; right: 0; bottom: 0; height: 62px; background: #080b12; border-top: 1px solid var(--border); display: flex; padding-bottom: 6px; }
+  .tab { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; color: var(--mute); font-size: 11px; }
+  .tab ion-icon { font-size: 20px; } .tab.on { color: var(--neon); }
+
+  /* A: sets as tiles in one row */
+  .a { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 8px 10px; display: flex; flex-direction: column; gap: 6px; }
+  .a.act { border-color: rgba(255,122,26,.5); box-shadow: 0 0 14px rgba(255,122,26,.15); }
+  .a .top { display: flex; align-items: center; gap: 7px; }
+  .a .top .grow { flex: 1; display: flex; align-items: baseline; gap: 6px; min-width: 0; }
+  .tiles { display: flex; gap: 6px; }
+  .tile { flex: 1; height: 46px; border-radius: 10px; background: var(--soft); position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; border: 1px solid transparent; }
+  .tile b { font-family: 'Inter'; font-size: 15px; line-height: 17px; } .tile span { font-family: 'Inter'; font-size: 11px; color: var(--mute); direction: ltr; unicode-bidi: isolate; display: inline-block; }
+  .tile.ph b, .tile.ph span { color: var(--dim); }
+  .tile.done { border-color: rgba(34,243,228,.45); background: rgba(34,243,228,.08); }
+  .tile .ck { position: absolute; top: -5px; left: -5px; width: 18px; height: 18px; border-radius: 50%; display: grid; place-items: center; font-size: 11px; background: var(--neon); color: #001614; box-shadow: var(--glow); }
+  .tile .ck.off { background: var(--card); border: 1px solid var(--dim); color: var(--dim); box-shadow: none; }
+
+  /* B: accordion */
+  .b { background: var(--card); border: 1px solid var(--border); border-radius: 12px; }
+  .b .row { display: flex; align-items: center; gap: 8px; height: 46px; padding: 0 10px; }
+  .b .row .grow { flex: 1; min-width: 0; }
+  .dots { display: flex; gap: 4px; direction: ltr; } .dots i { width: 7px; height: 7px; border-radius: 50%; background: var(--soft); border: 1px solid var(--dim); }
+  .dots i.on { background: var(--neon); border-color: var(--neon); box-shadow: var(--glow); }
+  .b.open { border-color: rgba(255,122,26,.5); box-shadow: 0 0 14px rgba(255,122,26,.15); }
+  .b .sets { padding: 0 10px 8px; display: flex; flex-direction: column; gap: 4px; }
+  .srow { display: grid; grid-template-columns: 14px 1fr 1fr 34px; gap: 5px; align-items: center; }
+  .srow .n { font-family: 'Inter'; font-size: 11px; color: var(--mute); text-align: center; }
+  .in { height: 30px; border-radius: 8px; background: var(--soft); display: grid; place-items: center; font-family: 'Inter'; font-weight: 600; font-size: 14px; direction: ltr; border: 1px solid transparent; }
+  .in.ph { color: var(--dim); font-weight: 500; } .in.done { border-color: rgba(34,243,228,.35); background: rgba(34,243,228,.07); }
+  .ok { height: 30px; border-radius: 8px; display: grid; place-items: center; font-size: 15px; background: var(--soft); color: var(--dim); }
+  .ok.on { background: var(--neon); color: #001614; box-shadow: var(--glow); }
+  .chev { color: var(--mute); font-size: 16px; }
+
+  /* C: one list, dividers */
+  .c { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .c .ex { padding: 7px 10px 6px; border-top: 1px solid var(--border); }
+  .c .ex:first-child { border-top: 0; }
+  .c .ex.act { background: linear-gradient(90deg, rgba(255,122,26,.06), transparent 60%); box-shadow: inset -2px 0 0 var(--back); }
+  .c .top { display: flex; align-items: center; gap: 7px; margin-bottom: 5px; }
+  .c .top .grow { flex: 1; display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .c .top .grow .name { overflow: hidden; text-overflow: ellipsis; }
+  .c .line { display: flex; gap: 5px; }
+  .c .seg { flex: 1; height: 30px; border-radius: 8px; background: var(--soft); display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-family: 'Inter'; font-size: 13px; direction: ltr; border: 1px solid transparent; }
+  .c .seg.done { border-color: rgba(34,243,228,.45); background: rgba(34,243,228,.08); }
+  .c .seg.done i { color: var(--neon); } .c .seg i { font-style: normal; color: var(--dim); }
+  .c .seg.ph { color: var(--dim); }
+
+  /* D: combined — one connected list (3) + only the current exercise open with inputs (2) */
+  .d { background: var(--card); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; }
+  .d .ex { padding: 7px 10px 7px; border-top: 1px solid var(--border); }
+  .d .ex:first-child { border-top: 0; }
+  .d .ex.open { background: linear-gradient(90deg, rgba(255,122,26,.07), transparent 65%); box-shadow: inset -2px 0 0 var(--back); }
+  .d .top { display: flex; align-items: center; gap: 7px; }
+  .d .top .grow { flex: 1; display: flex; align-items: baseline; gap: 6px; min-width: 0; white-space: nowrap; overflow: hidden; }
+  .d .top .grow .name { overflow: hidden; text-overflow: ellipsis; }
+  .d .line { display: flex; gap: 5px; margin-top: 5px; }
+  .d .seg { flex: 1; height: 28px; border-radius: 8px; background: var(--soft); display: flex; align-items: center; justify-content: space-between; padding: 0 8px; font-family: 'Inter'; font-size: 12.5px; direction: ltr; border: 1px solid transparent; color: var(--dim); }
+  .d .seg i { font-style: normal; }
+  .d .seg.done { border-color: rgba(34,243,228,.45); background: rgba(34,243,228,.08); color: var(--fg); } .d .seg.done i { color: var(--neon); }
+  .d .sets { display: flex; flex-direction: column; gap: 4px; margin-top: 6px; }
+  .d .ex.done .top { opacity: .55; }
+</style>
+</head>
+<body>
+<script>
+  const show = (location.hash || '#a').slice(1);
+  addEventListener('DOMContentLoaded', () => document.getElementById(show).classList.add('show'));
+</script>
+
+<!-- shared header -->
+<template id="top">
+  <div class="head"><h1>تمرين النهارده</h1><div class="icons"><div class="ib"><ion-icon name="stats-chart-outline"></ion-icon></div><div class="ib"><ion-icon name="settings-outline"></ion-icon></div></div></div>
+  <div class="chips"><div class="chip on"><b>تمرين 1 · ظهر وكتف</b><small class="num">6 / 17</small></div><div class="chip">2</div><div class="chip">3</div><div class="chip">4</div><div class="chip">5</div></div>
+  <div class="sum"><b>ظهر</b><div class="pbar"><i style="width:35%"></i></div><span class="num">44</span> د</div>
+</template>
+
+<!-- A -->
+<div class="phone" id="a"><div class="label">تصميم 1 · المجموعات بلاطات</div><div class="scroll">
+  <div class="slot"></div>
+  <div class="a act"><div class="top"><div class="idx">1</div><div class="grow"><span class="name">Deadlift</span><span class="meta"><span class="num">3 × 4–6</span></span></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div></div>
+    <div class="tiles"><div class="tile done"><b>100</b><span>× 5</span><div class="ck">✓</div></div><div class="tile done"><b>100</b><span>× 6</span><div class="ck">✓</div></div><div class="tile ph"><b>100</b><span>4–6</span><div class="ck off">✓</div></div></div></div>
+  <div class="a"><div class="top"><div class="idx">2</div><div class="grow"><span class="name">Lat Pulldown</span><span class="meta"><span class="num">3 × 8–12</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div></div>
+    <div class="tiles"><div class="tile ph"><b>55</b><span>8–12</span><div class="ck off">✓</div></div><div class="tile ph"><b>55</b><span>8–12</span><div class="ck off">✓</div></div><div class="tile ph"><b>55</b><span>8–12</span><div class="ck off">✓</div></div></div></div>
+  <div class="a"><div class="top"><div class="idx">3</div><div class="grow"><span class="name">Barbell Row</span><span class="meta"><span class="num">3 × 6–10</span></span></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div></div>
+    <div class="tiles"><div class="tile ph"><b>70</b><span>6–10</span><div class="ck off">✓</div></div><div class="tile ph"><b>70</b><span>6–10</span><div class="ck off">✓</div></div><div class="tile ph"><b>70</b><span>6–10</span><div class="ck off">✓</div></div></div></div>
+  <div class="a"><div class="top"><div class="idx">4</div><div class="grow"><span class="name">Chest-Supported Row</span><span class="meta"><span class="num">3 × 10–12</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div></div>
+    <div class="tiles"><div class="tile ph"><b>24</b><span>10–12</span><div class="ck off">✓</div></div><div class="tile ph"><b>24</b><span>10–12</span><div class="ck off">✓</div></div><div class="tile ph"><b>24</b><span>10–12</span><div class="ck off">✓</div></div></div></div>
+  <div class="a"><div class="top"><div class="idx">5</div><div class="grow"><span class="name">Straight-Arm Pulldown</span><span class="meta"><span class="num">2 × 12–15</span></span></div><div class="vid"><ion-icon name="play"></ion-icon></div></div>
+    <div class="tiles"><div class="tile ph"><b>30</b><span>12–15</span><div class="ck off">✓</div></div><div class="tile ph"><b>30</b><span>12–15</span><div class="ck off">✓</div></div><div style="flex:1"></div></div></div>
+</div><div class="tabs"><div class="tab on"><ion-icon name="barbell"></ion-icon>التمرين</div><div class="tab"><ion-icon name="restaurant-outline"></ion-icon>الأكل</div><div class="tab"><ion-icon name="cart-outline"></ion-icon>المشتريات</div><div class="tab"><ion-icon name="moon-outline"></ion-icon>الصلاة</div></div></div>
+
+<!-- B -->
+<div class="phone" id="b"><div class="label">تصميم 2 · التمرين الحالي مفتوح والباقي مقفول</div><div class="scroll">
+  <div class="slot"></div>
+  <div class="b open"><div class="row"><div class="idx">1</div><div class="grow"><div class="name">Deadlift</div><div class="meta"><span class="num">3 × 4–6</span></div></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt">2 / 3</div></div>
+    <div class="sets">
+      <div class="srow"><div class="n">1</div><div class="in done">100</div><div class="in done">5</div><div class="ok on">✓</div></div>
+      <div class="srow"><div class="n">2</div><div class="in done">100</div><div class="in done">6</div><div class="ok on">✓</div></div>
+      <div class="srow"><div class="n">3</div><div class="in ph">100</div><div class="in ph">4–6</div><div class="ok">✓</div></div>
+    </div></div>
+  <div class="b"><div class="row"><div class="idx">2</div><div class="grow"><div class="name">Lat Pulldown</div><div class="meta"><span class="num">3 × 8–12</span></div></div><span class="tag f">فشل</span><div class="dots"><i></i><i></i><i></i></div><ion-icon class="chev" name="chevron-down"></ion-icon></div></div>
+  <div class="b"><div class="row"><div class="idx">3</div><div class="grow"><div class="name">Barbell Row</div><div class="meta"><span class="num">3 × 6–10</span></div></div><span class="tag h">تقيل</span><div class="dots"><i></i><i></i><i></i></div><ion-icon class="chev" name="chevron-down"></ion-icon></div></div>
+  <div class="b"><div class="row"><div class="idx">4</div><div class="grow"><div class="name">Chest-Supported Row</div><div class="meta"><span class="num">3 × 10–12</span></div></div><span class="tag f">فشل</span><div class="dots"><i></i><i></i><i></i></div><ion-icon class="chev" name="chevron-down"></ion-icon></div></div>
+  <div class="b"><div class="row"><div class="idx">5</div><div class="grow"><div class="name">Straight-Arm Pulldown</div><div class="meta"><span class="num">2 × 12–15</span></div></div><div class="dots"><i></i><i></i></div><ion-icon class="chev" name="chevron-down"></ion-icon></div></div>
+  <div class="b"><div class="row"><div class="idx" style="background:rgba(127,216,255,.16);color:var(--sh)">6</div><div class="grow"><div class="name">DB Lateral Raise</div><div class="meta"><span class="num">3 × 12–15</span></div></div><span class="tag f">فشل</span><div class="dots"><i></i><i></i><i></i></div><ion-icon class="chev" name="chevron-down"></ion-icon></div></div>
+</div><div class="tabs"><div class="tab on"><ion-icon name="barbell"></ion-icon>التمرين</div><div class="tab"><ion-icon name="restaurant-outline"></ion-icon>الأكل</div><div class="tab"><ion-icon name="cart-outline"></ion-icon>المشتريات</div><div class="tab"><ion-icon name="moon-outline"></ion-icon>الصلاة</div></div></div>
+
+<!-- C -->
+<div class="phone" id="c"><div class="label">تصميم 3 · قايمة واحدة متصلة</div><div class="scroll">
+  <div class="slot"></div>
+  <div class="c">
+    <div class="ex act"><div class="top"><div class="idx">1</div><div class="grow"><span class="name">Deadlift</span><span class="meta"><span class="num">3 × 4–6</span></span></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt">2 / 3</div></div>
+      <div class="line"><div class="seg done"><span>100 × 5</span><i>✓</i></div><div class="seg done"><span>100 × 6</span><i>✓</i></div><div class="seg ph"><span>100 × 4–6</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">2</div><div class="grow"><span class="name">Lat Pulldown</span><span class="meta"><span class="num">3 × 8–12</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg ph"><span>55 × 8–12</span><i>○</i></div><div class="seg ph"><span>55 × 8–12</span><i>○</i></div><div class="seg ph"><span>55 × 8–12</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">3</div><div class="grow"><span class="name">Barbell Row</span><span class="meta"><span class="num">3 × 6–10</span></span></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg ph"><span>70 × 6–10</span><i>○</i></div><div class="seg ph"><span>70 × 6–10</span><i>○</i></div><div class="seg ph"><span>70 × 6–10</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">4</div><div class="grow"><span class="name">Chest-Supported Row</span><span class="meta"><span class="num">3 × 10–12</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg ph"><span>24 × 10–12</span><i>○</i></div><div class="seg ph"><span>24 × 10–12</span><i>○</i></div><div class="seg ph"><span>24 × 10–12</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">5</div><div class="grow"><span class="name">Straight-Arm Pulldown</span><span class="meta"><span class="num">2 × 12–15</span></span></div><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 2</div></div>
+      <div class="line"><div class="seg ph"><span>30 × 12–15</span><i>○</i></div><div class="seg ph"><span>30 × 12–15</span><i>○</i></div><div style="flex:1"></div></div></div>
+    <div class="ex"><div class="top"><div class="idx" style="background:rgba(127,216,255,.16);color:var(--sh)">6</div><div class="grow"><span class="name">DB Lateral Raise</span><span class="meta"><span class="num">3 × 12–15</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg ph"><span>8 × 12–15</span><i>○</i></div><div class="seg ph"><span>8 × 12–15</span><i>○</i></div><div class="seg ph"><span>8 × 12–15</span><i>○</i></div></div></div>
+  </div>
+</div><div class="tabs"><div class="tab on"><ion-icon name="barbell"></ion-icon>التمرين</div><div class="tab"><ion-icon name="restaurant-outline"></ion-icon>الأكل</div><div class="tab"><ion-icon name="cart-outline"></ion-icon>المشتريات</div><div class="tab"><ion-icon name="moon-outline"></ion-icon>الصلاة</div></div></div>
+
+
+<!-- D -->
+<div class="phone" id="d"><div class="label">2 + 3 · قايمة متصلة والتمرين الحالي مفتوح</div><div class="scroll">
+  <div class="slot"></div>
+  <div class="d">
+    <div class="ex open"><div class="top"><div class="idx">1</div><div class="grow"><span class="name">Deadlift</span><span class="meta"><span class="num">3 × 4–6</span></span></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt">2 / 3</div></div>
+      <div class="sets">
+        <div class="srow"><div class="n">1</div><div class="in done">100</div><div class="in done">5</div><div class="ok on">✓</div></div>
+        <div class="srow"><div class="n">2</div><div class="in done">100</div><div class="in done">6</div><div class="ok on">✓</div></div>
+        <div class="srow"><div class="n">3</div><div class="in ph">100</div><div class="in ph">4–6</div><div class="ok">✓</div></div>
+      </div></div>
+    <div class="ex"><div class="top"><div class="idx">2</div><div class="grow"><span class="name">Lat Pulldown</span><span class="meta"><span class="num">3 × 8–12</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg"><span>55 × 8–12</span><i>○</i></div><div class="seg"><span>55 × 8–12</span><i>○</i></div><div class="seg"><span>55 × 8–12</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">3</div><div class="grow"><span class="name">Barbell Row</span><span class="meta"><span class="num">3 × 6–10</span></span></div><span class="tag h">تقيل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg"><span>70 × 6–10</span><i>○</i></div><div class="seg"><span>70 × 6–10</span><i>○</i></div><div class="seg"><span>70 × 6–10</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">4</div><div class="grow"><span class="name">Chest-Supported Row</span><span class="meta"><span class="num">3 × 10–12</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg"><span>24 × 10–12</span><i>○</i></div><div class="seg"><span>24 × 10–12</span><i>○</i></div><div class="seg"><span>24 × 10–12</span><i>○</i></div></div></div>
+    <div class="ex"><div class="top"><div class="idx">5</div><div class="grow"><span class="name">Straight-Arm Pulldown</span><span class="meta"><span class="num">2 × 12–15</span></span></div><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 2</div></div>
+      <div class="line"><div class="seg"><span>30 × 12–15</span><i>○</i></div><div class="seg"><span>30 × 12–15</span><i>○</i></div><div style="flex:1"></div></div></div>
+    <div class="ex"><div class="top"><div class="idx" style="background:rgba(127,216,255,.16);color:var(--sh)">6</div><div class="grow"><span class="name">DB Lateral Raise</span><span class="meta"><span class="num">3 × 12–15</span></span></div><span class="tag f">فشل</span><div class="vid"><ion-icon name="play"></ion-icon></div><div class="cnt" style="color:var(--mute)">0 / 3</div></div>
+      <div class="line"><div class="seg"><span>8 × 12–15</span><i>○</i></div><div class="seg"><span>8 × 12–15</span><i>○</i></div><div class="seg"><span>8 × 12–15</span><i>○</i></div></div></div>
+  </div>
+</div><div class="tabs"><div class="tab on"><ion-icon name="barbell"></ion-icon>التمرين</div><div class="tab"><ion-icon name="restaurant-outline"></ion-icon>الأكل</div><div class="tab"><ion-icon name="cart-outline"></ion-icon>المشتريات</div><div class="tab"><ion-icon name="moon-outline"></ion-icon>الصلاة</div></div></div>
+
+<script>
+  const tpl = document.getElementById('top').innerHTML;
+  document.querySelectorAll('.slot').forEach((s) => (s.outerHTML = tpl));
+</script>
+</body>
+</html>

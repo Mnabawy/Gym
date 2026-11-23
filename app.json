@@ -1,0 +1,66 @@
+{
+  "expo": {
+    "name": "GymApp",
+    "slug": "gymapp",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.mnabawy.gymapp"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#2A2366",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "package": "com.mnabawy.gymapp"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-sqlite",
+      "expo-font",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#F3F6F9",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 120,
+          "dark": {
+            "backgroundColor": "#0E1318",
+            "image": "./assets/splash-icon.png"
+          }
+        }
+      ],
+      [
+        "expo-localization",
+        {
+          "supportsRTL": true,
+          "forcesRTL": true
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0E8A5F"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "التطبيق بيستخدم الصور عشان تحفظ صور التقدم.",
+          "cameraPermission": "التطبيق بيستخدم الكاميرا عشان تصوّر صور التقدم.",
+          "microphonePermission": false
+        }
+      ]
+    ],
+    "scheme": "gymapp",
+    "experiments": {
+      "typedRoutes": false
+    }
+  }
+}

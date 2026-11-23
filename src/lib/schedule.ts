@@ -1,0 +1,94 @@
+// Workout order: one continuous sequence through PROGRAM (ظهر → صدر وبايسبس → خلفية → كتف وترايسبس → أمامية → ظهر …).
+// The next workout is the one after your last session, whatever the date: missed days and rest days don't move the order.
+// A program day's id is still the weekday it was written for (`Day.weekday`), so logged data keeps its meaning.
+// Pure — unit tested in __tests__/schedule.test.ts.
+import { PLAN_WEEKDAYS, PROGRAM } from '../data/program';
+import { addDays, weekdayOf, weekStart } from './dates';
+import type { TrainedDay } from './storage.types';
+
+/** Position of a program day in the sequence, -1 if unknown. */
+export const seqIndex = (id: number) => PROGRAM.findIndex((d) => d.weekday === id);
+/** Program day at sequence position i (wraps both ways). */
+export const seqAt = (i: number) => PROGRAM[((i % PROGRAM.length) + PROGRAM.length) % PROGRAM.length].weekday;
+/** The workout that follows `id`. */
+export const after = (id: number) => seqAt(seqIndex(id) + 1);
+
+/** Of the program days logged on one date, the one the session ended on (two in a row → the second). */
+export function lastOf(ids: readonly number[]): number {
+  const known = ids.filter((id) => seqIndex(id) >= 0);
+  return known.find((id) => !known.includes(after(id))) ?? known[known.length - 1];
+}
+
+export type Current = {
+  /** Program day to show. */
+  id: number;
+  /** You already logged it on this date (so it stays until the day ends). */
+  started: boolean;
+  /** Last session before this date. */
+  last?: { date: string; id: number };
+};
+
+/**
+ * The workout for `date`: the one you logged that date if any, else the one after your last earlier session,
+ * else the first workout. For today that's "what's next"; for a past date you skipped, it's what was due (and still was the day after).
+ */
+export function currentWorkout(trained: readonly TrainedDay[], date: string): Current {
+  let last: Current['last'];
+  let onDate: number | undefined;
+  for (const d of trained) {
+    if (!d.weekdays.some((w) => seqIndex(w) >= 0)) continue;
+    if (d.date === date) onDate = lastOf(d.weekdays);
+    else if (d.date < date && (!last || d.date > last.date)) last = { date: d.date, id: lastOf(d.weekdays) };
+  }
+  if (onDate != null) return { id: onDate, started: true, last };
+  return { id: last ? after(last.id) : PROGRAM[0].weekday, started: false, last };
+}
+
+/**
+ * Workout projected for a future date, if you train every plan day (or each of `days`) from today on.
+ * Today takes the current workout when it's a plan day or you've already trained; each later plan day takes the next one.
+ */
+export function projected(date: string, today: string, cur: Current, days: readonly number[] = PLAN_WEEKDAYS): number {
+  const plan = (d: string) => days.includes(weekdayOf(d));
+  let steps = 0;
+  for (let d = addDays(today, 1); d <= date; d = addDays(d, 1)) if (plan(d)) steps++;
+  return seqAt(seqIndex(cur.id) + steps - (cur.started || plan(today) ? 0 : 1));
+}
+
+/**
+ * Food tab: is `date` a training day? Rest days aren't fixed weekdays. A day you logged a workout is a training day and
+ * a past day without one was rest; today (until you log) and later days count as training unless you marked today as rest.
+ */
+export function isTrainingDay(date: string, today: string, trained: ReadonlySet<string>, restDay: string | null): boolean {
+  if (trained.has(date)) return true;
+  if (date < today) return false;
+  return !(date === today && restDay === today);
+}
+
+/** Date of weekday `wd` in the Saturday–Friday week that holds `today` (the food tab's day chips). */
+export const dateInWeek = (wd: number, today: string) => addDays(weekStart(today), (wd + 1) % 7);
+
+/**
+ * Workout reminder times: the next `count` days (within two weeks) whose weekday is in `days`, at `minutes` after
+ * midnight. Today is skipped once its time has passed or you've already trained.
+ */
+export function reminderTimes(now: Date, minutes: number, days: readonly number[], trainedToday: boolean, count = 7): Date[] {
+  const out: Date[] = [];
+  for (let i = 0; i < 14 && out.length < count; i++) {
+    const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + i, Math.floor(minutes / 60), minutes % 60);
+    if (!days.includes(d.getDay())) continue;
+    if (i === 0 && (trainedToday || d <= now)) continue;
+    out.push(d);
+  }
+  return out;
+}
+
+/**
+ * Is `date` a training day by the plan? A day picked as rest (meta `restDay`) never is; a day picked as training
+ * (meta `trainDay`, «يوم تمرين» on يومي's gym card) always is; otherwise your training weekdays decide.
+ */
+export function plannedTraining(date: string, days: readonly number[], restDay: string | null, trainDay: string | null): boolean {
+  if (restDay === date) return false;
+  if (trainDay === date) return true;
+  return days.includes(weekdayOf(date));
+}

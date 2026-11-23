@@ -1,0 +1,115 @@
+// Pure logic — unit tested in __tests__/logic.test.ts
+import type { Exercise } from '../data/program';
+import { FOODS } from '../data/nutrition';
+import { dateKey, weekdayOf } from './dates';
+
+/** `rir`: reps you had left in the tank (0 = failure), if you said. `at`: when it was ticked (ms), for session length. */
+export type SetEntry = { kg: number | null; reps: number | null; done: boolean; rir?: number | null; at?: number | null };
+
+/**
+ * done: trained that day (any day, rest days too).
+ * missed: a past training day with nothing done, on or after the first ever session.
+ * upcoming: a training day from today on (today isn't missed until it's over).
+ * off: rest day, or before tracking started.
+ */
+export type DayStatus = 'done' | 'missed' | 'upcoming' | 'off';
+export function dayStatus(key: string, trained: ReadonlySet<string>, plan: readonly number[], today: string, since: string | undefined): DayStatus {
+  if (trained.has(key)) return 'done';
+  if (!plan.includes(weekdayOf(key))) return 'off';
+  if (key >= today) return 'upcoming';
+  return since && key >= since ? 'missed' : 'off';
+}
+
+/** Attendance for one month's cells. rate = done / (done + missed), null when there's nothing to judge yet. */
+export function monthStats(cells: (string | null)[], trained: ReadonlySet<string>, plan: readonly number[], today: string, since: string | undefined) {
+  let done = 0, missed = 0, left = 0;
+  for (const k of cells) {
+    if (!k) continue;
+    const st = dayStatus(k, trained, plan, today, since);
+    if (st === 'done') done++;
+    else if (st === 'missed') missed++;
+    else if (st === 'upcoming') left++;
+  }
+  return { done, missed, left, rate: done + missed ? done / (done + missed) : null };
+}
+
+/** Friday that starts the shopping week containing d (shopping resets every Friday). */
+export function shopWeekKey(d: Date = new Date()): string {
+  const x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
+  const back = (x.getDay() - 5 + 7) % 7; // days since last Friday
+  x.setDate(x.getDate() - back);
+  return dateKey(x);
+}
+
+/** RIR at or above this on every set (while in the rep range) means the weight is too light. */
+export const EASY_RIR = 3;
+
+/**
+ * Why to add weight this time, from the last session: 'top' = every set hit the top of the rep range; 'easy' = every
+ * set was in the range with EASY_RIR+ reps left (RIR-based progression: Helms et al. 2016, Zourdos et al. 2016). Else null.
+ */
+export function increaseTip(ex: Exercise, last: SetEntry[] | undefined): 'top' | 'easy' | null {
+  if (!last || last.length < ex.sets) return null;
+  const sets = last.slice(0, ex.sets);
+  if (!sets.every((s) => (s.kg ?? 0) > 0)) return null;
+  if (sets.every((s) => (s.reps ?? 0) >= ex.repHigh)) return 'top';
+  if (sets.every((s) => s.rir != null && s.rir >= EASY_RIR && (s.reps ?? 0) >= ex.repLow)) return 'easy';
+  return null;
+}
+
+/** Suggest adding weight (see increaseTip). */
+export const shouldIncrease = (ex: Exercise, last: SetEntry[] | undefined): boolean => increaseTip(ex, last) != null;
+
+/** Epley estimated 1RM. */
+export function epley(kg: number, reps: number): number {
+  if (kg <= 0 || reps <= 0) return 0;
+  if (reps === 1) return kg;
+  return Math.round(kg * (1 + reps / 30) * 10) / 10;
+}
+
+export function bestE1rm(sets: SetEntry[]): number {
+  return sets.reduce((m, s) => Math.max(m, epley(s.kg ?? 0, s.reps ?? 0)), 0);
+}
+
+/** Parse a user-typed number ("82,5" → 82.5; Arabic keyboards: "٨٢٫٥" → 82.5). Empty or invalid → null. */
+export function parseNum(v: string): number | null {
+  const t = v
+    .replace(/[٠-٩]/g, (d) => String(d.charCodeAt(0) - 0x660))
+    .replace(/[۰-۹]/g, (d) => String(d.charCodeAt(0) - 0x6f0))
+    .replace(/[,٫]/, '.')
+    .trim();
+  if (t === '') return null;
+  const n = Number(t);
+  return Number.isFinite(n) && n >= 0 ? n : null;
+}
+
+export function mealMacros(items: string[]) {
+  return items.reduce(
+    (a, it) => {
+      const f = FOODS[it];
+      if (!f) return a;
+      return { kcal: a.kcal + f.kcal, p: a.p + f.p, c: a.c + f.c, f: a.f + f.f };
+    },
+    { kcal: 0, p: 0, c: 0, f: 0 },
+  );
+}
+
+export function formatClock(ms: number): string {
+  const over = ms < 0;
+  const s = Math.round(Math.abs(ms) / 1000);
+  return `${over ? '+' : ''}${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+}
+
+/**
+ * Arabic count phrase: 1 → "مرة", 2 → "مرتين", 3–10 → "3 مرات", 11+ → "11 مرة".
+ * forms = [one, two, plural (3–10), singular for 11+].
+ */
+export function countAr(n: number, [one, two, few, many]: readonly [string, string, string, string]): string {
+  if (n === 1) return one;
+  if (n === 2) return two;
+  return n >= 3 && n <= 10 ? `${n} ${few}` : `${n} ${many}`;
+}
+export const TIMES: [string, string, string, string] = ['مرة', 'مرتين', 'مرات', 'مرة'];
+export const SETS: [string, string, string, string] = ['مجموعة', 'مجموعتين', 'مجموعات', 'مجموعة'];
+export const WEEKS: [string, string, string, string] = ['أسبوع', 'أسبوعين', 'أسابيع', 'أسبوع'];
+export const DAYS: [string, string, string, string] = ['يوم', 'يومين', 'أيام', 'يوم'];

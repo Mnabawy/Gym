@@ -1,0 +1,132 @@
+// Small per-day records saved as JSON maps in storage meta: exercise swaps, exercise notes, water, meal swaps.
+// Plus the food history (meals ticked per day). Pure — unit tested in __tests__/journal.test.ts; reading and writing
+// storage is in src/lib/meta.ts.
+import type { SetEntry } from './logic';
+import { addDays } from './dates';
+import type { MealCheck } from './storage.types';
+import { keepExtra, keepUnreadMap } from './records';
+
+export const SWAPS_KEY = 'swaps';
+export const NOTES_KEY = 'notes';
+export const WATER_KEY = 'water';
+export const MEAL_PICKS_KEY = 'mealPicks';
+
+export const CUP_ML = 250;
+/** Water goal when the calorie calculator has no data yet: liters on a rest day. */
+export const DEFAULT_WATER_L = 3;
+export const TRAINING_WATER_L = 0.5;
+
+export function parseMap<V extends string | number>(raw: string | null, kind: 'string' | 'number'): Record<string, V> {
+  const out: Record<string, V> = {};
+  if (!raw) return out;
+  let v: unknown;
+  try {
+    v = JSON.parse(raw);
+  } catch {
+    return out;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [k, x] of Object.entries(v as Record<string, unknown>)) {
+    if (kind === 'string' ? typeof x === 'string' && x : typeof x === 'number' && Number.isFinite(x)) out[k] = x as V;
+  }
+  return out;
+}
+
+/** Key for a per-day entry about one thing (an exercise or a meal). Dates sort first, so old ones are easy to drop. */
+export const dayKey = (date: string, id: string) => `${date}|${id}`;
+
+/** Is `k` (a `date|id` key) a swap of one of `exIds` on `date`? Clearing a day's sets drops its swaps too. */
+export const isDaySwap = (k: string, date: string, exIds: readonly string[]) => exIds.some((id) => k === dayKey(date, id));
+
+/** Every `date|exId` you trained a swapped exercise on: those days don't count for the program exercise's records. */
+export const swappedSet = (swaps: Record<string, string>): Set<string> => new Set(Object.keys(swaps));
+
+/**
+ * The last time you did this exercise *as the same variant*, before `date`: the program exercise (alt = null) skips
+ * swapped days; a swap only looks at days with that same swap. Auto progression (progression.ts) starts from it.
+ */
+export function lastFor(history: readonly { date: string; sets: SetEntry[] }[], date: string, exId: string, swaps: Record<string, string>, alt: string | null): SetEntry[] | undefined {
+  return recentFor(history, date, exId, swaps, alt, 1)[0];
+}
+
+/** The last `n` sessions of this exercise as the same variant (see lastFor), newest first: auto progression reads two. */
+export function recentFor(history: readonly { date: string; sets: SetEntry[] }[], date: string, exId: string, swaps: Record<string, string>, alt: string | null, n: number): SetEntry[][] {
+  const out: SetEntry[][] = [];
+  for (let i = history.length - 1; i >= 0 && out.length < n; i--) {
+    const h = history[i];
+    if (h.date >= date || !h.sets.some((s) => s.kg != null || s.reps != null)) continue;
+    if ((swaps[dayKey(h.date, exId)] ?? null) === alt) out.push(h.sets);
+  }
+  return out;
+}
+
+/** Water goal in ml: from the calculator (35 ml/kg) when it has your data, else 3 L; +0.5 L on a training day. */
+export function waterGoalMl(liters: number | null, training: boolean): number {
+  return Math.round(((liters ?? DEFAULT_WATER_L) + (training ? TRAINING_WATER_L : 0)) * 1000);
+}
+
+/** Days that met their own water goal (a training day needs the extra 0.5 L, a rest day doesn't). */
+export const waterDaysMet = (days: readonly { date: string; water: number }[], goalOn: (date: string) => number) =>
+  days.filter((d) => d.water >= goalOn(d.date)).length;
+
+export type DayFood = { date: string; meals: number; water: number };
+
+/**
+ * Food history for the last `n` days up to today, oldest first: meals ticked and water (ml) per day.
+ * Days before the first thing you ever logged are left out, so a new app doesn't show a wall of zeros.
+ */
+export function foodHistory(checks: readonly MealCheck[], water: Record<string, number>, today: string, n = 14): DayFood[] {
+  const first = [checks[0]?.date, ...Object.keys(water)].filter(Boolean).sort()[0];
+  if (!first) return [];
+  const meals = new Map<string, Set<string>>();
+  for (const c of checks) meals.set(c.date, (meals.get(c.date) ?? new Set()).add(c.meal));
+  const out: DayFood[] = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = addDays(today, -i);
+    if (d < first) continue;
+    out.push({ date: d, meals: meals.get(d)?.size ?? 0, water: water[d] ?? 0 });
+  }
+  return out;
+}
+
+/** Share of meals ticked over the days (today only counts once it has a tick, so the morning doesn't pull it down). */
+export function adherence(days: readonly DayFood[], perDay: number, today: string): number | null {
+  const counted = days.filter((d) => d.date < today || d.meals > 0);
+  if (!counted.length) return null;
+  return counted.reduce((a, d) => a + Math.min(perDay, d.meals), 0) / (counted.length * perDay);
+}
+
+/** Food outside the plan, per date (meta `extras`): what you ate, its calories and protein. */
+export const EXTRAS_KEY = 'extras';
+export const SUPPS_KEY = 'supps';
+export type Extra = { name: string; kcal: number; p: number };
+
+const EXTRA_FIELDS = new Set(['name', 'kcal', 'p']);
+/** An item this build can read. */
+export const okExtra = (x: unknown): x is Extra => {
+  const o = x as Record<string, unknown> | null;
+  return !!o && typeof o === 'object' && typeof o.name === 'string' && typeof o.kcal === 'number' && Number.isFinite(o.kcal) && o.kcal >= 0 && typeof o.p === 'number' && Number.isFinite(o.p) && o.p >= 0;
+};
+/** A day this build can read (a date with at least one item it knows); others are kept as they are on write. */
+const okExtrasDay = (date: string, list: unknown) => /^\d{4}-\d{2}-\d{2}$/.test(date) && Array.isArray(list) && list.some(okExtra);
+/** The JSON to store for `next`: it plus the stored days this build can't read (synced one row per date). */
+export const extrasJson = (raw: string | null, next: Record<string, Extra[]>) => keepUnreadMap(raw, next, okExtrasDay);
+
+export function parseExtras(raw: string | null): Record<string, Extra[]> {
+  const out: Record<string, Extra[]> = {};
+  let v: unknown;
+  try {
+    v = raw ? JSON.parse(raw) : null;
+  } catch {
+    return out;
+  }
+  if (!v || typeof v !== 'object' || Array.isArray(v)) return out;
+  for (const [date, list] of Object.entries(v as Record<string, unknown>)) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || !Array.isArray(list)) continue;
+    const ok = list.filter(okExtra);
+    if (ok.length) out[date] = ok.map((x) => keepExtra<Extra>(x, EXTRA_FIELDS, { name: x.name, kcal: Math.round(x.kcal), p: Math.round(x.p) }));
+  }
+  return out;
+}
+
+export const extrasTotal = (list: readonly Extra[] = []) => list.reduce((a, x) => ({ kcal: a.kcal + x.kcal, p: a.p + x.p }), { kcal: 0, p: 0 });
