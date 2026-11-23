@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View } from 'react-native';
 import { router } from 'expo-router';
-import { ALL_EXERCISES, MUSCLE_AR, PROGRAM, type Muscle } from '../data/program';
+import { ALL_EXERCISES, MUSCLE_AR, PLAN_WEEKDAYS, PROGRAM, type Muscle } from '../data/program';
 import { Card, ColorChip, Label, Pill, Progress, Ring, Screen, T } from '../components/ui';
 import { E1rmChart } from '../components/E1rmChart';
 import { dateKey } from '../lib/dates';
@@ -12,6 +12,10 @@ import { dayKey, SWAPS_KEY } from '../lib/journal';
 import { readStrings } from '../lib/meta';
 import { exerciseInfo, PAST_KEY, parsePast } from '../lib/programEdit';
 import { useTheme } from '../theme';
+import { plateau } from '../lib/plateau';
+import { plateauInput } from '../lib/plateauData';
+import { deloadOn, useSettings } from '../lib/settings';
+import { PlateauCard } from '../components/PlateauCard';
 
 const TARGET = 10;
 
@@ -27,6 +31,7 @@ function weekRange(d = new Date()) {
 export default function ProgressScreen() {
   const t = useTheme();
   const [sel, setSel] = useState(PROGRAM[0].exercises[0].id);
+  const deloadUntil = useSettings((x) => x.deloadUntil);
   const { from, to } = weekRange();
 
   useDataVersion((s) => s.v); // re-render after new logs
@@ -48,6 +53,7 @@ export default function ProgressScreen() {
 
 
 
+  const stuck = plateau(plateauInput(deloadOn({ deloadUntil })));
   const hist = storage.history(sel).filter((h) => h.sets.some((s) => s.kg && s.reps));
   // Days you swapped this exercise for another one stay in the list (marked) but out of the chart.
   const swaps = readStrings(SWAPS_KEY);
@@ -55,11 +61,12 @@ export default function ProgressScreen() {
 
   return (
     <Screen title="التقدم" sub="الأسبوع بيبدأ السبت" onBack={() => router.back()}>
+      {stuck ? <PlateauCard p={stuck} /> : null}
 
       <Card style={{ padding: 14, gap: 10 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          <Ring value={week.sessions / 5} size={64} stroke={5}>
-            <T w="numBold" style={{ fontSize: 15, color: t.okText }}>{`${week.sessions}/5`}</T>
+          <Ring value={week.sessions / PLAN_WEEKDAYS.length} size={64} stroke={5}>
+            <T w="numBold" style={{ fontSize: 15, color: t.okText }}>{`${week.sessions}/${PLAN_WEEKDAYS.length}`}</T>
           </Ring>
           <View style={{ flex: 1, gap: 2 }}>
             <T w="bold" style={{ fontSize: 18 }}>الأسبوع ده</T>

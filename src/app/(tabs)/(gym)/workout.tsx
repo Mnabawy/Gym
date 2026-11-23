@@ -3,6 +3,9 @@ import { Item } from '../../../components/Motion';
 import { LayoutAnimation, Pressable, View } from 'react-native';
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { FIRST_WORKOUT_TIPS } from '../../../lib/progression';
+import { plateau } from '../../../lib/plateau';
+import { plateauInput } from '../../../lib/plateauData';
+import { PlateauCard } from '../../../components/PlateauCard';
 import { dayFor, dayTitle, exerciseById, MONTHS_AR, WEEKDAYS_AR } from '../../../data/program';
 import { ExerciseRow } from '../../../components/ExerciseRow';
 import { WorkoutChips } from '../../../components/WorkoutChips';
@@ -65,6 +68,8 @@ function WorkoutScreen() {
   // ticking sets on today's workout can't change it: re-checked only when the day, the plan (cards) or a past day's log changes.
   const lightOn = deloadOn({ deloadUntil: useSettings((x) => x.deloadUntil) }, today);
   const lightDue = useMemo(() => !lightOn && deloadDue(storage.allSets(), today), [lightOn, today, cards, live ? -1 : v]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Plateau detector (src/lib/plateau.ts): re-checked when the day, the plan or a past day's log changes, like the light week.
+  const stuck = useMemo(() => plateau(plateauInput(lightOn, today)), [lightOn, today, cards, live ? -1 : v]); // eslint-disable-line react-hooks/exhaustive-deps
   const sel = picked?.date === date ? picked.id : cur.id; // a pick from yesterday doesn't stick
   const day = dayFor(sel)!;
   // Which exercise is open: the one you tapped (or the list moved on to), else the first one not finished.
@@ -173,6 +178,7 @@ function WorkoutScreen() {
         </Card>
       ) : null}
       {lightOn || lightDue ? <LightWeek today={today} /> : null}
+      {live && stuck && !lightDue ? <PlateauCard p={stuck} /> : null}
       {sel !== cur.id ? (
         <View style={{ backgroundColor: t.warnSoft, borderRadius: 12, paddingVertical: 8, paddingHorizontal: 12 }}>
           <T style={{ color: t.warn, fontSize: 13 }}>{`الدور على: ${dayFor(cur.id)?.titleAr}`}</T>
